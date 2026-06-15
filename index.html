@@ -1118,7 +1118,7 @@ function drawMain(){
   let yImpMin=0.2,yImpMax=2.0;
   if(iv.length){const[lo,hi]=pctBounds(iv,0.03,0.97,0.10);yImpMin=Math.max(0,lo);yImpMax=Math.min(1000,hi);}
   const toYImp=v=>PT+ph-(v-yImpMin)/(yImpMax-yImpMin||1)*ph;
-  const yRLMax=rlv.length?Math.max(pctBounds(rlv,0.03,0.97,0.10)[1],0.5):2;
+  const yRLMax=rlv.length?Math.min(Math.max(pctBounds(rlv,0.03,0.97,0.10)[1],0.5),50):2;
   const toYRL=v=>PT+ph-(v/yRLMax)*ph;
   const toYSC=v=>PT+ph-(v/100)*ph;
   let yRatMin=1.0,yRatMax=4.0;
