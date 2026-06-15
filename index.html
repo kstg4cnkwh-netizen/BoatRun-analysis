@@ -1359,7 +1359,7 @@ function getMainIdx(cx){
 function setupMainEvents(canvas){
   if(mainCanvas===canvas)return;
   mainCanvas=canvas;
-  canvas.addEventListener('mousedown',e=>{isDragMain=true;selS=selE=getMainIdx(e.clientX-canvas.getBoundingClientRect().left);schedRender();});
+  canvas.addEventListener('mousedown',e=>{hideTooltip();isDragMain=true;selS=selE=getMainIdx(e.clientX-canvas.getBoundingClientRect().left);schedRender();});
   canvas.addEventListener('mousemove',e=>{
     if(isDragMain){selE=getMainIdx(e.clientX-canvas.getBoundingClientRect().left);schedRender();}
     else showTooltip(e);
