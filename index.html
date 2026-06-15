@@ -1510,6 +1510,8 @@ function buildCurveSection(){
 
 function drawCurvePanel(){
   const canvas=document.getElementById('curveC');
+  canvas._g=null;
+  setupCurveEvents(canvas);
   const C=pal();
   const dpr=window.devicePixelRatio||1;
   const W=Math.floor(canvas.parentElement.clientWidth-22);
@@ -1657,8 +1659,70 @@ function drawCurvePanel(){
   ctx.strokeStyle=C.frameLn;ctx.lineWidth=1;
   ctx.strokeRect(PL,accelTop,pw,ph1);
   if(hasSpeeds)ctx.strokeRect(PL,speedTop,pw,ph2);
+  canvas._g={PL,pw,maxT,accelTop,ph1,speedTop,ph2,enriched};
 }
-
+function curveDeriv(arr,i,step){
+  const n=arr.length;
+  if(i<=0)return(arr[1]-arr[0])/step;
+  if(i>=n-1)return(arr[n-1]-arr[n-2])/step;
+  return(arr[i+1]-arr[i-1])/(2*step);
+}
+function sampleCurve(c,t){
+  if(!c.T||t>c.T+1e-6)return null;
+  const step=c.T/(CURVE_POINTS-1);
+  const idx=clamp(t/step,0,CURVE_POINTS-1);
+  const i0=Math.floor(idx),i1=Math.min(i0+1,CURVE_POINTS-1),frac=idx-i0;
+  const accel=c.accelRot[i0]*(1-frac)+c.accelRot[i1]*frac;
+  const rate=curveDeriv(c.accelRot,i0,step)*(1-frac)+curveDeriv(c.accelRot,i1,step)*frac;
+  const speed=c.speed?c.speed[i0]*(1-frac)+c.speed[i1]*frac:null;
+  return{accel,rate,speed};
+}
+let curveCanvas=null;
+function showCurveTooltip(clientX,clientY){
+  const canvas=document.getElementById('curveC');
+  const g=canvas._g;
+  if(!g||!g.enriched.length)return hideTooltip();
+  const rect=canvas.getBoundingClientRect();
+  const x=clientX-rect.left,y=clientY-rect.top;
+  const{PL,pw,maxT,accelTop,ph1,speedTop,ph2,enriched}=g;
+  if(x<PL||x>PL+pw)return hideTooltip();
+  let panel=null;
+  if(y>=accelTop&&y<=accelTop+ph1)panel='accel';
+  else if(y>=speedTop&&y<=speedTop+ph2)panel='speed';
+  else return hideTooltip();
+  const t=clamp((x-PL)/pw*maxT,0,maxT);
+  let rows='';
+  enriched.forEach(c=>{
+    const s=sampleCurve(c,t);
+    if(!s)return;
+    rows+=`<div class="tt-row" style="margin-top:4px;"><span class="tt-lbl" style="color:${c.color};font-weight:600;">${c.label}</span></div>`;
+    if(panel==='accel'){
+      rows+=ttRow('Accel',f2(s.accel)+' m/s\u00B2');
+      rows+=ttRow('Rate of accel',f1(s.rate)+' m/s\u00B3');
+    }else{
+      rows+=ttRow('Speed',s.speed==null?EM:f2(s.speed)+' m/s');
+      rows+=ttRow('Accel',f2(s.accel)+' m/s\u00B2');
+    }
+  });
+  if(!rows)return hideTooltip();
+  document.getElementById('tooltip').innerHTML=`<div class="tt-hd">t = ${f2(t)}s since catch</div>${rows}`;
+  const tip=document.getElementById('tooltip');
+  tip.style.display='block';
+  const tw=tip.offsetWidth||160,th=tip.offsetHeight||120;
+  let left=clientX+18,top=clientY-th/2;
+  if(left+tw>window.innerWidth-12)left=clientX-tw-12;
+  if(top<8)top=8;if(top+th>window.innerHeight-8)top=window.innerHeight-th-8;
+  tip.style.left=left+'px';tip.style.top=top+'px';
+}
+function setupCurveEvents(canvas){
+  if(curveCanvas===canvas)return;
+  curveCanvas=canvas;
+  canvas.addEventListener('mousemove',e=>showCurveTooltip(e.clientX,e.clientY));
+  canvas.addEventListener('mouseleave',hideTooltip);
+  canvas.addEventListener('touchstart',e=>{const t=e.touches[0];showCurveTooltip(t.clientX,t.clientY);},{passive:true});
+  canvas.addEventListener('touchmove',e=>{const t=e.touches[0];showCurveTooltip(t.clientX,t.clientY);},{passive:true});
+  canvas.addEventListener('touchend',hideTooltip);
+}
 function buildCurveStats(){
   // Build rows from canonical METRIC_DEFS order
   const rows=[
