@@ -169,6 +169,11 @@
   #tooltip .tt-row { display: flex; justify-content: space-between; gap: 18px; padding: 2px 0; font-size: 10px; }
   #tooltip .tt-lbl { color: var(--muted); }
   #tooltip .tt-val { font-weight: 500; }
+  #tooltip .tt-ctable { border-collapse: collapse; font-size: 10px; margin-top: 2px; }
+  #tooltip .tt-ctable td { padding: 2px 7px; white-space: nowrap; }
+  #tooltip .tt-ctable td.tt-lbl { color: var(--muted); padding-left: 0; text-align: left; }
+  #tooltip .tt-ctable td.tt-val { text-align: right; font-weight: 500; }
+  #tooltip .tt-ctable td.tt-dot { text-align: center; }
 
   @media (max-width: 700px) {
     #cards { padding: 10px; }
@@ -1679,33 +1684,39 @@ function sampleCurve(c,t){
 }
 let curveCanvas=null;
 function showCurveTooltip(clientX,clientY){
+  drawCurvePanel();
   const canvas=document.getElementById('curveC');
   const g=canvas._g;
   if(!g||!g.enriched.length)return hideTooltip();
   const rect=canvas.getBoundingClientRect();
   const x=clientX-rect.left,y=clientY-rect.top;
   const{PL,pw,maxT,accelTop,ph1,speedTop,ph2,enriched}=g;
-  if(x<PL||x>PL+pw)return hideTooltip();
-  let panel=null;
-  if(y>=accelTop&&y<=accelTop+ph1)panel='accel';
-  else if(y>=speedTop&&y<=speedTop+ph2)panel='speed';
-  else return hideTooltip();
+  const pTop=accelTop,pBot=speedTop+ph2;
+  if(x<PL||x>PL+pw||y<pTop||y>pBot)return hideTooltip();
   const t=clamp((x-PL)/pw*maxT,0,maxT);
-  let rows='';
-  enriched.forEach(c=>{
-    const s=sampleCurve(c,t);
-    if(!s)return;
-    rows+=`<div class="tt-row" style="margin-top:4px;"><span class="tt-lbl" style="color:${c.color};font-weight:600;">${c.label}</span></div>`;
-    if(panel==='accel'){
-      rows+=ttRow('Accel',f2(s.accel)+' m/s\u00B2');
-      rows+=ttRow('Rate of accel',f1(s.rate)+' m/s\u00B3');
-    }else{
-      rows+=ttRow('Speed',s.speed==null?EM:f2(s.speed)+' m/s');
-      rows+=ttRow('Accel',f2(s.accel)+' m/s\u00B2');
-    }
-  });
-  if(!rows)return hideTooltip();
-  document.getElementById('tooltip').innerHTML=`<div class="tt-hd">t = ${f2(t)}s since catch</div>${rows}`;
+  const lineX=PL+(t/maxT)*pw;
+
+  const C=pal();
+  const ctx=canvas.getContext('2d');
+  ctx.save();
+  ctx.strokeStyle=C.frameLn;ctx.lineWidth=1;ctx.setLineDash([3,3]);
+  ctx.beginPath();ctx.moveTo(lineX,pTop);ctx.lineTo(lineX,pBot);ctx.stroke();
+  ctx.restore();
+
+  const samples=enriched.map(c=>sampleCurve(c,t));
+  if(!samples.some(s=>s))return hideTooltip();
+
+  let html=`<div class="tt-hd">t = ${f2(t)}s since catch</div><table class="tt-ctable"><tr><td></td>`;
+  enriched.forEach(c=>{html+=`<td class="tt-dot"><span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:${c.color};"></span></td>`;});
+  html+='</tr><tr><td class="tt-lbl">Speed (m/s)</td>';
+  samples.forEach(s=>{html+=`<td class="tt-val">${s&&s.speed!=null?f2(s.speed):EM}</td>`;});
+  html+='</tr><tr><td class="tt-lbl">Accel (m/s\u00B2)</td>';
+  samples.forEach(s=>{html+=`<td class="tt-val">${s?f2(s.accel):EM}</td>`;});
+  html+='</tr><tr><td class="tt-lbl">Rate of accel (m/s\u00B3)</td>';
+  samples.forEach(s=>{html+=`<td class="tt-val">${s?f1(s.rate):EM}</td>`;});
+  html+='</tr></table>';
+
+  document.getElementById('tooltip').innerHTML=html;
   const tip=document.getElementById('tooltip');
   tip.style.display='block';
   const tw=tip.offsetWidth||160,th=tip.offsetHeight||120;
@@ -1718,11 +1729,12 @@ function setupCurveEvents(canvas){
   if(curveCanvas===canvas)return;
   curveCanvas=canvas;
   canvas.addEventListener('mousemove',e=>showCurveTooltip(e.clientX,e.clientY));
-  canvas.addEventListener('mouseleave',hideTooltip);
+  canvas.addEventListener('mouseleave',()=>{drawCurvePanel();hideTooltip();});
   canvas.addEventListener('touchstart',e=>{const t=e.touches[0];showCurveTooltip(t.clientX,t.clientY);},{passive:true});
   canvas.addEventListener('touchmove',e=>{const t=e.touches[0];showCurveTooltip(t.clientX,t.clientY);},{passive:true});
-  canvas.addEventListener('touchend',hideTooltip);
+  canvas.addEventListener('touchend',()=>{drawCurvePanel();hideTooltip();});
 }
+
 function buildCurveStats(){
   // Build rows from canonical METRIC_DEFS order
   const rows=[
