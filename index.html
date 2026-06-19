@@ -210,7 +210,7 @@
   <div class="meta" id="hdrmeta"></div>
   <div class="sp"></div>
   <button class="hbtn" id="tcxbtn" style="display:none;">⬇ Export TCX</button>
-  <button class="hbtn" id="resetbtn">↩ New file</button>
+  <button class="hbtn" id="resetbtn" style="display:none;">↩ New file</button>
   <button class="hbtn" id="hdrThemeBtn">Dark Mode</button>
   <button class="hbtn" id="infobtn" title="What the metrics mean">ⓘ Info</button>
 </div>
@@ -385,7 +385,6 @@ const AnalyserDrive = {
   },
   isSignedIn() { return !!this._token; },
   signIn() {
-    sessionStorage.setItem('_ad_pending', '1');
     const p = new URLSearchParams({ client_id: this.CLIENT_ID, redirect_uri: location.origin + location.pathname, response_type: 'token', scope: this.SCOPE });
     window.location.href = 'https://accounts.google.com/o/oauth2/v2/auth?' + p;
   },
@@ -2117,6 +2116,7 @@ function mountData(d,label){
   document.getElementById('startup').style.display='none';
   document.getElementById('app').style.display='block';
   document.getElementById('tcxbtn').style.display='';
+  document.getElementById('resetbtn').style.display='';
   document.getElementById('unitsbar').style.display='flex';
   document.getElementById('curvesec').style.display='none';
   document.getElementById('tblwrap').style.display='block';
@@ -2144,6 +2144,7 @@ function resetApp(){
   document.getElementById('app').style.display='none';
   document.getElementById('unitsbar').style.display='none';
   document.getElementById('tcxbtn').style.display='none';
+  document.getElementById('resetbtn').style.display='none';
   document.getElementById('fin').value='';
   showStartup();
   document.getElementById('hrsec').style.display='none';
