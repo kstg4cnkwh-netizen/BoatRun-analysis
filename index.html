@@ -561,7 +561,6 @@ let rafId=null;
 let isDragMain=false,isDragOv=false;
 let ovAbsSelS=-1,ovAbsSelE=-1;
 let leafletMap=null, mapBaseLine=null, mapGroupLines=[];
-let _curWorkoutName=null;
 
 // ══════════════════════════════════════════════════════════════════════════
 // PARSE CSV
@@ -891,8 +890,7 @@ function buildCards(sum) {
     (vals.ratio?card('cd','Ratio',f2(vals.ratio.mean),'rec÷drive','ratio',tipOf('ratio')):'')  +
     (vals.schar?card('co','Stroke Char',f0(vals.schar.mean)+'%','','schar',tipOf('schar')):'')  +
     (vals.cdur?`<div class="card clickable${!vis.cdur?' dim':''}" id="card-cdur" data-vis="cdur" style="border-top:2px solid #a29bfe" title="${tipOf('cdur')}"><div class="lbl">Catch Dur</div><div class="val" style="color:#a29bfe">${f0(vals.cdur.mean)} ms</div><div class="sub">avg/stroke</div></div>`:'')  +
-    (hv.length?card('cb','Avg HR',f0(arrMean(hv)),'max '+f0(arrMax(hv))+' bpm',null,'Average heart rate during the session, in beats per minute.'):'')  +
-    (_curWorkoutName?`<div class="card co clickable" id="card-workout" onclick="(function(){const s=document.getElementById('bmksec');if(s&&s.style.display!=='none')s.scrollIntoView({behavior:'smooth',block:'start'});})()" title="Workout — click to jump to Benchmark section"><div class="lbl">Workout</div><div class="val" style="font-size:11px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${_curWorkoutName}</div><div class="sub">benchmark ↓</div></div>`:'');
+    (hv.length?card('cb','Avg HR',f0(arrMean(hv)),'max '+f0(arrMax(hv))+' bpm',null,'Average heart rate during the session, in beats per minute.'):'');
   document.getElementById('cards').innerHTML=html;
 }
 
@@ -1458,7 +1456,6 @@ function pinSelection(){
     strokes:ST.slice(viewS+s2,viewS+e2+1),
     absS:viewS+s2, absE:viewS+e2,
     label:'G'+(ci+1),
-    workoutName:_curWorkoutName,
   });
   selS=-1;selE=-1;
   document.getElementById('selbar').classList.remove('on');
@@ -1741,7 +1738,6 @@ function setupCurveEvents(canvas){
 function buildCurveStats(){
   // Build rows from canonical METRIC_DEFS order
   const rows=[
-    ...(curveGroups.some(g=>g.workoutName)?[{l:'Workout',fn:g=>g.workoutName||EM}]:[]),
     {l:'Strokes',fn:g=>String(g.strokes.length)},
     {l:'w/ curves',fn:g=>String(g.strokes.filter(s=>s.curve&&s.curve.length).length)},
     {l:'Time',fn:g=>{const a=g.strokes;return a.length?fmtTime(a[a.length-1].elapsed-a[0].elapsed):EM;}},
@@ -1976,10 +1972,10 @@ function buildMap(){
   const scullLaps=LAPS.filter(l=>l.stroke_rate_spm!=null||l.pace_s_per_500m!=null);
   if(scullLaps.length>1){
     let cumDist=0;
-    for(let i=0;i<scullLaps.length-1;i++){
-      cumDist+=scullLaps[i].distance_m||0;
+    for(let i=0;i<scullLaps.length;i++){
       let best=null,bestDelta=Infinity;
       for(const p of GPSTRACE){if(p.dist==null)continue;const d=Math.abs(p.dist-cumDist);if(d<bestDelta){bestDelta=d;best=p;}}
+      cumDist+=scullLaps[i].distance_m||0;
       if(!best||bestDelta>200)continue;
       const icon=L.divIcon({html:`<div class="lap-marker">${i+1}</div>`,iconSize:[20,20],iconAnchor:[10,10],className:''});
       const lap=scullLaps[i];
@@ -2005,7 +2001,7 @@ function buildLaps(){
   document.getElementById('map-stroke-row').classList.add('on');
   const hasHR='avg_hr_bpm' in showLaps[0],hasCal='calories' in showLaps[0];
   document.querySelector('#laptbl thead').innerHTML=`<tr><th>Lap</th><th>Dist</th><th>Time</th><th>Pace</th><th>Rate</th>${hasHR?'<th>HR avg</th><th>HR max</th>':''}${hasCal?'<th>Cal</th>':''}</tr>`;
-  document.querySelector('#laptbl tbody').innerHTML=showLaps.map((l,i)=>`<tr>
+  document.querySelector('#laptbl tbody').innerHTML=showLaps.map((l,i)=>`<tr data-lap="${i+1}" style="cursor:pointer">
     <td>Lap ${i+1}</td>
     <td>${(+l.distance_m||0).toFixed(0)}m</td>
     <td>${fmtTime(+l.time_s)}</td>
@@ -2014,6 +2010,17 @@ function buildLaps(){
     ${hasHR?`<td style="color:var(--b)">${l.avg_hr_bpm||EM}</td><td style="color:var(--b)">${l.max_hr_bpm||EM}</td>`:''}
     ${hasCal?`<td>${l.calories||EM}</td>`:''}
   </tr>`).join('');
+  document.querySelectorAll('#laptbl tbody tr').forEach(row=>{
+    row.addEventListener('click',()=>{
+      const lapN=+row.dataset.lap;
+      const idxs=ST.map((s,i)=>s.lapNum===lapN?i:-1).filter(i=>i>=0);
+      if(!idxs.length)return;
+      viewS=idxs[0];viewE=idxs[idxs.length-1];
+      selS=0;selE=idxs.length-1;
+      schedRender();
+      updateSel(true);
+    });
+  });
 }
 
 // ══════════════════════════════════════════════════════════════════════════
@@ -2105,7 +2112,6 @@ function mountData(d,label){
   HR=d.hr; LAPS=[...d.laps,...d.glaps]; GPSTRACE=d.gpsTrace||[];
   viewS=0; viewE=ST.length-1; selS=-1; selE=-1;
   curveGroups=[];
-  _curWorkoutName=d.workoutName||d.workoutId||null;
   if(!ST.length&&LAPS.length){toast('No stroke data — showing laps only',4000);}
   else if(!ST.length){toast('No stroke data found in this file',4000);return;}
   document.getElementById('startup').style.display='none';
@@ -2129,7 +2135,7 @@ function mountData(d,label){
 }
 
 function resetApp(){
-  ST=[];HR=[];LAPS=[];GPSTRACE=[];curveGroups=[];_curWorkoutName=null;
+  ST=[];HR=[];LAPS=[];GPSTRACE=[];curveGroups=[];
   selS=-1;selE=-1;ovAbsSelS=-1;ovAbsSelE=-1;
   unitSettings={..._unitDefaults};
   _rawOarAngles=[];
