@@ -2383,18 +2383,20 @@ async function showStartup(){
       <h2>BoatRun Analyser</h2>
       <p>Connect Google Drive to access your sessions</p>
       <button class="dzbtn dzbtn-pri" id="sz-signin">☁ Sign in to Google</button>
-      <p class="sz-drop-hint">or drop a session file here</p>
+      <button class="dzbtn dzbtn-sec" id="sz-openfile">📂 Open file</button>
     </div>`;
     document.getElementById('sz-signin').onclick=()=>AnalyserDrive.signIn();
+    document.getElementById('sz-openfile').onclick=()=>document.getElementById('fin').click();
     return;
   }
 
   el.innerHTML=`<div class="sz-list">
     <div class="sz-lhd">Sessions<span class="sz-signout" id="sz-signout">Sign out</span></div>
     <div id="sz-files" class="sz-loading">Loading…</div>
-    <div class="sz-drop-hint">or drop a session file here</div>
+    <button class="dzbtn dzbtn-sec" id="sz-openfile" style="margin-top:14px;">📂 Open file</button>
   </div>`;
   document.getElementById('sz-signout').onclick=()=>{AnalyserDrive.signOut();showStartup();};
+  document.getElementById('sz-openfile').onclick=()=>document.getElementById('fin').click();
 
   try{
     const files=await AnalyserDrive.list();
