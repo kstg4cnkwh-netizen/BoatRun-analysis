@@ -2467,6 +2467,7 @@ async function showStartup(){
     }
     renderList();
   }catch(err){
+    if(!AnalyserDrive.isSignedIn()){showStartup();return;}
     const c=document.getElementById('sz-files');
     if(c)c.innerHTML=`<div class="sz-loading" style="color:#e74c3c;">${err.message}</div>`;
   }
