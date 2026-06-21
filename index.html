@@ -117,6 +117,14 @@
   .grp-chip:hover { opacity: .75; }
   #clearcurvebtn { background: none; border: 1px solid var(--border); color: var(--muted); padding: 3px 9px; border-radius: 5px; font-family: 'IBM Plex Mono', monospace; font-size: 10px; cursor: pointer; margin-left: auto; }
   #clearcurvebtn:hover { color: var(--r); border-color: var(--r); }
+
+  /* ── Session tabs (multi-file) ── */
+  #sesstabs { display: none; gap: 6px; flex-wrap: wrap; padding: 8px 12px; background: var(--s2); border-bottom: 1px solid var(--border); }
+  .sess-tab { display: inline-flex; align-items: center; gap: 6px; padding: 5px 10px; border-radius: 6px; font-size: 10px; font-weight: 600; cursor: pointer; border: 1px solid var(--border); background: var(--s1); color: var(--muted); font-family: 'IBM Plex Mono', monospace; }
+  .sess-tab:hover { border-color: var(--g); }
+  .sess-tab.on { border-color: var(--g); color: var(--text); }
+  .sess-x { opacity: .6; font-weight: 700; }
+  .sess-x:hover { opacity: 1; color: #e74c3c; }
   .curve-layout { display: flex; gap: 10px; align-items: flex-start; flex-wrap: wrap; }
   .curve-col { flex: 3; min-width: 260px; }
   .curve-stats-col { flex: 2; min-width: 200px; overflow: auto; }
@@ -217,15 +225,19 @@
   <div class="meta" id="hdrmeta"></div>
   <div class="sp"></div>
   <button class="hbtn" id="tcxbtn" style="display:none;">⬇ Export TCX</button>
+  <button class="hbtn" id="addsessbtn" style="display:none;">＋ Add file</button>
+  <button class="hbtn" id="adddrivebtn" style="display:none;">☁ Add from Drive</button>
   <button class="hbtn" id="resetbtn" style="display:none;">↩ New file</button>
   <button class="hbtn" id="hdrThemeBtn">Dark Mode</button>
   <button class="hbtn" id="infobtn" title="What the metrics mean">ⓘ Info</button>
 </div>
 
 <div id="startup"></div>
-<input type="file" id="fin" accept=".csv,.txt,.json" style="display:none">
+<input type="file" id="fin" accept=".csv,.txt,.json" multiple style="display:none">
 
 <div id="app">
+  <!-- Loaded session tabs (shown when 2+ files loaded) -->
+  <div id="sesstabs"></div>
   <!-- Units toggle bar -->
   <div id="unitsbar" style="padding:6px 12px 5px;background:var(--s2);border-bottom:1px solid var(--border);gap:4px;flex-wrap:wrap;align-items:center;"></div>
   <!-- Summary cards -->
@@ -567,6 +579,9 @@ let rafId=null;
 let isDragMain=false,isDragOv=false;
 let ovAbsSelS=-1,ovAbsSelE=-1;
 let leafletMap=null, mapBaseLine=null, mapGroupLines=[];
+let SESSIONS=[]; // [{label,d}] — all loaded workout files
+let activeSessionIdx=-1;
+let _addMode=false; // true while "+ Add file" flow is choosing a file
 
 // ══════════════════════════════════════════════════════════════════════════
 // PARSE CSV
@@ -677,13 +692,14 @@ function sessionToAnalyserFmt(s) {
   return { sum, strokes, hr, laps, glaps, gpsTrace,
     workoutLapMetrics: s.workoutLapMetrics || null,
     workoutId: s.workoutId || null,
-    workoutName: s.workoutName || null };
+    workoutName: s.workoutName || null,
+    name: s.name || null };
 }
 
 // ══════════════════════════════════════════════════════════════════════════
 // FILE IO
 // ══════════════════════════════════════════════════════════════════════════
-function loadFile(f) {
+function loadFile(f,replace) {
   const name=f.name.toLowerCase();
   const reader=new FileReader();
   reader.onload = e => {
@@ -699,10 +715,53 @@ function loadFile(f) {
         d=parseCSV(e.target.result);
       }
       if (!d.strokes.length) { alert('No stroke data found in this file.'); return; }
-      mountData(d, f.name);
+      addSessionFromData(d, (d.name||f.name), replace);
     } catch(err) { alert('Parse error: '+err.message); console.error(err); }
   };
   reader.readAsText(f);
+}
+
+function loadFiles(fileList, replace) {
+  Array.from(fileList).forEach((f,i)=>loadFile(f, replace&&i===0));
+}
+
+function addSessionFromData(d, label, replace) {
+  if (replace) { SESSIONS=[]; curveGroups=[]; activeSessionIdx=-1; }
+  const idx=SESSIONS.length;
+  SESSIONS.push({label,d});
+  switchSession(idx);
+}
+
+function switchSession(idx) {
+  if (idx<0||idx>=SESSIONS.length) return;
+  activeSessionIdx=idx;
+  const sess=SESSIONS[idx];
+  mountData(sess.d, sess.label);
+  renderSessionTabs();
+}
+window.switchSession=switchSession;
+
+function removeSession(idx) {
+  if (idx<0||idx>=SESSIONS.length) return;
+  SESSIONS.splice(idx,1);
+  if (!SESSIONS.length) { resetApp(); return; }
+  let next=activeSessionIdx;
+  if (idx===activeSessionIdx) next=0;
+  else if (idx<activeSessionIdx) next=activeSessionIdx-1;
+  switchSession(Math.min(next,SESSIONS.length-1));
+}
+window.removeSession=removeSession;
+
+function renderSessionTabs() {
+  const wrap=document.getElementById('sesstabs');
+  if (!wrap) return;
+  if (SESSIONS.length<2) { wrap.style.display='none'; wrap.innerHTML=''; return; }
+  wrap.style.display='flex';
+  wrap.innerHTML=SESSIONS.map((s,i)=>{
+    const safe=s.label.replace(/"/g,'');
+    const short=s.label.length>22?s.label.slice(0,19)+'…':s.label;
+    return `<button class="sess-tab${i===activeSessionIdx?' on':''}" onclick="switchSession(${i})" title="${safe}">${short}<span class="sess-x" onclick="event.stopPropagation();removeSession(${i})">×</span></button>`;
+  }).join('');
 }
 
 async function loadFromDrive() {
@@ -713,7 +772,7 @@ async function loadFromDrive() {
     if (!files.length) { toast('No sessions found on Drive'); return; }
     showDrivePicker(files, async (fileId,label) => {
       toast('Loading '+label+'…');
-      try { const session=await AnalyserDrive.fetchSession(fileId); applySessionUnits(session); mountData(sessionToAnalyserFmt(session),label); }
+      try { const session=await AnalyserDrive.fetchSession(fileId); applySessionUnits(session); addSessionFromData(sessionToAnalyserFmt(session),label,true); }
       catch(err) { toast('Load failed: '+err.message); }
     });
   } catch(err) { toast('Drive error: '+err.message); }
@@ -738,6 +797,7 @@ function showDrivePicker(files, onSelect) {
     const str=name.match(/_(\d+)str/);
     const ax=name.match(/_AX([A-Z])/);
     const wkt=name.match(/_WKT([a-zA-Z0-9\-]+)/);
+    const nm=name.match(/_NAME([a-zA-Z0-9\-]+)/);
     const ts=name.match(/RowSess_(\d{4})-(\d{2})-(\d{2})_(\d{2})(\d{2})/);
     return {
       distM: dist?parseInt(dist[1]):null,
@@ -745,6 +805,7 @@ function showDrivePicker(files, onSelect) {
       strokes: str?parseInt(str[1]):null,
       axis: ax?ax[1]:null,
       workout: wkt?wkt[1].replace(/-/g,' '):null,
+      name: nm?nm[1].replace(/-/g,' '):null,
       approxTs: ts?new Date(+ts[1],+ts[2]-1,+ts[3],+ts[4],+ts[5]).getTime():0
     };
   }
@@ -764,7 +825,13 @@ function showDrivePicker(files, onSelect) {
 
       const btn=document.createElement('div');
       btn.className='asc';
-      btn.onclick=()=>{overlay.remove();onSelect(f.id,f.name.replace('RowSess_','').replace('.json',''));};
+      btn.onclick=async()=>{
+        if(btn.dataset.added)return;
+        btn.style.opacity='.55';btn.style.pointerEvents='none';
+        await onSelect(f.id,p.name||f.name.replace('RowSess_','').replace('.json',''));
+        btn.dataset.added='1';
+        dateDiv.innerHTML+=' <span style="color:var(--g);">✓ added</span>';
+      };
 
       const dateDiv=document.createElement('div');
       dateDiv.className='asc-date';
@@ -780,6 +847,7 @@ function showDrivePicker(files, onSelect) {
       if(p.strokes!=null) statsDiv.innerHTML+='<div><span class="asc-v">'+p.strokes+'</span><span class="asc-l">strokes</span></div>';
       if(!p.distM&&!p.durS) statsDiv.innerHTML='<span style="color:var(--muted);font-size:.8rem;">'+f.name.replace('RowSess_','').replace('.json','')+'</span>';
 
+      if(p.name){const nameDiv=document.createElement('div');nameDiv.style.cssText='font-weight:700;font-size:.85rem;color:var(--text);margin-bottom:2px;';nameDiv.textContent=p.name;btn.appendChild(nameDiv);}
       btn.appendChild(dateDiv);btn.appendChild(statsDiv);
 
       const del=document.createElement('button');
@@ -803,7 +871,7 @@ function showDrivePicker(files, onSelect) {
     }
   }
   const cancel=document.createElement('button');
-  cancel.className='drive-cancel-btn';cancel.textContent='Cancel';
+  cancel.className='drive-cancel-btn';cancel.textContent='Close';
   cancel.style.cssText='display:block;width:100%;padding:8px;margin-top:6px;background:transparent;border:1px solid var(--border);border-radius:6px;color:var(--muted);cursor:pointer;font-family:monospace;';
   cancel.onclick=()=>overlay.remove();
   panel.appendChild(cancel);
@@ -1171,7 +1239,7 @@ function drawMain(){
   // Pinned curve group bands (drawn first, behind data)
   const allXs=new Float32Array(ST.length);
   for(let i=0;i<ST.length;i++) allXs[i]=getX(ST[i]);
-  curveGroups.forEach(g=>{
+  curveGroups.filter(g=>g.sessionIdx===activeSessionIdx).forEach(g=>{
     const gx1=allXs[g.absS],gx2=allXs[g.absE];
     if(gx2<xMin||gx1>xMax)return;
     const px1=toX(Math.max(gx1,xMin)),px2=toX(Math.min(gx2,xMax));
@@ -1249,7 +1317,7 @@ function drawOv(){
   ctx.strokeStyle=C.g;ctx.lineWidth=1;ctx.globalAlpha=0.25;ctx.stroke();ctx.globalAlpha=1;
 
   // Group bands — draw fill, then edge handles
-  curveGroups.forEach(g=>{
+  curveGroups.filter(g=>g.sessionIdx===activeSessionIdx).forEach(g=>{
     const gx1=toXov(xs[g.absS]),gx2=toXov(xs[g.absE]);
     ctx.fillStyle=g.bg;ctx.fillRect(gx1,P,gx2-gx1,ph);
     ctx.strokeStyle=g.color;ctx.lineWidth=2;ctx.globalAlpha=0.9;
@@ -1478,6 +1546,8 @@ function pinSelection(){
     strokes:ST.slice(viewS+s2,viewS+e2+1),
     absS:viewS+s2, absE:viewS+e2,
     label:'G'+(ci+1),
+    sessionIdx:activeSessionIdx,
+    sessionLabel:(SESSIONS[activeSessionIdx]&&SESSIONS[activeSessionIdx].label)||'',
   });
   selS=-1;selE=-1;
   document.getElementById('selbar').classList.remove('on');
@@ -1520,7 +1590,7 @@ function buildCurveSection(){
 
   // Group chips in header
   document.getElementById('groupchips').innerHTML=curveGroups.map((g,i)=>
-    `<button class="grp-chip" onclick="removeCurveGroup(${i})" style="background:${g.color};color:#000;">${g.label} (${g.strokes.length}) ×</button>`
+    `<button class="grp-chip" onclick="removeCurveGroup(${i})" style="background:${g.color};color:#000;">${g.label}${g.sessionLabel?' · '+shortName(g.sessionLabel):''} (${g.strokes.length}) ×</button>`
   ).join('');
 
   buildCurveStats();
@@ -1757,6 +1827,12 @@ function setupCurveEvents(canvas){
   canvas.addEventListener('touchend',()=>{drawCurvePanel();hideTooltip();});
 }
 
+// ── short label for session filenames in chips/tables ──────────────────────
+function shortName(label){
+  if(!label)return'';
+  return label.length>14?label.slice(0,11)+'…':label;
+}
+
 function buildCurveStats(){
   // Build rows from canonical METRIC_DEFS order
   const rows=[
@@ -1776,7 +1852,7 @@ function buildCurveStats(){
   }
   const thead=document.getElementById('curvethead');
   const tbody=document.getElementById('curvebody');
-  thead.innerHTML=`<tr><th>Metric</th>${curveGroups.map(g=>`<th><span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:${g.color};margin-right:4px;vertical-align:middle;"></span>${g.label}</th>`).join('')}</tr>`;
+  thead.innerHTML=`<tr><th>Metric</th>${curveGroups.map(g=>`<th><span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:${g.color};margin-right:4px;vertical-align:middle;"></span>${g.label}${g.sessionLabel?`<div style="font-size:8px;color:var(--muted);font-weight:400;">${shortName(g.sessionLabel)}</div>`:''}</th>`).join('')}</tr>`;
   tbody.innerHTML=rows.map(row=>`<tr><td style="${row.c?'color:'+row.c:''}">${row.l}</td>${curveGroups.map(g=>`<td>${row.fn(g)}</td>`).join('')}</tr>`).join('');
 }
 
@@ -1826,6 +1902,7 @@ function setupOvEvents(canvas){
     let bestDist=EDGE+1,bestGroup=-1,bestMode='group-L';
     for(let i=curveGroups.length-1;i>=0;i--){
       const grp=curveGroups[i];
+      if(grp.sessionIdx!==activeSessionIdx)continue;
       const px1=P+(xs[grp.absS]-xMin)/xRng*pw;
       const px2=P+(xs[grp.absE]-xMin)/xRng*pw;
       const d1=Math.abs(px-px1),d2=Math.abs(px-px2);
@@ -1839,6 +1916,7 @@ function setupOvEvents(canvas){
     const body=[];
     for(let i=curveGroups.length-1;i>=0;i--){
       const grp=curveGroups[i];
+      if(grp.sessionIdx!==activeSessionIdx)continue;
       const px1=P+(xs[grp.absS]-xMin)/xRng*pw;
       const px2=P+(xs[grp.absE]-xMin)/xRng*pw;
       if(px>px1&&px<px2)body.push(i);
@@ -1971,7 +2049,7 @@ function updateMapGroups(){
   const hasGroups=curveGroups.length>0;
   if(mapBaseLine) mapBaseLine.setStyle({opacity:hasGroups?0.25:0.85});
   if(!GPSTRACE.length||!hasGroups)return;
-  curveGroups.forEach(g=>{
+  curveGroups.filter(g=>g.sessionIdx===activeSessionIdx).forEach(g=>{
     if(!ST[g.absS]||!ST[g.absE])return;
     const t1=ST[g.absS].ms, t2=ST[g.absE].ms;
     const pts=GPSTRACE.filter(p=>p.t>=t1&&p.t<=t2).map(p=>[p.lat,p.lon]);
@@ -2080,7 +2158,8 @@ function applyGroupHighlights(){
   const groupMap=new Map();
   for(let gi=0;gi<curveGroups.length;gi++){
     const g=curveGroups[gi];
-    for(let i=g.absS;i<=g.absE;i++){
+      if(g.sessionIdx!==activeSessionIdx)continue;
+  for(let i=g.absS;i<=g.absE;i++){
       if(!groupMap.has(i))groupMap.set(i,[]);
       groupMap.get(i).push(gi);
     }
@@ -2133,13 +2212,14 @@ function mountData(d,label){
   computeStrokeAngles(ST);
   HR=d.hr; LAPS=[...d.laps,...d.glaps]; GPSTRACE=d.gpsTrace||[];
   viewS=0; viewE=ST.length-1; selS=-1; selE=-1;
-  curveGroups=[];
   if(!ST.length&&LAPS.length){toast('No stroke data — showing laps only',4000);}
   else if(!ST.length){toast('No stroke data found in this file',4000);return;}
   document.getElementById('startup').style.display='none';
   document.getElementById('app').style.display='block';
   document.getElementById('tcxbtn').style.display='';
   document.getElementById('resetbtn').style.display='';
+  document.getElementById('addsessbtn').style.display='';
+  document.getElementById('adddrivebtn').style.display=AnalyserDrive.isSignedIn()?'':'none';
   document.getElementById('unitsbar').style.display='flex';
   document.getElementById('curvesec').style.display='none';
   document.getElementById('tblwrap').style.display='block';
@@ -2159,6 +2239,7 @@ function mountData(d,label){
 
 function resetApp(){
   ST=[];HR=[];LAPS=[];GPSTRACE=[];curveGroups=[];
+  SESSIONS=[];activeSessionIdx=-1;_addMode=false;
   selS=-1;selE=-1;ovAbsSelS=-1;ovAbsSelE=-1;
   unitSettings={..._unitDefaults};
   _rawOarAngles=[];
@@ -2169,6 +2250,10 @@ function resetApp(){
   document.getElementById('tcxbtn').style.display='none';
   document.getElementById('resetbtn').style.display='none';
   document.getElementById('fin').value='';
+  document.getElementById('addsessbtn').style.display='none';
+  document.getElementById('adddrivebtn').style.display='none';
+  document.getElementById('sesstabs').style.display='none';
+  document.getElementById('sesstabs').innerHTML='';
   showStartup();
   document.getElementById('hrsec').style.display='none';
   document.getElementById('bmksec').style.display='none';
@@ -2410,6 +2495,7 @@ async function showStartup(){
       const str=name.match(/_(\d+)str/);
       const ax=name.match(/_AX([A-Z])/);
       const wkt=name.match(/_WKT([a-zA-Z0-9\-]+)/);
+      const nm=name.match(/_NAME([a-zA-Z0-9\-]+)/);
       const ts=name.match(/RowSess_(\d{4})-(\d{2})-(\d{2})_(\d{2})(\d{2})/);
       return {
         distM: dist?parseInt(dist[1]):null,
@@ -2417,6 +2503,7 @@ async function showStartup(){
         strokes: str?parseInt(str[1]):null,
         axis: ax?ax[1]:null,
         workout: wkt?wkt[1].replace(/-/g,' '):null,
+        name: nm?nm[1].replace(/-/g,' '):null,
         approxTs: ts?new Date(+ts[1],+ts[2]-1,+ts[3],+ts[4],+ts[5]).getTime():0
       };
     }
@@ -2434,7 +2521,7 @@ async function showStartup(){
         const btn=document.createElement('div');btn.className='asc';
         btn.onclick=async()=>{
           btn.style.opacity='.5';btn.style.pointerEvents='none';
-          try{const session=await AnalyserDrive.fetchSession(f.id);applySessionUnits(session);mountData(sessionToAnalyserFmt(session),f.name.replace('RowSess_','').replace('.json',''));}
+          try{const session=await AnalyserDrive.fetchSession(f.id);applySessionUnits(session);addSessionFromData(sessionToAnalyserFmt(session),p.name||f.name.replace('RowSess_','').replace('.json',''),true);}
           catch(err){toast('Load failed: '+err.message);btn.style.opacity='';btn.style.pointerEvents='';}
         };
 
@@ -2452,6 +2539,7 @@ async function showStartup(){
         if(p.strokes!=null) statsDiv.innerHTML+='<div><span class="asc-v">'+p.strokes+'</span><span class="asc-l">strokes</span></div>';
         if(!p.distM&&!p.durS) statsDiv.innerHTML='<span style="color:var(--muted);font-size:.8rem;">'+f.name.replace('RowSess_','').replace('.json','')+'</span>';
 
+        if(p.name){const nameDiv=document.createElement('div');nameDiv.style.cssText='font-weight:700;font-size:.85rem;color:var(--text);margin-bottom:2px;';nameDiv.textContent=p.name;btn.appendChild(nameDiv);}
         btn.appendChild(dateDiv);btn.appendChild(statsDiv);
 
         const del=document.createElement('button');del.className='sz-del';del.textContent='🗑';del.title='Delete from Drive';
@@ -2571,7 +2659,25 @@ function showInfoModal(){
 document.getElementById('resetbtn').onclick=resetApp;
 document.getElementById('tcxbtn').onclick=exportTCX;
 document.getElementById('infobtn').onclick=showInfoModal;
-document.getElementById('fin').onchange=e=>{if(e.target.files[0])loadFile(e.target.files[0]);};
+document.getElementById('fin').onchange=e=>{
+  if(!e.target.files.length)return;
+  loadFiles(e.target.files, !_addMode);
+  _addMode=false;
+  e.target.value='';
+};
+document.getElementById('addsessbtn').onclick=()=>{_addMode=true;document.getElementById('fin').click();};
+document.getElementById('adddrivebtn').onclick=async()=>{
+  if(!AnalyserDrive.isSignedIn()){toast('Sign in to Google first');return;}
+  try{
+    toast('Fetching session list…');
+    const files=await AnalyserDrive.list();
+    if(!files.length){toast('No sessions found on Drive');return;}
+    showDrivePicker(files, async(fileId,label)=>{
+      try{const session=await AnalyserDrive.fetchSession(fileId);applySessionUnits(session);addSessionFromData(sessionToAnalyserFmt(session),label,false);}
+      catch(err){toast('Load failed: '+err.message);}
+    });
+  }catch(err){toast('Drive error: '+err.message);}
+};
 document.getElementById('xmode').onchange=schedRender;
 document.getElementById('emaMode').onchange=schedRender;
 document.getElementById('selclear').onclick=()=>{selS=-1;selE=-1;ovAbsSelS=-1;ovAbsSelE=-1;document.getElementById('selbar').classList.remove('on');hlRows([]);schedRender();};
@@ -2582,7 +2688,7 @@ document.getElementById('cards').addEventListener('click',e=>{const c=e.target.c
 const su=document.getElementById('startup');
 su.addEventListener('dragover',e=>{e.preventDefault();su.classList.add('over');});
 su.addEventListener('dragleave',()=>su.classList.remove('over'));
-su.addEventListener('drop',e=>{e.preventDefault();su.classList.remove('over');if(e.dataTransfer.files[0])loadFile(e.dataTransfer.files[0]);});
+su.addEventListener('drop',e=>{e.preventDefault();su.classList.remove('over');if(e.dataTransfer.files.length){loadFiles(e.dataTransfer.files, !_addMode);_addMode=false;}});
 
 window.addEventListener('resize',()=>{if(ST.length)schedRender();});
 
@@ -2605,7 +2711,7 @@ AnalyserDrive.init();
       applySessionUnits(session);
       const d=sessionToAnalyserFmt(session);
       const label=session.startTime?new Date(session.startTime).toLocaleDateString()+' (from Metrics)':'Transferred session';
-      mountData(d,label);
+      addSessionFromData(d,label,true);
       return;
     }catch(e){console.error('xfer load failed',e);}
   }
