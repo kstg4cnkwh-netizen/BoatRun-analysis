@@ -214,6 +214,10 @@
 .asc-l{font-size:7px;color:var(--muted);letter-spacing:.1em;text-transform:uppercase;display:block;}
 .sz-loading{color:var(--muted);font-size:.85rem;padding:20px 0;text-align:center;}
 .sz-drop-hint{font-size:.75rem;color:var(--faint);margin-top:20px;text-align:center;}
+.hmenu-wrap{position:relative;display:inline-block;}
+.hmenu{position:absolute;top:calc(100% + 4px);right:0;background:var(--s2);border:1px solid var(--border);border-radius:8px;padding:6px;display:none;flex-direction:column;gap:4px;min-width:170px;z-index:50;box-shadow:0 6px 16px rgba(0,0,0,.25);}
+.hmenu.open{display:flex;}
+.hmenu .hbtn{width:100%;text-align:left;}
 </style>
 <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" crossorigin=""/>
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" crossorigin=""></script>
@@ -224,10 +228,15 @@
   <h1>⊳ BoatRun</h1>
   <div class="meta" id="hdrmeta"></div>
   <div class="sp"></div>
-  <button class="hbtn" id="tcxbtn" style="display:none;">⬇ Export TCX</button>
-  <button class="hbtn" id="addsessbtn" style="display:none;">＋ Add file</button>
-  <button class="hbtn" id="adddrivebtn" style="display:none;">☁ Add from Drive</button>
-  <button class="hbtn" id="resetbtn" style="display:none;">↩ New file</button>
+  <div class="hmenu-wrap">
+    <button class="hbtn" id="filemenubtn" style="display:none;">☰ Files ▾</button>
+    <div class="hmenu" id="filemenu">
+      <button class="hbtn" id="tcxbtn" style="display:none;">⬇ Export TCX</button>
+      <button class="hbtn" id="addsessbtn" style="display:none;">＋ Add file</button>
+      <button class="hbtn" id="adddrivebtn" style="display:none;">☁ Add from Drive</button>
+      <button class="hbtn" id="resetbtn" style="display:none;">↩ New file</button>
+    </div>
+  </div>
   <button class="hbtn" id="hdrThemeBtn">Dark Mode</button>
   <button class="hbtn" id="infobtn" title="What the metrics mean">ⓘ Info</button>
 </div>
@@ -2220,6 +2229,7 @@ function mountData(d,label){
   document.getElementById('resetbtn').style.display='';
   document.getElementById('addsessbtn').style.display='';
   document.getElementById('adddrivebtn').style.display=AnalyserDrive.isSignedIn()?'':'none';
+  document.getElementById('filemenubtn').style.display='';
   document.getElementById('unitsbar').style.display='flex';
   document.getElementById('curvesec').style.display='none';
   document.getElementById('tblwrap').style.display='block';
@@ -2252,6 +2262,7 @@ function resetApp(){
   document.getElementById('fin').value='';
   document.getElementById('addsessbtn').style.display='none';
   document.getElementById('adddrivebtn').style.display='none';
+  document.getElementById('filemenubtn').style.display='none';
   document.getElementById('sesstabs').style.display='none';
   document.getElementById('sesstabs').innerHTML='';
   showStartup();
@@ -2659,6 +2670,8 @@ function showInfoModal(){
 document.getElementById('resetbtn').onclick=resetApp;
 document.getElementById('tcxbtn').onclick=exportTCX;
 document.getElementById('infobtn').onclick=showInfoModal;
+document.getElementById('filemenubtn').onclick=(e)=>{e.stopPropagation();document.getElementById('filemenu').classList.toggle('open');};
+document.addEventListener('click',()=>{document.getElementById('filemenu').classList.remove('open');});
 document.getElementById('fin').onchange=e=>{
   if(!e.target.files.length)return;
   loadFiles(e.target.files, !_addMode);
