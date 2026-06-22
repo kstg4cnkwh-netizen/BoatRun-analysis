@@ -1117,11 +1117,12 @@ function emaSmooth(view,alpha){
 // ══════════════════════════════════════════════════════════════════════════
 function computeLapBoundaryXValues(){
   const useLaps=LAPS.filter(l=>'stroke_rate_spm' in l);
-  if(useLaps.length<2||!ST.length)return[];
+  if(!useLaps.length||!ST.length)return[];
   const mode=document.getElementById('xmode').value;
   const result=[];
-  let cumDist=0;
-  for(let li=0;li<useLaps.length-1;li++){
+  const offset=ST[0].dist||0;
+  let cumDist=offset;
+  for(let li=0;li<useLaps.length;li++){
     cumDist+=+(useLaps[li].distance_m||0);
     let best=0,bestDiff=Infinity;
     for(let i=0;i<ST.length;i++){
@@ -1137,8 +1138,11 @@ function computeLapBoundaryXValues(){
 }
 function assignLapNumbers(){
   const useLaps=LAPS.filter(l=>'stroke_rate_spm' in l);
-  if(useLaps.length<2){ST.forEach(s=>s.lapNum=null);return;}
-  const bounds=[];let cumDist=0;
+  if(!useLaps.length){ST.forEach(s=>s.lapNum=null);return;}
+  if(useLaps.length===1){ST.forEach(s=>s.lapNum=1);return;}
+  const bounds=[];
+  const offset=ST.length?ST[0].dist||0:0;
+  let cumDist=offset;
   for(let li=0;li<useLaps.length-1;li++){
     cumDist+=+(useLaps[li].distance_m||0);
     bounds.push(cumDist);
