@@ -579,17 +579,17 @@ const GROUP_BG     = ['rgba(255,201,71,.14)','rgba(192,132,252,.14)','rgba(58,25
 // filter: returns valid values from a stroke array
 // fmt: formats a single averaged/min value
 const METRIC_DEFS = [
-  {k:'pace',   l:'Pace',        c:'var(--g)', filter:s=>s.pace>50&&s.pace<500,        val:s=>s.pace,        fmtAvg:v=>fmtPaceU(v),      fmtBest:v=>fmtPaceU(v), showBest:true,  bestIsMin:true, tip:'Boat speed, shown in your selected unit (pace per 500m/1km/mile, or km/h/mph). GPS-derived — only valid for comparing the same stretch, direction and tide.'},
-  {k:'rate',   l:'Rate',        c:'var(--y)', filter:s=>s.rate>5&&s.rate<50,          val:s=>s.rate,        fmtAvg:v=>f1(v)+' spm',     fmtBest:null, tip:'Average stroke rate, in strokes per minute (SPM).'},
-  {k:'dps',    l:'DPS',         c:'var(--p)', filter:s=>s.dps>1&&s.dps<25,            val:s=>s.dps,         fmtAvg:v=>fmtDPSU(v)+dpsULabelU(), fmtBest:null, tip:'Distance per stroke — average boat travel per stroke cycle.'},
-  {k:'cdelta', l:'Check Delta', c:'#2980b9',  filter:s=>!isNaN(s.checkDelta)&&s.checkDelta>0.05&&s.checkDelta<5, val:s=>s.checkDelta, fmtAvg:v=>f2(v)+' m/s', fmtBest:null, tip:'Boat speed swing within one stroke — max minus min speed, catch to catch. Lower means a smoother, more continuous run or lower speed.'},
-  {k:'rloss',  l:'Run Loss',    c:'var(--b)', filter:s=>!isNaN(s.rloss)&&s.rloss>0&&s.rloss<100, val:s=>s.rloss, fmtAvg:v=>fmtRunLossU(v), fmtBest:null, tip:'Percentage of drive speed lost to deceleration during recovery. Accelerometer-derived, condition-independent. Lower is better.'},
-  {k:'angle',  l:'Oar Arc',     c:'#2de0d4',  filter:s=>!isNaN(s.strokeAngle)&&s.strokeAngle>20&&s.strokeAngle<180, val:s=>s.strokeAngle, fmtAvg:v=>f1(v)+'°', fmtBest:null, tip:'Effective oar angle — arc swept based on boat displacement during the drive, corrected for ~10% blade slip. Not the oar true mechanical sweep.'},
-  {k:'impulse',l:'Impulse',     c:'var(--i)', filter:s=>s.impulse>0&&s.impulse<1000,  val:s=>s.impulse,     fmtAvg:v=>Math.round(v).toString(),fmtBest:null, tip:'Total positive acceleration during the drive, integrated as a change in velocity (Δv). Higher means more drive power applied to the hull — not a peak value.'},
-  {k:'slope',  l:'Catch Slope', c:'var(--r)', filter:s=>s.slope>0&&s.slope<300,       val:s=>s.slope,       fmtAvg:v=>f0(v),            fmtBest:null, tip:'Rate of acceleration rise at the catch. Higher means a sharper, more aggressive catch.'},
-  {k:'ratio',  l:'Ratio',       c:'var(--d)', filter:s=>!isNaN(s.ratio)&&s.ratio>0.5&&s.ratio<5, val:s=>s.ratio, fmtAvg:v=>f2(v),       fmtBest:null, tip:'Recovery time ÷ drive time. Higher means a longer, more relaxed recovery relative to the drive.'},
-  {k:'schar',  l:'Stroke Char', c:'var(--o)', filter:s=>!isNaN(s.schar)&&s.schar>0&&s.schar<=100, val:s=>s.schar,       fmtAvg:v=>f0(v)+'%',        fmtBest:null, tip:'Where peak power (acceleration) occurs during the drive, as % of drive duration. ~30-45% = front-loaded catch (preferred), ~65%+ = back-loaded/late catch.'},
-  {k:'cdur',   l:'Catch Dur',   c:'#a29bfe',  filter:s=>!isNaN(s.catchDuration)&&s.catchDuration>10&&s.catchDuration<500, val:s=>s.catchDuration, fmtAvg:v=>f0(v)+' ms', fmtBest:null, tip:'Time spent in the catch — from the deceleration spike at body stop and blade entry until drive force builds and the boat accelerates again. Shorter usually means a quicker, more direct connection at the catch.'},
+  {k:'pace',   l:'Pace',        c:'var(--g)', cat:'cond',  filter:s=>s.pace>50&&s.pace<500,        val:s=>s.pace,        fmtAvg:v=>fmtPaceU(v),      fmtBest:v=>fmtPaceU(v), showBest:true,  bestIsMin:true, tip:'Boat speed, shown in your selected unit (pace per 500m/1km/mile, or km/h/mph). GPS-derived — only valid for comparing the same stretch, direction and tide.'},
+  {k:'rate',   l:'Rate',        c:'var(--y)', cat:'indep', filter:s=>s.rate>5&&s.rate<50,          val:s=>s.rate,        fmtAvg:v=>f1(v)+' spm',     fmtBest:null, tip:'Average stroke rate, in strokes per minute (SPM).'},
+  {k:'dps',    l:'DPS',         c:'var(--p)', cat:'cond',  filter:s=>s.dps>1&&s.dps<25,            val:s=>s.dps,         fmtAvg:v=>fmtDPSU(v)+dpsULabelU(), fmtBest:null, tip:'Distance per stroke — average boat travel per stroke cycle. GPS-derived — affected by current and tide.'},
+  {k:'cdelta', l:'Check Delta', c:'#2980b9',  cat:'boat',  filter:s=>!isNaN(s.checkDelta)&&s.checkDelta>0.05&&s.checkDelta<5, val:s=>s.checkDelta, fmtAvg:v=>f2(v)+' m/s', fmtBest:null, tip:'Boat speed swing within one stroke — max minus min speed, catch to catch. Lower means a smoother, more continuous run or lower speed. IMU-derived — scale varies with boat class and mass.'},
+  {k:'rloss',  l:'Run Loss',    c:'var(--b)', cat:'indep', filter:s=>!isNaN(s.rloss)&&s.rloss>0&&s.rloss<100, val:s=>s.rloss, fmtAvg:v=>fmtRunLossU(v), fmtBest:null, tip:'Percentage of drive speed lost to deceleration during recovery. Accelerometer-derived, condition-independent. Lower is better.'},
+  {k:'angle',  l:'Oar Arc',     c:'#2de0d4',  cat:'cond',  filter:s=>!isNaN(s.strokeAngle)&&s.strokeAngle>20&&s.strokeAngle<180, val:s=>s.strokeAngle, fmtAvg:v=>f1(v)+'°', fmtBest:null, tip:'Effective oar angle — arc swept based on boat displacement during the drive, corrected for ~10% blade slip. Not the oar true mechanical sweep. GPS-derived (over-ground) — following current inflates it, opposing current shrinks it. Only compare same stretch, direction and tide.'},
+  {k:'impulse',l:'Impulse',     c:'var(--i)', cat:'boat',  filter:s=>s.impulse>0&&s.impulse<1000,  val:s=>s.impulse,     fmtAvg:v=>Math.round(v).toString(),fmtBest:null, tip:'Total positive acceleration during the drive, integrated as a change in velocity (Δv). Higher means more drive power applied to the hull — not a peak value. IMU-derived — scale varies with boat class and mass.'},
+  {k:'slope',  l:'Catch Slope', c:'var(--r)', cat:'boat',  filter:s=>s.slope>0&&s.slope<300,       val:s=>s.slope,       fmtAvg:v=>f0(v),            fmtBest:null, tip:'Rate of acceleration rise at the catch. Higher means a sharper, more aggressive catch. IMU-derived — scale varies with boat class and mass.'},
+  {k:'ratio',  l:'Ratio',       c:'var(--d)', cat:'indep', filter:s=>!isNaN(s.ratio)&&s.ratio>0.5&&s.ratio<5, val:s=>s.ratio, fmtAvg:v=>f2(v),       fmtBest:null, tip:'Recovery time ÷ drive time. Higher means a longer, more relaxed recovery relative to the drive.'},
+  {k:'schar',  l:'Stroke Char', c:'var(--o)', cat:'indep', filter:s=>!isNaN(s.schar)&&s.schar>0&&s.schar<=100, val:s=>s.schar,       fmtAvg:v=>f0(v)+'%',        fmtBest:null, tip:'Where peak power (acceleration) occurs during the drive, as % of drive duration. ~30-45% = front-loaded catch (preferred), ~65%+ = back-loaded/late catch.'},
+  {k:'cdur',   l:'Catch Dur',   c:'#a29bfe',  cat:'boat',  filter:s=>!isNaN(s.catchDuration)&&s.catchDuration>10&&s.catchDuration<500, val:s=>s.catchDuration, fmtAvg:v=>f0(v)+' ms', fmtBest:null, tip:'Time spent in the catch — from the deceleration spike at body stop and blade entry until drive force builds and the boat accelerates again. Shorter usually means a quicker, more direct connection at the catch. IMU-derived — scale varies with boat class and mass.'},
 ];
 
 let ST=[],HR=[],LAPS=[],GPSTRACE=[];
@@ -2714,19 +2714,37 @@ ${trackpoints}        </Track>
   a.click();URL.revokeObjectURL(url);toast('TCX exported');
 }
 function showInfoModal(){
-  const items=[
-    {l:'Distance', t:'Total distance travelled (GPS), in km or mi based on units setting.'},
-    {l:'Duration', t:'Total elapsed time of the session.'},
-    ...METRIC_DEFS.map(m=>({l:m.l,t:m.tip})),
-    {l:'Avg HR', t:'Average heart rate during the session, in beats per minute.'}
-  ];
-  const rows=items.map(it=>`<div style="padding:8px 0;border-bottom:1px solid var(--border);"><div style="font-weight:600;font-size:11px;color:var(--text);margin-bottom:3px;">${it.l}</div><div style="font-size:11px;color:var(--muted);line-height:1.5;">${it.t}</div></div>`).join('');
+  const CAT_COLOR={indep:'#27ae60',boat:'#2980b9',cond:'#e74c3c'};
+  const CAT_LABEL={indep:'Condition-independent',boat:'Boat-dependent',cond:'Conditions-dependent'};
+  const legend=`
+    <div style="display:flex;gap:14px;flex-wrap:wrap;margin-bottom:14px;padding:10px 12px;background:var(--s2);border-radius:7px;border:1px solid var(--border);">
+      <span style="font-size:10px;font-weight:700;letter-spacing:.06em;color:var(--muted);align-self:center;">KEY</span>
+      <span style="font-size:11px;color:#27ae60;font-weight:600;">● Independent</span>
+      <span style="font-size:11px;color:#2980b9;font-weight:600;">● Boat dependent</span>
+      <span style="font-size:11px;color:#e74c3c;font-weight:600;">● Conditions dependent</span>
+    </div>`;
+  function makeRow(label, tip, cat){
+    const col=cat?CAT_COLOR[cat]:'var(--border)';
+    return `<div style="margin-bottom:8px;border-left:3px solid ${col};border-radius:0 6px 6px 0;padding:8px 10px;background:var(--s2);">
+      <div style="display:flex;align-items:baseline;gap:8px;margin-bottom:3px;">
+        <span style="font-weight:700;font-size:11px;color:var(--text);">${label}</span>
+        ${cat?`<span style="font-size:9px;font-weight:700;letter-spacing:.05em;color:${col};">${CAT_LABEL[cat].toUpperCase()}</span>`:''}
+      </div>
+      <div style="font-size:11px;color:var(--muted);line-height:1.5;">${tip}</div>
+    </div>`;
+  }
+  const rows=[
+    makeRow('Distance','Total distance travelled (GPS), in km or mi based on units setting.','cond'),
+    makeRow('Duration','Total elapsed time of the session.','indep'),
+    ...METRIC_DEFS.map(m=>makeRow(m.l,m.tip,m.cat||null)),
+    makeRow('Avg HR','Average heart rate during the session, in beats per minute.',null)
+  ].join('');
   const overlay=document.createElement('div');
   overlay.id='_info_modal';
   overlay.style.cssText='position:fixed;inset:0;background:rgba(0,0,0,.72);display:flex;align-items:center;justify-content:center;z-index:9999;padding:16px;';
   const panel=document.createElement('div');
-  panel.style.cssText='background:var(--s1);border:1px solid var(--border);border-radius:10px;max-width:420px;width:100%;max-height:80vh;overflow-y:auto;padding:14px 16px;';
-  panel.innerHTML=`<div style="display:flex;align-items:center;gap:10px;margin-bottom:8px;"><div style="font-size:13px;font-weight:600;color:var(--text);">Metric Definitions</div><button id="_info_close" style="margin-left:auto;background:var(--s3);border:1px solid var(--border);color:var(--muted);border-radius:6px;padding:4px 10px;font-family:inherit;font-size:11px;cursor:pointer;">Close</button></div>${rows}`;
+  panel.style.cssText='background:var(--s1);border:1px solid var(--border);border-radius:10px;max-width:440px;width:100%;max-height:80vh;overflow-y:auto;padding:14px 16px;';
+  panel.innerHTML=`<div style="display:flex;align-items:center;gap:10px;margin-bottom:12px;"><div style="font-size:13px;font-weight:600;color:var(--text);">Metric Definitions</div><button id="_info_close" style="margin-left:auto;background:var(--s3);border:1px solid var(--border);color:var(--muted);border-radius:6px;padding:4px 10px;font-family:inherit;font-size:11px;cursor:pointer;">Close</button></div>${legend}${rows}`;
   overlay.appendChild(panel);
   overlay.onclick=e=>{if(e.target===overlay)overlay.remove();};
   document.body.appendChild(overlay);
