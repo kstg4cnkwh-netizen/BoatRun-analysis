@@ -8,24 +8,24 @@
   @import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700&family=JetBrains+Mono:wght@300;400;500&display=swap');
 
   :root {
-    --bg: #07090f; --s1: #0d1119; --s2: #131a27; --s3: #1a2235;
-    --border: #1e2d45; --dim: #111827;
-    --g: #3affb4; --b: #4da6ff; --y: #ffc947; --r: #f54040;
+    --bg: #030d1e; --s1: #061727; --s2: #0b1f38; --s3: #112848;
+    --border: #173358; --dim: #08121f;
+    --g: #29b8ff; --b: #4da6ff; --y: #ffc947; --r: #f54040;
     --p: #c084fc; --o: #ffb347; --i: #f393cd; --d: #5b8cff;
-    --text: #dce8fa; --muted: #46597a; --faint: #1c2840;
-    --grid-ln: rgba(26,34,53,1); --grid-lb: #344464; --frame-ln: #1e2d45;
-    --sel-fill: rgba(58,255,180,.06); --sel-stk: rgba(58,255,180,.32);
+    --text: #dce8fa; --muted: #46597a; --faint: #0d1e38;
+    --grid-ln: rgba(17,40,72,1); --grid-lb: #1e3d6a; --frame-ln: #173358;
+    --sel-fill: rgba(41,184,255,.06); --sel-stk: rgba(41,184,255,.32);
     --sh: 0 2px 16px rgba(0,0,0,.45),0 1px 3px rgba(0,0,0,.3);
     --sh-h: 0 6px 28px rgba(0,0,0,.55),0 2px 8px rgba(0,0,0,.4);
   }
   body.light {
     --bg: #edf1f8; --s1: #ffffff; --s2: #f4f7fc; --s3: #e8eef8;
     --border: #c8d4e8; --dim: #dde6f2;
-    --g: #0a7a3a; --b: #1a68d4; --y: #9c7c00; --r: #cd2020;
+    --g: #0074c8; --b: #1a68d4; --y: #9c7c00; --r: #cd2020;
     --p: #7e56a6; --o: #c07012; --i: #c03088; --d: #1c48b9;
     --text: #0e1624; --muted: #566278; --faint: #8499bb;
     --grid-ln: #e2ecf7; --grid-lb: #7080a0; --frame-ln: #bccadd;
-    --sel-fill: rgba(10,122,58,.05); --sel-stk: rgba(10,122,58,.36);
+    --sel-fill: rgba(0,116,200,.05); --sel-stk: rgba(0,116,200,.36);
     --sh: 0 1px 4px rgba(0,0,0,.05),0 4px 14px rgba(0,0,0,.07);
     --sh-h: 0 4px 12px rgba(0,0,0,.1),0 8px 24px rgba(0,0,0,.09);
   }
@@ -40,7 +40,7 @@
   #hdr .sp { flex: 1; }
   .hbtn { background: transparent; border: 1px solid var(--border); color: var(--muted); padding: 5px 13px; border-radius: 7px; font-family: 'JetBrains Mono', monospace; font-size: 11px; cursor: pointer; white-space: nowrap; transition: border-color .15s, color .15s, background .15s; }
   .hbtn:hover { border-color: var(--g); color: var(--g); background: var(--sel-fill); }
-  .hbtn.linked { border-color: rgba(58,255,180,.4); color: var(--g); }
+  .hbtn.linked { border-color: rgba(41,184,255,.4); color: var(--g); }
 
   /* ── Drop zone ── */
   #dz { display: flex; flex-direction: column; align-items: center; justify-content: center; min-height: calc(100vh - 57px); gap: 10px; border: 2px dashed var(--border); margin: 16px; border-radius: 14px; background: var(--s1); cursor: pointer; text-align: center; padding: 40px 20px; transition: border-color .2s, background .2s; }
@@ -140,15 +140,15 @@
   thead th:first-child { text-align: left; }
   tbody tr { border-bottom: 1px solid var(--dim); transition: background .1s; }
   tbody tr:hover td { background: var(--s2); }
-  tbody tr.hl td { background: rgba(58,255,180,.08) !important; }
-  tbody tr.stroke-pin td { background: rgba(58,255,180,.14) !important; }
+  tbody tr.hl td { background: rgba(41,184,255,.08) !important; }
+  tbody tr.stroke-pin td { background: rgba(41,184,255,.14) !important; }
   tbody td { padding: 6px 10px; color: var(--muted); text-align: right; }
   tbody td:first-child { color: var(--text); text-align: left; }
   .curve-stats-col .twrap { max-height: none; overflow: visible; }
 
   tbody tr.hl-g0 td { background: rgba(255,201,71,.09) !important; }
   tbody tr.hl-g1 td { background: rgba(192,132,252,.09) !important; }
-  tbody tr.hl-g2 td { background: rgba(58,255,180,.09) !important; }
+  tbody tr.hl-g2 td { background: rgba(41,184,255,.09) !important; }
   tbody tr.hl-g3 td { background: rgba(245,64,64,.09) !important; }
   tbody tr.hl-g4 td { background: rgba(84,160,255,.09) !important; }
   tbody tr.hl-g5 td { background: rgba(253,121,168,.09) !important; }
@@ -164,13 +164,13 @@
   .stroke-col .twrap { max-height: 480px; }
 
   /* ── Map — always dark regardless of theme ── */
-  #mapbox { height: 320px; border-radius: 10px; overflow: hidden; background: #0b0e13; box-shadow: 0 2px 12px rgba(0,0,0,.4); }
-  .lap-marker { background: #3affb4; color: #000; border-radius: 50%; width: 20px; height: 20px; display: flex; align-items: center; justify-content: center; font-size: 9px; font-weight: 700; font-family: 'JetBrains Mono', monospace; border: 2px solid #000; box-shadow: 0 1px 4px rgba(0,0,0,.7); }
+  #mapbox { height: 320px; border-radius: 10px; overflow: hidden; background: #030d1e; box-shadow: 0 2px 12px rgba(0,0,0,.4); }
+  .lap-marker { background: #29b8ff; color: #000; border-radius: 50%; width: 20px; height: 20px; display: flex; align-items: center; justify-content: center; font-size: 9px; font-weight: 700; font-family: 'JetBrains Mono', monospace; border: 2px solid #000; box-shadow: 0 1px 4px rgba(0,0,0,.7); }
   /* Hard-coded dark colours — intentionally NOT using CSS vars */
-  .leaflet-popup-content-wrapper { background: #131a27 !important; color: #dce8fa !important; border: 1px solid #1e2d45 !important; border-radius: 8px !important; font-family: 'JetBrains Mono', monospace !important; font-size: 11px !important; box-shadow: 0 6px 20px rgba(0,0,0,.6) !important; }
-  .leaflet-popup-tip { background: #131a27 !important; }
+  .leaflet-popup-content-wrapper { background: #0b1f38 !important; color: #dce8fa !important; border: 1px solid #173358 !important; border-radius: 8px !important; font-family: 'JetBrains Mono', monospace !important; font-size: 11px !important; box-shadow: 0 6px 20px rgba(0,0,0,.6) !important; }
+  .leaflet-popup-tip { background: #0b1f38 !important; }
   .leaflet-popup-close-button { color: #46597a !important; }
-  #mapbox .leaflet-bar a { background: #1a2235; color: #dce8fa; border-color: #1e2d45; }
+  #mapbox .leaflet-bar a { background: #112848; color: #dce8fa; border-color: #173358; }
   #mapbox .leaflet-bar a:hover { background: #1e2d45; }
 
   /* ── Stroke table section ── */
@@ -339,7 +339,7 @@
       <span id="hrlbl" style="font-size:10px;color:var(--muted);"></span>
       <div class="zlegend">
         <span class="zl" style="color:#4da6ff">Z1 90–106</span>
-        <span class="zl" style="color:#3affb4">Z2 107–124</span>
+        <span class="zl" style="color:#29b8ff">Z2 107–124</span>
         <span class="zl" style="color:#ffc947">Z3 125–142</span>
         <span class="zl" style="color:#ff9a3c">Z4 143–160</span>
         <span class="zl" style="color:#ff6b6b">Z5 &gt;160</span>
@@ -488,7 +488,7 @@ function pal() {
     gridLn: v('--grid-ln'), gridLb: v('--grid-lb'), frameLn: v('--frame-ln'),
     selFill: v('--sel-fill'), selStk: v('--sel-stk'),
     text: v('--text'), muted: v('--muted'), s1: v('--s1'), s2: v('--s2'),
-    zoneBlue:'rgba(77,166,255,.10)', zoneGreen:'rgba(58,255,180,.10)',
+    zoneBlue:'rgba(77,166,255,.10)', zoneGreen:'rgba(41,184,255,.10)',
     zoneYellow:'rgba(255,201,71,.10)', zoneOrange:'rgba(255,154,60,.10)', zoneRed:'rgba(255,107,107,.10)',
   };
 }
@@ -590,8 +590,8 @@ let _lastLabel = '', _lastSum = {};
 
 // ── State ──────────────────────────────────────────────────────────────────
 const CURVE_POINTS = 80;
-const GROUP_COLORS = ['#ffc947','#c084fc','#3affb4','#f54040','#54a0ff','#fd79a8','#e17055','#00cec9'];
-const GROUP_BG     = ['rgba(255,201,71,.14)','rgba(192,132,252,.14)','rgba(58,255,180,.14)','rgba(245,64,64,.14)','rgba(84,160,255,.14)','rgba(253,121,168,.14)','rgba(225,112,85,.14)','rgba(0,206,201,.14)'];
+const GROUP_COLORS = ['#ffc947','#c084fc','#29b8ff','#f54040','#54a0ff','#fd79a8','#e17055','#00cec9'];
+const GROUP_BG     = ['rgba(255,201,71,.14)','rgba(192,132,252,.14)','rgba(41,184,255,.14)','rgba(245,64,64,.14)','rgba(84,160,255,.14)','rgba(253,121,168,.14)','rgba(225,112,85,.14)','rgba(0,206,201,.14)'];
 
 // Canonical metric order — used by stats strip, curve stats, cards
 // filter: returns valid values from a stroke array
@@ -1413,7 +1413,7 @@ function drawOv(){
   if(ovAbsSelS>=0&&ovAbsSelE>=0&&ovAbsSelS!==ovAbsSelE){
     const s2=Math.min(ovAbsSelS,ovAbsSelE),e2=Math.max(ovAbsSelS,ovAbsSelE);
     const sx1=toXov(xs[s2]),sx2=toXov(xs[e2]);
-    ctx.fillStyle='rgba(58,255,180,.22)';ctx.fillRect(sx1,P,sx2-sx1,ph);
+    ctx.fillStyle='rgba(41,184,255,.22)';ctx.fillRect(sx1,P,sx2-sx1,ph);
     ctx.strokeStyle=C.g;ctx.lineWidth=1.5;ctx.strokeRect(sx1,P,sx2-sx1,ph);
   }
 
@@ -1422,7 +1422,7 @@ function drawOv(){
     const vlen=viewE-viewS+1;
     const s2=clamp(Math.min(selS,selE),0,vlen-1),e2=clamp(Math.max(selS,selE),0,vlen-1);
     const sx1=toXov(xs[viewS+s2]),sx2=toXov(xs[viewS+e2]);
-    ctx.fillStyle='rgba(58,255,180,.15)';ctx.fillRect(sx1,P,sx2-sx1,ph);
+    ctx.fillStyle='rgba(41,184,255,.15)';ctx.fillRect(sx1,P,sx2-sx1,ph);
     ctx.strokeStyle=C.g;ctx.lineWidth=1;ctx.strokeRect(sx1,P,sx2-sx1,ph);
   }
 
@@ -2141,7 +2141,7 @@ function buildMap(){
   const latlngs=GPSTRACE.map(p=>[p.lat,p.lon]);
   leafletMap=L.map('mapbox',{zoomControl:true,attributionControl:false});
   L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png',{subdomains:'abcd',maxZoom:19}).addTo(leafletMap);
-  mapBaseLine=L.polyline(latlngs,{color:'#3affb4',weight:3,opacity:0.85}).addTo(leafletMap);
+  mapBaseLine=L.polyline(latlngs,{color:'#29b8ff',weight:3,opacity:0.85}).addTo(leafletMap);
   L.circleMarker(latlngs[0],{radius:6,fillColor:'#fff',color:'#000',weight:2,fillOpacity:1}).bindTooltip('Start',{permanent:false}).addTo(leafletMap);
   L.circleMarker(latlngs[latlngs.length-1],{radius:6,fillColor:'#f54040',color:'#000',weight:2,fillOpacity:1}).bindTooltip('Finish',{permanent:false}).addTo(leafletMap);
   const scullLaps=LAPS.filter(l=>l.stroke_rate_spm!=null||l.pace_s_per_500m!=null);
@@ -2171,7 +2171,7 @@ function buildMap(){
 // ══════════════════════════════════════════════════════════════════════════
 function lapTypeChip(type){
   if(!type)return '';
-  const m={work:['var(--g)','rgba(58,255,180,.13)'],rest:['var(--b)','rgba(77,166,255,.13)'],warmup:['var(--o)','rgba(255,179,71,.13)'],cooldown:['#7ec8e3','rgba(126,200,227,.13)'],transition:['var(--muted)','var(--s3)']};
+  const m={work:['var(--g)','rgba(41,184,255,.13)'],rest:['var(--b)','rgba(77,166,255,.13)'],warmup:['var(--o)','rgba(255,179,71,.13)'],cooldown:['#7ec8e3','rgba(126,200,227,.13)'],transition:['var(--muted)','var(--s3)']};
   const[c,bg]=m[type]||['var(--muted)','var(--s3)'];
   return `<span style="display:inline-block;padding:1px 6px;border-radius:10px;font-size:7.5px;font-weight:700;letter-spacing:.6px;color:${c};background:${bg};text-transform:uppercase;">${type}</span>`;
 }
@@ -2293,7 +2293,7 @@ function updateMapPin(){
   for(const p of GPSTRACE){const d=Math.abs(p.t-s.ms);if(d<bestD){bestD=d;best=p;}}
   if(!best||bestD>10000)return;
   _mapPinMarker=L.circleMarker([best.lat,best.lon],{
-    radius:9,fillColor:'#ffffff',color:'#3affb4',weight:2.5,fillOpacity:0.95
+    radius:9,fillColor:'#ffffff',color:'#29b8ff',weight:2.5,fillOpacity:0.95
   }).bindTooltip('Stroke '+s.n,{permanent:false}).addTo(leafletMap);
 }
 
@@ -2486,7 +2486,7 @@ function _renderBmk(sessions){
       sessions.forEach((sess,i)=>{
         const step=repSteps[i];
         const val=step?m.fmt(step[m.k]):EM;
-        const bg=sess.isCurrent?'background:rgba(58,255,180,.06);':'';
+        const bg=sess.isCurrent?'background:rgba(41,184,255,.06);':'';
         html+=`<td style="padding:3px 8px;text-align:right;border-bottom:1px solid var(--border);${bg}">${val}</td>`;
       });
       html+='</tr>';
