@@ -453,6 +453,24 @@ const AnalyserDrive = {
     const resp = await fetch(`https://www.googleapis.com/drive/v3/files/${fileId}`, { method: 'DELETE', headers: { Authorization: 'Bearer ' + this._token } });
     if (!resp.ok && resp.status !== 204) throw new Error('Delete failed: HTTP ' + resp.status);
   },
+  async patchName(fileId, newName) {
+    this._check();
+    const mResp = await fetch(`https://www.googleapis.com/drive/v3/files/${fileId}?fields=name`, { headers: { Authorization: 'Bearer ' + this._token } });
+    if (mResp.status===401) { this._expire(); throw new Error('Session expired'); }
+    if (!mResp.ok) throw new Error('Metadata fetch failed: HTTP ' + mResp.status);
+    const { name: currentName } = await mResp.json();
+    const safe = newName.replace(/\s+/g,'-').replace(/[^a-zA-Z0-9-]/g,'').slice(0,30);
+    const newFilename = currentName.replace(/_NAME[a-zA-Z0-9-]*/,'').replace(/\.json$/, '_NAME'+safe+'.json');
+    const content = await this.fetchSession(fileId);
+    content.name = newName;
+    const form = new FormData();
+    form.append('metadata', new Blob([JSON.stringify({name: newFilename})], {type:'application/json'}));
+    form.append('file', new Blob([JSON.stringify(content)], {type:'application/json'}));
+    const r = await fetch(`https://www.googleapis.com/upload/drive/v3/files/${fileId}?uploadType=multipart`, {
+      method: 'PATCH', headers: { Authorization: 'Bearer ' + this._token }, body: form
+    });
+    if (!r.ok) throw new Error('Patch failed: HTTP ' + r.status);
+  },
   _check() { if (!this._token) throw new Error('Not signed in to Drive'); },
   _expire() { this._token = null; sessionStorage.removeItem('_ad_token'); this._updateBtn(); },
   _updateBtn() {},
@@ -750,10 +768,10 @@ function loadFiles(fileList, replace) {
   Array.from(fileList).forEach((f,i)=>loadFile(f, replace&&i===0));
 }
 
-function addSessionFromData(d, label, replace) {
+function addSessionFromData(d, label, replace, fileId) {
   if (replace) { SESSIONS=[]; curveGroups=[]; activeSessionIdx=-1; }
   const idx=SESSIONS.length;
-  SESSIONS.push({label,d});
+  SESSIONS.push({label, d, fileId: fileId||null});
   switchSession(idx);
 }
 
@@ -797,7 +815,7 @@ async function loadFromDrive() {
     if (!files.length) { toast('No sessions found on Drive'); return; }
     showDrivePicker(files, async (fileId,label) => {
       toast('Loading '+label+'…');
-      try { const session=await AnalyserDrive.fetchSession(fileId); applySessionUnits(session); addSessionFromData(sessionToAnalyserFmt(session),label,true); }
+      try { const session=await AnalyserDrive.fetchSession(fileId); applySessionUnits(session); addSessionFromData(sessionToAnalyserFmt(session),label,true,fileId); }
       catch(err) { toast('Load failed: '+err.message); }
     });
   } catch(err) { toast('Drive error: '+err.message); }
@@ -978,11 +996,18 @@ function buildMeta(fname,sum) {
 }
 function renameCurrentSession() {
   if (activeSessionIdx<0||activeSessionIdx>=SESSIONS.length) return;
-  const nn=prompt('Session name:',SESSIONS[activeSessionIdx].label);
+  const sess=SESSIONS[activeSessionIdx];
+  const nn=prompt('Session name:',sess.label);
   if (nn===null||!nn.trim()) return;
-  SESSIONS[activeSessionIdx].label=nn.trim();
-  buildMeta(nn.trim(),_lastSum);
+  const newLabel=nn.trim();
+  sess.label=newLabel;
+  buildMeta(newLabel,_lastSum);
   renderSessionTabs();
+  if (AnalyserDrive.isSignedIn()&&sess.fileId) {
+    AnalyserDrive.patchName(sess.fileId,newLabel)
+      .then(()=>toast('Renamed on Drive'))
+      .catch(e=>toast('Local rename OK – Drive: '+e.message));
+  }
 }
 function sessionStats() {
   const pv=[],rv=[],jv=[],dv=[],iv=[],hv=[],ratv=[],av=[];
@@ -2609,7 +2634,7 @@ async function showStartup(){
         const btn=document.createElement('div');btn.className='asc';
         btn.onclick=async()=>{
           btn.style.opacity='.5';btn.style.pointerEvents='none';
-          try{const session=await AnalyserDrive.fetchSession(f.id);applySessionUnits(session);addSessionFromData(sessionToAnalyserFmt(session),p.name||f.name.replace('RowSess_','').replace('.json',''),true);}
+          try{const session=await AnalyserDrive.fetchSession(f.id);applySessionUnits(session);addSessionFromData(sessionToAnalyserFmt(session),p.name||f.name.replace('RowSess_','').replace('.json',''),true,f.id);}
           catch(err){toast('Load failed: '+err.message);btn.style.opacity='';btn.style.pointerEvents='';}
         };
 
@@ -2781,7 +2806,7 @@ document.getElementById('adddrivebtn').onclick=async()=>{
     const files=await AnalyserDrive.list();
     if(!files.length){toast('No sessions found on Drive');return;}
     showDrivePicker(files, async(fileId,label)=>{
-      try{const session=await AnalyserDrive.fetchSession(fileId);applySessionUnits(session);addSessionFromData(sessionToAnalyserFmt(session),label,false);}
+      try{const session=await AnalyserDrive.fetchSession(fileId);applySessionUnits(session);addSessionFromData(sessionToAnalyserFmt(session),label,false,fileId);}
       catch(err){toast('Load failed: '+err.message);}
     });
   }catch(err){toast('Drive error: '+err.message);}
