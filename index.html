@@ -137,6 +137,7 @@
   tbody tr { border-bottom: 1px solid var(--dim); }
   tbody tr:hover td { background: var(--s2); }
   tbody tr.hl td { background: rgba(58,255,180,.08) !important; }
+  tbody tr.stroke-pin td { background: rgba(255,255,255,.13) !important; }
   tbody td { padding: 5px 9px; color: var(--muted); text-align: right; }
   tbody td:first-child { color: var(--text); text-align: left; }
   .curve-stats-col .twrap { max-height: none; overflow: visible; }
@@ -589,6 +590,7 @@ let rafId=null;
 let isDragMain=false,isDragOv=false;
 let ovAbsSelS=-1,ovAbsSelE=-1;
 let leafletMap=null, mapBaseLine=null, mapGroupLines=[];
+let _pinnedStrokeIdx=-1, _mapPinMarker=null;
 let SESSIONS=[]; // [{label,d}] — all loaded workout files
 let activeSessionIdx=-1;
 let _addMode=false; // true while "+ Add file" flow is choosing a file
@@ -1294,6 +1296,16 @@ function drawMain(){
 
   drawLapLines(ctx,computeLapBoundaryXValues(),toX,xMin,xRng,PT,ph,true);
   ctx.strokeStyle=C.frameLn;ctx.lineWidth=1;ctx.strokeRect(PL,PT,pw,ph);
+  if(_pinnedStrokeIdx>=viewS&&_pinnedStrokeIdx<=viewE){
+    const _pi=_pinnedStrokeIdx-viewS;
+    if(_pi>=0&&_pi<N){
+      const _px=toX(xs[_pi]);
+      ctx.save();ctx.strokeStyle='rgba(255,255,255,0.85)';ctx.lineWidth=1.5;
+      ctx.setLineDash([4,3]);
+      ctx.beginPath();ctx.moveTo(_px,PT);ctx.lineTo(_px,PT+ph);ctx.stroke();
+      ctx.setLineDash([]);ctx.restore();
+    }
+  }
   canvas._g={PL,PR,PT,PB,pw,ph,xs,N,W,H,xMin,xRng};
   setupMainEvents(canvas);
 }
@@ -2161,6 +2173,19 @@ function buildStrokeTable(){
     <td style="color:#a29bfe">${(!isNaN(s.catchDuration)&&s.catchDuration>10)?f0(s.catchDuration):EM}</td>
   </tr>`).join('');
   document.getElementById('tblcount').textContent=ST.length+' strokes';
+  document.querySelectorAll('#stb tr').forEach(row=>{
+    row.style.cursor='pointer';
+    row.addEventListener('click',()=>{
+      const absIdx=+row.dataset.i;
+      _pinnedStrokeIdx=(_pinnedStrokeIdx===absIdx)?-1:absIdx;
+      if(_pinnedStrokeIdx>=0&&(_pinnedStrokeIdx<viewS||_pinnedStrokeIdx>viewE)){
+        const span=viewE-viewS,half=Math.round(span/2);
+        viewS=clamp(_pinnedStrokeIdx-half,0,Math.max(0,ST.length-1-span));
+        viewE=viewS+span;
+      }
+      updatePinHighlight(); schedRender(); updateMapPin();
+    });
+  });
 }
 function hlRows(idxs, doScroll=true){
   const set=new Set(idxs);
@@ -2197,6 +2222,23 @@ window.toggleTable=function(){
   wrap.style.display=shown?'none':'block';
   btn.textContent=shown?'Show ▾':'Hide ▴';
 };
+function updatePinHighlight(){
+  document.querySelectorAll('#stb tr').forEach(r=>{
+    r.classList.toggle('stroke-pin',+r.dataset.i===_pinnedStrokeIdx);
+  });
+}
+function updateMapPin(){
+  if(_mapPinMarker){if(leafletMap)leafletMap.removeLayer(_mapPinMarker);_mapPinMarker=null;}
+  if(_pinnedStrokeIdx<0||!leafletMap||!GPSTRACE.length)return;
+  const s=ST[_pinnedStrokeIdx];
+  if(!s||isNaN(s.ms))return;
+  let best=null,bestD=Infinity;
+  for(const p of GPSTRACE){const d=Math.abs(p.t-s.ms);if(d<bestD){bestD=d;best=p;}}
+  if(!best||bestD>10000)return;
+  _mapPinMarker=L.circleMarker([best.lat,best.lon],{
+    radius:9,fillColor:'#ffffff',color:'#3affb4',weight:2.5,fillOpacity:0.95
+  }).bindTooltip('Stroke '+s.n,{permanent:false}).addTo(leafletMap);
+}
 
 // ══════════════════════════════════════════════════════════════════════════
 // UNITS BAR
@@ -2221,6 +2263,7 @@ window.setUnitsAndRebuild = setUnitsAndRebuild;
 // MOUNT / RESET
 // ══════════════════════════════════════════════════════════════════════════
 function mountData(d,label){
+  _pinnedStrokeIdx=-1; if(_mapPinMarker){if(leafletMap)leafletMap.removeLayer(_mapPinMarker);_mapPinMarker=null;}
   ST=d.strokes;
   _rawOarAngles = ST.map(s => s.oarAngle);  // snapshot before any conversion
   computeStrokeAngles(ST);
@@ -2260,6 +2303,7 @@ function resetApp(){
   _rawOarAngles=[];
   _recordedOutboard=2.0;
   if(leafletMap){leafletMap.remove();leafletMap=null;}
+  _pinnedStrokeIdx=-1; _mapPinMarker=null;
   document.getElementById('app').style.display='none';
   document.getElementById('unitsbar').style.display='none';
   document.getElementById('tcxbtn').style.display='none';
