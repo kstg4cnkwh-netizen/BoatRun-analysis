@@ -1,0 +1,47 @@
+<!doctype html>
+<html lang="en-AU">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1"/>
+<title>BoatRun Guide</title>
+<script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+<style>
+*{box-sizing:border-box;margin:0;padding:0;}
+body{font-family:'Georgia',serif;background:#f4f4f4;color:#222;line-height:1.7;padding:24px 16px 60px;}
+.wrap{max-width:720px;margin:0 auto;}
+#content h1{color:#1a5276;font-size:24px;margin:28px 0 8px;}
+#content h2{color:#1a5276;font-size:18px;margin:24px 0 8px;border-bottom:1px solid #ddd;padding-bottom:4px;}
+#content h3{color:#333;font-size:15px;margin:16px 0 4px;}
+#content p{font-size:14px;margin-bottom:10px;}
+#content ul,#content ol{font-size:14px;margin:0 0 10px 20px;}
+#content li{margin-bottom:4px;}
+#content table{border-collapse:collapse;width:100%;font-size:13px;margin-bottom:12px;}
+#content th,#content td{border:1px solid #ccc;padding:6px 10px;text-align:left;}
+#content th{background:#1a5276;color:#fff;}
+#content code{background:#e8e8e8;padding:1px 4px;border-radius:3px;font-size:13px;}
+#content pre{background:#1a1a2e;color:#cdd6f4;padding:12px;border-radius:6px;overflow-x:auto;margin-bottom:12px;}
+#content pre code{background:none;color:inherit;}
+#content hr{border:none;border-top:1px solid #ddd;margin:20px 0;}
+.back{display:inline-block;margin-top:30px;font-size:13px;color:#1a5276;text-decoration:none;}
+#loading{color:#888;font-size:14px;padding:20px 0;}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div id="loading">Loading guide…</div>
+  <div id="content"></div>
+  <a class="back" href="./about.html">← Back to About</a>
+</div>
+<script>
+fetch('./BoatRun_README_v3.md?'+Date.now())
+  .then(r=>r.text())
+  .then(md=>{
+    document.getElementById('loading').style.display='none';
+    document.getElementById('content').innerHTML=marked.parse(md);
+  })
+  .catch(()=>{
+    document.getElementById('loading').textContent='Could not load guide. Check your connection.';
+  });
+</script>
+</body>
+</html>
