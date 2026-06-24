@@ -197,6 +197,10 @@
     .curve-layout { flex-direction: column; }
   }
 
+  .bmk-rep-layout{display:flex;gap:14px;align-items:flex-start;flex-wrap:wrap;}
+  .bmk-curve-col{flex:3;min-width:200px;}
+  .bmk-table-col{flex:2;min-width:160px;}
+  .bmk-table-full{flex:1;min-width:160px;}
 </style>
 <style>
 #startup{min-height:calc(100vh - 52px);display:flex;flex-direction:column;align-items:center;justify-content:flex-start;padding:28px 16px 40px;box-sizing:border-box;}
@@ -706,7 +710,8 @@ function sessionToAnalyserFmt(s) {
     curve: r.curve||null, curveDriveFrac: r.curveDriveFrac||null,
   }));
   const hr = (s.hrTrace||[]).map(h=>({ ts:new Date(h.t).toISOString(), bpm:h.hr }));
-  const laps = (s.laps||[]).map(l=>({ lap:l.n, distance_m:l.dist, time_s:l.time, pace_s_per_500m:l.pace, stroke_rate_spm:l.rate }));
+  const wlm=s.workoutLapMetrics||[];
+  const laps = (s.laps||[]).map((l,i)=>({ lap:l.n, distance_m:l.dist, time_s:l.time, pace_s_per_500m:l.pace, stroke_rate_spm:l.rate, type:l.type||wlm[i]?.type||null }));
   const glaps = (s.garminLaps||[]).map(l=>({ lap:l.n, distance_m:l.dist, time_s:l.time, pace_s_per_500m:l.pace, avg_hr_bpm:l.avgHr, max_hr_bpm:l.maxHr, calories:l.cal, strokes:l.garminStrokes, avg_spm:l.garminAvgSpm, avg_stroke_dist_m:l.avgStrokeDist }));
   const gpsTrace = (s.gpsTrace||[]).filter(p=>p.lat!=null&&p.lon!=null).map(p=>({ lat:p.lat, lon:p.lon, t:p.t, dist:p.dist }));
   return { sum, strokes, hr, laps, glaps, gpsTrace,
@@ -2128,14 +2133,22 @@ function buildMap(){
 // ══════════════════════════════════════════════════════════════════════════
 // LAPS TABLE
 // ══════════════════════════════════════════════════════════════════════════
+function lapTypeChip(type){
+  if(!type)return '';
+  const m={work:['var(--g)','rgba(58,255,180,.13)'],rest:['var(--b)','rgba(77,166,255,.13)'],warmup:['var(--o)','rgba(255,179,71,.13)'],cooldown:['#7ec8e3','rgba(126,200,227,.13)'],transition:['var(--muted)','var(--s3)']};
+  const[c,bg]=m[type]||['var(--muted)','var(--s3)'];
+  return `<span style="display:inline-block;padding:1px 6px;border-radius:10px;font-size:7.5px;font-weight:700;letter-spacing:.6px;color:${c};background:${bg};text-transform:uppercase;">${type}</span>`;
+}
 function buildLaps(){
   const showLaps=LAPS.filter(l=>'stroke_rate_spm' in l);
   if(!showLaps.length)return;
   document.getElementById('lapsec').style.display='block';
   document.getElementById('map-stroke-row').classList.add('on');
   const hasHR='avg_hr_bpm' in showLaps[0],hasCal='calories' in showLaps[0];
-  document.querySelector('#laptbl thead').innerHTML=`<tr><th>Lap</th><th>Dist</th><th>Time</th><th>Pace</th><th>Rate</th>${hasHR?'<th>HR avg</th><th>HR max</th>':''}${hasCal?'<th>Cal</th>':''}</tr>`;
+  const hasType=showLaps.some(l=>l.type);
+  document.querySelector('#laptbl thead').innerHTML=`<tr>${hasType?'<th style="text-align:left;">Type</th>':''}<th>Lap</th><th>Dist</th><th>Time</th><th>Pace</th><th>Rate</th>${hasHR?'<th>HR avg</th><th>HR max</th>':''}${hasCal?'<th>Cal</th>':''}</tr>`;
   document.querySelector('#laptbl tbody').innerHTML=showLaps.map((l,i)=>`<tr data-lap="${i+1}" style="cursor:pointer">
+    ${hasType?`<td>${lapTypeChip(l.type)}</td>`:''}
     <td>Lap ${i+1}</td>
     <td>${(+l.distance_m||0).toFixed(0)}m</td>
     <td>${fmtTime(+l.time_s)}</td>
@@ -2415,40 +2428,36 @@ function _renderBmk(sessions){
   for(let r=0;r<maxWork;r++){
     const repSteps=sessions.map(s=>s.lm.filter(x=>x.type==='work')[r]||null);
     const gl=repSteps.find(s=>s?.groupLabel)?.groupLabel||null;
-    html+=`<div style="margin-bottom:20px;">`
-         +`<div style="font-size:11px;font-weight:700;letter-spacing:.06em;padding-bottom:4px;margin-bottom:6px;border-bottom:1px solid var(--border);">`
-         +`REP ${r+1}${gl?' · '+gl:''}</div>`;
-
-    // Metrics table: rows=metrics, cols=sessions
-    html+='<div style="overflow-x:auto;margin-bottom:8px;"><table style="border-collapse:collapse;font-size:10px;white-space:nowrap;">';
-    html+='<thead><tr><th style="text-align:left;padding:3px 12px 3px 0;font-size:9px;color:var(--muted);min-width:72px;border-bottom:1px solid var(--border);"></th>';
+    const hasCurve=repSteps.some(s=>s&&Array.isArray(s.curve)&&s.curve.length===BMK_CP);
+    html+=`<div style="margin-bottom:22px;">`;
+    html+=`<div style="font-size:10px;font-weight:700;letter-spacing:.08em;padding-bottom:5px;margin-bottom:10px;border-bottom:1px solid var(--border);text-transform:uppercase;color:var(--muted);">Rep ${r+1}${gl?' <span style=\'text-transform:none;font-weight:400;\'>· '+gl+'</span>':''}</div>`;
+    html+=`<div class="bmk-rep-layout">`;
+    if(hasCurve){
+      html+=`<div class="bmk-curve-col"><canvas id="bmkc-${r}" height="110" style="width:100%;display:block;border-radius:8px;background:var(--s2);"></canvas></div>`;
+    }
+    html+=`<div class="${hasCurve?'bmk-table-col':'bmk-table-col bmk-table-full'}"><div style="overflow-x:auto;"><table style="border-collapse:collapse;font-size:10px;white-space:nowrap;width:100%;">`;
+    html+=`<thead><tr><th style="text-align:left;padding:4px 10px 4px 0;font-size:8px;color:var(--muted);border-bottom:1px solid var(--border);font-weight:600;letter-spacing:.6px;text-transform:uppercase;">Metric</th>`;
     sessions.forEach((sess,i)=>{
       const col=BMK_COLORS[i%BMK_COLORS.length];
       const dt=sess.date?new Date(sess.date).toLocaleDateString('en-GB',{day:'2-digit',month:'short'}):'--';
-      html+=`<th style="padding:3px 8px;text-align:right;border-bottom:2px solid ${col};min-width:54px;font-size:9px;${sess.isCurrent?'font-weight:700;':''}">${dt}</th>`;
+      html+=`<th style="padding:4px 8px;text-align:right;border-bottom:2px solid ${col};min-width:52px;font-size:8px;${sess.isCurrent?'font-weight:700;':''}">${dt}</th>`;
     });
-    html+='</tr></thead><tbody>';
+    html+=`</tr></thead><tbody>`;
     for(const m of BMK_METRICS){
       const hasAny=repSteps.some(s=>s&&s[m.k]!=null&&s[m.k]!==0&&!isNaN(s[m.k]));
       if(!hasAny)continue;
-      html+=`<tr><td style="padding:3px 12px 3px 0;color:${m.col};font-size:9px;letter-spacing:.03em;">${m.lbl}</td>`;
+      html+=`<tr><td style="padding:3px 10px 3px 0;color:${m.col};font-size:8.5px;letter-spacing:.03em;">${m.lbl}</td>`;
       sessions.forEach((sess,i)=>{
         const step=repSteps[i];
         const val=step?m.fmt(step[m.k]):EM;
-        const bg=sess.isCurrent?'background:rgba(39,174,96,.07);':'';
+        const bg=sess.isCurrent?'background:rgba(58,255,180,.06);':'';
         html+=`<td style="padding:3px 8px;text-align:right;border-bottom:1px solid var(--border);${bg}">${val}</td>`;
       });
       html+='</tr>';
     }
-    html+='</tbody></table></div>';
-
-    // Curve canvas — one per rep, all sessions overlaid
-    if(repSteps.some(s=>s&&Array.isArray(s.curve)&&s.curve.length===BMK_CP)){
-      html+=`<canvas id="bmkc-${r}" height="80" style="width:100%;display:block;border-radius:4px;background:var(--s2);margin-top:4px;"></canvas>`;
-    }
-    html+='</div>';
+    html+=`</tbody></table></div></div></div></div>`;
   }
-  html+='<p style="font-size:9px;color:var(--muted);margin-top:2px;">Red = condition-dependent &nbsp;·&nbsp; Blue = boat-dependent &nbsp;·&nbsp; Green = condition-independent</p>';
+  html+='<p style="font-size:9px;color:var(--muted);margin-top:4px;">Red = condition-dependent &nbsp;·&nbsp; Blue = boat-dependent &nbsp;·&nbsp; Green = condition-independent</p>';
 
   document.getElementById('bmk-body').innerHTML=html;
   requestAnimationFrame(()=>_drawBmkCurves(sessions,maxWork));
