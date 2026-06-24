@@ -1218,11 +1218,11 @@ function drawMain(){
   if(pv.length){const[lo,hi]=pctBounds(pv,0.03,0.97,0.08);yPMin=Math.max(60,lo);yPMax=Math.min(400,hi);}
   const toYP=v=>PT+ph-(1-(v-yPMin)/(yPMax-yPMin))*ph;
   let yRMin=0,yRMax=30;
-  if(rv.length){const[lo,hi]=pctBounds(rv,0.03,0.97,0.10);yRMin=Math.max(0,lo);yRMax=Math.min(50,hi);}
+  if(rv.length){const[lo,hi]=pctBounds(rv,0.03,0.97,0.10);yRMin=0;yRMax=Math.min(50,hi);}
   if(jv.length){const[,jhi]=pctBounds(jv,0.03,0.97,0.10);if(jhi>yRMax)yRMax=jhi;}
   const toYR=v=>PT+ph-(v-yRMin)/(yRMax-yRMin||1)*ph;
-  let yDMin=4,yDMax=14;
-  if(dv.length){const[lo,hi]=pctBounds(dv,0.03,0.97,0.08);yDMin=Math.max(1,lo);yDMax=Math.min(25,hi);}
+  let yDMin=0,yDMax=14;
+  if(dv.length){const[lo,hi]=pctBounds(dv,0.03,0.97,0.08);yDMin=0;yDMax=Math.min(25,hi);}
   const toYD=v=>PT+ph-(v-yDMin)/(yDMax-yDMin||1)*ph;
   let yImpMin=0.2,yImpMax=2.0;
   if(iv.length){const[lo,hi]=pctBounds(iv,0.03,0.97,0.10);yImpMin=Math.max(0,lo);yImpMax=Math.min(1000,hi);}
@@ -1231,16 +1231,16 @@ function drawMain(){
   const toYRL=v=>PT+ph-(v/yRLMax)*ph;
   const toYSC=v=>PT+ph-(v/100)*ph;
   let yRatMin=1.0,yRatMax=4.0;
-  if(ratv.length){const[lo,hi]=pctBounds(ratv,0.05,0.95,0.10);yRatMin=Math.max(0.5,lo);yRatMax=Math.min(5.0,hi);}
+  if(ratv.length){const[lo,hi]=pctBounds(ratv,0.05,0.95,0.10);yRatMin=1;yRatMax=Math.min(5.0,hi);}
   const toYRatio=v=>PT+ph-(v-yRatMin)/(yRatMax-yRatMin||1)*ph;
-  let yAngMin=50,yAngMax=130;
-  if(angv.length){const[lo,hi]=pctBounds(angv,0.05,0.95,0.08);yAngMin=Math.max(20,lo);yAngMax=Math.min(180,hi);}
+  let yAngMin=0,yAngMax=130;
+  if(angv.length){const[lo,hi]=pctBounds(angv,0.05,0.95,0.08);yAngMin=0;yAngMax=Math.min(180,hi);}
   const toYAngle=v=>PT+ph-(v-yAngMin)/(yAngMax-yAngMin||1)*ph;
   let yCDMin=0.0,yCDMax=2.5;
   if(cdv.length){const[lo,hi]=pctBounds(cdv,0.03,0.97,0.10);yCDMin=Math.max(0,lo);yCDMax=Math.min(5,hi);}
   const toYCD=v=>PT+ph-(v-yCDMin)/(yCDMax-yCDMin||1)*ph;
   let yCDurMin=0,yCDurMax=300;
-  if(cdurv.length){const[lo,hi]=pctBounds(cdurv,0.03,0.97,0.10);yCDurMin=Math.max(0,lo);yCDurMax=Math.min(500,hi);}
+  if(cdurv.length){const[lo,hi]=pctBounds(cdurv,0.03,0.97,0.10);yCDurMin=0;yCDurMax=Math.min(500,hi);}
   const toYCDur=v=>PT+ph-(v-yCDurMin)/(yCDurMax-yCDurMin||1)*ph;
 
   ctx.font='9px IBM Plex Mono,monospace';
