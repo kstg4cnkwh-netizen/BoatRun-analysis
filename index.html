@@ -971,7 +971,18 @@ function buildMeta(fname,sum) {
   const date=(sum.start_time||'').substring(0,10);
   const dur=fmtTime(+sum.duration_s);
   const dist=fmtDistU(+sum.distance_m||0)+distULabelU();
-  document.getElementById('hdrmeta').innerHTML=fname+'<br>'+date+' · '+dist+' · '+dur;
+  const safe=fname.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+  document.getElementById('hdrmeta').innerHTML=
+    '<span style="cursor:pointer;border-bottom:1px dotted var(--muted);color:var(--text);" onclick="renameCurrentSession()" title="Tap to rename">'+safe+'</span>'
+    +' <span style="color:var(--muted);font-size:9px;">✎</span><br>'+date+' · '+dist+' · '+dur;
+}
+function renameCurrentSession() {
+  if (activeSessionIdx<0||activeSessionIdx>=SESSIONS.length) return;
+  const nn=prompt('Session name:',SESSIONS[activeSessionIdx].label);
+  if (nn===null||!nn.trim()) return;
+  SESSIONS[activeSessionIdx].label=nn.trim();
+  buildMeta(nn.trim(),_lastSum);
+  renderSessionTabs();
 }
 function sessionStats() {
   const pv=[],rv=[],jv=[],dv=[],iv=[],hv=[],ratv=[],av=[];
