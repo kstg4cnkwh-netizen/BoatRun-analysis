@@ -2483,8 +2483,7 @@ function buildLaps(){
       const lapN=+row.dataset.lap;
       const idxs=ST.map((s,i)=>s.lapNum===lapN?i:-1).filter(i=>i>=0);
       if(!idxs.length)return;
-      viewS=idxs[0];viewE=idxs[idxs.length-1];
-      selS=0;selE=idxs.length-1;
+      selS=idxs[0]-viewS;selE=idxs[idxs.length-1]-viewS;
       schedRender();
       updateSel(true);
     });
@@ -2624,7 +2623,6 @@ function mountData(d,label){
   document.getElementById('addcompbtn').style.display='';
   document.getElementById('filemenubtn').style.display='';
   document.getElementById('unitsbar').style.display='flex';
-  document.getElementById('curvesec').style.display='none';
   document.getElementById('tblwrap').style.display='block';
   document.getElementById('tbltogglebtn').textContent='Hide ▴';
   document.getElementById('map-stroke-row').classList.add('on');
@@ -2638,6 +2636,7 @@ function mountData(d,label){
   document.getElementById('hrsec').style.display=HR.length>10?'block':'none';
   buildBenchmark(d);
   schedRender();
+  buildCurveSection();
 }
 
 function resetApp(){
