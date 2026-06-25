@@ -247,6 +247,7 @@
       <button class="hbtn" id="resetbtn" style="display:none;">↩ New file</button>
       <button class="hbtn" id="addsessbtn" style="display:none;">＋ Add file</button>
       <button class="hbtn" id="adddrivebtn" style="display:none;">☁ Add from Drive</button>
+      <button class="hbtn" id="squadbtn" style="display:none;">📤 From Squad</button>
       <button class="hbtn" id="tcxbtn" style="display:none;">⬇ Export TCX</button>
     </div>
   </div>
@@ -820,6 +821,80 @@ async function loadFromDrive() {
       catch(err) { toast('Load failed: '+err.message); }
     });
   } catch(err) { toast('Drive error: '+err.message); }
+}
+async function loadFromSquad() {
+    let stored = '';
+    try { stored = localStorage.getItem('_squad_code') || ''; } catch {}
+    const raw = prompt('Squad code:', stored);
+    if (!raw) return;
+    const code = raw.trim().toUpperCase();
+    try { localStorage.setItem('_squad_code', code); } catch {}
+    toast('Fetching sessions…');
+    try {
+        const r = await fetch('https://boatrun-default-rtdb.asia-southeast1.firebasedatabase.app/squads/' + code + '/coach_sessions.json?shallow=true');
+        if (!r.ok) throw new Error('HTTP ' + r.status);
+        const keys = await r.json();
+        if (!keys) { toast('No sessions found for squad ' + code); return; }
+        const sessIds = Object.keys(keys).filter(k => !k.endsWith('_meta'));
+        if (!sessIds.length) { toast('No sessions found for squad ' + code); return; }
+        const metaR = await fetch('https://boatrun-default-rtdb.asia-southeast1.firebasedatabase.app/squads/' + code + '/coach_sessions.json?shallow=true');
+        const allKeys = await metaR.json();
+        const metaFetches = sessIds.map(id =>
+            fetch('https://boatrun-default-rtdb.asia-southeast1.firebasedatabase.app/squads/' + code + '/coach_sessions/' + id + '_meta.json')
+                .then(r => r.ok ? r.json() : null)
+                .then(m => m ? { id, ...m } : { id, rower: 'Rower', dist: 0, dur: 0, t: parseInt(id) })
+                .catch(() => ({ id, rower: 'Rower', dist: 0, dur: 0, t: parseInt(id) }))
+        );
+        const metas = await Promise.all(metaFetches);
+        showSquadPicker(code, metas);
+    } catch (e) { toast('Fetch failed: ' + e.message); }
+}
+
+function showSquadPicker(code, metas) {
+    document.getElementById('_squad_picker')?.remove();
+    const overlay = document.createElement('div');
+    overlay.id = '_squad_picker';
+    overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,.72);display:flex;align-items:center;justify-content:center;z-index:9999;';
+    const panel = document.createElement('div');
+    panel.style.cssText = 'background:#1e2328;border-radius:10px;padding:16px;width:min(92vw,420px);max-height:80vh;display:flex;flex-direction:column;gap:10px;';
+    const title = document.createElement('div');
+    title.style.cssText = 'color:#fff;font-size:13px;font-weight:700;';
+    title.textContent = 'Squad ' + code + ' — Coach Sessions';
+    panel.appendChild(title);
+    const list = document.createElement('div');
+    list.style.cssText = 'overflow-y:auto;flex:1;display:flex;flex-direction:column;gap:6px;';
+    const sorted = [...metas].sort((a, b) => (b.t || 0) - (a.t || 0));
+    sorted.forEach(m => {
+        const d = new Date(m.t || parseInt(m.id));
+        const dateStr = d.toLocaleDateString() + ' ' + d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+        const btn = document.createElement('button');
+        btn.style.cssText = 'background:#2c3340;border:1px solid #3d4755;border-radius:6px;padding:10px 12px;text-align:left;cursor:pointer;color:#e0e6ef;font-size:12px;line-height:1.6;';
+        btn.innerHTML = '<span style="color:#7ec8e3;font-weight:700">' + (m.rower || 'Rower') + '</span>  ' + dateStr +
+            '<br><span style="color:#aaa">' + (m.dist ? m.dist + 'm' : '—') + (m.dur ? '  ' + Math.floor(m.dur / 60) + ' min' : '') + (m.name ? '  · ' + m.name : '') + '</span>';
+        btn.onclick = async () => {
+            overlay.remove();
+            toast('Loading…');
+            try {
+                const r = await fetch('https://boatrun-default-rtdb.asia-southeast1.firebasedatabase.app/squads/' + code + '/coach_sessions/' + m.id + '.json');
+                if (!r.ok) throw new Error('HTTP ' + r.status);
+                const session = await r.json();
+                if (!session) throw new Error('Session not found');
+                applySessionUnits(session);
+                const label = (m.rower || 'Rower') + ' ' + new Date(m.t).toLocaleDateString();
+                addSessionFromData(sessionToAnalyserFmt(session), label, !SESSIONS.length);
+            } catch (e) { toast('Load failed: ' + e.message); }
+        };
+        list.appendChild(btn);
+    });
+    panel.appendChild(list);
+    const close = document.createElement('button');
+    close.textContent = 'Cancel';
+    close.style.cssText = 'background:#3d4755;border:none;border-radius:6px;padding:10px;color:#fff;cursor:pointer;font-size:12px;';
+    close.onclick = () => overlay.remove();
+    panel.appendChild(close);
+    overlay.appendChild(panel);
+    overlay.onclick = e => { if (e.target === overlay) overlay.remove(); };
+    document.body.appendChild(overlay);
 }
 
 function showDrivePicker(files, onSelect) {
@@ -2371,6 +2446,7 @@ function mountData(d,label){
   document.getElementById('resetbtn').style.display='';
   document.getElementById('addsessbtn').style.display='';
   document.getElementById('adddrivebtn').style.display=AnalyserDrive.isSignedIn()?'':'none';
+  document.getElementById('squadbtn').style.display='';
   document.getElementById('filemenubtn').style.display='';
   document.getElementById('unitsbar').style.display='flex';
   document.getElementById('curvesec').style.display='none';
@@ -2405,6 +2481,7 @@ function resetApp(){
   document.getElementById('fin').value='';
   document.getElementById('addsessbtn').style.display='none';
   document.getElementById('adddrivebtn').style.display='none';
+  document.getElementById('squadbtn').style.display='none';
   document.getElementById('filemenubtn').style.display='none';
   document.getElementById('sesstabs').style.display='none';
   document.getElementById('sesstabs').innerHTML='';
@@ -2618,9 +2695,11 @@ async function showStartup(){
       <h2>BoatRun Analyser</h2>
       <p>Connect Google Drive to access your sessions</p>
       <button class="dzbtn dzbtn-pri" id="sz-signin">☁ Sign in to Google</button>
+      <button class="dzbtn dzbtn-sec" id="sz-squad">📤 From Squad</button>
       <button class="dzbtn dzbtn-sec" id="sz-openfile">📂 Open file</button>
     </div>`;
     document.getElementById('sz-signin').onclick=()=>AnalyserDrive.signIn();
+    document.getElementById('sz-squad').onclick=loadFromSquad;
     document.getElementById('sz-openfile').onclick=()=>document.getElementById('fin').click();
     return;
   }
@@ -2628,9 +2707,11 @@ async function showStartup(){
   el.innerHTML=`<div class="sz-list">
     <div class="sz-lhd">Sessions<span class="sz-signout" id="sz-signout">Sign out</span></div>
     <div id="sz-files" class="sz-loading">Loading…</div>
-    <button class="dzbtn dzbtn-sec" id="sz-openfile" style="margin-top:14px;">📂 Open file</button>
+    <button class="dzbtn dzbtn-sec" id="sz-squad" style="margin-top:14px;">📤 From Squad</button>
+    <button class="dzbtn dzbtn-sec" id="sz-openfile" style="margin-top:8px;">📂 Open file</button>
   </div>`;
   document.getElementById('sz-signout').onclick=()=>{AnalyserDrive.signOut();showStartup();};
+  document.getElementById('sz-squad').onclick=loadFromSquad;
   document.getElementById('sz-openfile').onclick=()=>document.getElementById('fin').click();
 
   try{
@@ -2848,6 +2929,7 @@ document.getElementById('adddrivebtn').onclick=async()=>{
     });
   }catch(err){toast('Drive error: '+err.message);}
 };
+document.getElementById('squadbtn').onclick=loadFromSquad;
 document.getElementById('xmode').onchange=schedRender;
 document.getElementById('emaMode').onchange=schedRender;
 document.getElementById('selclear').onclick=()=>{selS=-1;selE=-1;ovAbsSelS=-1;ovAbsSelE=-1;document.getElementById('selbar').classList.remove('on');hlRows([]);schedRender();};
