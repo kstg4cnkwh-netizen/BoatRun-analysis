@@ -433,9 +433,14 @@ const AnalyserDrive = {
   async list() {
     this._check();
     const q = encodeURIComponent("name contains 'RowSess_' and name contains '.json' and trashed=false");
-    const resp = await fetch(`https://www.googleapis.com/drive/v3/files?spaces=appDataFolder&q=${q}&fields=files(id,name,createdTime,size)&orderBy=createdTime+desc&pageSize=200`, { headers: { Authorization: 'Bearer ' + this._token } });
-    if (resp.status === 401) { this._expire(); throw new Error('Session expired — please sign in again'); }
-    if (!resp.ok) throw new Error('Drive list failed: HTTP ' + resp.status);
+    const ac = new AbortController();
+    const timer = setTimeout(() => ac.abort(), 15000);
+    let resp;
+    try { resp = await fetch(`https://www.googleapis.com/drive/v3/files?spaces=appDataFolder&q=${q}&fields=files(id,name,createdTime,size)&orderBy=createdTime+desc&pageSize=200`, { headers: { Authorization: 'Bearer ' + this._token }, signal: ac.signal }); }
+    catch (e) { clearTimeout(timer); throw new Error(e.name === 'AbortError' ? 'Connection timed out — sign out and sign in again' : ('Network error — ' + e.message)); }
+    clearTimeout(timer);
+    if (resp.status === 401) { this._expire(); throw new Error('Session expired — sign out and sign in again'); }
+    if (!resp.ok) throw new Error('Drive error: HTTP ' + resp.status + ' — try signing out and in again');
     const d = await resp.json();
     const seen = new Set();
     return (d.files || []).filter(f => { if (seen.has(f.name)) return false; seen.add(f.name); return true; });
@@ -2961,7 +2966,26 @@ async function showStartup(){
   }catch(err){
     if(!AnalyserDrive.isSignedIn()){showStartup();return;}
     const c=document.getElementById('sz-files');
-    if(c)c.innerHTML=`<div class="sz-loading" style="color:#e74c3c;">${err.message}</div>`;
+    if(c){
+      c.innerHTML='';
+      const errDiv=document.createElement('div');
+      errDiv.style.cssText='padding:4px 0 16px;';
+      const msg=document.createElement('div');
+      msg.style.cssText='color:#e74c3c;font-size:.85rem;margin-bottom:14px;line-height:1.6;';
+      msg.textContent=err.message;
+      const reauth=document.createElement('button');
+      reauth.textContent='Sign out & sign in again';
+      reauth.style.cssText='display:block;width:100%;padding:10px;margin-bottom:8px;background:var(--g);color:#000;border:none;border-radius:8px;font-family:-apple-system,BlinkMacSystemFont,Helvetica Neue,sans-serif;font-size:12px;font-weight:700;cursor:pointer;';
+      reauth.onclick=()=>{AnalyserDrive.signOut();showStartup();};
+      const retry=document.createElement('button');
+      retry.textContent='Retry';
+      retry.style.cssText='display:block;width:100%;padding:10px;background:transparent;border:1px solid var(--border);border-radius:8px;font-family:-apple-system,BlinkMacSystemFont,Helvetica Neue,sans-serif;font-size:12px;color:var(--muted);cursor:pointer;';
+      retry.onclick=()=>showStartup();
+      errDiv.appendChild(msg);
+      errDiv.appendChild(reauth);
+      errDiv.appendChild(retry);
+      c.appendChild(errDiv);
+    }
   }
 }
 
