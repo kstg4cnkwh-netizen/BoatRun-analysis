@@ -244,10 +244,8 @@
   <div class="hmenu-wrap">
     <button class="hbtn" id="filemenubtn" style="display:none;">☰ Files ▾</button>
     <div class="hmenu" id="filemenu">
-      <button class="hbtn" id="resetbtn" style="display:none;">↩ New file</button>
-      <button class="hbtn" id="addsessbtn" style="display:none;">＋ Add file</button>
-      <button class="hbtn" id="adddrivebtn" style="display:none;">☁ Add from Drive</button>
-      <button class="hbtn" id="squadbtn" style="display:none;">📤 From Squad</button>
+      <button class="hbtn" id="resetbtn" style="display:none;">↩ Open New File</button>
+      <button class="hbtn" id="addcompbtn" style="display:none;">＋ Add for comparison</button>
       <button class="hbtn" id="tcxbtn" style="display:none;">⬇ Export TCX</button>
     </div>
   </div>
@@ -850,25 +848,198 @@ async function loadFromSquad() {
     } catch (e) { toast('Fetch failed: ' + e.message); }
 }
 
+async function showAddComparePicker() {
+    document.getElementById('_add_comp_picker')?.remove();
+    document.getElementById('filemenu').classList.remove('open');
+    const SQUAD_DB = 'https://boatrun-default-rtdb.asia-southeast1.firebasedatabase.app';
+    const overlay = document.createElement('div');
+    overlay.id = '_add_comp_picker';
+    overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,.72);display:flex;align-items:flex-start;justify-content:center;z-index:9999;padding:20px 16px;overflow-y:auto;';
+    const panel = document.createElement('div');
+    panel.style.cssText = 'background:var(--s1);border:1px solid var(--border);border-radius:10px;width:min(92vw,480px);color:var(--text);font-family:-apple-system,BlinkMacSystemFont,Helvetica Neue,sans-serif;';
+    const hdr = document.createElement('div');
+    hdr.style.cssText = 'display:flex;align-items:center;padding:14px 16px;border-bottom:1px solid var(--border);';
+    hdr.innerHTML = '<span style="font-size:13px;font-weight:700;color:var(--text);">Add for Comparison</span>';
+    const closeBtn = document.createElement('button');
+    closeBtn.textContent = '\u2715';
+    closeBtn.style.cssText = 'margin-left:auto;background:none;border:1px solid var(--border);color:var(--muted);border-radius:6px;padding:4px 10px;font-size:11px;cursor:pointer;';
+    closeBtn.onclick = () => overlay.remove();
+    hdr.appendChild(closeBtn);
+    panel.appendChild(hdr);
+    const srcRow = document.createElement('div');
+    srcRow.style.cssText = 'display:flex;gap:8px;padding:12px 16px;border-bottom:1px solid var(--border);';
+    const content = document.createElement('div');
+    content.style.cssText = 'padding:14px 16px;max-height:60vh;overflow-y:auto;';
+    content.innerHTML = '<div class="sz-loading">Choose a source above to browse sessions.</div>';
+    const srcDefs = [
+        { id: 'squad', label: '\ud83d\udce4 Squad' },
+        { id: 'drive', label: '\u2601 Drive' },
+        { id: 'device', label: '\ud83d\udcc2 Device' }
+    ];
+    const srcBtns = srcDefs.map(s => {
+        const b = document.createElement('button');
+        b.dataset.src = s.id;
+        b.textContent = s.label;
+        b.style.cssText = 'flex:1;padding:8px 4px;background:var(--s2);border:1px solid var(--border);border-radius:6px;color:var(--muted);cursor:pointer;font-family:inherit;font-size:12px;transition:border-color .15s,color .15s;';
+        b.onclick = () => showSource(s.id);
+        srcRow.appendChild(b);
+        return b;
+    });
+    function setSrcActive(id) {
+        srcBtns.forEach(b => {
+            const on = b.dataset.src === id;
+            b.style.borderColor = on ? 'var(--g)' : 'var(--border)';
+            b.style.color = on ? 'var(--g)' : 'var(--muted)';
+            b.style.fontWeight = on ? '700' : '400';
+        });
+    }
+    async function showSource(srcId) {
+        setSrcActive(srcId);
+        if (srcId === 'device') {
+            _addMode = true;
+            document.getElementById('fin').click();
+            overlay.remove();
+            return;
+        }
+        if (srcId === 'squad') {
+            let stored = '';
+            try { stored = localStorage.getItem('_squad_code') || ''; } catch {}
+            const raw = prompt('Squad code:', stored);
+            if (!raw) { content.innerHTML = '<div class="sz-loading">No code entered.</div>'; return; }
+            const code = raw.trim().toUpperCase();
+            try { localStorage.setItem('_squad_code', code); } catch {}
+            content.innerHTML = '<div class="sz-loading">Fetching sessions\u2026</div>';
+            try {
+                const r = await fetch(SQUAD_DB + '/squads/' + code + '/coach_sessions.json?shallow=true');
+                if (!r.ok) throw new Error('HTTP ' + r.status);
+                const keys = await r.json();
+                if (!keys) { content.innerHTML = '<div class="sz-loading">No sessions found for squad ' + code + '.</div>'; return; }
+                const sessIds = Object.keys(keys).filter(k => !k.endsWith('_meta'));
+                const metaFetches = sessIds.map(id =>
+                    fetch(SQUAD_DB + '/squads/' + code + '/coach_sessions/' + id + '_meta.json')
+                        .then(r2 => r2.ok ? r2.json() : null)
+                        .then(m => m ? { id, ...m } : { id, rower: 'Rower', dist: 0, dur: 0, t: parseInt(id) })
+                        .catch(() => ({ id, rower: 'Rower', dist: 0, dur: 0, t: parseInt(id) }))
+                );
+                const metas = await Promise.all(metaFetches);
+                const sorted = [...metas].sort((a, b) => (b.t || 0) - (a.t || 0));
+                content.innerHTML = '';
+                sorted.forEach(m => {
+                    const d = new Date(m.t || parseInt(m.id));
+                    const dateStr = d.toLocaleDateString() + ' ' + d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+                    const btn = document.createElement('button');
+                    btn.style.cssText = 'display:block;width:100%;background:var(--s2);border:1px solid var(--border);border-radius:6px;padding:10px 12px;text-align:left;cursor:pointer;color:var(--text);font-size:12px;line-height:1.6;margin-bottom:6px;font-family:inherit;';
+                    btn.innerHTML = '<span style="color:var(--g);font-weight:700;">' + (m.rower || 'Rower') + '</span>  ' + dateStr +
+                        '<br><span style="color:var(--muted);">' + (m.dist ? m.dist + 'm' : '\u2014') + (m.dur ? '  ' + Math.floor(m.dur / 60) + ' min' : '') + (m.name ? '  \u00b7 ' + m.name : '') + '</span>';
+                    btn.onclick = async () => {
+                        if (btn.dataset.added) return;
+                        btn.style.opacity = '.55'; btn.style.pointerEvents = 'none';
+                        try {
+                            const r2 = await fetch(SQUAD_DB + '/squads/' + code + '/coach_sessions/' + m.id + '.json');
+                            if (!r2.ok) throw new Error('HTTP ' + r2.status);
+                            const session = await r2.json();
+                            if (!session) throw new Error('Not found');
+                            applySessionUnits(session);
+                            const label = (m.rower || 'Rower') + ' ' + d.toLocaleDateString();
+                            addSessionFromData(sessionToAnalyserFmt(session), label, false);
+                            btn.dataset.added = '1';
+                            btn.innerHTML += ' <span style="color:var(--g);">\u2713 added</span>';
+                            btn.style.opacity = '1'; btn.style.pointerEvents = '';
+                        } catch (e2) { toast('Load failed: ' + e2.message); btn.style.opacity = '1'; btn.style.pointerEvents = ''; }
+                    };
+                    content.appendChild(btn);
+                });
+            } catch (e) { content.innerHTML = '<div class="sz-loading" style="color:#e74c3c;">Fetch failed: ' + e.message + '</div>'; }
+        }
+        if (srcId === 'drive') {
+            if (!AnalyserDrive.isSignedIn()) {
+                content.innerHTML = '<div class="sz-loading">Sign in to Google Drive first using the header button.</div>';
+                return;
+            }
+            content.innerHTML = '<div class="sz-loading">Loading Drive sessions\u2026</div>';
+            try {
+                const files = await AnalyserDrive.list();
+                if (!files.length) { content.innerHTML = '<div class="sz-loading">No sessions on Drive.</div>'; return; }
+                content.innerHTML = '';
+                files.forEach(f => {
+                    const dist = f.name.match(/_(\d+)m_/);
+                    const dur = f.name.match(/_(\d{2})h(\d{2})m(\d{2})s/);
+                    const nm = f.name.match(/_NAME([a-zA-Z0-9-]+)/);
+                    const str = f.name.match(/_(\d+)str/);
+                    const ts = f.name.match(/RowSess_(\d{4})-(\d{2})-(\d{2})_(\d{2})(\d{2})/);
+                    const distM = dist ? parseInt(dist[1]) : null;
+                    const durS = dur ? +dur[1]*3600 + +dur[2]*60 + +dur[3] : null;
+                    const name = nm ? nm[1].replace(/-/g,' ') : null;
+                    const strokes = str ? parseInt(str[1]) : null;
+                    const approxTs = ts ? new Date(+ts[1],+ts[2]-1,+ts[3],+ts[4],+ts[5]).getTime() : 0;
+                    const dateStr = approxTs
+                        ? new Date(approxTs).toLocaleDateString('en-AU',{day:'numeric',month:'short',year:'numeric'})+' '+new Date(approxTs).toLocaleTimeString('en-AU',{hour:'2-digit',minute:'2-digit'})
+                        : new Date(f.createdTime).toLocaleDateString();
+                    const pace = distM && durS ? durS/distM*500 : null;
+                    const btn = document.createElement('div');
+                    btn.className = 'asc';
+                    btn.style.marginBottom = '6px';
+                    if (name) { const nd=document.createElement('div');nd.style.cssText='font-weight:700;font-size:.85rem;color:var(--text);margin-bottom:2px;';nd.textContent=name;btn.appendChild(nd); }
+                    const dd = document.createElement('div'); dd.className='asc-date';
+                    dd.innerHTML = '<span>' + dateStr + '</span>';
+                    btn.appendChild(dd);
+                    const sd = document.createElement('div'); sd.className='asc-stats';
+                    if(distM!=null)sd.innerHTML+='<div><span class="asc-v">'+(distM/1000).toFixed(2)+'</span><span class="asc-l">km</span></div>';
+                    if(durS!=null)sd.innerHTML+='<div><span class="asc-v">'+fmtTime(durS)+'</span><span class="asc-l">time</span></div>';
+                    if(pace!=null)sd.innerHTML+='<div><span class="asc-v">'+fmtPace(pace)+'</span><span class="asc-l">avg pace</span></div>';
+                    if(strokes!=null)sd.innerHTML+='<div><span class="asc-v">'+strokes+'</span><span class="asc-l">strokes</span></div>';
+                    btn.appendChild(sd);
+                    btn.onclick = async () => {
+                        if (btn.dataset.added) return;
+                        btn.style.opacity = '.55'; btn.style.pointerEvents = 'none';
+                        try {
+                            const session = await AnalyserDrive.fetchSession(f.id);
+                            applySessionUnits(session);
+                            addSessionFromData(sessionToAnalyserFmt(session), name || f.name.replace('RowSess_','').replace('.json',''), false, f.id);
+                            btn.dataset.added = '1';
+                            dd.innerHTML += ' <span style="color:var(--g);">\u2713 added</span>';
+                            btn.style.opacity = '1'; btn.style.pointerEvents = '';
+                        } catch (e2) { toast('Load failed: ' + e2.message); btn.style.opacity = '1'; btn.style.pointerEvents = ''; }
+                    };
+                    content.appendChild(btn);
+                });
+            } catch (e) { content.innerHTML = '<div class="sz-loading" style="color:#e74c3c;">Drive error: ' + e.message + '</div>'; }
+        }
+    }
+    panel.appendChild(srcRow);
+    panel.appendChild(content);
+    overlay.appendChild(panel);
+    overlay.onclick = e => { if (e.target === overlay) overlay.remove(); };
+    document.body.appendChild(overlay);
+}
+
 function showSquadPicker(code, metas) {
     document.getElementById('_squad_picker')?.remove();
     const overlay = document.createElement('div');
     overlay.id = '_squad_picker';
     overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,.72);display:flex;align-items:center;justify-content:center;z-index:9999;';
     const panel = document.createElement('div');
-    panel.style.cssText = 'background:#1e2328;border-radius:10px;padding:16px;width:min(92vw,420px);max-height:80vh;display:flex;flex-direction:column;gap:10px;';
-    const title = document.createElement('div');
+    panel.style.cssText = 'background:#1e2328;border-radius:10px;width:min(92vw,420px);max-height:80vh;display:flex;flex-direction:column;overflow:hidden;';
+    const hdr = document.createElement('div');
+    hdr.style.cssText = 'display:flex;align-items:center;padding:14px 16px;border-bottom:1px solid #2c3340;flex-shrink:0;';
+    const title = document.createElement('span');
     title.style.cssText = 'color:#fff;font-size:13px;font-weight:700;';
     title.textContent = 'Squad ' + code + ' — Coach Sessions';
-    panel.appendChild(title);
+    const close = document.createElement('button');
+    close.textContent = '✕';
+    close.style.cssText = 'margin-left:auto;background:none;border:1px solid #3d4755;color:#aaa;border-radius:6px;padding:4px 10px;font-size:11px;cursor:pointer;';
+    close.onclick = () => overlay.remove();
+    hdr.appendChild(title);
+    hdr.appendChild(close);
+    panel.appendChild(hdr);
     const list = document.createElement('div');
-    list.style.cssText = 'overflow-y:auto;flex:1;display:flex;flex-direction:column;gap:6px;';
+    list.style.cssText = 'overflow-y:auto;flex:1;display:flex;flex-direction:column;gap:6px;padding:14px 16px;';
     const sorted = [...metas].sort((a, b) => (b.t || 0) - (a.t || 0));
     sorted.forEach(m => {
         const d = new Date(m.t || parseInt(m.id));
         const dateStr = d.toLocaleDateString() + ' ' + d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
         const btn = document.createElement('button');
-        btn.style.cssText = 'background:#2c3340;border:1px solid #3d4755;border-radius:6px;padding:10px 12px;text-align:left;cursor:pointer;color:#e0e6ef;font-size:12px;line-height:1.6;';
+        btn.style.cssText = 'background:#2c3340;border:1px solid #3d4755;border-radius:6px;padding:10px 12px;text-align:left;cursor:pointer;color:#e0e6ef;font-size:12px;line-height:1.6;width:100%;font-family:inherit;';
         btn.innerHTML = '<span style="color:#7ec8e3;font-weight:700">' + (m.rower || 'Rower') + '</span>  ' + dateStr +
             '<br><span style="color:#aaa">' + (m.dist ? m.dist + 'm' : '—') + (m.dur ? '  ' + Math.floor(m.dur / 60) + ' min' : '') + (m.name ? '  · ' + m.name : '') + '</span>';
         btn.onclick = async () => {
@@ -887,11 +1058,6 @@ function showSquadPicker(code, metas) {
         list.appendChild(btn);
     });
     panel.appendChild(list);
-    const close = document.createElement('button');
-    close.textContent = 'Cancel';
-    close.style.cssText = 'background:#3d4755;border:none;border-radius:6px;padding:10px;color:#fff;cursor:pointer;font-size:12px;';
-    close.onclick = () => overlay.remove();
-    panel.appendChild(close);
     overlay.appendChild(panel);
     overlay.onclick = e => { if (e.target === overlay) overlay.remove(); };
     document.body.appendChild(overlay);
@@ -2444,9 +2610,7 @@ function mountData(d,label){
   document.getElementById('app').style.display='block';
   document.getElementById('tcxbtn').style.display='';
   document.getElementById('resetbtn').style.display='';
-  document.getElementById('addsessbtn').style.display='';
-  document.getElementById('adddrivebtn').style.display=AnalyserDrive.isSignedIn()?'':'none';
-  document.getElementById('squadbtn').style.display='';
+  document.getElementById('addcompbtn').style.display='';
   document.getElementById('filemenubtn').style.display='';
   document.getElementById('unitsbar').style.display='flex';
   document.getElementById('curvesec').style.display='none';
@@ -2478,10 +2642,8 @@ function resetApp(){
   document.getElementById('unitsbar').style.display='none';
   document.getElementById('tcxbtn').style.display='none';
   document.getElementById('resetbtn').style.display='none';
+  document.getElementById('addcompbtn').style.display='none';
   document.getElementById('fin').value='';
-  document.getElementById('addsessbtn').style.display='none';
-  document.getElementById('adddrivebtn').style.display='none';
-  document.getElementById('squadbtn').style.display='none';
   document.getElementById('filemenubtn').style.display='none';
   document.getElementById('sesstabs').style.display='none';
   document.getElementById('sesstabs').innerHTML='';
@@ -2705,10 +2867,12 @@ async function showStartup(){
   }
 
   el.innerHTML=`<div class="sz-list">
+    <div style="display:flex;gap:8px;margin-bottom:14px;">
+      <button class="dzbtn dzbtn-sec" id="sz-squad" style="flex:1;">📤 From Squad</button>
+      <button class="dzbtn dzbtn-sec" id="sz-openfile" style="flex:1;">📂 Open file</button>
+    </div>
     <div class="sz-lhd">Sessions<span class="sz-signout" id="sz-signout">Sign out</span></div>
     <div id="sz-files" class="sz-loading">Loading…</div>
-    <button class="dzbtn dzbtn-sec" id="sz-squad" style="margin-top:14px;">📤 From Squad</button>
-    <button class="dzbtn dzbtn-sec" id="sz-openfile" style="margin-top:8px;">📂 Open file</button>
   </div>`;
   document.getElementById('sz-signout').onclick=()=>{AnalyserDrive.signOut();showStartup();};
   document.getElementById('sz-squad').onclick=loadFromSquad;
@@ -2916,20 +3080,7 @@ document.getElementById('fin').onchange=e=>{
   _addMode=false;
   e.target.value='';
 };
-document.getElementById('addsessbtn').onclick=()=>{_addMode=true;document.getElementById('fin').click();};
-document.getElementById('adddrivebtn').onclick=async()=>{
-  if(!AnalyserDrive.isSignedIn()){toast('Sign in to Google first');return;}
-  try{
-    toast('Fetching session list…');
-    const files=await AnalyserDrive.list();
-    if(!files.length){toast('No sessions found on Drive');return;}
-    showDrivePicker(files, async(fileId,label)=>{
-      try{const session=await AnalyserDrive.fetchSession(fileId);applySessionUnits(session);addSessionFromData(sessionToAnalyserFmt(session),label,false,fileId);}
-      catch(err){toast('Load failed: '+err.message);}
-    });
-  }catch(err){toast('Drive error: '+err.message);}
-};
-document.getElementById('squadbtn').onclick=loadFromSquad;
+document.getElementById('addcompbtn').onclick=showAddComparePicker;
 document.getElementById('xmode').onchange=schedRender;
 document.getElementById('emaMode').onchange=schedRender;
 document.getElementById('selclear').onclick=()=>{selS=-1;selE=-1;ovAbsSelS=-1;ovAbsSelE=-1;document.getElementById('selbar').classList.remove('on');hlRows([]);schedRender();};
