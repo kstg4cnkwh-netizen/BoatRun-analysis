@@ -249,6 +249,7 @@
       <button class="hbtn" id="tcxbtn" style="display:none;">⬇ Export TCX</button>
     </div>
   </div>
+  <button class="hbtn" id="openbtn">☁ Open Session</button>
   <button class="hbtn" id="hdrThemeBtn">Dark Mode</button>
   <button class="hbtn" id="infobtn" title="What the metrics mean">ⓘ Info</button>
 <a class="hbtn" href="./about.html" target="_blank" rel="noopener" title="How to use BoatRun, and send feedback">？ About</a>
@@ -2617,6 +2618,8 @@ function mountData(d,label){
   if(!ST.length&&LAPS.length){toast('No stroke data — showing laps only',4000);}
   else if(!ST.length){toast('No stroke data found in this file',4000);return;}
   document.getElementById('startup').style.display='none';
+  document.getElementById('startup').innerHTML='';
+  document.getElementById('openbtn').style.display='none';
   document.getElementById('app').style.display='block';
   document.getElementById('tcxbtn').style.display='';
   document.getElementById('resetbtn').style.display='';
@@ -2657,7 +2660,9 @@ function resetApp(){
   document.getElementById('filemenubtn').style.display='none';
   document.getElementById('sesstabs').style.display='none';
   document.getElementById('sesstabs').innerHTML='';
-  showStartup();
+  document.getElementById('startup').style.display='none';
+  document.getElementById('startup').innerHTML='';
+  document.getElementById('openbtn').style.display='';
   document.getElementById('hrsec').style.display='none';
   document.getElementById('bmksec').style.display='none';
   _bmkSessions=[];
@@ -3103,6 +3108,7 @@ function showInfoModal(){
 // ── Wiring ──────────────────────────────────────────────────────────────────
 document.getElementById('resetbtn').onclick=resetApp;
 document.getElementById('tcxbtn').onclick=exportTCX;
+document.getElementById('openbtn').onclick=()=>{const s=document.getElementById('startup');if(s.innerHTML&&s.style.display!=='none'){s.style.display='none';s.innerHTML='';}else{showStartup();}};
 document.getElementById('infobtn').onclick=showInfoModal;
 document.getElementById('filemenubtn').onclick=(e)=>{e.stopPropagation();document.getElementById('filemenu').classList.toggle('open');};
 document.addEventListener('click',()=>{document.getElementById('filemenu').classList.remove('open');});
@@ -3150,7 +3156,7 @@ AnalyserDrive.init();
       return;
     }catch(e){console.error('xfer load failed',e);}
   }
-  showStartup();
+
 })();
 </script>
 </body>
