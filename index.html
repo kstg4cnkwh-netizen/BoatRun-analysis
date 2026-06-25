@@ -736,6 +736,7 @@ function sessionToAnalyserFmt(s) {
     workoutLapMetrics: s.workoutLapMetrics || null,
     workoutId: s.workoutId || null,
     workoutName: s.workoutName || null,
+    squadCode: s.squadCode || null,
     name: s.name || null };
 }
 
@@ -768,10 +769,10 @@ function loadFiles(fileList, replace) {
   Array.from(fileList).forEach((f,i)=>loadFile(f, replace&&i===0));
 }
 
-function addSessionFromData(d, label, replace, fileId) {
+function addSessionFromData(d, label, replace, fileId, squadCode) {
   if (replace) { SESSIONS=[]; curveGroups=[]; activeSessionIdx=-1; }
   const idx=SESSIONS.length;
-  SESSIONS.push({label, d, fileId: fileId||null});
+  SESSIONS.push({label, d, fileId: fileId||null, squadCode: squadCode || d.squadCode || null});
   switchSession(idx);
 }
 
@@ -941,7 +942,7 @@ async function showAddComparePicker() {
                             if (!session) throw new Error('Not found');
                             applySessionUnits(session);
                             const label = (m.rower || 'Rower') + ' ' + d.toLocaleDateString();
-                            addSessionFromData(sessionToAnalyserFmt(session), label, false);
+                            addSessionFromData(sessionToAnalyserFmt(session), label, false, null, code);
                             btn.dataset.added = '1';
                             btn.innerHTML += ' <span style="color:var(--g);">\u2713 added</span>';
                             btn.style.opacity = '1'; btn.style.pointerEvents = '';
@@ -1052,7 +1053,7 @@ function showSquadPicker(code, metas) {
                 if (!session) throw new Error('Session not found');
                 applySessionUnits(session);
                 const label = (m.rower || 'Rower') + ' ' + new Date(m.t).toLocaleDateString();
-                addSessionFromData(sessionToAnalyserFmt(session), label, !SESSIONS.length);
+                addSessionFromData(sessionToAnalyserFmt(session), label, !SESSIONS.length, null, code);
             } catch (e) { toast('Load failed: ' + e.message); }
         };
         list.appendChild(btn);
@@ -1083,6 +1084,7 @@ function showDrivePicker(files, onSelect) {
     const ax=name.match(/_AX([A-Z])/);
     const wkt=name.match(/_WKT([a-zA-Z0-9\-]+)/);
     const nm=name.match(/_NAME([a-zA-Z0-9\-]+)/);
+    const sq=name.match(/_SQ([A-Z0-9]{1,8})/);
     const ts=name.match(/RowSess_(\d{4})-(\d{2})-(\d{2})_(\d{2})(\d{2})/);
     return {
       distM: dist?parseInt(dist[1]):null,
@@ -1091,6 +1093,7 @@ function showDrivePicker(files, onSelect) {
       axis: ax?ax[1]:null,
       workout: wkt?wkt[1].replace(/-/g,' '):null,
       name: nm?nm[1].replace(/-/g,' '):null,
+      squadCode: sq?sq[1]:null,
       approxTs: ts?new Date(+ts[1],+ts[2]-1,+ts[3],+ts[4],+ts[5]).getTime():0
     };
   }
@@ -1121,6 +1124,7 @@ function showDrivePicker(files, onSelect) {
       const dateDiv=document.createElement('div');
       dateDiv.className='asc-date';
       dateDiv.innerHTML='<span>'+dateStr+'</span>'
+        +(p.squadCode?'<span class="asc-badge">'+p.squadCode+'</span>':'')
         +(p.axis?'<span class="asc-badge">AX:'+p.axis+'</span>':'')
         +(p.workout?'<span class="asc-badge">'+p.workout+'</span>':'');
 
@@ -1232,9 +1236,11 @@ function buildMeta(fname,sum) {
   const dur=fmtTime(+sum.duration_s);
   const dist=fmtDistU(+sum.distance_m||0)+distULabelU();
   const safe=fname.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+  const sq=SESSIONS[activeSessionIdx]?.squadCode;
+  const sqBadge=sq?' <span style="font-size:8px;background:var(--s3);border:1px solid var(--border);border-radius:3px;padding:1px 5px;color:var(--g);letter-spacing:.07em;vertical-align:middle;">'+sq+'</span>':'';
   document.getElementById('hdrmeta').innerHTML=
     '<span style="cursor:pointer;border-bottom:1px dotted var(--muted);color:var(--text);" onclick="renameCurrentSession()" title="Tap to rename">'+safe+'</span>'
-    +' <span style="color:var(--muted);font-size:9px;">✎</span><br>'+date+' · '+dist+' · '+dur;
+    +' <span style="color:var(--muted);font-size:9px;">✎</span>'+sqBadge+'<br>'+date+' · '+dist+' · '+dur;
 }
 function renameCurrentSession() {
   if (activeSessionIdx<0||activeSessionIdx>=SESSIONS.length) return;
@@ -2891,6 +2897,7 @@ async function showStartup(){
       const ax=name.match(/_AX([A-Z])/);
       const wkt=name.match(/_WKT([a-zA-Z0-9\-]+)/);
       const nm=name.match(/_NAME([a-zA-Z0-9\-]+)/);
+      const sq=name.match(/_SQ([A-Z0-9]{1,8})/);
       const ts=name.match(/RowSess_(\d{4})-(\d{2})-(\d{2})_(\d{2})(\d{2})/);
       return {
         distM: dist?parseInt(dist[1]):null,
@@ -2899,6 +2906,7 @@ async function showStartup(){
         axis: ax?ax[1]:null,
         workout: wkt?wkt[1].replace(/-/g,' '):null,
         name: nm?nm[1].replace(/-/g,' '):null,
+        squadCode: sq?sq[1]:null,
         approxTs: ts?new Date(+ts[1],+ts[2]-1,+ts[3],+ts[4],+ts[5]).getTime():0
       };
     }
@@ -2923,6 +2931,7 @@ async function showStartup(){
         const dateDiv=document.createElement('div');
         dateDiv.className='asc-date';
         dateDiv.innerHTML='<span>'+dateStr+'</span>'
+          +(p.squadCode?'<span class="asc-badge">'+p.squadCode+'</span>':'')
           +(p.axis?'<span class="asc-badge">AX:'+p.axis+'</span>':'')
           +(p.workout?'<span class="asc-badge">'+p.workout+'</span>':'');
 
