@@ -3106,7 +3106,7 @@ function showInfoModal(){
   document.getElementById('_info_close').onclick=()=>overlay.remove();
 }
 // ── Wiring ──────────────────────────────────────────────────────────────────
-document.getElementById('resetbtn').onclick=resetApp;
+document.getElementById('resetbtn').onclick=()=>document.getElementById('openbtn').click();
 document.getElementById('tcxbtn').onclick=exportTCX;
 document.getElementById('openbtn').onclick=()=>{const s=document.getElementById('startup');if(s.innerHTML&&s.style.display!=='none'){s.style.display='none';s.innerHTML='';}else{showStartup();}};
 document.getElementById('infobtn').onclick=showInfoModal;
