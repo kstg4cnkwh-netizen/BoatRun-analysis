@@ -230,6 +230,33 @@
 .hmenu{position:absolute;top:calc(100% + 4px);right:0;background:var(--s2);border:1px solid var(--border);border-radius:10px;padding:6px;display:none;flex-direction:column;gap:4px;min-width:175px;z-index:50;box-shadow:0 8px 24px rgba(0,0,0,.3);}
 .hmenu.open{display:flex;}
 .hmenu .hbtn{width:100%;text-align:left;}
+
+  /* ── Video overlay ── */
+  #videosec{display:none;}
+  #vidStageWrap{display:flex;justify-content:center;}
+  #vidstage{position:relative;width:100%;max-width:100%;overflow:hidden;background:#000;border-radius:10px;line-height:0;}
+  #vidstage video{display:block;width:100%;height:auto;}
+  #vidOverlay{position:absolute;top:0;left:0;width:100%;height:100%;touch-action:none;cursor:grab;}
+  #vidOverlay.drag{cursor:grabbing;}
+  .vid-empty{padding:40px 14px;text-align:center;color:var(--muted);font-size:12px;}
+  .vid-ctrls{display:flex;flex-direction:column;gap:10px;margin-top:10px;font-size:11px;}
+  .vid-row{display:flex;flex-wrap:wrap;align-items:center;gap:6px;}
+  .vid-row label{color:var(--muted);}
+  .vid-clip-tabs{display:flex;gap:4px;flex-wrap:wrap;}
+  .vid-clip-tab{background:var(--s2);border:1px solid var(--border);color:var(--text);border-radius:7px;padding:4px 9px;font-size:11px;cursor:pointer;}
+  .vid-clip-tab.on{background:var(--g);color:#000;border-color:var(--g);}
+  .vid-clip-tab .x{margin-left:6px;opacity:.6;}
+  .vid-mchips{display:flex;flex-wrap:wrap;gap:5px;}
+  .vid-mchip{background:var(--s2);border:1px solid var(--border);color:var(--muted);border-radius:14px;padding:3px 10px;font-size:10px;cursor:pointer;user-select:none;}
+  .vid-mchip.on{background:var(--g);color:#000;border-color:var(--g);}
+  .vid-slider{display:flex;align-items:center;gap:5px;}
+  .vid-slider span{color:var(--muted);min-width:54px;}
+  .vid-slider input[type=range]{width:96px;accent-color:var(--g);}
+  .vid-num{width:62px;background:var(--s2);border:1px solid var(--border);color:var(--text);border-radius:6px;padding:3px 5px;font-size:11px;}
+  .vid-read{font-size:11px;color:var(--text);background:var(--s2);border:1px solid var(--border);border-radius:7px;padding:4px 9px;font-variant-numeric:tabular-nums;}
+  .vid-mini{font-size:10px;color:var(--faint);}
+  .vid-panel{border:1px solid var(--border);border-radius:9px;padding:8px 9px;background:var(--dim);}
+  .vid-panel-hd{font-size:10px;color:var(--muted);text-transform:uppercase;letter-spacing:.5px;margin-bottom:6px;}
 </style>
 
 <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" crossorigin=""/>
@@ -330,6 +357,17 @@
         <div class="twrap"><table id="curvetbl"><thead id="curvethead"></thead><tbody id="curvebody"></tbody></table></div>
       </div>
     </div>
+  </div>
+
+  <!-- Video overlay -->
+  <div class="sec" id="videosec">
+    <div class="sec-hd">
+      <h2>Video Overlay</h2>
+      <span class="vid-mini" style="margin-left:6px;">Overlay live metrics &amp; curve on coach video</span>
+      <button class="hbtn" id="vidAddBtn" style="margin-left:auto;font-size:10px;">＋ Add video</button>
+    </div>
+    <input type="file" id="vidFin" accept="video/*" multiple style="display:none">
+    <div id="vidBody"></div>
   </div>
 
   <!-- HR -->
@@ -2640,9 +2678,11 @@ function mountData(d,label){
   buildBenchmark(d);
   schedRender();
   buildCurveSection();
+  vidOnMount(d);
 }
 
 function resetApp(){
+  vidTeardown();
   ST=[];HR=[];LAPS=[];GPSTRACE=[];curveGroups=[];
   SESSIONS=[];activeSessionIdx=-1;_addMode=false;
   selS=-1;selE=-1;ovAbsSelS=-1;ovAbsSelE=-1;
@@ -3140,6 +3180,609 @@ function toast(msg,ms=2500){
   el.textContent=msg;el.style.opacity='1';el.style.transform='translateX(-50%) translateY(0)';
   clearTimeout(el._t);el._t=setTimeout(()=>{el.style.opacity='0';el.style.transform='translateX(-50%) translateY(10px)';},ms);
 }
+
+
+// ══════════════════════════════════════════════════════════════════════════
+// VIDEO OVERLAY
+// ══════════════════════════════════════════════════════════════════════════
+let VID_SESS_T0 = 0;   // absolute ms of session start
+const VID = {
+  clips: [],     // {name,url,el,offset,probedMs}
+  active: -1,
+  raf: null,
+  playing: false,
+  built: false,
+  drag: null,    // 'box' | 'curve' | null
+  dragDX: 0, dragDY: 0,
+  cfg: {
+    metrics: ['rate','pace','dps','slope'],
+    showCurve: true, showBox: true,
+    curveX: 3, curveY: 3, curveScale: 1,
+    boxX: 3, boxY: 64, boxScale: 1,
+    opacity: 0.82,
+    vidWidth: 100, vidZoom: 1, vidPanX: 0, vidPanY: 0,
+  }
+};
+
+const VID_METRICS = {
+  rate:         {l:'Rate',       fmt:s=>({v:f1(s.rate),u:'spm'})},
+  pace:         {l:'Pace',       fmt:s=>({v:fmtPaceU(s.pace),u:paceULabel()})},
+  dps:          {l:'DPS',        fmt:s=>({v:fmtDPSU(s.dps),u:dpsULabelU()})},
+  slope:        {l:'Catch Slope',fmt:s=>({v:f0(s.slope),u:''})},
+  impulse:      {l:'Impulse',    fmt:s=>({v:f0(s.impulse),u:''})},
+  rloss:        {l:'Run Loss',   fmt:s=>({v:fmtRunLossU(s.rloss),u:''})},
+  schar:        {l:'Char',       fmt:s=>({v:f0(s.schar),u:'%'})},
+  ratio:        {l:'Stroke Ratio',fmt:s=>({v:f2(s.ratio),u:''})},
+  oarAngle:     {l:'Oar Arc',    fmt:s=>({v:f1(s.oarAngle),u:'\u00B0'})},
+  checkDelta:   {l:'Check \u0394',fmt:s=>({v:f2(s.checkDelta),u:'m/s'})},
+  catchDuration:{l:'Catch Dur',  fmt:s=>({v:f0(s.catchDuration),u:'ms'})},
+  dist:         {l:'Distance',   fmt:s=>({v:f0(s.dist),u:'m'})},
+  stroke:       {l:'Stroke #',   fmt:(s,i)=>({v:String(i+1),u:''})},
+  time:         {l:'Session',    fmt:(s,i,t)=>({v:fmtTime(t),u:''})},
+};
+const VID_METRIC_ORDER = ['rate','pace','dps','slope','impulse','rloss','schar','ratio','oarAngle','checkDelta','catchDuration','dist','stroke','time'];
+
+function vidOnMount(d){
+  vidTeardown();
+  VID_SESS_T0 = (d.strokes && d.strokes[0] && d.strokes[0].ms) || Date.parse(d.sum && d.sum.start_time) || 0;
+  document.getElementById('videosec').style.display='block';
+  if(!VID.built){ vidWire(); VID.built=true; }
+  vidRenderBody();
+}
+
+function vidTeardown(){
+  if(VID.raf){ cancelAnimationFrame(VID.raf); VID.raf=null; }
+  VID.playing=false;
+  VID.clips.forEach(c=>{ try{ c.el && c.el.pause(); }catch(e){} try{ URL.revokeObjectURL(c.url); }catch(e){} });
+  VID.clips=[]; VID.active=-1; VID.drag=null;
+}
+
+function vidWire(){
+  document.getElementById('vidAddBtn').onclick=()=>document.getElementById('vidFin').click();
+  document.getElementById('vidFin').onchange=e=>{
+    const files=[...e.target.files];
+    e.target.value='';
+    files.forEach(vidAddClip);
+  };
+}
+
+function vidAddClip(file){
+  const url=URL.createObjectURL(file);
+  const clip={ name:file.name, url, el:null, offset:0, probedMs:null, file };
+  VID.clips.push(clip);
+  VID.active=VID.clips.length-1;
+  vidRenderBody();
+  // try to auto-detect capture time in background
+  vidProbeTime(file).then(ms=>{
+    clip.probedMs=ms;
+    if(ms && VID_SESS_T0){ clip.offset=Math.round((VID_SESS_T0 - ms)/1000*10)/10; }
+    if(VID.clips[VID.active]===clip) vidRenderBody();
+  }).catch(()=>{});
+}
+
+function vidRemoveClip(i){
+  const c=VID.clips[i]; if(!c) return;
+  try{ c.el && c.el.pause(); }catch(e){}
+  try{ URL.revokeObjectURL(c.url); }catch(e){}
+  VID.clips.splice(i,1);
+  if(VID.active>=VID.clips.length) VID.active=VID.clips.length-1;
+  vidRenderBody();
+}
+
+function vidSetActive(i){ VID.active=i; vidRenderBody(); }
+
+// ── Body / controls ─────────────────────────────────────────────────────────
+function vidRenderBody(){
+  const body=document.getElementById('vidBody');
+  if(!VID.clips.length){
+    body.innerHTML='<div class="vid-empty">No video loaded. Tap <b>＋ Add video</b> to overlay metrics on a coach clip.<br>You can add several clips (e.g. chopped recordings) to one session.</div>';
+    return;
+  }
+  const a=VID.clips[VID.active];
+  const cfg=VID.cfg;
+  const tabs=VID.clips.map((c,i)=>`<div class="vid-clip-tab${i===VID.active?' on':''}" onclick="vidSetActive(${i})">${vidShort(c.name)}<span class="x" onclick="event.stopPropagation();vidRemoveClip(${i})">\u00D7</span></div>`).join('');
+  const mchips=VID_METRIC_ORDER.map(k=>`<div class="vid-mchip${cfg.metrics.includes(k)?' on':''}" onclick="vidToggleMetric('${k}')">${VID_METRICS[k].l}</div>`).join('');
+  const probe = a.probedMs ? ('capture \u2248 '+new Date(a.probedMs).toLocaleTimeString()) : 'no capture time in file';
+
+  body.innerHTML=`
+  <div class="vid-clip-tabs">${tabs}</div>
+  <div id="vidStageWrap" style="margin-top:8px;">
+    <div id="vidstage" style="width:${cfg.vidWidth}%;">
+      <video id="vidEl" playsinline controls preload="metadata"></video>
+      <canvas id="vidOverlay"></canvas>
+    </div>
+  </div>
+  <div class="vid-ctrls">
+
+    <div class="vid-panel">
+      <div class="vid-panel-hd">Sync this clip to the session</div>
+      <div class="vid-row">
+        <div class="vid-read" id="vidRead">\u2014</div>
+        <label>offset (s)</label>
+        <input class="vid-num" id="vidOffset" type="number" step="0.1" value="${a.offset}">
+        <button class="vid-clip-tab" onclick="vidNudge(-1)">\u22121s</button>
+        <button class="vid-clip-tab" onclick="vidNudge(-0.1)">\u22120.1</button>
+        <button class="vid-clip-tab" onclick="vidNudge(0.1)">+0.1</button>
+        <button class="vid-clip-tab" onclick="vidNudge(1)">+1s</button>
+      </div>
+      <div class="vid-row" style="margin-top:6px;">
+        <label>Align: pause video at a known moment, enter session time</label>
+        <input class="vid-num" id="vidAlignT" type="text" placeholder="m:ss or s">
+        <button class="vid-clip-tab" onclick="vidAlign()">Align here</button>
+        <button class="vid-clip-tab" onclick="vidAutoTime()">Auto from file</button>
+        <span class="vid-mini">${probe}</span>
+      </div>
+    </div>
+
+    <div class="vid-panel">
+      <div class="vid-panel-hd">Metrics box \u2014 tap to choose</div>
+      <div class="vid-mchips">${mchips}</div>
+      <div class="vid-row" style="margin-top:8px;">
+        <label><input type="checkbox" id="vidShowBox" ${cfg.showBox?'checked':''}> show box</label>
+        <div class="vid-slider"><span>box size</span><input type="range" id="vidBoxScale" min="60" max="200" value="${Math.round(cfg.boxScale*100)}"></div>
+        <div class="vid-slider"><span>opacity</span><input type="range" id="vidOpacity" min="20" max="100" value="${Math.round(cfg.opacity*100)}"></div>
+      </div>
+    </div>
+
+    <div class="vid-panel">
+      <div class="vid-panel-hd">Curve</div>
+      <div class="vid-row">
+        <label><input type="checkbox" id="vidShowCurve" ${cfg.showCurve?'checked':''}> show curve</label>
+        <div class="vid-slider"><span>curve size</span><input type="range" id="vidCurveScale" min="50" max="220" value="${Math.round(cfg.curveScale*100)}"></div>
+      </div>
+      <div class="vid-mini" style="margin-top:5px;">Drag the box or curve directly on the video to reposition.</div>
+    </div>
+
+    <div class="vid-panel">
+      <div class="vid-panel-hd">Video size &amp; crop</div>
+      <div class="vid-row">
+        <div class="vid-slider"><span>width</span><input type="range" id="vidWidth" min="40" max="100" value="${cfg.vidWidth}"></div>
+        <div class="vid-slider"><span>zoom/crop</span><input type="range" id="vidZoom" min="100" max="220" value="${Math.round(cfg.vidZoom*100)}"></div>
+        <div class="vid-slider"><span>pan X</span><input type="range" id="vidPanX" min="-50" max="50" value="${cfg.vidPanX}"></div>
+        <div class="vid-slider"><span>pan Y</span><input type="range" id="vidPanY" min="-50" max="50" value="${cfg.vidPanY}"></div>
+      </div>
+    </div>
+
+    <div class="vid-panel">
+      <div class="vid-panel-hd">Export overlay video</div>
+      <div class="vid-row">
+        <button class="vid-clip-tab" id="vidExportBtn" style="background:var(--g);color:#000;border-color:var(--g);">\u2B07 Record overlay (webm)</button>
+        <button class="vid-clip-tab" id="vidExportCancel" style="display:none;">Stop</button>
+        <span class="vid-mini" id="vidExportStatus"></span>
+      </div>
+      <div class="vid-mini" style="margin-top:5px;">Plays the clip start\u2192finish and records video + overlay + audio to a .webm you can share or open in VLC. Best on desktop Chrome; iOS Safari may not support recording.</div>
+    </div>
+
+  </div>`;
+
+  const el=document.getElementById('vidEl');
+  el.src=a.url;
+  a.el=el;
+  vidApplyVideoStyle();
+  el.onplay=()=>{ VID.playing=true; if(!VID.raf) VID.raf=requestAnimationFrame(vidFrame); };
+  el.onpause=()=>{ VID.playing=false; vidDraw(); };
+  el.onseeked=vidDraw;
+  el.onseeking=vidDraw;
+  el.onloadedmetadata=()=>{ vidSizeOverlay(); vidDraw(); };
+  el.ontimeupdate=()=>{ if(!VID.playing) vidDraw(); };
+
+  // control wiring
+  const on=(id,ev,fn)=>{const e=document.getElementById(id);if(e)e[ev]=fn;};
+  on('vidOffset','onchange',e=>{ a.offset=parseFloat(e.target.value)||0; vidDraw(); });
+  on('vidShowBox','onchange',e=>{ cfg.showBox=e.target.checked; vidDraw(); });
+  on('vidShowCurve','onchange',e=>{ cfg.showCurve=e.target.checked; vidDraw(); });
+  on('vidBoxScale','oninput',e=>{ cfg.boxScale=e.target.value/100; vidDraw(); });
+  on('vidCurveScale','oninput',e=>{ cfg.curveScale=e.target.value/100; vidDraw(); });
+  on('vidOpacity','oninput',e=>{ cfg.opacity=e.target.value/100; vidDraw(); });
+  on('vidWidth','oninput',e=>{ cfg.vidWidth=+e.target.value; document.getElementById('vidstage').style.width=cfg.vidWidth+'%'; requestAnimationFrame(()=>{vidSizeOverlay();vidDraw();}); });
+  on('vidZoom','oninput',e=>{ cfg.vidZoom=e.target.value/100; vidApplyVideoStyle(); vidDraw(); });
+  on('vidPanX','oninput',e=>{ cfg.vidPanX=+e.target.value; vidApplyVideoStyle(); vidDraw(); });
+  on('vidPanY','oninput',e=>{ cfg.vidPanY=+e.target.value; vidApplyVideoStyle(); vidDraw(); });
+  on('vidExportBtn','onclick',vidExport);
+  on('vidExportCancel','onclick',vidCancelExport);
+
+  vidWireDrag();
+  requestAnimationFrame(()=>{ vidSizeOverlay(); vidDraw(); });
+}
+
+function vidShort(n){ n=n.replace(/\.[^.]+$/,''); return n.length>16?n.slice(0,15)+'\u2026':n; }
+
+function vidToggleMetric(k){
+  const m=VID.cfg.metrics; const i=m.indexOf(k);
+  if(i>=0) m.splice(i,1); else m.push(k);
+  vidRenderBody();
+}
+
+function vidApplyVideoStyle(){
+  const el=document.getElementById('vidEl'); if(!el) return;
+  const c=VID.cfg;
+  el.style.transform=`scale(${c.vidZoom}) translate(${c.vidPanX}%,${c.vidPanY}%)`;
+  el.style.transformOrigin='center center';
+}
+
+// ── Sync helpers ─────────────────────────────────────────────────────────────
+function vidNudge(d){
+  const a=VID.clips[VID.active]; if(!a) return;
+  a.offset=Math.round((a.offset+d)*10)/10;
+  const inp=document.getElementById('vidOffset'); if(inp) inp.value=a.offset;
+  vidDraw();
+}
+function vidParseTime(s){
+  s=(s||'').trim(); if(!s) return NaN;
+  if(s.indexOf(':')>=0){ const p=s.split(':').map(Number); return p.length===3?p[0]*3600+p[1]*60+p[2]:p[0]*60+p[1]; }
+  return parseFloat(s);
+}
+function vidAlign(){
+  const a=VID.clips[VID.active]; if(!a||!a.el) return;
+  const t=vidParseTime(document.getElementById('vidAlignT').value);
+  if(isNaN(t)){ toast('Enter session time as m:ss or seconds'); return; }
+  a.offset=Math.round((t - a.el.currentTime)*10)/10;
+  const inp=document.getElementById('vidOffset'); if(inp) inp.value=a.offset;
+  toast('Aligned \u2014 offset '+a.offset+'s'); vidDraw();
+}
+function vidAutoTime(){
+  const a=VID.clips[VID.active]; if(!a) return;
+  if(!a.probedMs){ toast('No capture time found in this file'); return; }
+  if(!VID_SESS_T0){ toast('Session start time unknown'); return; }
+  a.offset=Math.round((VID_SESS_T0 - a.probedMs)/1000*10)/10;
+  const inp=document.getElementById('vidOffset'); if(inp) inp.value=a.offset;
+  toast('Auto offset '+a.offset+'s (verify with a known moment)'); vidDraw();
+}
+
+// Parse MP4 mvhd creation_time. Reads head + tail only.
+function vidProbeTime(file){
+  return new Promise((resolve)=>{
+    const HEAD=Math.min(file.size, 96*1024);
+    const TAIL=Math.min(file.size, 3*1024*1024);
+    const findMvhd=(buf)=>{
+      const u=new Uint8Array(buf);
+      for(let i=0;i+12<u.length;i++){
+        if(u[i]===0x6D&&u[i+1]===0x76&&u[i+2]===0x68&&u[i+3]===0x64){ // 'mvhd'
+          const ver=u[i+4];
+          let secs;
+          const dv=new DataView(buf);
+          if(ver===1){ const hi=dv.getUint32(i+8); const lo=dv.getUint32(i+12); secs=hi*4294967296+lo; }
+          else { secs=dv.getUint32(i+8); }
+          if(secs>2082844800 && secs<4102444800){ return (secs-2082844800)*1000; } // 1970..2100
+        }
+      }
+      return null;
+    };
+    const readBlob=(blob)=>blob.arrayBuffer();
+    readBlob(file.slice(0,HEAD)).then(h=>{
+      let ms=findMvhd(h);
+      if(ms){ resolve(ms); return; }
+      readBlob(file.slice(Math.max(0,file.size-TAIL))).then(t=>{
+        resolve(findMvhd(t));
+      }).catch(()=>resolve(null));
+    }).catch(()=>resolve(null));
+  });
+}
+
+// ── Drawing ──────────────────────────────────────────────────────────────────
+function vidSizeOverlay(){
+  const stage=document.getElementById('vidstage');
+  const cv=document.getElementById('vidOverlay');
+  const el=document.getElementById('vidEl');
+  if(!stage||!cv||!el) return;
+  const w=stage.clientWidth||el.clientWidth||640;
+  const h=el.clientHeight|| (w*9/16);
+  const dpr=window.devicePixelRatio||1;
+  cv.width=Math.round(w*dpr); cv.height=Math.round(h*dpr);
+  cv.style.height=h+'px';
+  cv._dpr=dpr; cv._w=w; cv._h=h;
+}
+
+function vidFrame(){
+  if(VID.exporting){ VID.raf=null; return; }
+  if(!VID.playing){ VID.raf=null; return; }
+  vidDraw();
+  VID.raf=requestAnimationFrame(vidFrame);
+}
+
+function vidCurrent(){
+  const a=VID.clips[VID.active];
+  if(!a||!a.el||!ST.length) return null;
+  const sessT=a.el.currentTime + a.offset;
+  let idx=-1;
+  for(let i=0;i<ST.length;i++){ if(ST[i].elapsed<=sessT) idx=i; else break; }
+  if(idx<0) return {sessT, idx:-1, stroke:null, frac:0};
+  const cur=ST[idx], nxt=ST[idx+1];
+  const T=nxt?(nxt.elapsed-cur.elapsed):(cur.rate?60/cur.rate:2);
+  const frac=clamp((sessT-cur.elapsed)/(T||1),0,1);
+  return {sessT, idx, stroke:cur, frac, T};
+}
+
+function vidDraw(){
+  const cv=document.getElementById('vidOverlay');
+  if(!cv||!cv._w){ vidSizeOverlay(); }
+  if(!cv||!cv.getContext) return;
+  if(cv._w==null) return;
+  const ctx=cv.getContext('2d');
+  const dpr=cv._dpr||1, W=cv._w, H=cv._h;
+  ctx.setTransform(dpr,0,0,dpr,0,0);
+  ctx.clearRect(0,0,W,H);
+
+  const upd=document.getElementById('vidRead');
+  const st=vidCurrent();
+  if(!st){ if(upd) upd.textContent='\u2014'; return; }
+  if(upd) upd.textContent=(st.sessT<0?'before start':('t '+fmtTime(st.sessT)+'  \u00B7  stroke '+(st.idx>=0?st.idx+1:'\u2013')));
+  if(st.idx<0) return;
+
+  ctx.globalAlpha=VID.cfg.opacity;
+  if(VID.cfg.showBox) vidDrawBox(ctx,W,H,st);
+  if(VID.cfg.showCurve) vidDrawCurve(ctx,W,H,st);
+  ctx.globalAlpha=1;
+}
+
+function vidBoxRect(W,H,st){
+  const sc=VID.cfg.boxScale;
+  const fs=Math.max(11,Math.round(W*0.026*sc));
+  const lh=fs*1.85;
+  const pad=fs*0.7;
+  const rows=VID.cfg.metrics.length||1;
+  let maxw=0;
+  // estimate width from labels+values (approx)
+  const bw=Math.max(W*0.20, fs*7.2)+pad*2;
+  const bh=rows*lh+pad*2;
+  const x=clamp(VID.cfg.boxX/100*W,0,Math.max(0,W-bw));
+  const y=clamp(VID.cfg.boxY/100*H,0,Math.max(0,H-bh));
+  return {x,y,bw,bh,fs,lh,pad};
+}
+function vidDrawBox(ctx,W,H,st){
+  const r=vidBoxRect(W,H,st);
+  ctx.fillStyle='rgba(6,18,32,0.62)';
+  vidRoundRect(ctx,r.x,r.y,r.bw,r.bh,8); ctx.fill();
+  ctx.strokeStyle='rgba(120,170,230,0.35)'; ctx.lineWidth=1;
+  vidRoundRect(ctx,r.x,r.y,r.bw,r.bh,8); ctx.stroke();
+  let yy=r.y+r.pad+r.fs;
+  VID.cfg.metrics.forEach(k=>{
+    const def=VID_METRICS[k]; if(!def) return;
+    const o=def.fmt(st.stroke||{},st.idx,st.sessT);
+    ctx.font='600 '+Math.round(r.fs*0.62)+'px -apple-system, BlinkMacSystemFont, Helvetica Neue, sans-serif';
+    ctx.fillStyle='rgba(150,180,210,0.9)'; ctx.textAlign='left';
+    ctx.fillText(def.l.toUpperCase(), r.x+r.pad, yy-r.fs*0.62);
+    ctx.font='700 '+r.fs+'px -apple-system, BlinkMacSystemFont, Helvetica Neue, sans-serif';
+    ctx.fillStyle='#fff'; ctx.textAlign='right';
+    const txt=o.v+(o.u?(' '+o.u):'');
+    ctx.fillText(txt, r.x+r.bw-r.pad, yy);
+    yy+=r.lh;
+  });
+}
+
+function vidCurveRect(W,H){
+  const sc=VID.cfg.curveScale;
+  const cw=Math.min(W*0.42*sc, W*0.9);
+  const ch=cw*0.52;
+  const x=clamp(VID.cfg.curveX/100*W,0,Math.max(0,W-cw));
+  const y=clamp(VID.cfg.curveY/100*H,0,Math.max(0,H-ch));
+  return {x,y,cw,ch};
+}
+function vidDrawCurve(ctx,W,H,st){
+  const r=vidCurveRect(W,H);
+  const s=st.stroke;
+  ctx.fillStyle='rgba(6,18,32,0.55)';
+  vidRoundRect(ctx,r.x,r.y,r.cw,r.ch,8); ctx.fill();
+  ctx.strokeStyle='rgba(120,170,230,0.30)'; ctx.lineWidth=1;
+  vidRoundRect(ctx,r.x,r.y,r.cw,r.ch,8); ctx.stroke();
+  const pad=r.ch*0.12;
+  const px=r.x+pad, py=r.y+pad, pw=r.cw-pad*2, ph=r.ch-pad*2;
+  if(!s||!s.curve||s.curve.length!==CURVE_POINTS){
+    ctx.fillStyle='rgba(200,210,225,0.7)';
+    ctx.font='600 '+Math.round(r.ch*0.13)+'px -apple-system, BlinkMacSystemFont, Helvetica Neue, sans-serif';
+    ctx.textAlign='center'; ctx.fillText('no curve', r.x+r.cw/2, r.y+r.ch/2);
+    return;
+  }
+  let mn=Infinity,mx=-Infinity;
+  for(const v of s.curve){ if(v<mn)mn=v; if(v>mx)mx=v; }
+  const pd=(mx-mn)*0.1||1; mn-=pd; mx+=pd; const rng=mx-mn||1;
+  const toX=i=>px+i/(CURVE_POINTS-1)*pw;
+  const toY=v=>py+ph-(v-mn)/rng*ph;
+  // zero line
+  if(mn<0&&mx>0){ ctx.strokeStyle='rgba(160,180,200,0.25)'; ctx.lineWidth=1; ctx.beginPath(); ctx.moveTo(px,toY(0)); ctx.lineTo(px+pw,toY(0)); ctx.stroke(); }
+  // fill
+  ctx.beginPath(); ctx.moveTo(toX(0),toY(clamp(0,mn,mx)));
+  for(let i=0;i<CURVE_POINTS;i++) ctx.lineTo(toX(i),toY(s.curve[i]));
+  ctx.lineTo(toX(CURVE_POINTS-1),toY(clamp(0,mn,mx))); ctx.closePath();
+  ctx.fillStyle='rgba(45,224,212,0.16)'; ctx.fill();
+  // line
+  ctx.beginPath();
+  for(let i=0;i<CURVE_POINTS;i++){ const x=toX(i),y=toY(s.curve[i]); i?ctx.lineTo(x,y):ctx.moveTo(x,y); }
+  ctx.strokeStyle='#2de0d4'; ctx.lineWidth=2; ctx.stroke();
+  // drive/recovery boundary
+  if(s.curveDriveFrac){
+    const bx=px+s.curveDriveFrac*pw;
+    ctx.setLineDash([3,3]); ctx.strokeStyle='rgba(255,201,71,0.7)'; ctx.lineWidth=1;
+    ctx.beginPath(); ctx.moveTo(bx,py); ctx.lineTo(bx,py+ph); ctx.stroke(); ctx.setLineDash([]);
+  }
+  // moving cursor
+  const cx=px+st.frac*pw;
+  ctx.strokeStyle='#fff'; ctx.lineWidth=1.5;
+  ctx.beginPath(); ctx.moveTo(cx,py); ctx.lineTo(cx,py+ph); ctx.stroke();
+  const ci=clamp(Math.round(st.frac*(CURVE_POINTS-1)),0,CURVE_POINTS-1);
+  ctx.fillStyle='#fff'; ctx.beginPath(); ctx.arc(cx,toY(s.curve[ci]),3.2,0,7); ctx.fill();
+  // label
+  ctx.fillStyle='rgba(200,210,225,0.85)';
+  ctx.font='600 '+Math.round(r.ch*0.1)+'px -apple-system, BlinkMacSystemFont, Helvetica Neue, sans-serif';
+  ctx.textAlign='left'; ctx.fillText('stroke curve', px, r.y+r.ch-3);
+}
+
+function vidRoundRect(ctx,x,y,w,h,r){
+  ctx.beginPath();
+  ctx.moveTo(x+r,y); ctx.arcTo(x+w,y,x+w,y+h,r); ctx.arcTo(x+w,y+h,x,y+h,r);
+  ctx.arcTo(x,y+h,x,y,r); ctx.arcTo(x,y,x+w,y,r); ctx.closePath();
+}
+
+// ── Drag to reposition box / curve ──────────────────────────────────────────
+function vidWireDrag(){
+  const cv=document.getElementById('vidOverlay'); if(!cv) return;
+  cv.onpointerdown=e=>{
+    const st=vidCurrent(); if(!st){ return; }
+    const rect=cv.getBoundingClientRect();
+    const x=(e.clientX-rect.left), y=(e.clientY-rect.top);
+    const W=cv._w,H=cv._h;
+    const br=vidBoxRect(W,H,st), cr=vidCurveRect(W,H);
+    if(VID.cfg.showBox && x>=br.x&&x<=br.x+br.bw&&y>=br.y&&y<=br.y+br.bh){
+      VID.drag='box'; VID.dragDX=x-br.x; VID.dragDY=y-br.y;
+    } else if(VID.cfg.showCurve && x>=cr.x&&x<=cr.x+cr.cw&&y>=cr.y&&y<=cr.y+cr.ch){
+      VID.drag='curve'; VID.dragDX=x-cr.x; VID.dragDY=y-cr.y;
+    } else return;
+    cv.classList.add('drag'); cv.setPointerCapture(e.pointerId); e.preventDefault();
+  };
+  cv.onpointermove=e=>{
+    if(!VID.drag) return;
+    const cv2=document.getElementById('vidOverlay');
+    const rect=cv2.getBoundingClientRect();
+    const W=cv2._w,H=cv2._h;
+    const x=(e.clientX-rect.left)-VID.dragDX, y=(e.clientY-rect.top)-VID.dragDY;
+    if(VID.drag==='box'){ VID.cfg.boxX=clamp(x/W*100,0,100); VID.cfg.boxY=clamp(y/H*100,0,100); }
+    else { VID.cfg.curveX=clamp(x/W*100,0,100); VID.cfg.curveY=clamp(y/H*100,0,100); }
+    vidDraw(); e.preventDefault();
+  };
+  const end=()=>{ VID.drag=null; const cv3=document.getElementById('vidOverlay'); if(cv3)cv3.classList.remove('drag'); };
+  cv.onpointerup=end; cv.onpointercancel=end;
+}
+
+
+// ── Export overlaid clip to webm ─────────────────────────────────────────────
+let VID_EXPORT=null;
+
+function vidPickMime(){
+  const opts=['video/webm;codecs=vp9,opus','video/webm;codecs=vp8,opus','video/webm;codecs=vp9','video/webm;codecs=vp8','video/webm'];
+  for(const m of opts){ if(window.MediaRecorder && MediaRecorder.isTypeSupported(m)) return m; }
+  return '';
+}
+
+function vidExport(){
+  if(VID_EXPORT){ return; }
+  const a=VID.clips[VID.active];
+  if(!a||!a.el){ toast('No video loaded'); return; }
+  const el=a.el;
+  const canCap=!!document.createElement('canvas').captureStream;
+  if(!window.MediaRecorder || !canCap){ toast('Recording not supported here \u2014 use desktop Chrome'); return; }
+  const mime=vidPickMime();
+  if(!mime){ toast('webm recording not supported here \u2014 use desktop Chrome'); return; }
+  if(!el.videoWidth){ toast('Press play once so the video loads, then export'); return; }
+
+  let Ow=el.videoWidth, Oh=el.videoHeight;
+  const cap=1280;
+  if(Ow>cap){ Oh=Math.round(Oh*cap/Ow); Ow=cap; }
+  if(Ow%2) Ow++; if(Oh%2) Oh++;
+
+  const comp=document.createElement('canvas'); comp.width=Ow; comp.height=Oh;
+  const cctx=comp.getContext('2d');
+  const stream=comp.captureStream(30);
+  try{
+    const vs = el.captureStream ? el.captureStream() : (el.mozCaptureStream?el.mozCaptureStream():null);
+    if(vs){ vs.getAudioTracks().forEach(t=>{ try{ stream.addTrack(t); }catch(e){} }); }
+  }catch(e){}
+
+  const chunks=[];
+  let rec;
+  try{ rec=new MediaRecorder(stream,{mimeType:mime,videoBitsPerSecond:6000000}); }
+  catch(e){ try{ rec=new MediaRecorder(stream,{mimeType:mime}); }catch(e2){ toast('Recorder init failed'); return; } }
+  rec.ondataavailable=e=>{ if(e.data&&e.data.size) chunks.push(e.data); };
+  rec.onstop=()=>{
+    const X=VID_EXPORT;
+    if(X&&X.cancelled){ vidExportCleanup(); toast('Export cancelled'); return; }
+    const blob=new Blob(chunks,{type:'video/webm'});
+    const url=URL.createObjectURL(blob);
+    const link=document.createElement('a'); link.href=url;
+    link.download='Overlay_'+vidShort(a.name).replace(/[^\w\-]+/g,'_')+'.webm';
+    document.body.appendChild(link); link.click(); link.remove();
+    setTimeout(()=>URL.revokeObjectURL(url),5000);
+    vidExportCleanup(); toast('Overlay video saved');
+  };
+
+  VID.exporting=true;
+  VID_EXPORT={rec,comp,cctx,stream,clip:a,el,Ow,Oh,raf:null,started:false,cancelled:false};
+  vidExportUI(true);
+
+  el.muted=true;
+  el.currentTime=0;
+  const begin=()=>{
+    if(!VID_EXPORT||VID_EXPORT.started) return;
+    VID_EXPORT.started=true;
+    try{ rec.start(250); }catch(e){ toast('Recorder start failed'); vidExportCleanup(); return; }
+    const p=el.play();
+    if(p&&p.catch) p.catch(()=>{});
+    VID_EXPORT.raf=requestAnimationFrame(vidExportFrame);
+  };
+  el.addEventListener('seeked',begin,{once:true});
+  setTimeout(begin,350); // fallback if seeked doesn't fire
+}
+
+function vidExportFrame(){
+  const X=VID_EXPORT; if(!X) return;
+  const el=X.el, cctx=X.cctx, Ow=X.Ow, Oh=X.Oh;
+  cctx.setTransform(1,0,0,1,0,0);
+  cctx.globalAlpha=1;
+  cctx.fillStyle='#000'; cctx.fillRect(0,0,Ow,Oh);
+
+  const z=VID.cfg.vidZoom||1, panX=VID.cfg.vidPanX||0, panY=VID.cfg.vidPanY||0;
+  const Vw=el.videoWidth, Vh=el.videoHeight;
+  const sw=Vw/z, sh=Vh/z;
+  const sx=Vw*(0.5*(1-1/z) - panX/100);
+  const sy=Vh*(0.5*(1-1/z) - panY/100);
+  try{ cctx.drawImage(el, sx,sy,sw,sh, 0,0,Ow,Oh); }catch(e){}
+
+  const st=vidCurrent();
+  if(st && st.idx>=0){
+    cctx.globalAlpha=VID.cfg.opacity;
+    if(VID.cfg.showBox) vidDrawBox(cctx,Ow,Oh,st);
+    if(VID.cfg.showCurve) vidDrawCurve(cctx,Ow,Oh,st);
+    cctx.globalAlpha=1;
+  }
+  vidDraw();
+  const dur=el.duration||0;
+  vidExportProgress(el.currentTime,dur);
+
+  if(el.ended || (dur && el.currentTime>=dur-0.06)){ vidFinishExport(); return; }
+  X.raf=requestAnimationFrame(vidExportFrame);
+}
+
+function vidFinishExport(){
+  const X=VID_EXPORT; if(!X) return;
+  if(X.raf){ cancelAnimationFrame(X.raf); X.raf=null; }
+  try{ X.el.pause(); }catch(e){}
+  try{ if(X.rec.state!=='inactive') X.rec.stop(); }catch(e){}
+}
+
+function vidCancelExport(){
+  const X=VID_EXPORT; if(!X) return;
+  X.cancelled=true;
+  if(X.raf){ cancelAnimationFrame(X.raf); X.raf=null; }
+  try{ X.el.pause(); }catch(e){}
+  try{ if(X.rec.state!=='inactive') X.rec.stop(); }catch(e){ vidExportCleanup(); }
+}
+
+function vidExportCleanup(){
+  VID.exporting=false;
+  const X=VID_EXPORT;
+  if(X){
+    try{ X.el.muted=false; }catch(e){}
+    try{ X.stream.getTracks().forEach(t=>{ try{ t.stop(); }catch(e){} }); }catch(e){}
+  }
+  VID_EXPORT=null;
+  vidExportUI(false);
+  vidDraw();
+}
+
+function vidExportUI(on){
+  const btn=document.getElementById('vidExportBtn');
+  const c=document.getElementById('vidExportCancel');
+  const s=document.getElementById('vidExportStatus');
+  if(btn) btn.style.display=on?'none':'';
+  if(c) c.style.display=on?'':'none';
+  if(s) s.textContent=on?'Recording\u2026 0:00':'';
+}
+
+function vidExportProgress(t,dur){
+  const s=document.getElementById('vidExportStatus'); if(!s) return;
+  s.textContent='Recording\u2026 '+fmtTime(t)+(dur?(' / '+fmtTime(dur)):'');
+}
+
+window.addEventListener('resize',()=>{ if(VID.clips.length){ vidSizeOverlay(); vidDraw(); } });
 
 // ── Init ─────────────────────────────────────────────────────────────────────
 AnalyserDrive.init();
