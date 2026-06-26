@@ -3204,10 +3204,10 @@ const VID = {
   drag: null,    // 'box' | 'curve' | null
   dragDX: 0, dragDY: 0,
   cfg: {
-    metrics: ['rate','pace','dps','slope'],
+    metrics: ['rate','pace','dps','rloss','oarAngle','checkDelta','catchDuration'],
     showCurve: true, showBox: true,
-    curveX: 3, curveY: 3, curveScale: 1,
-    boxX: 3, boxY: 64, boxScale: 1,
+    curveX: 97, curveY: 3, curveScale: 1,
+    boxX: 3, boxY: 3, boxScale: 1,
     opacity: 0.82,
     vidWidth: 100, vidZoom: 1, vidPanX: 0, vidPanY: 0,
     curveAvg5: true, rate: 1,
@@ -3223,7 +3223,7 @@ const VID_METRICS = {
   rloss:        {l:'Run Loss',   fmt:s=>({v:fmtRunLossU(s.rloss),u:''})},
   schar:        {l:'Char',       fmt:s=>({v:f0(s.schar),u:'%'})},
   ratio:        {l:'Stroke Ratio',fmt:s=>({v:f2(s.ratio),u:''})},
-  oarAngle:     {l:'Oar Arc',    fmt:s=>({v:f1(s.oarAngle),u:'\u00B0'})},
+  oarAngle:     {l:'Oar Arc',    fmt:s=>({v:f0(s.oarAngle),u:'\u00B0'})},
   checkDelta:   {l:'Check \u0394',fmt:s=>({v:f2(s.checkDelta),u:'m/s'})},
   catchDuration:{l:'Catch Dur',  fmt:s=>({v:f0(s.catchDuration),u:'ms'})},
   dist:         {l:'Distance',   fmt:s=>({v:f0(s.dist),u:'m'})},
