@@ -257,6 +257,9 @@
   .vid-mini{font-size:10px;color:var(--faint);}
   .vid-panel{border:1px solid var(--border);border-radius:9px;padding:8px 9px;background:var(--dim);}
   .vid-panel-hd{font-size:10px;color:var(--muted);text-transform:uppercase;letter-spacing:.5px;margin-bottom:6px;}
+  .vid-transport{display:flex;align-items:center;gap:8px;margin-top:7px;}
+  .vid-play{background:var(--g);color:#000;border:none;border-radius:8px;width:40px;height:30px;font-size:13px;cursor:pointer;flex:none;}
+  .vid-transport input[type=range]{flex:1;accent-color:var(--g);}
 </style>
 
 <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" crossorigin=""/>
@@ -3288,9 +3291,14 @@ function vidRenderBody(){
   <div class="vid-clip-tabs">${tabs}</div>
   <div id="vidStageWrap" style="margin-top:8px;">
     <div id="vidstage" style="width:${cfg.vidWidth}%;">
-      <video id="vidEl" playsinline controls preload="metadata"></video>
+      <video id="vidEl" playsinline preload="metadata"></video>
       <canvas id="vidOverlay"></canvas>
     </div>
+  </div>
+  <div class="vid-transport">
+    <button class="vid-play" id="vidPlayBtn">\u25B6</button>
+    <input type="range" id="vidSeek" min="0" max="1000" value="0">
+    <span class="vid-mini" id="vidTime" style="min-width:78px;text-align:right;">0:00 / 0:00</span>
   </div>
   <div class="vid-ctrls">
 
@@ -3359,12 +3367,18 @@ function vidRenderBody(){
   el.src=a.url;
   a.el=el;
   vidApplyVideoStyle();
-  el.onplay=()=>{ VID.playing=true; if(!VID.raf) VID.raf=requestAnimationFrame(vidFrame); };
-  el.onpause=()=>{ VID.playing=false; vidDraw(); };
+  const playBtn=document.getElementById('vidPlayBtn');
+  const seek=document.getElementById('vidSeek');
+  const timeLbl=document.getElementById('vidTime');
+  el.onplay=()=>{ VID.playing=true; if(playBtn)playBtn.textContent='\u23F8'; if(!VID.raf) VID.raf=requestAnimationFrame(vidFrame); };
+  el.onpause=()=>{ VID.playing=false; if(playBtn)playBtn.textContent='\u25B6'; vidDraw(); };
   el.onseeked=vidDraw;
   el.onseeking=vidDraw;
-  el.onloadedmetadata=()=>{ vidSizeOverlay(); vidDraw(); };
-  el.ontimeupdate=()=>{ if(!VID.playing) vidDraw(); };
+  el.onerror=()=>vidVideoError(el);
+  el.onloadedmetadata=()=>{ const m=document.getElementById('vidErrMsg'); if(m) m.remove(); vidUpdTime(); vidSizeOverlay(); vidDraw(); };
+  el.ontimeupdate=()=>{ vidUpdTime(); if(!VID.playing) vidDraw(); };
+  if(playBtn) playBtn.onclick=()=>{ if(el.paused){ const p=el.play(); if(p&&p.catch)p.catch(()=>vidVideoError(el)); } else el.pause(); };
+  if(seek) seek.oninput=()=>{ if(el.duration){ el.currentTime=(seek.value/1000)*el.duration; vidDraw(); } };
 
   // control wiring
   const on=(id,ev,fn)=>{const e=document.getElementById(id);if(e)e[ev]=fn;};
@@ -3386,6 +3400,23 @@ function vidRenderBody(){
 }
 
 function vidShort(n){ n=n.replace(/\.[^.]+$/,''); return n.length>16?n.slice(0,15)+'\u2026':n; }
+
+function vidUpdTime(){
+  const el=VID.clips[VID.active]&&VID.clips[VID.active].el; if(!el) return;
+  const seek=document.getElementById('vidSeek'), t=document.getElementById('vidTime');
+  const dur=el.duration||0;
+  if(seek && dur && document.activeElement!==seek) seek.value=Math.round(el.currentTime/dur*1000);
+  if(t) t.textContent=fmtTime(el.currentTime||0)+' / '+fmtTime(dur);
+}
+function vidVideoError(el){
+  const stage=document.getElementById('vidstage'); if(!stage) return;
+  let m=document.getElementById('vidErrMsg');
+  if(!m){ m=document.createElement('div'); m.id='vidErrMsg';
+    m.style.cssText='position:absolute;inset:0;z-index:5;display:flex;align-items:center;justify-content:center;text-align:center;padding:18px;background:rgba(3,13,30,.93);color:#fff;font-size:12px;line-height:1.6;font-family:-apple-system,BlinkMacSystemFont,Helvetica Neue,sans-serif;';
+    stage.appendChild(m);
+  }
+  m.innerHTML='<div><b>This video won\u2019t play in your browser.</b><br>If it\u2019s an iPhone HEVC (.mov) clip, Chrome can\u2019t decode it \u2014 try Safari, or convert to <b>H.264 MP4</b>.</div>';
+}
 
 function vidToggleMetric(k){
   const m=VID.cfg.metrics; const i=m.indexOf(k);
