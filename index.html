@@ -90,6 +90,7 @@
   .zoom-btn:hover { border-color: var(--g); color: var(--g); }
   .cbox { background: var(--s1); border: 1px solid var(--border); border-radius: 12px; padding: 12px 12px 5px; position: relative; box-shadow: var(--sh); }
   .cbox canvas { display: block; width: 100% !important; touch-action: none; cursor: crosshair; -webkit-touch-callout: none; -webkit-user-select: none; user-select: none; }
+  #vidLineC { position: absolute; top: 12px; left: 12px; pointer-events: none; }
   .hint { text-align: center; font-size: 9px; color: var(--faint); margin-top: 4px; }
 
   /* ── Selection action bar ── */
@@ -327,7 +328,7 @@
         </select>
       </div>
     </div>
-    <div class="cbox"><canvas id="mainC" height="250"></canvas>
+    <div class="cbox"><canvas id="mainC" height="250"></canvas><canvas id="vidLineC"></canvas>
       <div class="hint">Drag to select · scroll to zoom · swipe/scroll sideways to pan · double-click to reset</div>
     </div>
     <div id="panBarWrap" style="display:none;padding:1px 11px 0;"><input type="range" id="panSlider" min="0" max="100" value="0" style="width:100%;cursor:pointer;accent-color:var(--g);margin:0;" oninput="window.panSlide(this.value)"></div>
@@ -1658,6 +1659,7 @@ function drawMain(){
   }
   canvas._g={PL,PR,PT,PB,pw,ph,xs,N,W,H,xMin,xRng};
   setupMainEvents(canvas);
+  vidDrawChartLine();
 }
 
 // ══════════════════════════════════════════════════════════════════════════
@@ -3198,6 +3200,7 @@ let VID_SESS_T0 = 0;   // absolute ms of session start
 const VID = {
   clips: [],     // {name,url,el,offset,probedMs}
   active: -1,
+  _autoXmode: null,
   raf: null,
   playing: false,
   built: false,
@@ -3245,6 +3248,10 @@ function vidTeardown(){
   VID.playing=false;
   VID.clips.forEach(c=>{ try{ c.el && c.el.pause(); }catch(e){} try{ URL.revokeObjectURL(c.url); }catch(e){} });
   VID.clips=[]; VID.active=-1; VID.drag=null;
+  if(VID._autoXmode!=null){
+    const xm=document.getElementById('xmode');
+    if(xm) xm.value=VID._autoXmode; VID._autoXmode=null;
+  }
 }
 
 function vidWire(){
@@ -3276,6 +3283,10 @@ function vidAddClip(file){
   const clip={ name:file.name, url, el:null, offset:0, probedMs:null, file };
   VID.clips.push(clip);
   VID.active=VID.clips.length-1;
+  if(VID.clips.length===1){
+    const xm=document.getElementById('xmode');
+    if(xm && xm.value!=='time'){ VID._autoXmode=xm.value; xm.value='time'; schedRender(); }
+  }
   vidRenderBody();
   // try to auto-detect capture time in background
   vidProbeTime(file).then(ms=>{
@@ -3291,6 +3302,10 @@ function vidRemoveClip(i){
   try{ URL.revokeObjectURL(c.url); }catch(e){}
   VID.clips.splice(i,1);
   if(VID.active>=VID.clips.length) VID.active=VID.clips.length-1;
+  if(!VID.clips.length && VID._autoXmode!=null){
+    const xm=document.getElementById('xmode');
+    if(xm){ xm.value=VID._autoXmode; } VID._autoXmode=null; schedRender();
+  }
   vidRenderBody();
 }
 
@@ -3620,11 +3635,39 @@ function vidCurrent(){
   return {sessT, idx, stroke:cur, frac, T};
 }
 
+function vidDrawChartLine(){
+  const lc=document.getElementById('vidLineC'); if(!lc) return;
+  const mc=document.getElementById('mainC');
+  if(!mc||!mc._g){ const c=lc.getContext('2d'); if(c)c.clearRect(0,0,lc.width,lc.height); return; }
+  const{PL,PT,pw,ph,xs,N,xMin,xRng,W,H}=mc._g;
+  const dpr=window.devicePixelRatio||1;
+  lc.width=W*dpr; lc.height=H*dpr;
+  lc.style.setProperty('width',W+'px','important');
+  lc.style.setProperty('height',H+'px','important');
+  const ctx=lc.getContext('2d');
+  ctx.setTransform(dpr,0,0,dpr,0,0);
+  ctx.clearRect(0,0,W,H);
+  if(!VID.clips.length) return;
+  const st=vidCurrent(); if(!st||st.idx<0) return;
+  const vi=st.idx-viewS; if(vi<0||vi>=N) return;
+  const x1=xs[vi], x2=(vi+1<N)?xs[vi+1]:x1;
+  const xVal=x1+(x2-x1)*st.frac;
+  const px=PL+(xVal-xMin)/xRng*pw;
+  ctx.save();
+  ctx.strokeStyle='rgba(255,220,80,0.9)'; ctx.lineWidth=1.5;
+  ctx.setLineDash([3,2]);
+  ctx.beginPath(); ctx.moveTo(px,PT); ctx.lineTo(px,PT+ph); ctx.stroke();
+  ctx.setLineDash([]);
+  ctx.fillStyle='rgba(255,220,80,0.9)';
+  ctx.beginPath(); ctx.moveTo(px-4,PT); ctx.lineTo(px+4,PT); ctx.lineTo(px,PT+7); ctx.closePath(); ctx.fill();
+  ctx.restore();
+}
+
 function vidDraw(){
   const cv=document.getElementById('vidOverlay');
   if(!cv||!cv._w){ vidSizeOverlay(); }
-  if(!cv||!cv.getContext) return;
-  if(cv._w==null) return;
+  if(!cv||!cv.getContext){ vidDrawChartLine(); return; }
+  if(cv._w==null){ vidDrawChartLine(); return; }
   const ctx=cv.getContext('2d');
   const dpr=cv._dpr||1, W=cv._w, H=cv._h;
   ctx.setTransform(dpr,0,0,dpr,0,0);
@@ -3632,14 +3675,15 @@ function vidDraw(){
 
   const upd=document.getElementById('vidRead');
   const st=vidCurrent();
-  if(!st){ if(upd) upd.textContent='\u2014'; return; }
+  if(!st){ if(upd) upd.textContent='\u2014'; vidDrawChartLine(); return; }
   if(upd) upd.textContent=(st.sessT<0?'before start':('t '+fmtTime(st.sessT)+'  \u00B7  stroke '+(st.idx>=0?st.idx+1:'\u2013')));
-  if(st.idx<0) return;
+  if(st.idx<0){ vidDrawChartLine(); return; }
 
   ctx.globalAlpha=VID.cfg.opacity;
   if(VID.cfg.showBox) vidDrawBox(ctx,W,H,st);
   if(VID.cfg.showCurve) vidDrawCurve(ctx,W,H,st);
   ctx.globalAlpha=1;
+  vidDrawChartLine();
 }
 
 function vidBoxRect(W,H,st){
