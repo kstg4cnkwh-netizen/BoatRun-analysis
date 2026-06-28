@@ -10,8 +10,8 @@
   :root {
     --bg: #030d1e; --s1: #061727; --s2: #0b1f38; --s3: #112848;
     --border: #173358; --dim: #08121f;
-    --g: #12b540; --b: #4da6ff; --y: #ffc947; --r: #f54040;
-    --p: #9d49f1; --o: #ffb347; --i: #f393cd; --d: #5b8cff;
+    --g: #3cbe4f; --b: #1a68d4; --y: #cad10b; --r: #cd2020;
+    --p: #7e56a6; --o: #c07012; --i: #be3e8d; --d: #1c48b9;
     --text: #dce8fa; --muted: #46597a; --faint: #0d1e38;
     --grid-ln: rgba(17,40,72,1); --grid-lb: #1e3d6a; --frame-ln: #173358;
     --sel-fill: rgba(41,184,255,.06); --sel-stk: rgba(41,184,255,.32);
@@ -21,9 +21,9 @@
   body.light {
     --bg: #edf1f8; --s1: #ffffff; --s2: #f4f7fc; --s3: #e8eef8;
     --border: #c8d4e8; --dim: #dde6f2;
-    --g: #3cbe4f; --b: #1a68d4; --y: #9c7c00; --r: #cd2020;
-    --p: #7e56a6; --o: #c07012; --i: #c03088; --d: #1c48b9;
-    --text: #0e1624; --muted: #566278; --faint: #8499bb;
+    --g: #3cbe4f; --b: #1a68d4; --y: #cad10b; --r: #cd2020;
+    --p: #7e56a6; --o: #c07012; --i: #be3e8d; --d: #1c48b9;
+    --text: #0e1624; --muted: #40506e; --faint: #6a88b7;
     --grid-ln: #e2ecf7; --grid-lb: #7080a0; --frame-ln: #bccadd;
     --sel-fill: rgba(0,116,200,.05); --sel-stk: rgba(0,116,200,.36);
     --sh: 0 1px 4px rgba(0,0,0,.05),0 4px 14px rgba(0,0,0,.07);
@@ -662,16 +662,16 @@ const GROUP_BG     = ['rgba(255,201,71,.14)','rgba(192,132,252,.14)','rgba(41,18
 // fmt: formats a single averaged/min value
 const METRIC_DEFS = [
   {k:'pace',   l:'Pace',        c:'var(--g)', cat:'cond',  filter:s=>s.pace>50&&s.pace<500,        val:s=>s.pace,        fmtAvg:v=>fmtPaceU(v),      fmtBest:v=>fmtPaceU(v), showBest:true,  bestIsMin:true, tip:'Boat speed, shown in your selected unit (pace per 500m/1km/mile, or km/h/mph). GPS-derived — only valid for comparing the same stretch, direction and tide.'},
-  {k:'rate',   l:'Rate',        c:'var(--y)', cat:'indep', filter:s=>s.rate>5&&s.rate<50,          val:s=>s.rate,        fmtAvg:v=>f1(v)+' spm',     fmtBest:null, tip:'Average stroke rate, in strokes per minute (SPM).'},
-  {k:'dps',    l:'DPS',         c:'var(--p)', cat:'cond',  filter:s=>s.dps>1&&s.dps<25,            val:s=>s.dps,         fmtAvg:v=>fmtDPSU(v)+dpsULabelU(), fmtBest:null, tip:'Distance per stroke — average boat travel per stroke cycle. GPS-derived — affected by current and tide.'},
-  {k:'cdelta', l:'Check Delta', c:'#2980b9',  cat:'boat',  filter:s=>!isNaN(s.checkDelta)&&s.checkDelta>0.05&&s.checkDelta<5, val:s=>s.checkDelta, fmtAvg:v=>f2(v)+' m/s', fmtBest:null, tip:'Boat speed swing within one stroke — max minus min speed, catch to catch. Lower means a smoother, more continuous run or lower speed. IMU-derived — scale varies with boat class and mass.'},
-  {k:'rloss',  l:'Run Loss',    c:'var(--b)', cat:'indep', filter:s=>!isNaN(s.rloss)&&s.rloss>0&&s.rloss<100, val:s=>s.rloss, fmtAvg:v=>fmtRunLossU(v), fmtBest:null, tip:'Percentage of drive speed lost to deceleration during recovery. Accelerometer-derived, condition-independent. Lower is better.'},
-  {k:'angle',  l:'Oar Arc',     c:'#2de0d4',  cat:'cond',  filter:s=>!isNaN(s.strokeAngle)&&s.strokeAngle>20&&s.strokeAngle<180, val:s=>s.strokeAngle, fmtAvg:v=>f1(v)+'°', fmtBest:null, tip:'Effective oar angle — arc swept based on boat displacement during the drive, corrected for ~10% blade slip. Not the oar true mechanical sweep. GPS-derived (over-ground) — following current inflates it, opposing current shrinks it. Only compare same stretch, direction and tide.'},
-  {k:'impulse',l:'Impulse',     c:'var(--i)', cat:'boat',  filter:s=>s.impulse>0&&s.impulse<1000,  val:s=>s.impulse,     fmtAvg:v=>Math.round(v).toString(),fmtBest:null, tip:'Total positive acceleration during the drive, integrated as a change in velocity (Δv). Higher means more drive power applied to the hull — not a peak value. IMU-derived — scale varies with boat class and mass.'},
-  {k:'slope',  l:'Catch Slope', c:'var(--r)', cat:'boat',  filter:s=>s.slope>0&&s.slope<300,       val:s=>s.slope,       fmtAvg:v=>f0(v),            fmtBest:null, tip:'Rate of acceleration rise at the catch. Higher means a sharper, more aggressive catch. IMU-derived — scale varies with boat class and mass.'},
+  {k:'rate',   l:'Rate',        c:'var(--o)', cat:'indep', filter:s=>s.rate>5&&s.rate<50,          val:s=>s.rate,        fmtAvg:v=>f1(v)+' spm',     fmtBest:null, tip:'Average stroke rate, in strokes per minute (SPM).'},
+  {k:'dps',    l:'DPS',         c:'var(--d)', cat:'cond',  filter:s=>s.dps>1&&s.dps<25,            val:s=>s.dps,         fmtAvg:v=>fmtDPSU(v)+dpsULabelU(), fmtBest:null, tip:'Distance per stroke — average boat travel per stroke cycle. GPS-derived — affected by current and tide.'},
+  {k:'cdelta', l:'Check Delta', c:'var(--b)',  cat:'boat',  filter:s=>!isNaN(s.checkDelta)&&s.checkDelta>0.05&&s.checkDelta<5, val:s=>s.checkDelta, fmtAvg:v=>f2(v)+' m/s', fmtBest:null, tip:'Boat speed swing within one stroke — max minus min speed, catch to catch. Lower means a smoother, more continuous run or lower speed. IMU-derived — scale varies with boat class and mass.'},
+  {k:'rloss',  l:'Run Loss',    c:'var(--r)', cat:'indep', filter:s=>!isNaN(s.rloss)&&s.rloss>0&&s.rloss<100, val:s=>s.rloss, fmtAvg:v=>fmtRunLossU(v), fmtBest:null, tip:'Percentage of drive speed lost to deceleration during recovery. Accelerometer-derived, condition-independent. Lower is better.'},
+  {k:'angle',  l:'Oar Arc',     c:'var(--i)',  cat:'cond',  filter:s=>!isNaN(s.strokeAngle)&&s.strokeAngle>20&&s.strokeAngle<180, val:s=>s.strokeAngle, fmtAvg:v=>f1(v)+'°', fmtBest:null, tip:'Effective oar angle — arc swept based on boat displacement during the drive, corrected for ~10% blade slip. Not the oar true mechanical sweep. GPS-derived (over-ground) — following current inflates it, opposing current shrinks it. Only compare same stretch, direction and tide.'},
+  {k:'impulse',l:'Impulse',     c:'var(--g)', cat:'boat',  filter:s=>s.impulse>0&&s.impulse<1000,  val:s=>s.impulse,     fmtAvg:v=>Math.round(v).toString(),fmtBest:null, tip:'Total positive acceleration during the drive, integrated as a change in velocity (Δv). Higher means more drive power applied to the hull — not a peak value. IMU-derived — scale varies with boat class and mass.'},
+  {k:'slope',  l:'Catch Slope', c:'var(--y)', cat:'boat',  filter:s=>s.slope>0&&s.slope<300,       val:s=>s.slope,       fmtAvg:v=>f0(v),            fmtBest:null, tip:'Rate of acceleration rise at the catch. Higher means a sharper, more aggressive catch. IMU-derived — scale varies with boat class and mass.'},
   {k:'ratio',  l:'Ratio',       c:'var(--d)', cat:'indep', filter:s=>!isNaN(s.ratio)&&s.ratio>0.5&&s.ratio<5, val:s=>s.ratio, fmtAvg:v=>f2(v),       fmtBest:null, tip:'Recovery time ÷ drive time. Higher means a longer, more relaxed recovery relative to the drive.'},
-  {k:'schar',  l:'Stroke Char', c:'var(--o)', cat:'indep', filter:s=>!isNaN(s.schar)&&s.schar>0&&s.schar<=100, val:s=>s.schar,       fmtAvg:v=>f0(v)+'%',        fmtBest:null, tip:'Where peak power (acceleration) occurs during the drive, as % of drive duration. ~30-45% = front-loaded catch (preferred), ~65%+ = back-loaded/late catch.'},
-  {k:'cdur',   l:'Catch Dur',   c:'#a29bfe',  cat:'boat',  filter:s=>!isNaN(s.catchDuration)&&s.catchDuration>10&&s.catchDuration<500, val:s=>s.catchDuration, fmtAvg:v=>f0(v)+' ms', fmtBest:null, tip:'Time spent in the catch — from the deceleration spike at body stop and blade entry until drive force builds and the boat accelerates again. Shorter usually means a quicker, more direct connection at the catch. IMU-derived — scale varies with boat class and mass.'},
+  {k:'schar',  l:'Stroke Char', c:'var(--y)', cat:'indep', filter:s=>!isNaN(s.schar)&&s.schar>0&&s.schar<=100, val:s=>s.schar,       fmtAvg:v=>f0(v)+'%',        fmtBest:null, tip:'Where peak power (acceleration) occurs during the drive, as % of drive duration. ~30-45% = front-loaded catch (preferred), ~65%+ = back-loaded/late catch.'},
+  {k:'cdur',   l:'Catch Dur',   c:'var(--p)',  cat:'boat',  filter:s=>!isNaN(s.catchDuration)&&s.catchDuration>10&&s.catchDuration<500, val:s=>s.catchDuration, fmtAvg:v=>f0(v)+' ms', fmtBest:null, tip:'Time spent in the catch — from the deceleration spike at body stop and blade entry until drive force builds and the boat accelerates again. Shorter usually means a quicker, more direct connection at the catch. IMU-derived — scale varies with boat class and mass.'},
 ];
 
 let ST=[],HR=[],LAPS=[],GPSTRACE=[];
@@ -2813,17 +2813,17 @@ async function loadBenchmarkCompare(workoutId,workoutName){
 }
 
 const BMK_METRICS=[
-  {k:'lapPace',       lbl:'Pace',        fmt:v=>fmtPace(v>0?v:NaN),          col:'#e74c3c'},
-  {k:'rate',          lbl:'Rate spm',    fmt:v=>v?Math.round(v)+' spm':EM,    col:'#27ae60'},
-  {k:'catchAvg',      lbl:'Catch',       fmt:v=>v?Math.round(v):EM,           col:'#3498db'},
-  {k:'impulse',       lbl:'Impulse',     fmt:v=>v?Math.round(v).toString():EM,col:'#3498db'},
-  {k:'avgChar',       lbl:'Char %',      fmt:v=>v?Math.round(v)+'%':EM,       col:'#27ae60'},
-  {k:'avgRatio',      lbl:'Ratio',       fmt:v=>v?v.toFixed(2):EM,            col:'#27ae60'},
-  {k:'runLossPct',    lbl:'Run loss %',  fmt:v=>v?v.toFixed(1)+'%':EM,        col:'#e74c3c'},
-  {k:'avgOarAngle',   lbl:'Oar °',       fmt:v=>v?Math.round(v)+'°':EM,       col:'#27ae60'},
-  {k:'dps',           lbl:'DPS m',       fmt:v=>v?v.toFixed(1):EM,            col:'#e74c3c'},
-  {k:'avgConsistency',lbl:'Consist.',    fmt:v=>v?v.toFixed(1):EM,            col:'#3498db'},
-  {k:'avgCheckDelta', lbl:'Check Δ',     fmt:v=>v?v.toFixed(2):EM,            col:'#3498db'},
+  {k:'lapPace',       lbl:'Pace',        fmt:v=>fmtPace(v>0?v:NaN),          col:'var(--g)'},
+  {k:'rate',          lbl:'Rate spm',    fmt:v=>v?Math.round(v)+' spm':EM,    col:'var(--o)'},
+  {k:'catchAvg',      lbl:'Catch',       fmt:v=>v?Math.round(v):EM,           col:'var(--y)'},
+  {k:'impulse',       lbl:'Impulse',     fmt:v=>v?Math.round(v).toString():EM,col:'var(--g)'},
+  {k:'avgChar',       lbl:'Char %',      fmt:v=>v?Math.round(v)+'%':EM,       col:'var(--y)'},
+  {k:'avgRatio',      lbl:'Ratio',       fmt:v=>v?v.toFixed(2):EM,            col:'var(--d)'},
+  {k:'runLossPct',    lbl:'Run loss %',  fmt:v=>v?v.toFixed(1)+'%':EM,        col:'var(--r)'},
+  {k:'avgOarAngle',   lbl:'Oar °',       fmt:v=>v?Math.round(v)+'°':EM,       col:'var(--i)'},
+  {k:'dps',           lbl:'DPS m',       fmt:v=>v?v.toFixed(1):EM,            col:'var(--d)'},
+  {k:'avgConsistency',lbl:'Consist.',    fmt:v=>v?v.toFixed(1):EM,            col:'var(--y)'},
+  {k:'avgCheckDelta', lbl:'Check Δ',     fmt:v=>v?v.toFixed(2):EM,            col:'var(--b)'},
   {k:'dist',          lbl:'Dist m',      fmt:v=>v?Math.round(v)+'m':EM,       col:'var(--muted)'},
   {k:'time',          lbl:'Time',        fmt:v=>v?fmtTime(v):EM,              col:'var(--muted)'},
 ];
