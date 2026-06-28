@@ -1520,6 +1520,33 @@ function assignLapNumbers(){
     s.lapNum=lap;
   });
 }
+function computeLapSegments(){
+  const useLaps=LAPS.filter(l=>'stroke_rate_spm' in l);
+  if(!useLaps.length||!ST.length||!useLaps.some(l=>l.type))return[];
+  const mode=document.getElementById('xmode').value;
+  const getXVal=s=>{if(mode==='dist')return s.dist||0;if(mode==='time')return(s.elapsed||0)/60;return s.n>0?s.n-0.5:s.n;};
+  const offset=ST[0].dist||0;let cumDist=offset;const bounds=[];
+  for(let li=0;li<useLaps.length;li++){
+    cumDist+=+(useLaps[li].distance_m||0);
+    let best=0,bestDiff=Infinity;
+    for(let i=0;i<ST.length;i++){const d=Math.abs((ST[i].dist||0)-cumDist);if(d<bestDiff){bestDiff=d;best=i;}}
+    bounds.push(getXVal(ST[best]));
+  }
+  const x0=getXVal(ST[0]);
+  return useLaps.map((l,i)=>({x1:i===0?x0:bounds[i-1],x2:bounds[i],type:l.type||null}));
+}
+function drawLapBands(ctx,segs,toX,xMin,xMax,py,ph){
+  if(!segs.length)return;
+  const LC={warmup:'rgba(93,173,226,0.15)',work:'rgba(39,174,96,0.15)',rest:'rgba(243,156,18,0.18)',cooldown:'rgba(142,68,173,0.15)'};
+  ctx.save();
+  segs.forEach(s=>{
+    const fill=LC[s.type];if(!fill)return;
+    const px1=toX(Math.max(s.x1,xMin)),px2=toX(Math.min(s.x2,xMax));
+    if(px2<=px1)return;
+    ctx.fillStyle=fill;ctx.fillRect(px1,py,px2-px1,ph);
+  });
+  ctx.restore();
+}
 function drawLapLines(ctx,lapXVals,toX,xMin,xRng,PT,ph,showLabels){
   if(!lapXVals.length)return;
   ctx.save();ctx.setLineDash([3,5]);ctx.lineWidth=1;ctx.font='8px -apple-system, BlinkMacSystemFont, Helvetica Neue, sans-serif';ctx.textAlign='center';
@@ -1607,7 +1634,7 @@ function drawMain(){
   let yCDurMin=0,yCDurMax=300;
   if(cdurv.length){const[lo,hi]=pctBounds(cdurv,0.03,0.97,0.10);yCDurMin=0;yCDurMax=Math.min(500,hi);}
   const toYCDur=v=>PT+ph-(v-yCDurMin)/(yCDurMax-yCDurMin||1)*ph;
-
+  drawLapBands(ctx,computeLapSegments(),toX,xMin,xMin+xRng,PT,ph);
   ctx.font='9px -apple-system, BlinkMacSystemFont, Helvetica Neue, sans-serif';
 
   // Grid
@@ -1700,6 +1727,7 @@ function drawOv(){
   if(pMin===Infinity){pMin=100;pMax=300;}
   const pRng=pMax-pMin||1;
   const toYov=v=>P+ph-(1-(v-pMin)/pRng)*ph;
+  drawLapBands(ctx,computeLapSegments(),toXov,xMin,xMin+xRng,P,ph);
 
   // Full session pace (dim)
   ctx.beginPath();let s=false;
