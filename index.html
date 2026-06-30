@@ -12,6 +12,10 @@
     --border: #173358; --dim: #08121f;
     --g: #3cbe4f; --b: #1a68d4; --y: #e9e05d; --r: #cd2020;
     --p: #7e56a6; --o: #c07012; --i: #be3e8d; --d: #1c48b9;
+    --mc-pace:#1E88E5; --mc-rate:#FB8C00; --mc-hr:#E53935;
+    --mc-dps:#29B6F6; --mc-rloss:#AB47BC; --mc-slope:#9E9D24;
+    --mc-impulse:#00897B; --mc-schar:#D81B60; --mc-ratio:#5C6BC0;
+    --mc-oar:#26C6DA; --mc-cdelta:#546E7A; --mc-cdur:#FFB300;
     --text: #dce8fa; --muted: #46597a; --faint: #0d1e38;
     --grid-ln: rgba(17,40,72,1); --grid-lb: #1e3d6a; --frame-ln: #173358;
     --sel-fill: rgba(41,184,255,.06); --sel-stk: rgba(41,184,255,.32);
@@ -23,6 +27,10 @@
     --border: #c8d4e8; --dim: #dde6f2;
     --g: #3cbe4f; --b: #1a68d4; --y: #e9e05d; --r: #cd2020;
     --p: #7e56a6; --o: #c07012; --i: #be3e8d; --d: #1c48b9;
+    --mc-pace:#1E88E5; --mc-rate:#FB8C00; --mc-hr:#E53935;
+    --mc-dps:#29B6F6; --mc-rloss:#AB47BC; --mc-slope:#9E9D24;
+    --mc-impulse:#00897B; --mc-schar:#D81B60; --mc-ratio:#5C6BC0;
+    --mc-oar:#26C6DA; --mc-cdelta:#546E7A; --mc-cdur:#FFB300;
     --text: #0e1624; --muted: #40506e; --faint: #6a88b7;
     --grid-ln: #e2ecf7; --grid-lb: #7080a0; --frame-ln: #bccadd;
     --sel-fill: rgba(0,116,200,.05); --sel-stk: rgba(0,116,200,.36);
@@ -71,6 +79,18 @@
   .ci{border-top:3px solid var(--i)}.ci .val{color:var(--i)}
   .cd{border-top:3px solid var(--d)}.cd .val{color:var(--d)}
   .cw .val{color:var(--text)}
+  .c-pace{border-top:3px solid var(--mc-pace)}.c-pace .val{color:var(--mc-pace)}
+  .c-rate{border-top:3px solid var(--mc-rate)}.c-rate .val{color:var(--mc-rate)}
+  .c-hr{border-top:3px solid var(--mc-hr)}.c-hr .val{color:var(--mc-hr)}
+  .c-dps{border-top:3px solid var(--mc-dps)}.c-dps .val{color:var(--mc-dps)}
+  .c-rloss{border-top:3px solid var(--mc-rloss)}.c-rloss .val{color:var(--mc-rloss)}
+  .c-slope{border-top:3px solid var(--mc-slope)}.c-slope .val{color:var(--mc-slope)}
+  .c-impulse{border-top:3px solid var(--mc-impulse)}.c-impulse .val{color:var(--mc-impulse)}
+  .c-schar{border-top:3px solid var(--mc-schar)}.c-schar .val{color:var(--mc-schar)}
+  .c-ratio{border-top:3px solid var(--mc-ratio)}.c-ratio .val{color:var(--mc-ratio)}
+  .c-oar{border-top:3px solid var(--mc-oar)}.c-oar .val{color:var(--mc-oar)}
+  .c-cdelta{border-top:3px solid var(--mc-cdelta)}.c-cdelta .val{color:var(--mc-cdelta)}
+  .c-cdur{border-top:3px solid var(--mc-cdur)}.c-cdur .val{color:var(--mc-cdur)}
   .card.clickable{cursor:pointer;}
   .card.dim{opacity:.25;}
   .card.clickable:hover{opacity:1!important;box-shadow:var(--sh-h);transform:translateY(-1px);}
@@ -549,6 +569,10 @@ function pal() {
   return {
     g: v('--g'), b: v('--b'), y: v('--y'), r: v('--r'),
     p: v('--p'), o: v('--o'), i: v('--i'), d: v('--d'),
+    mc_pace:v('--mc-pace'), mc_rate:v('--mc-rate'), mc_hr:v('--mc-hr'),
+    mc_dps:v('--mc-dps'), mc_rloss:v('--mc-rloss'), mc_slope:v('--mc-slope'),
+    mc_impulse:v('--mc-impulse'), mc_schar:v('--mc-schar'), mc_ratio:v('--mc-ratio'),
+    mc_oar:v('--mc-oar'), mc_cdelta:v('--mc-cdelta'), mc_cdur:v('--mc-cdur'),
     gridLn: v('--grid-ln'), gridLb: v('--grid-lb'), frameLn: v('--frame-ln'),
     selFill: v('--sel-fill'), selStk: v('--sel-stk'),
     text: v('--text'), muted: v('--muted'), s1: v('--s1'), s2: v('--s2'),
@@ -661,17 +685,17 @@ const GROUP_BG     = ['rgba(255,201,71,.14)','rgba(192,132,252,.14)','rgba(41,18
 // filter: returns valid values from a stroke array
 // fmt: formats a single averaged/min value
 const METRIC_DEFS = [
-  {k:'pace',   l:'Pace',        c:'var(--g)', cat:'cond',  filter:s=>s.pace>50&&s.pace<500,        val:s=>s.pace,        fmtAvg:v=>fmtPaceU(v),      fmtBest:v=>fmtPaceU(v), showBest:true,  bestIsMin:true, tip:'Boat speed, shown in your selected unit (pace per 500m/1km/mile, or km/h/mph). GPS-derived — only valid for comparing the same stretch, direction and tide.'},
-  {k:'rate',   l:'Rate',        c:'var(--o)', cat:'indep', filter:s=>s.rate>5&&s.rate<50,          val:s=>s.rate,        fmtAvg:v=>f1(v)+' spm',     fmtBest:null, tip:'Average stroke rate, in strokes per minute (SPM).'},
-  {k:'dps',    l:'DPS',         c:'var(--d)', cat:'cond',  filter:s=>s.dps>1&&s.dps<25,            val:s=>s.dps,         fmtAvg:v=>fmtDPSU(v)+dpsULabelU(), fmtBest:null, tip:'Distance per stroke — average boat travel per stroke cycle. GPS-derived — affected by current and tide.'},
-  {k:'cdelta', l:'Check Delta', c:'var(--b)',  cat:'boat',  filter:s=>!isNaN(s.checkDelta)&&s.checkDelta>0.05&&s.checkDelta<5, val:s=>s.checkDelta, fmtAvg:v=>f2(v)+' m/s', fmtBest:null, tip:'Boat speed swing within one stroke — max minus min speed, catch to catch. Lower means a smoother, more continuous run or lower speed. IMU-derived — scale varies with boat class and mass.'},
-  {k:'rloss',  l:'Run Loss',    c:'var(--r)', cat:'indep', filter:s=>!isNaN(s.rloss)&&s.rloss>0&&s.rloss<100, val:s=>s.rloss, fmtAvg:v=>fmtRunLossU(v), fmtBest:null, tip:'Percentage of drive speed lost to deceleration during recovery. Accelerometer-derived, condition-independent. Lower is better.'},
-  {k:'angle',  l:'Oar Arc',     c:'var(--i)',  cat:'cond',  filter:s=>!isNaN(s.strokeAngle)&&s.strokeAngle>20&&s.strokeAngle<180, val:s=>s.strokeAngle, fmtAvg:v=>f1(v)+'°', fmtBest:null, tip:'Effective oar angle — arc swept based on boat displacement during the drive, corrected for ~10% blade slip. Not the oar true mechanical sweep. GPS-derived (over-ground) — following current inflates it, opposing current shrinks it. Only compare same stretch, direction and tide.'},
-  {k:'impulse',l:'Impulse',     c:'var(--g)', cat:'boat',  filter:s=>s.impulse>0&&s.impulse<1000,  val:s=>s.impulse,     fmtAvg:v=>Math.round(v).toString(),fmtBest:null, tip:'Total positive acceleration during the drive, integrated as a change in velocity (Δv). Higher means more drive power applied to the hull — not a peak value. IMU-derived — scale varies with boat class and mass.'},
-  {k:'slope',  l:'Catch Slope', c:'var(--y)', cat:'boat',  filter:s=>s.slope>0&&s.slope<300,       val:s=>s.slope,       fmtAvg:v=>f0(v),            fmtBest:null, tip:'Rate of acceleration rise at the catch. Higher means a sharper, more aggressive catch. IMU-derived — scale varies with boat class and mass.'},
-  {k:'ratio',  l:'Ratio',       c:'var(--d)', cat:'indep', filter:s=>!isNaN(s.ratio)&&s.ratio>0.5&&s.ratio<5, val:s=>s.ratio, fmtAvg:v=>f2(v),       fmtBest:null, tip:'Recovery time ÷ drive time. Higher means a longer, more relaxed recovery relative to the drive.'},
-  {k:'schar',  l:'Stroke Char', c:'var(--y)', cat:'indep', filter:s=>!isNaN(s.schar)&&s.schar>0&&s.schar<=100, val:s=>s.schar,       fmtAvg:v=>f0(v)+'%',        fmtBest:null, tip:'Where peak power (acceleration) occurs during the drive, as % of drive duration. ~30-45% = front-loaded catch (preferred), ~65%+ = back-loaded/late catch.'},
-  {k:'cdur',   l:'Catch Dur',   c:'var(--p)',  cat:'boat',  filter:s=>!isNaN(s.catchDuration)&&s.catchDuration>10&&s.catchDuration<500, val:s=>s.catchDuration, fmtAvg:v=>f0(v)+' ms', fmtBest:null, tip:'Time spent in the catch — from the deceleration spike at body stop and blade entry until drive force builds and the boat accelerates again. Shorter usually means a quicker, more direct connection at the catch. IMU-derived — scale varies with boat class and mass.'},
+  {k:'pace',   l:'Pace',        c:'var(--mc-pace)', cat:'cond',  filter:s=>s.pace>50&&s.pace<500,        val:s=>s.pace,        fmtAvg:v=>fmtPaceU(v),      fmtBest:v=>fmtPaceU(v), showBest:true,  bestIsMin:true, tip:'Boat speed, shown in your selected unit (pace per 500m/1km/mile, or km/h/mph). GPS-derived — only valid for comparing the same stretch, direction and tide.'},
+  {k:'rate',   l:'Rate',        c:'var(--mc-rate)', cat:'indep', filter:s=>s.rate>5&&s.rate<50,          val:s=>s.rate,        fmtAvg:v=>f1(v)+' spm',     fmtBest:null, tip:'Average stroke rate, in strokes per minute (SPM).'},
+  {k:'dps',    l:'DPS',         c:'var(--mc-dps)', cat:'cond',  filter:s=>s.dps>1&&s.dps<25,            val:s=>s.dps,         fmtAvg:v=>fmtDPSU(v)+dpsULabelU(), fmtBest:null, tip:'Distance per stroke — average boat travel per stroke cycle. GPS-derived — affected by current and tide.'},
+  {k:'cdelta', l:'Check Delta', c:'var(--mc-cdelta)',  cat:'boat',  filter:s=>!isNaN(s.checkDelta)&&s.checkDelta>0.05&&s.checkDelta<5, val:s=>s.checkDelta, fmtAvg:v=>f2(v)+' m/s', fmtBest:null, tip:'Boat speed swing within one stroke — max minus min speed, catch to catch. Lower means a smoother, more continuous run or lower speed. IMU-derived — scale varies with boat class and mass.'},
+  {k:'rloss',  l:'Run Loss',    c:'var(--mc-rloss)', cat:'indep', filter:s=>!isNaN(s.rloss)&&s.rloss>0&&s.rloss<100, val:s=>s.rloss, fmtAvg:v=>fmtRunLossU(v), fmtBest:null, tip:'Percentage of drive speed lost to deceleration during recovery. Accelerometer-derived, condition-independent. Lower is better.'},
+  {k:'angle',  l:'Oar Arc',     c:'var(--mc-oar)',  cat:'cond',  filter:s=>!isNaN(s.strokeAngle)&&s.strokeAngle>20&&s.strokeAngle<180, val:s=>s.strokeAngle, fmtAvg:v=>f1(v)+'°', fmtBest:null, tip:'Effective oar angle — arc swept based on boat displacement during the drive, corrected for ~10% blade slip. Not the oar true mechanical sweep. GPS-derived (over-ground) — following current inflates it, opposing current shrinks it. Only compare same stretch, direction and tide.'},
+  {k:'impulse',l:'Impulse',     c:'var(--mc-impulse)', cat:'boat',  filter:s=>s.impulse>0&&s.impulse<1000,  val:s=>s.impulse,     fmtAvg:v=>Math.round(v).toString(),fmtBest:null, tip:'Total positive acceleration during the drive, integrated as a change in velocity (Δv). Higher means more drive power applied to the hull — not a peak value. IMU-derived — scale varies with boat class and mass.'},
+  {k:'slope',  l:'Catch Slope', c:'var(--mc-slope)', cat:'boat',  filter:s=>s.slope>0&&s.slope<300,       val:s=>s.slope,       fmtAvg:v=>f0(v),            fmtBest:null, tip:'Rate of acceleration rise at the catch. Higher means a sharper, more aggressive catch. IMU-derived — scale varies with boat class and mass.'},
+  {k:'ratio',  l:'Ratio',       c:'var(--mc-ratio)', cat:'indep', filter:s=>!isNaN(s.ratio)&&s.ratio>0.5&&s.ratio<5, val:s=>s.ratio, fmtAvg:v=>f2(v),       fmtBest:null, tip:'Recovery time ÷ drive time. Higher means a longer, more relaxed recovery relative to the drive.'},
+  {k:'schar',  l:'Stroke Char', c:'var(--mc-schar)', cat:'indep', filter:s=>!isNaN(s.schar)&&s.schar>0&&s.schar<=100, val:s=>s.schar,       fmtAvg:v=>f0(v)+'%',        fmtBest:null, tip:'Where peak power (acceleration) occurs during the drive, as % of drive duration. ~30-45% = front-loaded catch (preferred), ~65%+ = back-loaded/late catch.'},
+  {k:'cdur',   l:'Catch Dur',   c:'var(--mc-cdur)',  cat:'boat',  filter:s=>!isNaN(s.catchDuration)&&s.catchDuration>10&&s.catchDuration<500, val:s=>s.catchDuration, fmtAvg:v=>f0(v)+' ms', fmtBest:null, tip:'Time spent in the catch — from the deceleration spike at body stop and blade entry until drive force builds and the boat accelerates again. Shorter usually means a quicker, more direct connection at the catch. IMU-derived — scale varies with boat class and mass.'},
 ];
 
 let ST=[],HR=[],LAPS=[],GPSTRACE=[];
@@ -1344,18 +1368,18 @@ function buildCards(sum) {
   let html=
     card('cw','Distance',distDisp,distLbl,null,'Total distance travelled (GPS), in km or mi based on units setting.')+
     card('cw','Duration',dur,ST.length+' strokes',null,'Total elapsed time of the session.')+
-    (vals.pace?card('cg','Pace',fmtPaceU(vals.pace.mean),movPace>0?'mov '+fmtPaceU(movPace):paceULabel(),'pace',tipOf('pace')):'')  +
-    (vals.rate?card('cy','Rate',f1(vals.rate.mean),'spm · max '+f0(vals.rate.max),'rate',tipOf('rate')):'')  +
-    (vals.dps?card('cp','DPS',fmtDPSU(vals.dps.mean),dpsULabelU()+'/stroke','dps',tipOf('dps')):'')  +
-    (vals.cdelta?`<div class="card clickable${!vis.cdelta?' dim':''}" id="card-cdelta" data-vis="cdelta" style="border-top:2px solid #2980b9" title="${tipOf('cdelta')}"><div class="lbl">Check Delta</div><div class="val" style="color:#2980b9">${f2(vals.cdelta.mean)} m/s</div><div class="sub">speed range</div></div>`:'')  +
-    (vals.rloss?card('cb','Run Loss',fmtRunLossU(vals.rloss.mean),'avg/stroke','rloss',tipOf('rloss')):'')  +
-    (vals.angle?`<div class="card clickable${!vis.angle?' dim':''}" id="card-angle" data-vis="angle" style="border-top:2px solid #2de0d4" title="${tipOf('angle')}"><div class="lbl">Oar Arc</div><div class="val" style="color:#2de0d4">${f1(vals.angle.mean)}°</div><div class="sub">${unitSettings.boatClass==='sweep'?'sweep':'scull'}</div></div>`:'')  +
-    (vals.impulse?card('ci','Impulse',Math.round(vals.impulse.mean),'peak '+Math.round(vals.impulse.max),'impulse',tipOf('impulse')):'')  +
-    (vals.slope?card('cr','Catch Slope',f0(vals.slope.mean),'peak '+f1(vals.slope.max),'slope',tipOf('slope')):'')  +
-    (vals.ratio?card('cd','Ratio',f2(vals.ratio.mean),'rec÷drive','ratio',tipOf('ratio')):'')  +
-    (vals.schar?card('co','Stroke Char',f0(vals.schar.mean)+'%','','schar',tipOf('schar')):'')  +
-    (vals.cdur?`<div class="card clickable${!vis.cdur?' dim':''}" id="card-cdur" data-vis="cdur" style="border-top:2px solid #a29bfe" title="${tipOf('cdur')}"><div class="lbl">Catch Dur</div><div class="val" style="color:#a29bfe">${f0(vals.cdur.mean)} ms</div><div class="sub">avg/stroke</div></div>`:'')  +
-    (hv.length?card('cb','Avg HR',f0(arrMean(hv)),'max '+f0(arrMax(hv))+' bpm',null,'Average heart rate during the session, in beats per minute.'):'');
+    (vals.pace?card('c-pace','Pace',fmtPaceU(vals.pace.mean),movPace>0?'mov '+fmtPaceU(movPace):paceULabel(),'pace',tipOf('pace')):'')  +
+    (vals.rate?card('c-rate','Rate',f1(vals.rate.mean),'spm · max '+f0(vals.rate.max),'rate',tipOf('rate')):'')  +
+    (vals.dps?card('c-dps','DPS',fmtDPSU(vals.dps.mean),dpsULabelU()+'/stroke','dps',tipOf('dps')):'')  +
+    (vals.cdelta?`<div class="card clickable${!vis.cdelta?' dim':''}" id="card-cdelta" data-vis="cdelta" style="border-top:2px solid var(--mc-cdelta)" title="${tipOf('cdelta')}"><div class="lbl">Check Delta</div><div class="val" style="color:var(--mc-cdelta)">${f2(vals.cdelta.mean)} m/s</div><div class="sub">speed range</div></div>`:'')  +
+    (vals.rloss?card('c-rloss','Run Loss',fmtRunLossU(vals.rloss.mean),'avg/stroke','rloss',tipOf('rloss')):'')  +
+    (vals.angle?`<div class="card clickable${!vis.angle?' dim':''}" id="card-angle" data-vis="angle" style="border-top:2px solid var(--mc-oar)" title="${tipOf('angle')}"><div class="lbl">Oar Arc</div><div class="val" style="color:var(--mc-oar)">${f1(vals.angle.mean)}°</div><div class="sub">${unitSettings.boatClass==='sweep'?'sweep':'scull'}</div></div>`:'')  +
+    (vals.impulse?card('c-impulse','Impulse',Math.round(vals.impulse.mean),'peak '+Math.round(vals.impulse.max),'impulse',tipOf('impulse')):'')  +
+    (vals.slope?card('c-slope','Catch Slope',f0(vals.slope.mean),'peak '+f1(vals.slope.max),'slope',tipOf('slope')):'')  +
+    (vals.ratio?card('c-ratio','Ratio',f2(vals.ratio.mean),'rec÷drive','ratio',tipOf('ratio')):'')  +
+    (vals.schar?card('c-schar','Stroke Char',f0(vals.schar.mean)+'%','','schar',tipOf('schar')):'')  +
+    (vals.cdur?`<div class="card clickable${!vis.cdur?' dim':''}" id="card-cdur" data-vis="cdur" style="border-top:2px solid var(--mc-cdur)" title="${tipOf('cdur')}"><div class="lbl">Catch Dur</div><div class="val" style="color:var(--mc-cdur)">${f0(vals.cdur.mean)} ms</div><div class="sub">avg/stroke</div></div>`:'')  +
+    (hv.length?card('c-hr','Avg HR',f0(arrMean(hv)),'max '+f0(arrMax(hv))+' bpm',null,'Average heart rate during the session, in beats per minute.'):'');
   document.getElementById('cards').innerHTML=html;
 }
 
@@ -1672,17 +1696,17 @@ function drawMain(){
   }
 
   // Series
-  if(vis.pace&&pv.length){ctx.beginPath();let st=false;for(let i=0;i<N;i++){const v=sv[i].pace;if(isNaN(v)||v<50||v>500){st=false;continue;}const vc=Math.max(yPMin,Math.min(yPMax,v));st?ctx.lineTo(toX(xs[i]),toYP(vc)):ctx.moveTo(toX(xs[i]),toYP(vc));st=true;}ctx.strokeStyle=C.g;ctx.lineWidth=2.0;ctx.stroke();}
-  if(vis.dps&&dv.length){ctx.beginPath();let st=false;for(let i=0;i<N;i++){const v=sv[i].dps;if(isNaN(v)||v<1||v>25){st=false;continue;}st?ctx.lineTo(toX(xs[i]),toYD(v)):ctx.moveTo(toX(xs[i]),toYD(v));st=true;}ctx.strokeStyle=C.p;ctx.lineWidth=1.5;ctx.stroke();}
-  if(vis.rate&&rv.length){ctx.fillStyle=C.y;for(let i=0;i<N;i++){const v=sv[i].rate;if(isNaN(v)||v<5||v>50)continue;ctx.beginPath();ctx.arc(toX(xs[i]),toYR(v),2.2,0,6.283);ctx.fill();}}
-  if(vis.slope&&jv.length){const jMax=arrMax(jv);for(let i=0;i<N;i++){const v=sv[i].slope;if(isNaN(v)||v<=0||v>300)continue;const rad=clamp(1.5+(v/jMax)*3.5,1.5,5);ctx.beginPath();ctx.arc(toX(xs[i]),toYR(v),rad,0,6.283);ctx.fillStyle=C.r;ctx.fill();}}
-  if(vis.impulse&&iv.length){ctx.fillStyle=C.i;for(let i=0;i<N;i++){const v=sv[i].impulse;if(isNaN(v)||v<=0||v>1000)continue;ctx.beginPath();ctx.arc(toX(xs[i]),toYImp(v),2.5,0,6.283);ctx.fill();}}
-  if(vis.rloss&&rlv.length){ctx.fillStyle=C.b;for(let i=0;i<N;i++){const v=sv[i].rloss;if(isNaN(v)||v<=0||v>=100)continue;ctx.beginPath();ctx.arc(toX(xs[i]),toYRL(v),2.2,0,6.283);ctx.fill();}}
-  if(vis.schar&&scv.length){ctx.fillStyle=C.o;for(let i=0;i<N;i++){const v=sv[i].schar;if(isNaN(v)||v<0||v>100)continue;ctx.beginPath();ctx.arc(toX(xs[i]),toYSC(v),2.2,0,6.283);ctx.fill();}}
-  if(vis.ratio&&ratv.length){ctx.fillStyle=C.d;for(let i=0;i<N;i++){const v=sv[i].ratio;if(isNaN(v)||v<0.5||v>5)continue;ctx.beginPath();ctx.arc(toX(xs[i]),toYRatio(v),2.2,0,6.283);ctx.fill();}}
-  if(vis.angle&&angv.length){ctx.fillStyle='#2de0d4';for(let i=0;i<N;i++){const v=sv[i].strokeAngle;if(isNaN(v)||v<20||v>180)continue;ctx.beginPath();ctx.arc(toX(xs[i]),toYAngle(v),2.2,0,6.283);ctx.fill();}}
-  if(vis.cdelta&&cdv.length){ctx.fillStyle='#2980b9';for(let i=0;i<N;i++){const v=sv[i].checkDelta;if(isNaN(v)||v<0.05||v>5)continue;ctx.beginPath();ctx.arc(toX(xs[i]),toYCD(v),2.2,0,6.283);ctx.fill();}}
-  if(vis.cdur&&cdurv.length){ctx.fillStyle='#a29bfe';for(let i=0;i<N;i++){const v=sv[i].catchDuration;if(isNaN(v)||v<=10||v>=500)continue;ctx.beginPath();ctx.arc(toX(xs[i]),toYCDur(v),2.2,0,6.283);ctx.fill();}}
+  if(vis.pace&&pv.length){ctx.beginPath();let st=false;for(let i=0;i<N;i++){const v=sv[i].pace;if(isNaN(v)||v<50||v>500){st=false;continue;}const vc=Math.max(yPMin,Math.min(yPMax,v));st?ctx.lineTo(toX(xs[i]),toYP(vc)):ctx.moveTo(toX(xs[i]),toYP(vc));st=true;}ctx.strokeStyle=C.mc_pace;ctx.lineWidth=2.0;ctx.stroke();}
+  if(vis.dps&&dv.length){ctx.beginPath();let st=false;for(let i=0;i<N;i++){const v=sv[i].dps;if(isNaN(v)||v<1||v>25){st=false;continue;}st?ctx.lineTo(toX(xs[i]),toYD(v)):ctx.moveTo(toX(xs[i]),toYD(v));st=true;}ctx.strokeStyle=C.mc_dps;ctx.lineWidth=1.5;ctx.stroke();}
+  if(vis.rate&&rv.length){ctx.fillStyle=C.mc_rate;for(let i=0;i<N;i++){const v=sv[i].rate;if(isNaN(v)||v<5||v>50)continue;ctx.beginPath();ctx.arc(toX(xs[i]),toYR(v),2.2,0,6.283);ctx.fill();}}
+  if(vis.slope&&jv.length){const jMax=arrMax(jv);for(let i=0;i<N;i++){const v=sv[i].slope;if(isNaN(v)||v<=0||v>300)continue;const rad=clamp(1.5+(v/jMax)*3.5,1.5,5);ctx.beginPath();ctx.arc(toX(xs[i]),toYR(v),rad,0,6.283);ctx.fillStyle=C.mc_slope;ctx.fill();}}
+  if(vis.impulse&&iv.length){ctx.fillStyle=C.mc_impulse;for(let i=0;i<N;i++){const v=sv[i].impulse;if(isNaN(v)||v<=0||v>1000)continue;ctx.beginPath();ctx.arc(toX(xs[i]),toYImp(v),2.5,0,6.283);ctx.fill();}}
+  if(vis.rloss&&rlv.length){ctx.fillStyle=C.mc_rloss;for(let i=0;i<N;i++){const v=sv[i].rloss;if(isNaN(v)||v<=0||v>=100)continue;ctx.beginPath();ctx.arc(toX(xs[i]),toYRL(v),2.2,0,6.283);ctx.fill();}}
+  if(vis.schar&&scv.length){ctx.fillStyle=C.mc_schar;for(let i=0;i<N;i++){const v=sv[i].schar;if(isNaN(v)||v<0||v>100)continue;ctx.beginPath();ctx.arc(toX(xs[i]),toYSC(v),2.2,0,6.283);ctx.fill();}}
+  if(vis.ratio&&ratv.length){ctx.fillStyle=C.mc_ratio;for(let i=0;i<N;i++){const v=sv[i].ratio;if(isNaN(v)||v<0.5||v>5)continue;ctx.beginPath();ctx.arc(toX(xs[i]),toYRatio(v),2.2,0,6.283);ctx.fill();}}
+  if(vis.angle&&angv.length){ctx.fillStyle=C.mc_oar;for(let i=0;i<N;i++){const v=sv[i].strokeAngle;if(isNaN(v)||v<20||v>180)continue;ctx.beginPath();ctx.arc(toX(xs[i]),toYAngle(v),2.2,0,6.283);ctx.fill();}}
+  if(vis.cdelta&&cdv.length){ctx.fillStyle=C.mc_cdelta;for(let i=0;i<N;i++){const v=sv[i].checkDelta;if(isNaN(v)||v<0.05||v>5)continue;ctx.beginPath();ctx.arc(toX(xs[i]),toYCD(v),2.2,0,6.283);ctx.fill();}}
+  if(vis.cdur&&cdurv.length){ctx.fillStyle=C.mc_cdur;for(let i=0;i<N;i++){const v=sv[i].catchDuration;if(isNaN(v)||v<=10||v>=500)continue;ctx.beginPath();ctx.arc(toX(xs[i]),toYCDur(v),2.2,0,6.283);ctx.fill();}}
 
   drawLapLines(ctx,computeLapBoundaryXValues(),toX,xMin,xRng,PT,ph,true);
   ctx.strokeStyle=C.frameLn;ctx.lineWidth=1;ctx.strokeRect(PL,PT,pw,ph);
@@ -1808,13 +1832,13 @@ function drawHR(){
   ctx.font='9px -apple-system, BlinkMacSystemFont, Helvetica Neue, sans-serif';ctx.lineWidth=1;
   niceSteps(yMin,yMax,5).forEach(g=>{const y=toY(g);ctx.beginPath();ctx.moveTo(PL,y);ctx.lineTo(PL+pw,y);ctx.strokeStyle=C.gridLn;ctx.stroke();ctx.fillStyle=C.gridLb;ctx.textAlign='right';ctx.fillText(Math.round(g),PL-4,y+3);});
   niceSteps(0,xMax,6).forEach(g=>{const x=toX(g);ctx.beginPath();ctx.moveTo(x,PT);ctx.lineTo(x,PT+ph);ctx.strokeStyle=C.gridLn;ctx.stroke();ctx.fillStyle=C.gridLb;ctx.textAlign='center';ctx.fillText(Math.round(g)+'m',x,PT+ph+13);});
-  ctx.setLineDash([4,4]);ctx.strokeStyle='rgba(77,166,255,.4)';ctx.lineWidth=1;
+  ctx.setLineDash([4,4]);ctx.strokeStyle='rgba(229,57,53,.4)';ctx.lineWidth=1;
   ctx.beginPath();ctx.moveTo(PL,toY(avg));ctx.lineTo(PL+pw,toY(avg));ctx.stroke();ctx.setLineDash([]);
   const grad=ctx.createLinearGradient(0,PT,0,PT+ph);
-  grad.addColorStop(0,'rgba(77,166,255,.20)');grad.addColorStop(1,'rgba(77,166,255,0)');
+  grad.addColorStop(0,'rgba(229,57,53,.20)');grad.addColorStop(1,'rgba(229,57,53,0)');
   ctx.beginPath();const x0=toX(0);ctx.moveTo(x0,toY(HR[0].bpm));
   for(let i=1;i<N;i++) ctx.lineTo(toX((new Date(HR[i].ts).getTime()-hrt0)/60000),toY(HR[i].bpm));
-  ctx.strokeStyle='#4da6ff';ctx.lineWidth=1.5;ctx.stroke();
+  ctx.strokeStyle=C.mc_hr;ctx.lineWidth=1.5;ctx.stroke();
   ctx.lineTo(toX(xMax),PT+ph);ctx.lineTo(x0,PT+ph);ctx.closePath();ctx.fillStyle=grad;ctx.fill();
   ctx.strokeStyle=C.frameLn;ctx.lineWidth=1;ctx.strokeRect(PL,PT,pw,ph);
 }
@@ -1834,17 +1858,17 @@ function showTooltip(e){
     <div class="tt-hd">Stroke ${s.n}</div>
     ${ttRow('Time',fmtTime(s.elapsed))}
     ${ttRow('Distance',isNaN(s.dist)?EM:s.dist.toFixed(0)+'m')}
-    ${ttRow('Pace',fmtPaceU(s.pace),C.g)}
-    ${ttRow('Rate',isNaN(s.rate)||s.rate<1?EM:f1(s.rate)+' spm',C.y)}
-    ${ttRow('DPS',isNaN(s.dps)||s.dps<1?EM:fmtDPSU(s.dps)+dpsULabelU(),C.p)}
-    ${ttRow('Check Delta',(!isNaN(s.checkDelta)&&s.checkDelta>0.05)?f2(s.checkDelta)+' m/s':EM,'#2980b9')}
-    ${ttRow('Run Loss',isNaN(s.rloss)||s.rloss<=0?EM:fmtRunLossU(s.rloss),C.b)}
-    ${ttRow('Oar Arc',(!isNaN(s.strokeAngle)&&s.strokeAngle>20)?f1(s.strokeAngle)+'°':EM,'#2de0d4')}
-    ${ttRow('Impulse',isNaN(s.impulse)||s.impulse<=0?EM:Math.round(s.impulse).toString(),C.i)}
-    ${ttRow('Catch slope',isNaN(s.slope)||s.slope<=0?EM:f0(s.slope),C.r)}
-    ${ttRow('Stroke Ratio',(s.ratio==null||isNaN(s.ratio)||s.ratio<0.5||s.ratio>5)?EM:s.ratio.toFixed(2),C.d)}
-    ${ttRow('Stroke Char',isNaN(s.schar)?EM:f0(s.schar)+'%',C.o)}
-    ${ttRow('Catch Dur',(!isNaN(s.catchDuration)&&s.catchDuration>10)?f0(s.catchDuration)+' ms':EM,'#a29bfe')}
+    ${ttRow('Pace',fmtPaceU(s.pace),C.mc_pace)}
+    ${ttRow('Rate',isNaN(s.rate)||s.rate<1?EM:f1(s.rate)+' spm',C.mc_rate)}
+    ${ttRow('DPS',isNaN(s.dps)||s.dps<1?EM:fmtDPSU(s.dps)+dpsULabelU(),C.mc_dps)}
+    ${ttRow('Check Delta',(!isNaN(s.checkDelta)&&s.checkDelta>0.05)?f2(s.checkDelta)+' m/s':EM,C.mc_cdelta)}
+    ${ttRow('Run Loss',isNaN(s.rloss)||s.rloss<=0?EM:fmtRunLossU(s.rloss),C.mc_rloss)}
+    ${ttRow('Oar Arc',(!isNaN(s.strokeAngle)&&s.strokeAngle>20)?f1(s.strokeAngle)+'°':EM,C.mc_oar)}
+    ${ttRow('Impulse',isNaN(s.impulse)||s.impulse<=0?EM:Math.round(s.impulse).toString(),C.mc_impulse)}
+    ${ttRow('Catch slope',isNaN(s.slope)||s.slope<=0?EM:f0(s.slope),C.mc_slope)}
+    ${ttRow('Stroke Ratio',(s.ratio==null||isNaN(s.ratio)||s.ratio<0.5||s.ratio>5)?EM:s.ratio.toFixed(2),C.mc_ratio)}
+    ${ttRow('Stroke Char',isNaN(s.schar)?EM:f0(s.schar)+'%',C.mc_schar)}
+    ${ttRow('Catch Dur',(!isNaN(s.catchDuration)&&s.catchDuration>10)?f0(s.catchDuration)+' ms':EM,C.mc_cdur)}
   `;
   const tip=document.getElementById('tooltip');
   tip.style.display='block';
@@ -2563,9 +2587,9 @@ function buildLaps(){
     <td>Lap ${i+1}</td>
     <td>${(+l.distance_m||0).toFixed(0)}m</td>
     <td>${fmtTime(+l.time_s)}</td>
-    <td style="color:var(--b)">${fmtPaceU(+l.pace_s_per_500m)}</td>
-    <td style="color:var(--y)">${l.avg_spm||l.stroke_rate_spm||EM}</td>
-    ${hasHR?`<td style="color:var(--b)">${l.avg_hr_bpm||EM}</td><td style="color:var(--b)">${l.max_hr_bpm||EM}</td>`:''}
+    <td style="color:var(--mc-pace)">${fmtPaceU(+l.pace_s_per_500m)}</td>
+    <td style="color:var(--mc-rate)">${l.avg_spm||l.stroke_rate_spm||EM}</td>
+    ${hasHR?`<td style="color:var(--mc-hr)">${l.avg_hr_bpm||EM}</td><td style="color:var(--mc-hr)">${l.max_hr_bpm||EM}</td>`:''}
     ${hasCal?`<td>${l.calories||EM}</td>`:''}
   </tr>`).join('');
   document.querySelectorAll('#laptbl tbody tr').forEach(row=>{
@@ -2590,18 +2614,18 @@ function buildStrokeTable(){
     <td style="color:rgba(160,180,255,0.7)">${s.lapNum!=null?s.lapNum:EM}</td>
     <td>${isNaN(s.dist)?EM:s.dist.toFixed(0)}</td>
     <td>${fmtTime(s.elapsed)}</td>
-    <td style="color:var(--g)">${fmtPaceU(s.pace)}</td>
-    <td style="color:var(--y)">${isNaN(s.rate)||s.rate<1?EM:f0(s.rate)}</td>
-    <td style="color:var(--p)">${isNaN(s.dps)||s.dps<1?EM:fmtDPSU(s.dps)}</td>
-    <td style="color:#2980b9">${(!isNaN(s.checkDelta)&&s.checkDelta>0.05)?f2(s.checkDelta):EM}</td>
-    <td style="color:var(--b)">${isNaN(s.rloss)||s.rloss<=0?EM:fmtRunLossU(s.rloss)}</td>
-    <td style="color:#2de0d4">${(!isNaN(s.strokeAngle)&&s.strokeAngle>20&&s.strokeAngle<180)?f1(s.strokeAngle)+'°':EM}</td>
-    <td style="color:var(--i)">${isNaN(s.impulse)||s.impulse<=0?EM:Math.round(s.impulse)}</td>
-    <td style="color:var(--r)">${isNaN(s.slope)||s.slope<=0?EM:f1(s.slope)}</td>
+    <td style="color:var(--mc-pace)">${fmtPaceU(s.pace)}</td>
+    <td style="color:var(--mc-rate)">${isNaN(s.rate)||s.rate<1?EM:f0(s.rate)}</td>
+    <td style="color:var(--mc-dps)">${isNaN(s.dps)||s.dps<1?EM:fmtDPSU(s.dps)}</td>
+    <td style="color:var(--mc-cdelta)">${(!isNaN(s.checkDelta)&&s.checkDelta>0.05)?f2(s.checkDelta):EM}</td>
+    <td style="color:var(--mc-rloss)">${isNaN(s.rloss)||s.rloss<=0?EM:fmtRunLossU(s.rloss)}</td>
+    <td style="color:var(--mc-oar)">${(!isNaN(s.strokeAngle)&&s.strokeAngle>20&&s.strokeAngle<180)?f1(s.strokeAngle)+'°':EM}</td>
+    <td style="color:var(--mc-impulse)">${isNaN(s.impulse)||s.impulse<=0?EM:Math.round(s.impulse)}</td>
+    <td style="color:var(--mc-slope)">${isNaN(s.slope)||s.slope<=0?EM:f1(s.slope)}</td>
     <td>${isNaN(s.consistency)||s.consistency<=0?EM:f1(s.consistency)}</td>
-    <td style="color:var(--d)">${(s.ratio==null||isNaN(s.ratio)||s.ratio<0.5||s.ratio>5)?EM:s.ratio.toFixed(2)}</td>
-    <td style="color:var(--o)">${isNaN(s.schar)||s.schar<=0?EM:f0(s.schar)+'%'}</td>
-    <td style="color:#a29bfe">${(!isNaN(s.catchDuration)&&s.catchDuration>10)?f0(s.catchDuration):EM}</td>
+    <td style="color:var(--mc-ratio)">${(s.ratio==null||isNaN(s.ratio)||s.ratio<0.5||s.ratio>5)?EM:s.ratio.toFixed(2)}</td>
+    <td style="color:var(--mc-schar)">${isNaN(s.schar)||s.schar<=0?EM:f0(s.schar)+'%'}</td>
+    <td style="color:var(--mc-cdur)">${(!isNaN(s.catchDuration)&&s.catchDuration>10)?f0(s.catchDuration):EM}</td>
   </tr>`).join('');
   document.getElementById('tblcount').textContent=ST.length+' strokes';
   document.querySelectorAll('#stb tr').forEach(row=>{
@@ -2813,17 +2837,17 @@ async function loadBenchmarkCompare(workoutId,workoutName){
 }
 
 const BMK_METRICS=[
-  {k:'lapPace',       lbl:'Pace',        fmt:v=>fmtPace(v>0?v:NaN),          col:'var(--g)'},
-  {k:'rate',          lbl:'Rate spm',    fmt:v=>v?Math.round(v)+' spm':EM,    col:'var(--o)'},
-  {k:'catchAvg',      lbl:'Catch',       fmt:v=>v?Math.round(v):EM,           col:'var(--y)'},
-  {k:'impulse',       lbl:'Impulse',     fmt:v=>v?Math.round(v).toString():EM,col:'var(--g)'},
-  {k:'avgChar',       lbl:'Char %',      fmt:v=>v?Math.round(v)+'%':EM,       col:'var(--y)'},
-  {k:'avgRatio',      lbl:'Ratio',       fmt:v=>v?v.toFixed(2):EM,            col:'var(--d)'},
-  {k:'runLossPct',    lbl:'Run loss %',  fmt:v=>v?v.toFixed(1)+'%':EM,        col:'var(--r)'},
-  {k:'avgOarAngle',   lbl:'Oar °',       fmt:v=>v?Math.round(v)+'°':EM,       col:'var(--i)'},
-  {k:'dps',           lbl:'DPS m',       fmt:v=>v?v.toFixed(1):EM,            col:'var(--d)'},
-  {k:'avgConsistency',lbl:'Consist.',    fmt:v=>v?v.toFixed(1):EM,            col:'var(--y)'},
-  {k:'avgCheckDelta', lbl:'Check Δ',     fmt:v=>v?v.toFixed(2):EM,            col:'var(--b)'},
+  {k:'lapPace',       lbl:'Pace',        fmt:v=>fmtPace(v>0?v:NaN),          col:'var(--mc-pace)'},
+  {k:'rate',          lbl:'Rate spm',    fmt:v=>v?Math.round(v)+' spm':EM,    col:'var(--mc-rate)'},
+  {k:'catchAvg',      lbl:'Catch',       fmt:v=>v?Math.round(v):EM,           col:'var(--mc-slope)'},
+  {k:'impulse',       lbl:'Impulse',     fmt:v=>v?Math.round(v).toString():EM,col:'var(--mc-impulse)'},
+  {k:'avgChar',       lbl:'Char %',      fmt:v=>v?Math.round(v)+'%':EM,       col:'var(--mc-schar)'},
+  {k:'avgRatio',      lbl:'Ratio',       fmt:v=>v?v.toFixed(2):EM,            col:'var(--mc-ratio)'},
+  {k:'runLossPct',    lbl:'Run loss %',  fmt:v=>v?v.toFixed(1)+'%':EM,        col:'var(--mc-rloss)'},
+  {k:'avgOarAngle',   lbl:'Oar °',       fmt:v=>v?Math.round(v)+'°':EM,       col:'var(--mc-oar)'},
+  {k:'dps',           lbl:'DPS m',       fmt:v=>v?v.toFixed(1):EM,            col:'var(--mc-dps)'},
+  {k:'avgConsistency',lbl:'Consist.',    fmt:v=>v?v.toFixed(1):EM,            col:'var(--muted)'},
+  {k:'avgCheckDelta', lbl:'Check Δ',     fmt:v=>v?v.toFixed(2):EM,            col:'var(--mc-cdelta)'},
   {k:'dist',          lbl:'Dist m',      fmt:v=>v?Math.round(v)+'m':EM,       col:'var(--muted)'},
   {k:'time',          lbl:'Time',        fmt:v=>v?fmtTime(v):EM,              col:'var(--muted)'},
 ];
