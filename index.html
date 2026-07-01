@@ -382,8 +382,6 @@
     <div class="sec-hd">
       <h2>Curve Comparison</h2>
       <div id="groupchips" style="display:flex;gap:6px;flex-wrap:wrap;"></div>
-      <span style="font-size:9px;color:var(--muted);margin-left:auto;">Opacity:</span>
-      <input type="range" id="curveOpacitySlider" min="10" max="100" value="100" style="width:70px;cursor:pointer;accent-color:var(--g);" oninput="window.curveOpacitySlide(this.value)">
       <button id="clearcurvebtn">Clear all</button>
     </div>
     <div class="curve-layout">
@@ -711,7 +709,6 @@ const METRIC_DEFS = [
 
 let ST=[],HR=[],LAPS=[],GPSTRACE=[];
 let curveGroups = []; // [{color,bg,strokes,absS,absE,label}]
-let curveLineOpacity = 1; // 0.1-1, curve comparison chart line/fill opacity
 let currentView=[];
 let viewS=0,viewE=0;
 let selS=-1,selE=-1;
@@ -1504,11 +1501,6 @@ window.panSlide=function(val){
   schedRender();
 };
 
-window.curveOpacitySlide=function(val){
-  curveLineOpacity=clamp(val/100,0.1,1);
-  drawCurvePanel();
-};
-
 // ══════════════════════════════════════════════════════════════════════════
 // EMA SMOOTHING
 // ══════════════════════════════════════════════════════════════════════════
@@ -2202,15 +2194,14 @@ function drawCurvePanel(){
 
     [[accelTop,ph1],[speedTop,ph2]].forEach(([top,ph])=>{
       if(finishX>0){
-        ctx.setLineDash([3,4]);ctx.strokeStyle=c.color;ctx.lineWidth=1;ctx.globalAlpha=0.45*curveLineOpacity;
+        ctx.setLineDash([3,4]);ctx.strokeStyle=c.color;ctx.lineWidth=1;ctx.globalAlpha=0.45;
         ctx.beginPath();ctx.moveTo(finishX,top);ctx.lineTo(finishX,top+ph);ctx.stroke();
-        ctx.setLineDash([]);ctx.globalAlpha=curveLineOpacity;
+        ctx.setLineDash([]);ctx.globalAlpha=1;
       }
     });
 
     // Accel fill
     const y0=clamp(toY(0),accelTop,accelTop+ph1);
-    ctx.globalAlpha=curveLineOpacity;
     ctx.beginPath();ctx.moveTo(toPx(0),y0);
     for(let i=0;i<CURVE_POINTS;i++)ctx.lineTo(toPx(i*step),toY(c.accelRot[i]));
     ctx.lineTo(toPx((CURVE_POINTS-1)*step),y0);ctx.closePath();
@@ -2219,13 +2210,13 @@ function drawCurvePanel(){
     // Accel line
     ctx.beginPath();
     for(let i=0;i<CURVE_POINTS;i++){const x=toPx(i*step);i===0?ctx.moveTo(x,toY(c.accelRot[i])):ctx.lineTo(x,toY(c.accelRot[i]));}
-    ctx.strokeStyle=c.color;ctx.lineWidth=2.5;ctx.setLineDash([]);ctx.globalAlpha=curveLineOpacity;ctx.stroke();
+    ctx.strokeStyle=c.color;ctx.lineWidth=2.5;ctx.setLineDash([]);ctx.globalAlpha=1;ctx.stroke();
 
     // Speed line
     if(c.speed&&hasSpeeds){
       ctx.beginPath();
       for(let i=0;i<CURVE_POINTS;i++){const x=toPx(i*step);i===0?ctx.moveTo(x,toSY(c.speed[i])):ctx.lineTo(x,toSY(c.speed[i]));}
-      ctx.strokeStyle=c.color;ctx.lineWidth=2.5;ctx.globalAlpha=curveLineOpacity;ctx.stroke();
+      ctx.strokeStyle=c.color;ctx.lineWidth=2.5;ctx.stroke();
     }
   });
 
@@ -3299,11 +3290,11 @@ const VID = {
   drag: null,    // 'box' | 'curve' | null
   dragDX: 0, dragDY: 0,
   cfg: {
-    metrics: ['rate','pace','dps','rloss','oarAngle','checkDelta','catchDuration'],
+    metrics: ['rate','pace','dps','rloss','oarAngle','catchDuration'],
     showCurve: true, showBox: true,
     curveX: 97, curveY: 3, curveScale: 1,
     boxX: 3, boxY: 3, boxScale: 1,
-    opacity: 0.82,
+    opacity: 0.82, curveOpacity: 0.82,
     vidWidth: 100, vidZoom: 1, vidPanX: 0, vidPanY: 0,
     curveAvg5: true, rate: 1,
   }
@@ -3493,6 +3484,7 @@ function vidRenderBody(){
         <label><input type="checkbox" id="vidShowCurve" ${cfg.showCurve?'checked':''}> show curve</label>
         <label><input type="checkbox" id="vidCurveAvg5" ${cfg.curveAvg5?'checked':''}> show avg last 5 strokes</label>
         <div class="vid-slider"><span>curve size</span><input type="range" id="vidCurveScale" min="50" max="220" value="${Math.round(cfg.curveScale*100)}"></div>
+        <div class="vid-slider"><span>opacity</span><input type="range" id="vidCurveOpacity" min="20" max="100" value="${Math.round(cfg.curveOpacity*100)}"></div>
       </div>
       <div class="vid-mini" style="margin-top:5px;">Drag the box or curve directly on the video to reposition.</div>
     </div>
@@ -3534,6 +3526,7 @@ function vidRenderBody(){
   on('vidShowCurve','onchange',e=>{ cfg.showCurve=e.target.checked; vidDraw(); });
   on('vidBoxScale','oninput',e=>{ cfg.boxScale=e.target.value/100; vidDraw(); });
   on('vidCurveScale','oninput',e=>{ cfg.curveScale=e.target.value/100; vidDraw(); });
+  on('vidCurveOpacity','oninput',e=>{ cfg.curveOpacity=e.target.value/100; vidDraw(); });
   on('vidOpacity','oninput',e=>{ cfg.opacity=e.target.value/100; vidDraw(); });
   on('vidWidth','oninput',e=>{ cfg.vidWidth=+e.target.value; document.getElementById('vidstage').style.width=cfg.vidWidth+'%'; requestAnimationFrame(()=>{vidSizeOverlay();vidDraw();}); });
   on('vidZoom','oninput',e=>{ cfg.vidZoom=e.target.value/100; vidApplyVideoStyle(); vidDraw(); });
@@ -3827,9 +3820,8 @@ function vidDraw(){
   if(upd) upd.textContent=(st.sessT<0?'before start':('t '+fmtTime(st.sessT)+'  \u00B7  stroke '+(st.idx>=0?st.idx+1:'\u2013')));
   if(st.idx<0){ vidDrawChartLine(); return; }
 
-  ctx.globalAlpha=VID.cfg.opacity;
-  if(VID.cfg.showBox) vidDrawBox(ctx,W,H,st);
-  if(VID.cfg.showCurve) vidDrawCurve(ctx,W,H,st);
+  if(VID.cfg.showBox){ ctx.globalAlpha=VID.cfg.opacity; vidDrawBox(ctx,W,H,st); }
+  if(VID.cfg.showCurve){ ctx.globalAlpha=VID.cfg.curveOpacity; vidDrawCurve(ctx,W,H,st); }
   ctx.globalAlpha=1;
   vidDrawChartLine();
 }
@@ -4193,9 +4185,8 @@ function vidExportFrame(){
 
   const st=vidCurrent();
   if(st && st.idx>=0){
-    cctx.globalAlpha=VID.cfg.opacity;
-    if(VID.cfg.showBox) vidDrawBox(cctx,Ow,Oh,st);
-    if(VID.cfg.showCurve) vidDrawCurve(cctx,Ow,Oh,st);
+    if(VID.cfg.showBox){ cctx.globalAlpha=VID.cfg.opacity; vidDrawBox(cctx,Ow,Oh,st); }
+    if(VID.cfg.showCurve){ cctx.globalAlpha=VID.cfg.curveOpacity; vidDrawCurve(cctx,Ow,Oh,st); }
     cctx.globalAlpha=1;
   }
   vidDraw();
