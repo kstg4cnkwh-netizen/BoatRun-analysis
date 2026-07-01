@@ -220,10 +220,6 @@
     .curve-layout { flex-direction: column; }
   }
 
-  .bmk-rep-layout{display:flex;gap:14px;align-items:flex-start;flex-wrap:wrap;}
-  .bmk-curve-col{flex:3;min-width:200px;}
-  .bmk-table-col{flex:2;min-width:160px;}
-  .bmk-table-full{flex:1;min-width:160px;}
 </style>
 <style>
 #startup{min-height:calc(100vh - 52px);display:flex;flex-direction:column;align-items:center;justify-content:flex-start;padding:28px 16px 40px;box-sizing:border-box;}
@@ -370,8 +366,6 @@
   <!-- Selection action bar -->
   <div id="selbar">
     <span id="selnote"></span>
-    <button id="addcurvebtn">＋ Add to curves</button>
-    <button id="selclear">✕ Clear</button>
   </div>
 
   <!-- Stats strip: selection or view averages -->
@@ -444,14 +438,6 @@
         <div class="twrap"><table><thead id="sth"></thead><tbody id="stb"></tbody></table></div>
       </div>
     </div>
-  </div>
-  <!-- Workout Benchmark -->
-  <div id="bmksec" style="display:none;padding:0 14px 16px;">
-    <div class="sec-hd" style="padding:0 0 6px;">
-      <h2>Workout Benchmark</h2>
-      <span id="bmk-wktname" style="font-size:10px;color:var(--muted);margin-left:6px;font-family:-apple-system, BlinkMacSystemFont, Helvetica Neue, sans-serif;"></span>
-    </div>
-    <div id="bmk-body"></div>
   </div>
 </div>
 
@@ -1980,11 +1966,16 @@ function updateSel(doScroll=true){
   if(!sel.length){bar.classList.remove('on');updateStatsStrip();return;}
   const hasCurves=sel.some(s=>s.curve&&s.curve.length===CURVE_POINTS);
   document.getElementById('selnote').textContent=`${sel.length} strokes${hasCurves?' · has curves':''}`;
-  document.getElementById('addcurvebtn').style.display=curveGroups.length<8?'inline-block':'none';
   bar.classList.add('on');
   const absIdxs=[];for(let i=s2;i<=e2;i++)absIdxs.push(viewS+i);
   hlRows(absIdxs, doScroll);
   updateStatsStrip();
+}
+
+function clearSelection(){
+  selS=-1;selE=-1;ovAbsSelS=-1;ovAbsSelE=-1;
+  document.getElementById('selbar').classList.remove('on');
+  hlRows([]);schedRender();
 }
 
 // ══════════════════════════════════════════════════════════════════════════
@@ -2010,8 +2001,9 @@ function updateStatsStrip(){
   function sp(l,v,c){return`<div class="sp-stat"><div class="l">${l}</div><div class="v" style="color:${c||'var(--text)'}">${v}</div></div>`;}
   let html='';
   if(curveGroups.length<8){
-    html+='<button id="stripAddCurveBtn" onclick="pinSelection()" style="background:var(--b);color:#000;border:none;padding:5px 13px;border-radius:6px;font-family:-apple-system, BlinkMacSystemFont, Helvetica Neue, sans-serif;font-size:10px;font-weight:700;cursor:pointer;align-self:center;">＋ Add to curves</button>';
+    html+='<button id="addcurvebtn" onclick="pinSelection()">＋ Add to curves</button>';
   }
+  html+='<button id="selclear" onclick="clearSelection()">✕ Clear</button>';
     if(strokes.length){
     const dur=strokes[strokes.length-1].elapsed-strokes[0].elapsed;
     html+=sp('Time',fmtTime(dur));
@@ -2771,7 +2763,6 @@ function mountData(d,label){
   buildMap();
   buildStrokeTable();
   document.getElementById('hrsec').style.display=HR.length>10?'block':'none';
-  buildBenchmark(d);
   schedRender();
   buildCurveSection();
   vidOnMount(d);
@@ -2800,8 +2791,6 @@ function resetApp(){
   document.getElementById('startup').innerHTML='';
   document.getElementById('openbtn').style.display='';
   document.getElementById('hrsec').style.display='none';
-  document.getElementById('bmksec').style.display='none';
-  _bmkSessions=[];
   document.getElementById('lapsec').style.display='none';
   document.getElementById('mapsec').style.display='none';
   document.getElementById('map-stroke-row').classList.remove('on');
@@ -2810,162 +2799,6 @@ function resetApp(){
   document.getElementById('selbar').classList.remove('on');
   document.getElementById('tblwrap').style.display='block';
   ['mainC','ovC','hrC'].forEach(id=>{const c=document.getElementById(id);if(c)c.getContext('2d').clearRect(0,0,c.width,c.height);});
-}
-
-// ── Benchmark comparison ────────────────────────────────────────────────────
-const BMK_COLORS=['#0077cc','#e07b00','#27ae60','#9b59b6','#e74c3c','#1abc9c','#f39c12','#2980b9','#d35400','#16a085'];
-const BMK_CP=80; // must match Metrics CURVE_POINTS
-let _bmkSessions=[];
-
-function buildBenchmark(d){
-  const sec=document.getElementById('bmksec');
-  const lm=d.workoutLapMetrics;
-  if(!lm||!lm.length){sec.style.display='none';return;}
-  if(!lm.some(s=>s.type==='work')){sec.style.display='none';return;}
-  _bmkSessions=[{date:d.sum?.start_time,lm,isCurrent:true}];
-  sec.style.display='block';
-  document.getElementById('bmk-wktname').textContent=d.workoutName||d.workoutId||'';
-  _renderBmk(_bmkSessions);
-}
-
-const BMK_METRICS=[
-
-  {k:'lapPace',       lbl:'Pace',        fmt:v=>fmtPace(v>0?v:NaN),          col:'var(--mc-pace)'},
-  {k:'rate',          lbl:'Rate spm',    fmt:v=>v?Math.round(v)+' spm':EM,    col:'var(--mc-rate)'},
-  {k:'catchAvg',      lbl:'Catch',       fmt:v=>v?Math.round(v):EM,           col:'var(--mc-slope)'},
-  {k:'impulse',       lbl:'Impulse',     fmt:v=>v?Math.round(v).toString():EM,col:'var(--mc-impulse)'},
-  {k:'avgChar',       lbl:'Char %',      fmt:v=>v?Math.round(v)+'%':EM,       col:'var(--mc-schar)'},
-  {k:'avgRatio',      lbl:'Ratio',       fmt:v=>v?v.toFixed(2):EM,            col:'var(--mc-ratio)'},
-  {k:'runLossPct',    lbl:'Run loss %',  fmt:v=>v?v.toFixed(1)+'%':EM,        col:'var(--mc-rloss)'},
-  {k:'avgOarAngle',   lbl:'Oar °',       fmt:v=>v?Math.round(v)+'°':EM,       col:'var(--mc-oar)'},
-  {k:'dps',           lbl:'DPS m',       fmt:v=>v?v.toFixed(1):EM,            col:'var(--mc-dps)'},
-  {k:'avgConsistency',lbl:'Consist.',    fmt:v=>v?v.toFixed(1):EM,            col:'var(--muted)'},
-  {k:'avgCheckDelta', lbl:'Check Δ',     fmt:v=>v?v.toFixed(2):EM,            col:'var(--mc-cdelta)'},
-  {k:'dist',          lbl:'Dist m',      fmt:v=>v?Math.round(v)+'m':EM,       col:'var(--muted)'},
-  {k:'time',          lbl:'Time',        fmt:v=>v?fmtTime(v):EM,              col:'var(--muted)'},
-];
-
-function _renderBmk(sessions){
-  const maxWork=Math.max(...sessions.map(s=>s.lm.filter(x=>x.type==='work').length));
-  if(!maxWork){document.getElementById('bmk-body').innerHTML='<p style="font-size:11px;color:var(--muted);">No work intervals found.</p>';return;}
-
-  // Session colour legend
-  let html='<div style="display:flex;flex-wrap:wrap;gap:5px 14px;margin-bottom:12px;">';
-  sessions.forEach((sess,i)=>{
-    const dt=sess.date?new Date(sess.date).toLocaleDateString('en-GB',{day:'2-digit',month:'short',year:'2-digit'}):'--';
-    const col=BMK_COLORS[i%BMK_COLORS.length];
-    html+=`<div style="display:flex;align-items:center;gap:5px;font-size:10px;${sess.isCurrent?'font-weight:700;':''}">`
-         +`<div style="width:22px;height:3px;background:${col};border-radius:2px;flex-shrink:0;"></div>`
-         +`${dt}${sess.isCurrent?' ●':''}</div>`;
-  });
-  html+='</div>';
-
-  for(let r=0;r<maxWork;r++){
-    const repSteps=sessions.map(s=>s.lm.filter(x=>x.type==='work')[r]||null);
-    const gl=repSteps.find(s=>s?.groupLabel)?.groupLabel||null;
-    const hasCurve=repSteps.some(s=>s&&Array.isArray(s.curve)&&s.curve.length===BMK_CP);
-    html+=`<div style="margin-bottom:22px;">`;
-    html+=`<div style="font-size:10px;font-weight:700;letter-spacing:.08em;padding-bottom:5px;margin-bottom:10px;border-bottom:1px solid var(--border);text-transform:uppercase;color:var(--muted);">Rep ${r+1}${gl?' <span style=\'text-transform:none;font-weight:400;\'>· '+gl+'</span>':''}</div>`;
-    html+=`<div class="bmk-rep-layout">`;
-    if(hasCurve){
-      html+=`<div class="bmk-curve-col"><canvas id="bmkc-${r}" height="110" style="width:100%;display:block;border-radius:8px;background:var(--s2);"></canvas></div>`;
-    }
-    html+=`<div class="${hasCurve?'bmk-table-col':'bmk-table-col bmk-table-full'}"><div style="overflow-x:auto;"><table style="border-collapse:collapse;font-size:10px;white-space:nowrap;width:100%;">`;
-    html+=`<thead><tr><th style="text-align:left;padding:4px 10px 4px 0;font-size:8px;color:var(--muted);border-bottom:1px solid var(--border);font-weight:600;letter-spacing:.6px;text-transform:uppercase;">Metric</th>`;
-    sessions.forEach((sess,i)=>{
-      const col=BMK_COLORS[i%BMK_COLORS.length];
-      const dt=sess.date?new Date(sess.date).toLocaleDateString('en-GB',{day:'2-digit',month:'short'}):'--';
-      html+=`<th style="padding:4px 8px;text-align:right;border-bottom:2px solid ${col};min-width:52px;font-size:8px;${sess.isCurrent?'font-weight:700;':''}">${dt}</th>`;
-    });
-    html+=`</tr></thead><tbody>`;
-    for(const m of BMK_METRICS){
-      const hasAny=repSteps.some(s=>s&&s[m.k]!=null&&s[m.k]!==0&&!isNaN(s[m.k]));
-      if(!hasAny)continue;
-      html+=`<tr><td style="padding:3px 10px 3px 0;color:${m.col};font-size:8.5px;letter-spacing:.03em;">${m.lbl}</td>`;
-      sessions.forEach((sess,i)=>{
-        const step=repSteps[i];
-        const val=step?m.fmt(step[m.k]):EM;
-        const bg=sess.isCurrent?'background:rgba(41,184,255,.06);':'';
-        html+=`<td style="padding:3px 8px;text-align:right;border-bottom:1px solid var(--border);${bg}">${val}</td>`;
-      });
-      html+='</tr>';
-    }
-    html+=`</tbody></table></div></div></div></div>`;
-  }
-  html+='<p style="font-size:9px;color:var(--muted);margin-top:4px;">Red = condition-dependent &nbsp;·&nbsp; Blue = boat-dependent &nbsp;·&nbsp; Green = condition-independent</p>';
-
-  document.getElementById('bmk-body').innerHTML=html;
-  requestAnimationFrame(()=>_drawBmkCurves(sessions,maxWork));
-}
-
-function _drawBmkCurves(sessions,maxWork){
-  for(let r=0;r<maxWork;r++){
-    const canvas=document.getElementById(`bmkc-${r}`);
-    if(!canvas)continue;
-    const repSteps=sessions.map(s=>s.lm.filter(x=>x.type==='work')[r]||null);
-    if(!repSteps.some(s=>s&&Array.isArray(s.curve)&&s.curve.length===BMK_CP))continue;
-
-    const dpr=window.devicePixelRatio||1;
-    const W=canvas.offsetWidth||320,H=80;
-    canvas.width=W*dpr;canvas.height=H*dpr;
-    const ctx=canvas.getContext('2d');
-    ctx.scale(dpr,dpr);
-
-    // y range across all curves for this rep
-    let yMin=Infinity,yMax=-Infinity;
-    for(const step of repSteps){
-      if(!step||!step.curve)continue;
-      for(const v of step.curve){if(v<yMin)yMin=v;if(v>yMax)yMax=v;}
-    }
-    if(!isFinite(yMin))continue;
-    const yPad=(yMax-yMin)*0.15||1;
-    yMin-=yPad;yMax+=yPad;
-    const ph=8,pv=6;
-    const sx=i=>ph+(i/(BMK_CP-1))*(W-2*ph);
-    const sy=v=>H-pv-((v-yMin)/(yMax-yMin))*(H-2*pv);
-    const y0=sy(0);
-
-    // Zero line
-    ctx.save();
-    ctx.strokeStyle='rgba(128,128,128,.25)';ctx.lineWidth=1;ctx.setLineDash([3,5]);
-    ctx.beginPath();ctx.moveTo(ph,y0);ctx.lineTo(W-ph,y0);ctx.stroke();
-    ctx.setLineDash([]);ctx.restore();
-
-    // Drive/recovery divider — averaged driveFrac across sessions that have it
-    const dfs=repSteps.filter(s=>s&&s.curveDriveFrac!=null).map(s=>s.curveDriveFrac);
-    if(dfs.length){
-      const adf=dfs.reduce((a,b)=>a+b,0)/dfs.length;
-      const xd=sx(Math.round(adf*(BMK_CP-1)));
-      ctx.save();
-      ctx.strokeStyle='rgba(128,128,128,.4)';ctx.lineWidth=1;ctx.setLineDash([3,4]);
-      ctx.beginPath();ctx.moveTo(xd,pv);ctx.lineTo(xd,H-pv);ctx.stroke();
-      ctx.setLineDash([]);ctx.restore();
-      ctx.fillStyle='rgba(0,100,180,.5)';ctx.font='7px Roboto,sans-serif';
-      ctx.textAlign='left';ctx.fillText('DRIVE',ph+2,H-2);
-      ctx.fillStyle='rgba(180,100,0,.5)';
-      ctx.textAlign='right';ctx.fillText('RECOVERY',W-ph-2,H-2);
-    }
-
-    // Y-axis range labels
-    ctx.fillStyle='rgba(128,128,128,.6)';ctx.font='7px Roboto,sans-serif';ctx.textAlign='left';
-    ctx.fillText((yMax-yPad).toFixed(0),ph,pv+7);
-    ctx.fillText((yMin+yPad).toFixed(0),ph,H-pv-2);
-
-    // Each session's curve, current session on top (drawn last)
-    const order=[...repSteps.map((_,i)=>i)].sort((a,b)=>(sessions[a].isCurrent?1:-1)-(sessions[b].isCurrent?1:-1));
-    for(const si of order){
-      const step=repSteps[si];
-      if(!step||!Array.isArray(step.curve)||step.curve.length!==BMK_CP)continue;
-      ctx.beginPath();
-      step.curve.forEach((v,i)=>{const x=sx(i),y=sy(v);i===0?ctx.moveTo(x,y):ctx.lineTo(x,y);});
-      ctx.strokeStyle=BMK_COLORS[si%BMK_COLORS.length];
-      ctx.lineWidth=sessions[si].isCurrent?2.5:1.5;
-      ctx.lineJoin='round';
-      ctx.globalAlpha=sessions[si].isCurrent?1:0.7;
-      ctx.stroke();
-      ctx.globalAlpha=1;
-    }
-  }
 }
 
 // ── Startup screen ──────────────────────────────────────────────────────────
@@ -3229,8 +3062,6 @@ document.getElementById('fin').onchange=e=>{
 document.getElementById('addcompbtn').onclick=showAddComparePicker;
 document.getElementById('xmode').onchange=schedRender;
 document.getElementById('emaMode').onchange=schedRender;
-document.getElementById('selclear').onclick=()=>{selS=-1;selE=-1;ovAbsSelS=-1;ovAbsSelE=-1;document.getElementById('selbar').classList.remove('on');hlRows([]);schedRender();};
-document.getElementById('addcurvebtn').onclick=pinSelection;
 document.getElementById('clearcurvebtn').onclick=clearAllCurves;
 document.getElementById('cards').addEventListener('click',e=>{const c=e.target.closest('[data-vis]');if(c)window.toggleVis(c.dataset.vis);});
 
