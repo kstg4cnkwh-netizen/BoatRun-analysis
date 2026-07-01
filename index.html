@@ -276,9 +276,6 @@
   .vid-slider{display:flex;align-items:center;gap:5px;}
   .vid-slider span{color:var(--muted);min-width:54px;}
   .vid-slider input[type=range]{width:96px;accent-color:var(--b);}
-  .vid-vert-wrap{display:flex;flex-direction:column;align-items:center;gap:5px;}
-  .vid-vert-wrap span{color:var(--muted);font-size:11px;}
-  .vid-vert-wrap input[type=range]{writing-mode:vertical-lr;direction:rtl;width:8px;height:90px;accent-color:var(--b);}
   .vid-num{width:62px;background:var(--s2);border:1px solid var(--border);color:var(--text);border-radius:6px;padding:3px 5px;font-size:11px;}
   .vid-read{font-size:11px;color:var(--text);background:var(--s2);border:1px solid var(--border);border-radius:7px;padding:4px 9px;font-variant-numeric:tabular-nums;}
   .vid-mini{font-size:10px;color:var(--faint);}
@@ -3433,9 +3430,9 @@ function vidRenderBody(){
       <div class="vid-slider"><span>width</span><input type="range" id="vidWidth" min="40" max="100" value="${cfg.vidWidth}"></div>
       <div class="vid-slider"><span>zoom/crop</span><input type="range" id="vidZoom" min="100" max="220" value="${Math.round(cfg.vidZoom*100)}"></div>
     </div>
-    <div class="vid-row" style="margin-top:8px;align-items:flex-start;">
+    <div class="vid-row" style="margin-top:8px;">
       <div class="vid-slider"><span>pan left/right</span><input type="range" id="vidPanX" min="-50" max="50" value="${cfg.vidPanX}"></div>
-      <div class="vid-vert-wrap"><span>pan up/down</span><input type="range" id="vidPanY" min="-50" max="50" value="${cfg.vidPanY}"></div>
+      <div class="vid-slider"><span>pan up/down</span><input type="range" id="vidPanY" min="-50" max="50" value="${cfg.vidPanY}"></div>
     </div>
   </div>
 
@@ -3555,6 +3552,7 @@ function vidRenderBody(){
   on('vidRate','onchange',e=>{ cfg.rate=parseFloat(e.target.value)||1; el.playbackRate=cfg.rate; });
   { const rs=document.getElementById('vidRate'); if(rs) rs.value=String(cfg.rate); el.playbackRate=cfg.rate; }
   vidSyncBtnUI();
+  vidMarkSaved();
 
   vidWireDrag();
   requestAnimationFrame(()=>{ vidSizeOverlay(); vidDraw(); });
@@ -3664,9 +3662,9 @@ function vidMarkUnsaved(){
 }
 function vidMarkSaved(){
   const b=document.getElementById('vidSaveSyncBtn'); if(!b) return;
-  b.textContent='\u2714 Save sync';
-  b.style.background='var(--b)';
-  b.style.borderColor='var(--b)';
+  b.textContent='✔ Sync saved';
+  b.style.background='var(--g)';
+  b.style.borderColor='var(--g)';
   b.style.color='#000';
 }
 function vidSaveSync(){
@@ -3674,13 +3672,12 @@ function vidSaveSync(){
   const sess=SESSIONS[activeSessionIdx]; if(!sess) return;
   if(!sess.d.vidSync) sess.d.vidSync={};
   sess.d.vidSync[a._id]={offset:a.offset};
-  vidMarkSaved();
   if(AnalyserDrive.isSignedIn()&&sess.fileId){
     AnalyserDrive.patchVidSync(sess.fileId,sess.d.vidSync)
-      .then(()=>toast('\u2714 Sync saved to Drive'))
+      .then(()=>{toast('✔ Sync saved to Drive');vidMarkSaved();})
       .catch(e=>{toast('Drive save failed: '+e.message,3000);vidMarkUnsaved();});
   } else {
-    toast('\u2714 Sync set \u2014 tap \u2B07 Export JSON to save for another device');
+    toast('✔ Sync set — tap ⬇ Export JSON to save for another device');
   }
 }
 function vidExportJSON(){
@@ -3805,11 +3802,11 @@ function vidDrawChartLine(){
   const xVal=x1+(x2-x1)*st.frac;
   const px=PL+(xVal-xMin)/xRng*pw;
   ctx.save();
-  ctx.strokeStyle='rgba(255,220,80,0.9)'; ctx.lineWidth=1.5;
+  ctx.strokeStyle='rgba(110,75,5,0.95)'; ctx.lineWidth=2.5;
   ctx.setLineDash([3,2]);
   ctx.beginPath(); ctx.moveTo(px,PT); ctx.lineTo(px,PT+ph); ctx.stroke();
   ctx.setLineDash([]);
-  ctx.fillStyle='rgba(255,220,80,0.9)';
+  ctx.fillStyle='rgba(110,75,5,0.95)';
   ctx.beginPath(); ctx.moveTo(px-4,PT); ctx.lineTo(px+4,PT); ctx.lineTo(px,PT+7); ctx.closePath(); ctx.fill();
   ctx.restore();
 }
