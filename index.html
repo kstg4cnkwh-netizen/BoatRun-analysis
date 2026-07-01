@@ -262,7 +262,7 @@
   #vidstage video{display:block;width:100%;height:auto;}
   #vidOverlay{position:absolute;top:0;left:0;width:100%;height:100%;touch-action:none;cursor:grab;}
   #vidOverlay.drag{cursor:grabbing;}
-  .vid-empty{padding:40px 14px;text-align:center;color:var(--muted);font-size:12px;}
+  .vid-empty{padding:8px 14px;text-align:center;color:var(--muted);font-size:12px;}
   .vid-ctrls{display:flex;flex-direction:column;gap:10px;margin-top:10px;font-size:11px;}
   .vid-row{display:flex;flex-wrap:wrap;align-items:center;gap:6px;}
   .vid-row label{color:var(--muted);}
@@ -450,7 +450,6 @@
     <div class="sec-hd" style="padding:0 0 6px;">
       <h2>Workout Benchmark</h2>
       <span id="bmk-wktname" style="font-size:10px;color:var(--muted);margin-left:6px;font-family:-apple-system, BlinkMacSystemFont, Helvetica Neue, sans-serif;"></span>
-      <button class="hbtn" id="bmk-drive-btn" style="margin-left:auto;font-size:10px;">Compare via Drive ▾</button>
     </div>
     <div id="bmk-body"></div>
   </div>
@@ -2010,6 +2009,9 @@ function updateStatsStrip(){
 
   function sp(l,v,c){return`<div class="sp-stat"><div class="l">${l}</div><div class="v" style="color:${c||'var(--text)'}">${v}</div></div>`;}
   let html='';
+  if(curveGroups.length<8){
+    html+='<button id="stripAddCurveBtn" onclick="pinSelection()" style="background:var(--b);color:#000;border:none;padding:5px 13px;border-radius:6px;font-family:-apple-system, BlinkMacSystemFont, Helvetica Neue, sans-serif;font-size:10px;font-weight:700;cursor:pointer;align-self:center;">＋ Add to curves</button>';
+  }
     if(strokes.length){
     const dur=strokes[strokes.length-1].elapsed-strokes[0].elapsed;
     html+=sp('Time',fmtTime(dur));
@@ -2824,38 +2826,10 @@ function buildBenchmark(d){
   sec.style.display='block';
   document.getElementById('bmk-wktname').textContent=d.workoutName||d.workoutId||'';
   _renderBmk(_bmkSessions);
-  document.getElementById('bmk-drive-btn').onclick=()=>loadBenchmarkCompare(d.workoutId,d.workoutName);
-}
-
-async function loadBenchmarkCompare(workoutId,workoutName){
-  if(!AnalyserDrive.isSignedIn()){toast('Redirecting to Google sign-in…');setTimeout(()=>AnalyserDrive.signIn(),400);return;}
-  const btn=document.getElementById('bmk-drive-btn');
-  btn.textContent='Loading…';btn.disabled=true;
-  try{
-    toast('Fetching Drive sessions…');
-    const files=await AnalyserDrive.list();
-    const matching=[_bmkSessions[0]];
-    let n=0;
-    for(const f of files){
-      try{
-        const s=await AnalyserDrive.fetchSession(f.id);
-        n++;btn.textContent=`Checked ${n}/${files.length}…`;
-        const match=workoutId?(s.workoutId===workoutId):(workoutName&&s.workoutName===workoutName);
-        if(match&&s.workoutLapMetrics?.length){
-          if(!matching.some(m=>m.startTime&&m.startTime===s.startTime))
-            matching.push({date:new Date(s.startTime).toISOString(),lm:s.workoutLapMetrics,startTime:s.startTime,isCurrent:false});
-        }
-      }catch{}
-    }
-    matching.sort((a,b)=>(b.date||'').localeCompare(a.date||''));
-    _bmkSessions=matching;
-    _renderBmk(matching);
-    toast(`${matching.length} session${matching.length===1?'':'s'} matched`);
-  }catch(e){toast('Drive error: '+e.message);}
-  finally{btn.textContent='Compare via Drive ▾';btn.disabled=false;}
 }
 
 const BMK_METRICS=[
+
   {k:'lapPace',       lbl:'Pace',        fmt:v=>fmtPace(v>0?v:NaN),          col:'var(--mc-pace)'},
   {k:'rate',          lbl:'Rate spm',    fmt:v=>v?Math.round(v)+' spm':EM,    col:'var(--mc-rate)'},
   {k:'catchAvg',      lbl:'Catch',       fmt:v=>v?Math.round(v):EM,           col:'var(--mc-slope)'},
