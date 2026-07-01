@@ -256,7 +256,8 @@
 
   /* ── Video overlay ── */
   #videosec{display:none;}
-  #vidStageWrap{display:flex;justify-content:center;}
+  #vidStageWrap{display:flex;flex-direction:column;}
+  #vidStageWrap #vidstage{margin:0 auto;}
   #vidstage{position:relative;width:100%;max-width:100%;overflow:hidden;background:#000;border-radius:10px;line-height:0;}
   #vidstage video{display:block;width:100%;height:auto;}
   #vidOverlay{position:absolute;top:0;left:0;width:100%;height:100%;touch-action:none;cursor:grab;}
@@ -275,6 +276,9 @@
   .vid-slider{display:flex;align-items:center;gap:5px;}
   .vid-slider span{color:var(--muted);min-width:54px;}
   .vid-slider input[type=range]{width:96px;accent-color:var(--b);}
+  .vid-vert-wrap{display:flex;flex-direction:column;align-items:center;gap:5px;}
+  .vid-vert-wrap span{color:var(--muted);font-size:11px;}
+  .vid-vert-wrap input[type=range]{writing-mode:vertical-lr;direction:rtl;width:8px;height:90px;accent-color:var(--b);}
   .vid-num{width:62px;background:var(--s2);border:1px solid var(--border);color:var(--text);border-radius:6px;padding:3px 5px;font-size:11px;}
   .vid-read{font-size:11px;color:var(--text);background:var(--s2);border:1px solid var(--border);border-radius:7px;padding:4px 9px;font-variant-numeric:tabular-nums;}
   .vid-mini{font-size:10px;color:var(--faint);}
@@ -284,10 +288,14 @@
   .vid-play{background:var(--b);color:#000;border:none;border-radius:8px;width:40px;height:30px;font-size:13px;cursor:pointer;flex:none;}
   .vid-transport input[type=range]{flex:1;accent-color:var(--b);}
   .vid-transport .vid-clip-tab{padding:4px 8px;}
-  #vidstage:fullscreen{width:100%!important;height:100%;background:#000;display:flex;align-items:center;justify-content:center;}
-  #vidstage:fullscreen video{width:100%;height:100%;object-fit:contain;}
-  #vidstage:-webkit-full-screen{width:100%!important;height:100%;background:#000;}
-  #vidstage:-webkit-full-screen video{width:100%;height:100%;object-fit:contain;}
+  #vidStageWrap:fullscreen{width:100%!important;height:100%;background:#000;display:flex;flex-direction:column;align-items:stretch;justify-content:center;}
+  #vidStageWrap:fullscreen #vidstage{flex:1;min-height:0;width:100%!important;display:flex;align-items:center;justify-content:center;}
+  #vidStageWrap:fullscreen video{width:100%;height:100%;object-fit:contain;}
+  #vidStageWrap:fullscreen .vid-transport{flex:none;background:rgba(0,0,0,.6);padding:8px 10px;margin-top:0;}
+  #vidStageWrap:-webkit-full-screen{width:100%!important;height:100%;background:#000;display:flex;flex-direction:column;align-items:stretch;justify-content:center;}
+  #vidStageWrap:-webkit-full-screen #vidstage{flex:1;min-height:0;width:100%!important;display:flex;align-items:center;justify-content:center;}
+  #vidStageWrap:-webkit-full-screen video{width:100%;height:100%;object-fit:contain;}
+  #vidStageWrap:-webkit-full-screen .vid-transport{flex:none;background:rgba(0,0,0,.6);padding:8px 10px;margin-top:0;}
 </style>
 
 <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" crossorigin=""/>
@@ -323,6 +331,12 @@
   <div id="unitsbar" style="padding:6px 12px 5px;background:var(--s2);border-bottom:1px solid var(--border);gap:4px;flex-wrap:wrap;align-items:center;"></div>
   <!-- Summary cards -->
   <div id="cards"></div>
+
+  <!-- Overview minimap -->
+  <div class="sec">
+    <div class="ovbox"><canvas id="ovC" height="44"></canvas></div>
+    <div class="hint" style="margin-top:3px;">Drag to select strokes · drag group bands to move/resize</div>
+  </div>
 
   <!-- Main chart -->
   <div class="sec">
@@ -363,12 +377,6 @@
     <button id="selclear">✕ Clear</button>
   </div>
 
-  <!-- Overview minimap -->
-  <div class="sec" style="padding-top:0">
-    <div class="ovbox"><canvas id="ovC" height="44"></canvas></div>
-    <div class="hint" style="margin-top:3px;">Drag to select strokes · drag group bands to move/resize</div>
-  </div>
-
   <!-- Stats strip: selection or view averages -->
   <div id="statsstrip"><div id="stripcontext"></div><div id="stripinner"></div></div>
 
@@ -377,6 +385,8 @@
     <div class="sec-hd">
       <h2>Curve Comparison</h2>
       <div id="groupchips" style="display:flex;gap:6px;flex-wrap:wrap;"></div>
+      <span style="font-size:9px;color:var(--muted);margin-left:auto;">Opacity:</span>
+      <input type="range" id="curveOpacitySlider" min="10" max="100" value="100" style="width:70px;cursor:pointer;accent-color:var(--g);" oninput="window.curveOpacitySlide(this.value)">
       <button id="clearcurvebtn">Clear all</button>
     </div>
     <div class="curve-layout">
@@ -704,6 +714,7 @@ const METRIC_DEFS = [
 
 let ST=[],HR=[],LAPS=[],GPSTRACE=[];
 let curveGroups = []; // [{color,bg,strokes,absS,absE,label}]
+let curveLineOpacity = 1; // 0.1-1, curve comparison chart line/fill opacity
 let currentView=[];
 let viewS=0,viewE=0;
 let selS=-1,selE=-1;
@@ -1496,6 +1507,11 @@ window.panSlide=function(val){
   schedRender();
 };
 
+window.curveOpacitySlide=function(val){
+  curveLineOpacity=clamp(val/100,0.1,1);
+  drawCurvePanel();
+};
+
 // ══════════════════════════════════════════════════════════════════════════
 // EMA SMOOTHING
 // ══════════════════════════════════════════════════════════════════════════
@@ -2189,14 +2205,15 @@ function drawCurvePanel(){
 
     [[accelTop,ph1],[speedTop,ph2]].forEach(([top,ph])=>{
       if(finishX>0){
-        ctx.setLineDash([3,4]);ctx.strokeStyle=c.color;ctx.lineWidth=1;ctx.globalAlpha=0.45;
+        ctx.setLineDash([3,4]);ctx.strokeStyle=c.color;ctx.lineWidth=1;ctx.globalAlpha=0.45*curveLineOpacity;
         ctx.beginPath();ctx.moveTo(finishX,top);ctx.lineTo(finishX,top+ph);ctx.stroke();
-        ctx.setLineDash([]);ctx.globalAlpha=1;
+        ctx.setLineDash([]);ctx.globalAlpha=curveLineOpacity;
       }
     });
 
     // Accel fill
     const y0=clamp(toY(0),accelTop,accelTop+ph1);
+    ctx.globalAlpha=curveLineOpacity;
     ctx.beginPath();ctx.moveTo(toPx(0),y0);
     for(let i=0;i<CURVE_POINTS;i++)ctx.lineTo(toPx(i*step),toY(c.accelRot[i]));
     ctx.lineTo(toPx((CURVE_POINTS-1)*step),y0);ctx.closePath();
@@ -2205,13 +2222,13 @@ function drawCurvePanel(){
     // Accel line
     ctx.beginPath();
     for(let i=0;i<CURVE_POINTS;i++){const x=toPx(i*step);i===0?ctx.moveTo(x,toY(c.accelRot[i])):ctx.lineTo(x,toY(c.accelRot[i]));}
-    ctx.strokeStyle=c.color;ctx.lineWidth=2.5;ctx.setLineDash([]);ctx.globalAlpha=1;ctx.stroke();
+    ctx.strokeStyle=c.color;ctx.lineWidth=2.5;ctx.setLineDash([]);ctx.globalAlpha=curveLineOpacity;ctx.stroke();
 
     // Speed line
     if(c.speed&&hasSpeeds){
       ctx.beginPath();
       for(let i=0;i<CURVE_POINTS;i++){const x=toPx(i*step);i===0?ctx.moveTo(x,toSY(c.speed[i])):ctx.lineTo(x,toSY(c.speed[i]));}
-      ctx.strokeStyle=c.color;ctx.lineWidth=2.5;ctx.stroke();
+      ctx.strokeStyle=c.color;ctx.lineWidth=2.5;ctx.globalAlpha=curveLineOpacity;ctx.stroke();
     }
   });
 
@@ -3307,11 +3324,13 @@ const VID_METRICS = {
   oarAngle:     {l:'Oar Arc',    fmt:s=>({v:f0(s.oarAngle),u:'\u00B0'})},
   checkDelta:   {l:'Check \u0394',fmt:s=>({v:f2(s.checkDelta),u:'m/s'})},
   catchDuration:{l:'Catch Dur',  fmt:s=>({v:f0(s.catchDuration),u:'ms'})},
+  speedloss:    {l:'Spd Loss',   fmt:s=>({v:f1(s.speedLossPct),u:'%'})},
+  speedgain:    {l:'Spd Gain',   fmt:s=>({v:f1(s.speedGainPct),u:'%'})},
   dist:         {l:'Distance',   fmt:s=>({v:f0(s.dist),u:'m'})},
   stroke:       {l:'Stroke #',   fmt:(s,i)=>({v:String(i+1),u:''})},
   time:         {l:'Session',    fmt:(s,i,t)=>({v:fmtTime(t),u:''})},
 };
-const VID_METRIC_ORDER = ['rate','pace','dps','slope','impulse','rloss','schar','ratio','oarAngle','checkDelta','catchDuration','dist','stroke','time'];
+const VID_METRIC_ORDER = ['rate','pace','dps','slope','impulse','rloss','schar','ratio','oarAngle','checkDelta','catchDuration','speedloss','speedgain','dist','stroke','time'];
 
 function vidOnMount(d){
   vidTeardown();
@@ -3407,22 +3426,35 @@ function vidRenderBody(){
 
   body.innerHTML=`
   <div class="vid-clip-tabs">${tabs}</div>
+
+  <div class="vid-panel" id="vidCropPanel">
+    <div class="vid-panel-hd">Video size &amp; crop</div>
+    <div class="vid-row">
+      <div class="vid-slider"><span>width</span><input type="range" id="vidWidth" min="40" max="100" value="${cfg.vidWidth}"></div>
+      <div class="vid-slider"><span>zoom/crop</span><input type="range" id="vidZoom" min="100" max="220" value="${Math.round(cfg.vidZoom*100)}"></div>
+    </div>
+    <div class="vid-row" style="margin-top:8px;align-items:flex-start;">
+      <div class="vid-slider"><span>pan left/right</span><input type="range" id="vidPanX" min="-50" max="50" value="${cfg.vidPanX}"></div>
+      <div class="vid-vert-wrap"><span>pan up/down</span><input type="range" id="vidPanY" min="-50" max="50" value="${cfg.vidPanY}"></div>
+    </div>
+  </div>
+
   <div id="vidStageWrap" style="margin-top:8px;">
     <div id="vidstage" style="width:${cfg.vidWidth}%;">
       <video id="vidEl" playsinline preload="metadata"></video>
       <canvas id="vidOverlay"></canvas>
     </div>
-  </div>
-  <div class="vid-transport">
-    <button class="vid-play" id="vidPlayBtn">\u25B6</button>
-    <button class="vid-clip-tab" id="vidBack5" title="back 5s">\u23EA</button>
-    <button class="vid-clip-tab" id="vidStepB" title="back 0.1s">\u2039</button>
-    <button class="vid-clip-tab" id="vidStepF" title="forward 0.1s">\u203A</button>
-    <button class="vid-clip-tab" id="vidFwd5" title="forward 5s">\u23E9</button>
-    <select class="vid-num" id="vidRate" style="width:auto;"><option value="0.25">0.25\u00D7</option><option value="0.5">0.5\u00D7</option><option value="1">1\u00D7</option><option value="1.5">1.5\u00D7</option><option value="2">2\u00D7</option></select>
-    <input type="range" id="vidSeek" min="0" max="1000" value="0">
-    <span class="vid-mini" id="vidTime" style="min-width:78px;text-align:right;">0:00 / 0:00</span>
-    <button class="vid-clip-tab" id="vidFS" title="fullscreen">\u26F6</button>
+    <div class="vid-transport">
+      <button class="vid-play" id="vidPlayBtn">\u25B6</button>
+      <button class="vid-clip-tab" id="vidBack5" title="back 5s">\u23EA</button>
+      <button class="vid-clip-tab" id="vidStepB" title="back 0.1s">\u2039</button>
+      <button class="vid-clip-tab" id="vidStepF" title="forward 0.1s">\u203A</button>
+      <button class="vid-clip-tab" id="vidFwd5" title="forward 5s">\u23E9</button>
+      <select class="vid-num" id="vidRate" style="width:auto;"><option value="0.25">0.25\u00D7</option><option value="0.5">0.5\u00D7</option><option value="1">1\u00D7</option><option value="1.5">1.5\u00D7</option><option value="2">2\u00D7</option></select>
+      <input type="range" id="vidSeek" min="0" max="1000" value="0">
+      <span class="vid-mini" id="vidTime" style="min-width:78px;text-align:right;">0:00 / 0:00</span>
+      <button class="vid-clip-tab" id="vidFS" title="fullscreen">\u26F6</button>
+    </div>
   </div>
   <div class="vid-ctrls">
 
@@ -3442,7 +3474,7 @@ function vidRenderBody(){
       </div>
       <div class="vid-mini" style="margin-top:5px;">Tap <b>Sync from chart</b>, move the video to a clear moment (e.g. a catch), then click that point on the Stroke Chart above. The chart switches to a time axis automatically.</div>
       <div class="vid-row" style="margin-top:6px;">
-        <button class="vid-clip-tab" onclick="vidSaveSync()" style="background:var(--b);color:#000;border-color:var(--b);">\u2714 Save sync</button>
+        <button class="vid-clip-tab" id="vidSaveSyncBtn" onclick="vidSaveSync()" style="background:var(--b);color:#000;border-color:var(--b);">\u2714 Save sync</button>
         <button class="vid-clip-tab" onclick="vidExportJSON()">\u2B07 Export JSON</button>
         <span class="vid-mini">Save offset to Drive, or export session JSON for another device</span>
       </div>
@@ -3466,16 +3498,6 @@ function vidRenderBody(){
         <div class="vid-slider"><span>curve size</span><input type="range" id="vidCurveScale" min="50" max="220" value="${Math.round(cfg.curveScale*100)}"></div>
       </div>
       <div class="vid-mini" style="margin-top:5px;">Drag the box or curve directly on the video to reposition.</div>
-    </div>
-
-    <div class="vid-panel">
-      <div class="vid-panel-hd">Video size &amp; crop</div>
-      <div class="vid-row">
-        <div class="vid-slider"><span>width</span><input type="range" id="vidWidth" min="40" max="100" value="${cfg.vidWidth}"></div>
-        <div class="vid-slider"><span>zoom/crop</span><input type="range" id="vidZoom" min="100" max="220" value="${Math.round(cfg.vidZoom*100)}"></div>
-        <div class="vid-slider"><span>pan X</span><input type="range" id="vidPanX" min="-50" max="50" value="${cfg.vidPanX}"></div>
-        <div class="vid-slider"><span>pan Y</span><input type="range" id="vidPanY" min="-50" max="50" value="${cfg.vidPanY}"></div>
-      </div>
     </div>
 
     <div class="vid-panel">
@@ -3574,7 +3596,7 @@ function vidSeekBy(d){
   vidUpdTime(); vidDraw();
 }
 function vidFullscreen(){
-  const stage=document.getElementById('vidstage'); if(!stage) return;
+  const stage=document.getElementById('vidStageWrap'); if(!stage) return;
   const fsEl=document.fullscreenElement||document.webkitFullscreenElement;
   if(fsEl){ (document.exitFullscreen||document.webkitExitFullscreen||function(){}).call(document); return; }
   const req=stage.requestFullscreen||stage.webkitRequestFullscreen;
@@ -3629,18 +3651,34 @@ function vidApplyVideoStyle(){
 // ── Sync persistence ─────────────────────────────────────────────────────────
 let _vidSyncSaveTimer=null;
 function vidQueueSaveSync(){
+  vidMarkUnsaved();
   clearTimeout(_vidSyncSaveTimer);
   _vidSyncSaveTimer=setTimeout(vidSaveSync,1200);
+}
+function vidMarkUnsaved(){
+  const b=document.getElementById('vidSaveSyncBtn'); if(!b) return;
+  b.textContent='\u25CF Unsaved offset';
+  b.style.background='#e53935';
+  b.style.borderColor='#e53935';
+  b.style.color='#fff';
+}
+function vidMarkSaved(){
+  const b=document.getElementById('vidSaveSyncBtn'); if(!b) return;
+  b.textContent='\u2714 Save sync';
+  b.style.background='var(--b)';
+  b.style.borderColor='var(--b)';
+  b.style.color='#000';
 }
 function vidSaveSync(){
   const a=VID.clips[VID.active]; if(!a||!a._id) return;
   const sess=SESSIONS[activeSessionIdx]; if(!sess) return;
   if(!sess.d.vidSync) sess.d.vidSync={};
   sess.d.vidSync[a._id]={offset:a.offset};
+  vidMarkSaved();
   if(AnalyserDrive.isSignedIn()&&sess.fileId){
     AnalyserDrive.patchVidSync(sess.fileId,sess.d.vidSync)
       .then(()=>toast('\u2714 Sync saved to Drive'))
-      .catch(e=>toast('Drive save failed: '+e.message,3000));
+      .catch(e=>{toast('Drive save failed: '+e.message,3000);vidMarkUnsaved();});
   } else {
     toast('\u2714 Sync set \u2014 tap \u2B07 Export JSON to save for another device');
   }
