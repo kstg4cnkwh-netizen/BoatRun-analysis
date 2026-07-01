@@ -308,6 +308,7 @@
   <button class="hbtn" id="openbtn">☁ Open Session</button>
   <button class="hbtn" id="hdrThemeBtn">Dark Mode</button>
   <button class="hbtn" id="infobtn" title="What the metrics mean">ⓘ Info</button>
+  <button class="hbtn" id="reorderbtn" title="Change tile order">⇅ Reorder</button>
   <button class="hbtn" id="aboutbtn" title="How to use BoatRun, and send feedback">？ About</button>
 </div>
 
@@ -683,6 +684,16 @@ const METRIC_DEFS = [
   {k:'speedloss', l:'Speed Loss', c:'var(--mc-speedloss)', cat:'cond', filter:s=>!isNaN(s.speedLossPct)&&s.speedLossPct>0&&s.speedLossPct<100, val:s=>s.speedLossPct, fmtAvg:v=>f1(v)+'%', fmtBest:null, tip:'Speed loss within one stroke — (avg minus min speed) ÷ avg speed, catch to catch. GPS-derived — only valid for comparing the same stretch, direction and tide.'},
   {k:'speedgain', l:'Speed Gain', c:'var(--mc-speedgain)', cat:'cond', filter:s=>!isNaN(s.speedGainPct)&&s.speedGainPct>0&&s.speedGainPct<100, val:s=>s.speedGainPct, fmtAvg:v=>f1(v)+'%', fmtBest:null, tip:'Speed gain within one stroke — (max minus avg speed) ÷ avg speed, catch to catch. GPS-derived — only valid for comparing the same stretch, direction and tide.'},
 ];
+function applyTileOrder(ord){
+  let order=ord;
+  if(!order){
+    try{order=JSON.parse(localStorage.getItem('br_tile_order')||'null');}catch{order=null;}
+  }
+  if(!Array.isArray(order)||!order.length)return;
+  const idx=k=>{const i=order.indexOf(k);return i<0?999:i;};
+  METRIC_DEFS.sort((a,b)=>idx(a.k)-idx(b.k));
+}
+applyTileOrder();
 
 let ST=[],HR=[],LAPS=[],GPSTRACE=[];
 let curveGroups = []; // [{color,bg,strokes,absS,absE,label}]
@@ -1308,7 +1319,9 @@ function computeStrokeAngles(strokes) {
 // ══════════════════════════════════════════════════════════════════════════
 function buildMeta(fname,sum) {
   _lastLabel=fname; _lastSum=sum;
-  const date=(sum.start_time||'').substring(0,10);
+  const dObj=sum.start_time?new Date(sum.start_time):null;
+  const date=dObj?dObj.toLocaleDateString():'';
+  const time=dObj?dObj.toLocaleTimeString([],{hour:'2-digit',minute:'2-digit'}):'';
   const dur=fmtTime(+sum.duration_s);
   const dist=fmtDistU(+sum.distance_m||0)+distULabelU();
   const safe=fname.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
@@ -1316,7 +1329,7 @@ function buildMeta(fname,sum) {
   const sqBadge=sq?' <span style="font-size:8px;background:var(--s3);border:1px solid var(--border);border-radius:3px;padding:1px 5px;color:var(--b);letter-spacing:.07em;vertical-align:middle;">'+sq+'</span>':'';
   document.getElementById('hdrmeta').innerHTML=
     '<span style="cursor:pointer;border-bottom:1px dotted var(--muted);color:var(--text);" onclick="renameCurrentSession()" title="Tap to rename">'+safe+'</span>'
-    +' <span style="color:var(--muted);font-size:9px;">✎</span>'+sqBadge+'<br>'+date+' · '+dist+' · '+dur;
+    +' <span style="color:var(--muted);font-size:9px;">✎</span>'+sqBadge+'<br>'+date+(time?' '+time:'')+' · '+dist+' · '+dur;
 }
 function renameCurrentSession() {
   if (activeSessionIdx<0||activeSessionIdx>=SESSIONS.length) return;
@@ -1351,22 +1364,25 @@ function buildCards(sum) {
   const tipOf=k=>{const m=METRIC_DEFS.find(d=>d.k===k);return m?m.tip:'';};
   const card=(cls,lbl,val,sub,k,tip)=>`<div class="card ${cls}${k?' clickable':''}${k&&!vis[k]?' dim':''}"${k?` id="card-${k}" data-vis="${k}"`:''}${tip?` title="${tip}"`:''}>` +
     `<div class="lbl">${lbl}</div><div class="val">${val}</div><div class="sub">${sub}</div></div>`;
+  const CARD_BUILDERS={
+    pace:()=>vals.pace?card('c-pace','Pace',fmtPaceU(vals.pace.mean),movPace>0?'mov '+fmtPaceU(movPace):paceULabel(),'pace',tipOf('pace')):'',
+    rate:()=>vals.rate?card('c-rate','Rate',f1(vals.rate.mean),'spm · max '+f0(vals.rate.max),'rate',tipOf('rate')):'',
+    dps:()=>vals.dps?card('c-dps','DPS',fmtDPSU(vals.dps.mean),dpsULabelU()+'/stroke','dps',tipOf('dps')):'',
+    cdelta:()=>vals.cdelta?`<div class="card clickable${!vis.cdelta?' dim':''}" id="card-cdelta" data-vis="cdelta" style="border-top:2px solid var(--mc-cdelta)" title="${tipOf('cdelta')}"><div class="lbl">Check Delta</div><div class="val" style="color:var(--mc-cdelta)">${f2(vals.cdelta.mean)} m/s</div><div class="sub">speed range</div></div>`:'',
+    rloss:()=>vals.rloss?card('c-rloss','Run Loss',fmtRunLossU(vals.rloss.mean),'avg/stroke','rloss',tipOf('rloss')):'',
+    angle:()=>vals.angle?`<div class="card clickable${!vis.angle?' dim':''}" id="card-angle" data-vis="angle" style="border-top:2px solid var(--mc-oar)" title="${tipOf('angle')}"><div class="lbl">Oar Arc</div><div class="val" style="color:var(--mc-oar)">${f1(vals.angle.mean)}°</div><div class="sub">${unitSettings.boatClass==='sweep'?'sweep':'scull'}</div></div>`:'',
+    impulse:()=>vals.impulse?card('c-impulse','Impulse',Math.round(vals.impulse.mean),'peak '+Math.round(vals.impulse.max),'impulse',tipOf('impulse')):'',
+    slope:()=>vals.slope?card('c-slope','Catch Slope',f0(vals.slope.mean),'peak '+f1(vals.slope.max),'slope',tipOf('slope')):'',
+    ratio:()=>vals.ratio?card('c-ratio','Ratio',f2(vals.ratio.mean),'rec÷drive','ratio',tipOf('ratio')):'',
+    schar:()=>vals.schar?card('c-schar','Stroke Char',f0(vals.schar.mean)+'%','','schar',tipOf('schar')):'',
+    cdur:()=>vals.cdur?`<div class="card clickable${!vis.cdur?' dim':''}" id="card-cdur" data-vis="cdur" style="border-top:2px solid var(--mc-cdur)" title="${tipOf('cdur')}"><div class="lbl">Catch Dur</div><div class="val" style="color:var(--mc-cdur)">${f0(vals.cdur.mean)} ms</div><div class="sub">avg/stroke</div></div>`:'',
+    speedloss:()=>vals.speedloss?card('c-speedloss','Speed Loss',f1(vals.speedloss.mean)+'%','avg/stroke','speedloss',tipOf('speedloss')):'',
+    speedgain:()=>vals.speedgain?card('c-speedgain','Speed Gain',f1(vals.speedgain.mean)+'%','avg/stroke','speedgain',tipOf('speedgain')):'',
+  };
   let html=
     card('cw','Distance',distDisp,distLbl,null,'Total distance travelled (GPS), in km or mi based on units setting.')+
     card('cw','Duration',dur,ST.length+' strokes',null,'Total elapsed time of the session.')+
-    (vals.pace?card('c-pace','Pace',fmtPaceU(vals.pace.mean),movPace>0?'mov '+fmtPaceU(movPace):paceULabel(),'pace',tipOf('pace')):'')  +
-    (vals.rate?card('c-rate','Rate',f1(vals.rate.mean),'spm · max '+f0(vals.rate.max),'rate',tipOf('rate')):'')  +
-    (vals.dps?card('c-dps','DPS',fmtDPSU(vals.dps.mean),dpsULabelU()+'/stroke','dps',tipOf('dps')):'')  +
-    (vals.cdelta?`<div class="card clickable${!vis.cdelta?' dim':''}" id="card-cdelta" data-vis="cdelta" style="border-top:2px solid var(--mc-cdelta)" title="${tipOf('cdelta')}"><div class="lbl">Check Delta</div><div class="val" style="color:var(--mc-cdelta)">${f2(vals.cdelta.mean)} m/s</div><div class="sub">speed range</div></div>`:'')  +
-    (vals.rloss?card('c-rloss','Run Loss',fmtRunLossU(vals.rloss.mean),'avg/stroke','rloss',tipOf('rloss')):'')  +
-    (vals.angle?`<div class="card clickable${!vis.angle?' dim':''}" id="card-angle" data-vis="angle" style="border-top:2px solid var(--mc-oar)" title="${tipOf('angle')}"><div class="lbl">Oar Arc</div><div class="val" style="color:var(--mc-oar)">${f1(vals.angle.mean)}°</div><div class="sub">${unitSettings.boatClass==='sweep'?'sweep':'scull'}</div></div>`:'')  +
-    (vals.impulse?card('c-impulse','Impulse',Math.round(vals.impulse.mean),'peak '+Math.round(vals.impulse.max),'impulse',tipOf('impulse')):'')  +
-    (vals.slope?card('c-slope','Catch Slope',f0(vals.slope.mean),'peak '+f1(vals.slope.max),'slope',tipOf('slope')):'')  +
-    (vals.ratio?card('c-ratio','Ratio',f2(vals.ratio.mean),'rec÷drive','ratio',tipOf('ratio')):'')  +
-    (vals.schar?card('c-schar','Stroke Char',f0(vals.schar.mean)+'%','','schar',tipOf('schar')):'')  +
-    (vals.cdur?`<div class="card clickable${!vis.cdur?' dim':''}" id="card-cdur" data-vis="cdur" style="border-top:2px solid var(--mc-cdur)" title="${tipOf('cdur')}"><div class="lbl">Catch Dur</div><div class="val" style="color:var(--mc-cdur)">${f0(vals.cdur.mean)} ms</div><div class="sub">avg/stroke</div></div>`:'')  +
-    (vals.speedloss?card('c-speedloss','Speed Loss',f1(vals.speedloss.mean)+'%','avg/stroke','speedloss',tipOf('speedloss')):'')  +
-    (vals.speedgain?card('c-speedgain','Speed Gain',f1(vals.speedgain.mean)+'%','avg/stroke','speedgain',tipOf('speedgain')):'')  +
+    METRIC_DEFS.map(m=>CARD_BUILDERS[m.k]?CARD_BUILDERS[m.k]():'').join('')+
     (hv.length?card('c-hr','Avg HR',f0(arrMean(hv)),'max '+f0(arrMax(hv))+' bpm',null,'Average heart rate during the session, in beats per minute.'):'');
   document.getElementById('cards').innerHTML=html;
 }
@@ -1846,23 +1862,26 @@ function showTooltip(e){
   const idx=getMainIdx(e.clientX-rect.left);
   if(idx<0||idx>=currentView.length)return;
   const s=currentView[idx];const C=pal();
+  const TT_BUILDERS={
+    pace:()=>ttRow('Pace',fmtPaceU(s.pace),C.mc_pace),
+    rate:()=>ttRow('Rate',isNaN(s.rate)||s.rate<1?EM:f1(s.rate)+' spm',C.mc_rate),
+    dps:()=>ttRow('DPS',isNaN(s.dps)||s.dps<1?EM:fmtDPSU(s.dps)+dpsULabelU(),C.mc_dps),
+    cdelta:()=>ttRow('Check Delta',(!isNaN(s.checkDelta)&&s.checkDelta>0.05)?f2(s.checkDelta)+' m/s':EM,C.mc_cdelta),
+    speedloss:()=>ttRow('Speed Loss',isNaN(s.speedLossPct)||s.speedLossPct<=0?EM:f1(s.speedLossPct)+'%',C.mc_speedloss),
+    speedgain:()=>ttRow('Speed Gain',isNaN(s.speedGainPct)||s.speedGainPct<=0?EM:f1(s.speedGainPct)+'%',C.mc_speedgain),
+    rloss:()=>ttRow('Run Loss',isNaN(s.rloss)||s.rloss<=0?EM:fmtRunLossU(s.rloss),C.mc_rloss),
+    angle:()=>ttRow('Oar Arc',(!isNaN(s.strokeAngle)&&s.strokeAngle>20)?f1(s.strokeAngle)+'°':EM,C.mc_oar),
+    impulse:()=>ttRow('Impulse',isNaN(s.impulse)||s.impulse<=0?EM:Math.round(s.impulse).toString(),C.mc_impulse),
+    slope:()=>ttRow('Catch slope',isNaN(s.slope)||s.slope<=0?EM:f0(s.slope),C.mc_slope),
+    ratio:()=>ttRow('Stroke Ratio',(s.ratio==null||isNaN(s.ratio)||s.ratio<0.5||s.ratio>5)?EM:s.ratio.toFixed(2),C.mc_ratio),
+    schar:()=>ttRow('Stroke Char',isNaN(s.schar)?EM:f0(s.schar)+'%',C.mc_schar),
+    cdur:()=>ttRow('Catch Dur',(!isNaN(s.catchDuration)&&s.catchDuration>10)?f0(s.catchDuration)+' ms':EM,C.mc_cdur),
+  };
   document.getElementById('tooltip').innerHTML=`
     <div class="tt-hd">Stroke ${s.n}</div>
     ${ttRow('Time',fmtTime(s.elapsed))}
     ${ttRow('Distance',isNaN(s.dist)?EM:s.dist.toFixed(0)+'m')}
-    ${ttRow('Pace',fmtPaceU(s.pace),C.mc_pace)}
-    ${ttRow('Rate',isNaN(s.rate)||s.rate<1?EM:f1(s.rate)+' spm',C.mc_rate)}
-    ${ttRow('DPS',isNaN(s.dps)||s.dps<1?EM:fmtDPSU(s.dps)+dpsULabelU(),C.mc_dps)}
-    ${ttRow('Check Delta',(!isNaN(s.checkDelta)&&s.checkDelta>0.05)?f2(s.checkDelta)+' m/s':EM,C.mc_cdelta)}
-    ${ttRow('Speed Loss',isNaN(s.speedLossPct)||s.speedLossPct<=0?EM:f1(s.speedLossPct)+'%',C.mc_speedloss)}
-    ${ttRow('Speed Gain',isNaN(s.speedGainPct)||s.speedGainPct<=0?EM:f1(s.speedGainPct)+'%',C.mc_speedgain)}
-    ${ttRow('Run Loss',isNaN(s.rloss)||s.rloss<=0?EM:fmtRunLossU(s.rloss),C.mc_rloss)}
-    ${ttRow('Oar Arc',(!isNaN(s.strokeAngle)&&s.strokeAngle>20)?f1(s.strokeAngle)+'°':EM,C.mc_oar)}
-    ${ttRow('Impulse',isNaN(s.impulse)||s.impulse<=0?EM:Math.round(s.impulse).toString(),C.mc_impulse)}
-    ${ttRow('Catch slope',isNaN(s.slope)||s.slope<=0?EM:f0(s.slope),C.mc_slope)}
-    ${ttRow('Stroke Ratio',(s.ratio==null||isNaN(s.ratio)||s.ratio<0.5||s.ratio>5)?EM:s.ratio.toFixed(2),C.mc_ratio)}
-    ${ttRow('Stroke Char',isNaN(s.schar)?EM:f0(s.schar)+'%',C.mc_schar)}
-    ${ttRow('Catch Dur',(!isNaN(s.catchDuration)&&s.catchDuration>10)?f0(s.catchDuration)+' ms':EM,C.mc_cdur)}
+    ${METRIC_DEFS.map(m=>TT_BUILDERS[m.k]?TT_BUILDERS[m.k]():'').join('')}
   `;
   const tip=document.getElementById('tooltip');
   tip.style.display='block';
@@ -2603,27 +2622,31 @@ function buildLaps(){
 // ══════════════════════════════════════════════════════════════════════════
 // STROKE TABLE
 // ══════════════════════════════════════════════════════════════════════════
+const TBL_COLS={
+  pace:{h:'Pace '+paceULabel(), cell:s=>`<td style="color:var(--mc-pace)">${fmtPaceU(s.pace)}</td>`},
+  rate:{h:'Rate', cell:s=>`<td style="color:var(--mc-rate)">${isNaN(s.rate)||s.rate<1?EM:f0(s.rate)}</td>`},
+  dps:{h:'DPS '+dpsULabelU(), cell:s=>`<td style="color:var(--mc-dps)">${isNaN(s.dps)||s.dps<1?EM:fmtDPSU(s.dps)}</td>`},
+  cdelta:{h:'Chk Δ m/s', cell:s=>`<td style="color:var(--mc-cdelta)">${(!isNaN(s.checkDelta)&&s.checkDelta>0.05)?f2(s.checkDelta):EM}</td>`},
+  rloss:{h:'Run Loss %', cell:s=>`<td style="color:var(--mc-rloss)">${isNaN(s.rloss)||s.rloss<=0?EM:fmtRunLossU(s.rloss)}</td>`},
+  angle:{h:'Oar Arc°', cell:s=>`<td style="color:var(--mc-oar)">${(!isNaN(s.strokeAngle)&&s.strokeAngle>20&&s.strokeAngle<180)?f1(s.strokeAngle)+'°':EM}</td>`},
+  impulse:{h:'Impulse', cell:s=>`<td style="color:var(--mc-impulse)">${isNaN(s.impulse)||s.impulse<=0?EM:Math.round(s.impulse)}</td>`},
+  slope:{h:'Catch slope', cell:s=>`<td style="color:var(--mc-slope)">${isNaN(s.slope)||s.slope<=0?EM:f1(s.slope)}</td>`},
+  ratio:{h:'Ratio', cell:s=>`<td style="color:var(--mc-ratio)">${(s.ratio==null||isNaN(s.ratio)||s.ratio<0.5||s.ratio>5)?EM:s.ratio.toFixed(2)}</td>`},
+  schar:{h:'Stroke Char%', cell:s=>`<td style="color:var(--mc-schar)">${isNaN(s.schar)||s.schar<=0?EM:f0(s.schar)+'%'}</td>`},
+  cdur:{h:'Catch Dur ms', cell:s=>`<td style="color:var(--mc-cdur)">${(!isNaN(s.catchDuration)&&s.catchDuration>10)?f0(s.catchDuration):EM}</td>`},
+  speedloss:{h:'Spd Loss%', cell:s=>`<td style="color:var(--mc-speedloss)">${isNaN(s.speedLossPct)||s.speedLossPct<=0?EM:f1(s.speedLossPct)+'%'}</td>`},
+  speedgain:{h:'Spd Gain%', cell:s=>`<td style="color:var(--mc-speedgain)">${isNaN(s.speedGainPct)||s.speedGainPct<=0?EM:f1(s.speedGainPct)+'%'}</td>`},
+};
 function buildStrokeTable(){
-  document.getElementById('sth').innerHTML=`<tr><th>#</th><th>Lap</th><th>Dist m</th><th>Time</th><th>Pace ${paceULabel()}</th><th>Rate</th><th>DPS ${dpsULabelU()}</th><th>Chk Δ m/s</th><th>Run Loss %</th><th>Oar Arc°</th><th>Impulse</th><th>Catch slope</th><th>Consist σ</th><th>Ratio</th><th>Stroke Char%</th><th>Catch Dur ms</th><th>Spd Loss%</th><th>Spd Gain%</th></tr>`;
+  const cols=METRIC_DEFS.map(m=>TBL_COLS[m.k]).filter(Boolean);
+  document.getElementById('sth').innerHTML=`<tr><th>#</th><th>Lap</th><th>Dist m</th><th>Time</th><th>Consist σ</th>${cols.map(c=>`<th>${c.h}</th>`).join('')}</tr>`;
   document.getElementById('stb').innerHTML=ST.slice(0,1000).map(s=>`<tr data-i="${s.n-1}">
     <td>${s.n}</td>
     <td style="color:rgba(160,180,255,0.7)">${s.lapNum!=null?s.lapNum:EM}</td>
     <td>${isNaN(s.dist)?EM:s.dist.toFixed(0)}</td>
     <td>${fmtTime(s.elapsed)}</td>
-    <td style="color:var(--mc-pace)">${fmtPaceU(s.pace)}</td>
-    <td style="color:var(--mc-rate)">${isNaN(s.rate)||s.rate<1?EM:f0(s.rate)}</td>
-    <td style="color:var(--mc-dps)">${isNaN(s.dps)||s.dps<1?EM:fmtDPSU(s.dps)}</td>
-    <td style="color:var(--mc-cdelta)">${(!isNaN(s.checkDelta)&&s.checkDelta>0.05)?f2(s.checkDelta):EM}</td>
-    <td style="color:var(--mc-rloss)">${isNaN(s.rloss)||s.rloss<=0?EM:fmtRunLossU(s.rloss)}</td>
-    <td style="color:var(--mc-oar)">${(!isNaN(s.strokeAngle)&&s.strokeAngle>20&&s.strokeAngle<180)?f1(s.strokeAngle)+'°':EM}</td>
-    <td style="color:var(--mc-impulse)">${isNaN(s.impulse)||s.impulse<=0?EM:Math.round(s.impulse)}</td>
-    <td style="color:var(--mc-slope)">${isNaN(s.slope)||s.slope<=0?EM:f1(s.slope)}</td>
     <td>${isNaN(s.consistency)||s.consistency<=0?EM:f1(s.consistency)}</td>
-    <td style="color:var(--mc-ratio)">${(s.ratio==null||isNaN(s.ratio)||s.ratio<0.5||s.ratio>5)?EM:s.ratio.toFixed(2)}</td>
-    <td style="color:var(--mc-schar)">${isNaN(s.schar)||s.schar<=0?EM:f0(s.schar)+'%'}</td>
-    <td style="color:var(--mc-cdur)">${(!isNaN(s.catchDuration)&&s.catchDuration>10)?f0(s.catchDuration):EM}</td>
-    <td style="color:var(--mc-speedloss)">${isNaN(s.speedLossPct)||s.speedLossPct<=0?EM:f1(s.speedLossPct)+'%'}</td>
-    <td style="color:var(--mc-speedgain)">${isNaN(s.speedGainPct)||s.speedGainPct<=0?EM:f1(s.speedGainPct)+'%'}</td>
+    ${cols.map(c=>c.cell(s)).join('')}
   </tr>`).join('');
   document.getElementById('tblcount').textContent=ST.length+' strokes';
   document.querySelectorAll('#stb tr').forEach(row=>{
@@ -3030,6 +3053,45 @@ function showInfoModal(){
   document.body.appendChild(overlay);
   document.getElementById('_info_close').onclick=()=>overlay.remove();
 }
+function showReorderModal(){
+  const order=METRIC_DEFS.map(m=>m.k);
+  const overlay=document.createElement('div');
+  overlay.id='_reorder_modal';
+  overlay.style.cssText='position:fixed;inset:0;background:rgba(0,0,0,.72);display:flex;align-items:center;justify-content:center;z-index:9999;padding:16px;';
+  const panel=document.createElement('div');
+  panel.style.cssText='background:var(--s1);border:1px solid var(--border);border-radius:10px;max-width:360px;width:100%;max-height:80vh;overflow-y:auto;padding:14px 16px;';
+  function renderList(){
+    panel.innerHTML=`<div style="display:flex;align-items:center;gap:10px;margin-bottom:12px;"><div style="font-size:13px;font-weight:600;color:var(--text);">Reorder Tiles</div><button id="_ro_close" style="margin-left:auto;background:var(--s3);border:1px solid var(--border);color:var(--muted);border-radius:6px;padding:4px 10px;font-size:11px;cursor:pointer;">Done</button></div><div id="_ro_list"></div>`;
+    const list=panel.querySelector('#_ro_list');
+    list.innerHTML=order.map((k,i)=>{
+      const m=METRIC_DEFS.find(d=>d.k===k);
+      return `<div style="display:flex;align-items:center;gap:8px;padding:7px 8px;background:var(--s2);border:1px solid var(--border);border-radius:6px;margin-bottom:6px;">
+        <span style="flex:1;font-size:12px;color:var(--text);">${m?m.l:k}</span>
+        <button data-i="${i}" data-dir="-1" style="background:var(--s3);border:1px solid var(--border);color:var(--text);border-radius:5px;padding:3px 9px;font-size:12px;cursor:pointer;" ${i===0?'disabled':''}>▲</button>
+        <button data-i="${i}" data-dir="1" style="background:var(--s3);border:1px solid var(--border);color:var(--text);border-radius:5px;padding:3px 9px;font-size:12px;cursor:pointer;" ${i===order.length-1?'disabled':''}>▼</button>
+      </div>`;
+    }).join('');
+    list.querySelectorAll('button').forEach(btn=>{
+      btn.onclick=()=>{
+        const i=+btn.dataset.i, dir=+btn.dataset.dir, j=i+dir;
+        if(j<0||j>=order.length)return;
+        [order[i],order[j]]=[order[j],order[i]];
+        renderList();
+      };
+    });
+    panel.querySelector('#_ro_close').onclick=()=>{
+      try{localStorage.setItem('br_tile_order',JSON.stringify(order));}catch{}
+      applyTileOrder(order);
+      if(_lastSum)buildCards(_lastSum);
+      if(ST.length)buildStrokeTable();
+      overlay.remove();
+    };
+  }
+  renderList();
+  overlay.appendChild(panel);
+  overlay.onclick=e=>{if(e.target===overlay)overlay.remove();};
+  document.body.appendChild(overlay);
+}
 function showAboutModal(){
   const overlay=document.createElement('div');
   overlay.id='_about_modal';
@@ -3047,6 +3109,7 @@ document.getElementById('resetbtn').onclick=()=>document.getElementById('openbtn
 document.getElementById('tcxbtn').onclick=exportTCX;
 document.getElementById('openbtn').onclick=()=>{const s=document.getElementById('startup');if(s.innerHTML&&s.style.display!=='none'){s.style.display='none';s.innerHTML='';}else{showStartup();}};
 document.getElementById('infobtn').onclick=showInfoModal;
+document.getElementById('reorderbtn').onclick=showReorderModal;
 document.getElementById('aboutbtn').onclick=showAboutModal;
 document.getElementById('filemenubtn').onclick=(e)=>{e.stopPropagation();document.getElementById('filemenu').classList.toggle('open');};
 document.addEventListener('click',()=>{document.getElementById('filemenu').classList.remove('open');});
