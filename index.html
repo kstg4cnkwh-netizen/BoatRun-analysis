@@ -115,10 +115,7 @@
   #vidLineC { position: absolute; top: 12px; left: 12px; pointer-events: none; }
   .hint { text-align: center; font-size: 9px; color: var(--faint); margin-top: 4px; }
 
-  /* ── Selection action bar ── */
-  #selbar { display: none; margin: 0 16px 10px; padding: 8px 14px; background: var(--s2); border: 1px solid var(--border); border-radius: 10px; align-items: center; gap: 12px; box-shadow: var(--sh); }
-  #selbar.on { display: flex; }
-  #selnote { font-size: 10px; color: var(--muted); }
+  /* ── Selection controls (rendered inside stats strip) ── */
   #addcurvebtn { background: var(--b); color: #000; border: none; padding: 5px 13px; border-radius: 6px; font-family: -apple-system, BlinkMacSystemFont, Helvetica Neue, sans-serif; font-size: 10px; font-weight: 700; cursor: pointer; transition: opacity .15s; }
   #addcurvebtn:hover { opacity: .85; }
   #selclear { margin-left: auto; font-size: 10px; color: var(--muted); background: none; border: 1px solid var(--border); padding: 4px 10px; border-radius: 6px; cursor: pointer; font-family: -apple-system, BlinkMacSystemFont, Helvetica Neue, sans-serif; transition: color .15s, border-color .15s; }
@@ -214,7 +211,7 @@
   @media (max-width: 700px) {
     #cards { padding: 10px 12px; }
     .sec { padding: 0 12px 10px; }
-    #selbar, #statsstrip { margin-left: 12px; margin-right: 12px; }
+    #statsstrip { margin-left: 12px; margin-right: 12px; }
     #map-stroke-row { padding: 0 12px 10px; flex-direction: column; }
     .map-col, .stroke-col { flex: none; width: 100%; }
     .curve-layout { flex-direction: column; }
@@ -361,11 +358,6 @@
       <div class="hint">Drag to select · scroll to zoom · swipe/scroll sideways to pan · double-click to reset</div>
     </div>
     <div id="panBarWrap" style="display:none;padding:1px 11px 0;"><input type="range" id="panSlider" min="0" max="100" value="0" style="width:100%;cursor:pointer;accent-color:var(--g);margin:0;" oninput="window.panSlide(this.value)"></div>
-  </div>
-
-  <!-- Selection action bar -->
-  <div id="selbar">
-    <span id="selnote"></span>
   </div>
 
   <!-- Stats strip: selection or view averages -->
@@ -1405,7 +1397,7 @@ function schedRender() {
 }
 
 // ── Zoom helpers ────────────────────────────────────────────────────────────
-function resetZoom(){viewS=0;viewE=ST.length-1;selS=-1;selE=-1;document.getElementById('selbar').classList.remove('on');schedRender();}
+function resetZoom(){viewS=0;viewE=ST.length-1;selS=-1;selE=-1;schedRender();}
 
 function scrollZoom(canvas, deltaY, cx) {
   const n=ST.length;
@@ -1924,7 +1916,6 @@ function setupMainEvents(canvas){
       const _absIdx=viewS+getMainIdx(_tcx);
       _pinnedStrokeIdx=(_pinnedStrokeIdx===_absIdx)?-1:_absIdx;
       selS=-1;selE=-1;
-      document.getElementById('selbar').classList.remove('on');
       updatePinHighlight();schedRender();updateMapPin();
     }else{updateSel(false);}
   });
@@ -1950,23 +1941,18 @@ document.addEventListener('mouseup',e=>{
       const _absIdx=viewS+getMainIdx(_mcx);
       _pinnedStrokeIdx=(_pinnedStrokeIdx===_absIdx)?-1:_absIdx;
       selS=-1;selE=-1;
-      document.getElementById('selbar').classList.remove('on');
       updatePinHighlight();schedRender();updateMapPin();
     }else{updateSel(false);}
   }
 });
 
-// ── Selection → action bar ─────────────────────────────────────────────────
+// ── Selection → stats strip ──────────────────────────────────────────────
 function updateSel(doScroll=true){
-  const bar=document.getElementById('selbar');
-  if(selS<0||selE<0||selS===selE){bar.classList.remove('on');hlRows([],false);updateStatsStrip();return;}
+  if(selS<0||selE<0||selS===selE){hlRows([],false);updateStatsStrip();return;}
   const vlen=viewE-viewS+1;
   const s2=clamp(Math.min(selS,selE),0,vlen-1),e2=clamp(Math.max(selS,selE),0,vlen-1);
   const sel=ST.slice(viewS+s2,viewS+e2+1);
-  if(!sel.length){bar.classList.remove('on');updateStatsStrip();return;}
-  const hasCurves=sel.some(s=>s.curve&&s.curve.length===CURVE_POINTS);
-  document.getElementById('selnote').textContent=`${sel.length} strokes${hasCurves?' · has curves':''}`;
-  bar.classList.add('on');
+  if(!sel.length){updateStatsStrip();return;}
   const absIdxs=[];for(let i=s2;i<=e2;i++)absIdxs.push(viewS+i);
   hlRows(absIdxs, doScroll);
   updateStatsStrip();
@@ -1974,7 +1960,6 @@ function updateSel(doScroll=true){
 
 function clearSelection(){
   selS=-1;selE=-1;ovAbsSelS=-1;ovAbsSelE=-1;
-  document.getElementById('selbar').classList.remove('on');
   hlRows([]);schedRender();
 }
 
@@ -1996,14 +1981,14 @@ function updateStatsStrip(){
   const vlen=viewE-viewS+1;
   const s2=clamp(Math.min(selS,selE),0,vlen-1),e2=clamp(Math.max(selS,selE),0,vlen-1);
   const strokes=ST.slice(viewS+s2,viewS+e2+1);
-  document.getElementById('stripcontext').textContent='Selection · '+strokes.length+' strokes';
+  const hasCurves=strokes.some(s=>s.curve&&s.curve.length===CURVE_POINTS);
+  document.getElementById('stripcontext').textContent='Selection · '+strokes.length+' strokes'+(hasCurves?' · has curves':'');
 
   function sp(l,v,c){return`<div class="sp-stat"><div class="l">${l}</div><div class="v" style="color:${c||'var(--text)'}">${v}</div></div>`;}
   let html='';
   if(curveGroups.length<8){
     html+='<button id="addcurvebtn" onclick="pinSelection()">＋ Add to curves</button>';
   }
-  html+='<button id="selclear" onclick="clearSelection()">✕ Clear</button>';
     if(strokes.length){
     const dur=strokes[strokes.length-1].elapsed-strokes[0].elapsed;
     html+=sp('Time',fmtTime(dur));
@@ -2014,6 +1999,7 @@ function updateStatsStrip(){
     html+=sp('Avg '+m.l,m.fmtAvg(arrMean(arr)),m.c);
     if(m.showBest) html+=sp('Best '+m.l,m.fmtAvg(m.bestIsMin?arrMin(arr):arrMax(arr)),m.c);
   }
+  html+='<button id="selclear" onclick="clearSelection()">✕ Clear</button>';
   document.getElementById('stripinner').innerHTML=html;
 }
 
@@ -2035,7 +2021,6 @@ function pinSelection(){
     sessionLabel:(SESSIONS[activeSessionIdx]&&SESSIONS[activeSessionIdx].label)||'',
   });
   selS=-1;selE=-1;
-  document.getElementById('selbar').classList.remove('on');
   buildCurveSection();
   updateStatsStrip();
   schedRender();
@@ -2796,7 +2781,6 @@ function resetApp(){
   document.getElementById('map-stroke-row').classList.remove('on');
   document.getElementById('curvesec').style.display='none';
   document.getElementById('statsstrip').style.display='none';
-  document.getElementById('selbar').classList.remove('on');
   document.getElementById('tblwrap').style.display='block';
   ['mainC','ovC','hrC'].forEach(id=>{const c=document.getElementById(id);if(c)c.getContext('2d').clearRect(0,0,c.width,c.height);});
 }
