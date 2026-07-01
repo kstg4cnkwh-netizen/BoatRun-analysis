@@ -1129,7 +1129,7 @@ function showSquadPicker(code, metas) {
                 if (!session) throw new Error('Session not found');
                 applySessionUnits(session);
                 const label = (m.rower || 'Rower') + ' ' + new Date(m.t).toLocaleDateString();
-                addSessionFromData(sessionToAnalyserFmt(session), label, !SESSIONS.length, null, code);
+                addSessionFromData(sessionToAnalyserFmt(session), label, true, null, code);
             } catch (e) { toast('Load failed: ' + e.message); }
         };
         list.appendChild(btn);
