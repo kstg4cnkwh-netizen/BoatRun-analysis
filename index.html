@@ -393,22 +393,6 @@
     <div id="vidBody"></div>
   </div>
 
-  <!-- HR -->
-  <div class="sec" id="hrsec" style="display:none;">
-    <div class="sec-hd">
-      <h2>Heart Rate</h2>
-      <span id="hrlbl" style="font-size:10px;color:var(--muted);"></span>
-      <div class="zlegend">
-        <span class="zl" style="color:#4da6ff">Z1 90–106</span>
-        <span class="zl" style="color:#29b8ff">Z2 107–124</span>
-        <span class="zl" style="color:#ffc947">Z3 125–142</span>
-        <span class="zl" style="color:#ff9a3c">Z4 143–160</span>
-        <span class="zl" style="color:#ff6b6b">Z5 &gt;160</span>
-      </div>
-    </div>
-    <div class="cbox"><canvas id="hrC" height="130"></canvas></div>
-  </div>
-
   <!-- Map (left) + Stroke data (right) -->
   <div id="map-stroke-row">
     <div class="map-col">
@@ -707,7 +691,12 @@ let curveGroups = []; // [{color,bg,strokes,absS,absE,label}]
 let currentView=[];
 let viewS=0,viewE=0;
 let selS=-1,selE=-1;
-let vis={pace:true,rate:true,slope:false,dps:false,impulse:false,rloss:false,schar:false,ratio:false,angle:false,cdelta:false,cdur:false,speedloss:false,speedgain:false};
+let vis={pace:true,rate:true,slope:false,dps:false,impulse:false,rloss:false,schar:false,ratio:false,angle:false,cdelta:false,cdur:false,speedloss:false,speedgain:false,hr:false};
+let hrZones=[106,124,142,160]; // Z1–Z4 upper bounds (bpm); above last = Z5
+try{const z=JSON.parse(localStorage.getItem('br_hr_zones')||'null');if(Array.isArray(z)&&z.length===4&&z.every(v=>v>40&&v<230))hrZones=z;}catch{}
+const HR_ZONE_COLORS=['#4da6ff','#29b8ff','#ffc947','#ff9a3c','#ff6b6b'];
+function hrZoneColor(b){for(let i=0;i<4;i++)if(b<=hrZones[i])return HR_ZONE_COLORS[i];return HR_ZONE_COLORS[4];}
+window.setHRZone=function(i,v){v=parseInt(v,10);if(!isFinite(v)||v<40||v>230){buildUnitsBar();return;}hrZones[i]=v;for(let j=i+1;j<4;j++)if(hrZones[j]<=hrZones[j-1])hrZones[j]=hrZones[j-1]+1;for(let j=i-1;j>=0;j--)if(hrZones[j]>=hrZones[j+1])hrZones[j]=hrZones[j+1]-1;try{localStorage.setItem('br_hr_zones',JSON.stringify(hrZones));}catch{toast('HR zones not saved — storage error');}buildUnitsBar();schedRender();};
 let rafId=null;
 let isDragMain=false,isDragOv=false;
 let ovAbsSelS=-1,ovAbsSelE=-1;
@@ -1410,7 +1399,6 @@ function schedRender() {
   rafId=requestAnimationFrame(()=>{
     rafId=null;
     drawMain(); drawOv();
-    if (HR.length>10) drawHR();
     updateStatsStrip();
     updateZoomSlider();
     updatePanSlider();
@@ -1625,7 +1613,7 @@ function drawMain(){
   const xRng=xMax-xMin||1;
   const toX=v=>PL+(v-xMin)/xRng*pw;
 
-  const pv=[],rv=[],jv=[],dv=[],iv=[],rlv=[],scv=[],ratv=[],angv=[],cdv=[],cdurv=[],slv=[],sgv=[];
+  const pv=[],rv=[],jv=[],dv=[],iv=[],rlv=[],scv=[],ratv=[],angv=[],cdv=[],cdurv=[],slv=[],sgv=[],hrv=[];
   for(let i=0;i<N;i++){const s=sv[i];
     if(vis.pace&&s.pace>50&&s.pace<500)pv.push(s.pace);
     if(vis.rate&&s.rate>5&&s.rate<50)rv.push(s.rate);
@@ -1640,6 +1628,7 @@ function drawMain(){
     if(vis.cdur&&!isNaN(s.catchDuration)&&s.catchDuration>10&&s.catchDuration<500)cdurv.push(s.catchDuration);
     if(vis.speedloss&&!isNaN(s.speedLossPct)&&s.speedLossPct>0&&s.speedLossPct<100)slv.push(s.speedLossPct);
     if(vis.speedgain&&!isNaN(s.speedGainPct)&&s.speedGainPct>0&&s.speedGainPct<100)sgv.push(s.speedGainPct);
+    if(vis.hr){const b=nearestHRAt(view[i].ms);if(b!=null&&b>40&&b<220)hrv.push(b);}
 }
 
   let yPMin=80,yPMax=210;
@@ -1670,6 +1659,9 @@ function drawMain(){
   let yCDurMin=0,yCDurMax=300;
   if(cdurv.length){const[lo,hi]=pctBounds(cdurv,0.03,0.97,0.10);yCDurMin=0;yCDurMax=Math.min(500,hi);}
   const toYCDur=v=>PT+ph-(v-yCDurMin)/(yCDurMax-yCDurMin||1)*ph;
+  let yHRMin=60,yHRMax=200;
+  if(hrv.length){const[lo,hi]=pctBounds(hrv,0.03,0.97,0.08);yHRMin=Math.max(40,lo);yHRMax=Math.min(220,hi);}
+  const toYHR=v=>PT+ph-(v-yHRMin)/(yHRMax-yHRMin||1)*ph;
   drawLapBands(ctx,computeLapSegments(),toX,xMin,xMin+xRng,PT,ph);
   ctx.font='9px -apple-system, BlinkMacSystemFont, Helvetica Neue, sans-serif';
 
@@ -1721,6 +1713,7 @@ function drawMain(){
   if(vis.cdur&&cdurv.length){ctx.fillStyle=C.mc_cdur;for(let i=0;i<N;i++){const v=sv[i].catchDuration;if(isNaN(v)||v<=10||v>=500)continue;ctx.beginPath();ctx.arc(toX(xs[i]),toYCDur(v),2.2,0,6.283);ctx.fill();}}
   if(vis.speedloss&&slv.length){ctx.fillStyle=C.mc_speedloss;for(let i=0;i<N;i++){const v=sv[i].speedLossPct;if(isNaN(v)||v<=0||v>=100)continue;ctx.beginPath();ctx.arc(toX(xs[i]),toYRL(v),2.2,0,6.283);ctx.fill();}}
   if(vis.speedgain&&sgv.length){ctx.fillStyle=C.mc_speedgain;for(let i=0;i<N;i++){const v=sv[i].speedGainPct;if(isNaN(v)||v<=0||v>=100)continue;ctx.beginPath();ctx.arc(toX(xs[i]),toYRL(v),2.2,0,6.283);ctx.fill();}}
+  if(vis.hr&&hrv.length){let px=null,py=null;ctx.lineWidth=1.8;for(let i=0;i<N;i++){const b=nearestHRAt(view[i].ms);if(b==null||b<40||b>220){px=null;continue;}const x=toX(xs[i]),y=toYHR(b);if(px!=null){ctx.beginPath();ctx.moveTo(px,py);ctx.lineTo(x,y);ctx.strokeStyle=hrZoneColor(b);ctx.stroke();}px=x;py=y;}}
 
   drawLapLines(ctx,computeLapBoundaryXValues(),toX,xMin,xRng,PT,ph,true);
   ctx.strokeStyle=C.frameLn;ctx.lineWidth=1;ctx.strokeRect(PL,PT,pw,ph);
@@ -1810,51 +1803,6 @@ function drawOv(){
   drawLapLines(ctx,computeLapBoundaryXValues(),toXov,xMin,xRng,P,ph,false);
   canvas._g={P,pw,ph,N,W,H,xs,xMin,xRng};
   setupOvEvents(canvas);
-}
-
-// ══════════════════════════════════════════════════════════════════════════
-// HEART RATE CHART
-// ══════════════════════════════════════════════════════════════════════════
-function drawHR(){
-  const canvas=document.getElementById('hrC');
-  const C=pal();
-  const dpr=window.devicePixelRatio||1;
-  const W=Math.floor(canvas.parentElement.clientWidth-22);
-  const H=130;
-  canvas.width=W*dpr;canvas.height=H*dpr;
-  canvas.style.width=W+'px';canvas.style.height=H+'px';
-  const ctx=canvas.getContext('2d');ctx.scale(dpr,dpr);ctx.clearRect(0,0,W,H);
-  const N=HR.length;
-  if(!N)return;
-  const PL=40,PR=10,PT=8,PB=22;
-  const pw=W-PL-PR,ph=H-PT-PB;
-  const hrt0=new Date(HR[0].ts).getTime();
-  let xMax=0,yMin=200,yMax=0,hsum=0;
-  for(let i=0;i<N;i++){const x=(new Date(HR[i].ts).getTime()-hrt0)/60000;const b=HR[i].bpm;if(x>xMax)xMax=x;if(b<yMin)yMin=b;if(b>yMax)yMax=b;hsum+=b;}
-  const avg=hsum/N;
-  yMin=yMin*.97;yMax=yMax*1.02;
-  document.getElementById('hrlbl').textContent='avg '+Math.round(avg)+' bpm · max '+Math.round(yMax)+' bpm';
-  const toX=v=>PL+(v/xMax)*pw;
-  const toY=v=>PT+ph-(v-yMin)/(yMax-yMin)*ph;
-  const zones=[[90,106,C.zoneBlue],[107,124,C.zoneGreen],[125,142,C.zoneYellow],[143,160,C.zoneOrange],[161,300,C.zoneRed]];
-  zones.forEach(([a,b,fill])=>{const y1=toY(Math.min(b,yMax)),y2=toY(Math.max(a,yMin));if(y1<PT+ph&&y2>PT){ctx.fillStyle=fill;ctx.fillRect(PL,Math.max(PT,y1),pw,Math.min(PT+ph,y2)-Math.max(PT,y1));}});
-  if(ST.length&&!isNaN(ST[viewS].ms)&&!isNaN(ST[viewE].ms)){
-    const vt1=clamp((ST[viewS].ms-hrt0)/60000,0,xMax),vt2=clamp((ST[viewE].ms-hrt0)/60000,0,xMax);
-    const hx1=toX(vt1),hx2=toX(vt2);
-    if(hx2>hx1){ctx.fillStyle=C.selFill;ctx.fillRect(hx1,PT,hx2-hx1,ph);ctx.strokeStyle=C.selStk;ctx.lineWidth=1;ctx.strokeRect(hx1,PT,hx2-hx1,ph);}
-  }
-  ctx.font='9px -apple-system, BlinkMacSystemFont, Helvetica Neue, sans-serif';ctx.lineWidth=1;
-  niceSteps(yMin,yMax,5).forEach(g=>{const y=toY(g);ctx.beginPath();ctx.moveTo(PL,y);ctx.lineTo(PL+pw,y);ctx.strokeStyle=C.gridLn;ctx.stroke();ctx.fillStyle=C.gridLb;ctx.textAlign='right';ctx.fillText(Math.round(g),PL-4,y+3);});
-  niceSteps(0,xMax,6).forEach(g=>{const x=toX(g);ctx.beginPath();ctx.moveTo(x,PT);ctx.lineTo(x,PT+ph);ctx.strokeStyle=C.gridLn;ctx.stroke();ctx.fillStyle=C.gridLb;ctx.textAlign='center';ctx.fillText(Math.round(g)+'m',x,PT+ph+13);});
-  ctx.setLineDash([4,4]);ctx.strokeStyle='rgba(229,57,53,.4)';ctx.lineWidth=1;
-  ctx.beginPath();ctx.moveTo(PL,toY(avg));ctx.lineTo(PL+pw,toY(avg));ctx.stroke();ctx.setLineDash([]);
-  const grad=ctx.createLinearGradient(0,PT,0,PT+ph);
-  grad.addColorStop(0,'rgba(229,57,53,.20)');grad.addColorStop(1,'rgba(229,57,53,0)');
-  ctx.beginPath();const x0=toX(0);ctx.moveTo(x0,toY(HR[0].bpm));
-  for(let i=1;i<N;i++) ctx.lineTo(toX((new Date(HR[i].ts).getTime()-hrt0)/60000),toY(HR[i].bpm));
-  ctx.strokeStyle=C.mc_hr;ctx.lineWidth=1.5;ctx.stroke();
-  ctx.lineTo(toX(xMax),PT+ph);ctx.lineTo(x0,PT+ph);ctx.closePath();ctx.fillStyle=grad;ctx.fill();
-  ctx.strokeStyle=C.frameLn;ctx.lineWidth=1;ctx.strokeRect(PL,PT,pw,ph);
 }
 
 // ══════════════════════════════════════════════════════════════════════════
@@ -2743,7 +2691,8 @@ function buildUnitsBar() {
     `<span style="color:var(--muted);font-size:10px;margin-right:2px;">Boat</span>${seg('boatClass',[['scull','Scull'],['sweep','Sweep']])}` +
     `<span style="color:var(--muted);font-size:10px;margin-left:8px;margin-right:2px;">Pace</span>${seg('paceUnit',[['pace500','/500m'],['pace1000','/1km'],['kph','km/h'],['pacemile','/mi'],['mph','mph']])}` +
     `<span style="color:var(--muted);font-size:10px;margin-left:8px;margin-right:2px;">Dist</span>${seg('distUnit',[['km','km'],['mi','mi']])}` +
-    `<span style="color:var(--muted);font-size:10px;margin-left:8px;margin-right:2px;">Sub</span>${seg('dpsUnit',[['m','m'],['ft','ft'],['in','in']])}`;
+    `<span style="color:var(--muted);font-size:10px;margin-left:8px;margin-right:2px;">Sub</span>${seg('dpsUnit',[['m','m'],['ft','ft'],['in','in']])}` +
+    (HR.length>10?`<span style="color:var(--muted);font-size:10px;margin-left:8px;margin-right:2px;">HR zones</span>`+hrZones.map((v,i)=>`<input type="number" value="${v}" min="40" max="230" title="Z${i+1} upper limit (bpm)" onchange="setHRZone(${i},this.value)" style="width:44px;padding:2px 4px;border-radius:3px;border:1px solid ${HR_ZONE_COLORS[i]};background:var(--s3);color:${HR_ZONE_COLORS[i]};font-family:-apple-system, BlinkMacSystemFont, Helvetica Neue, sans-serif;font-size:10px;">`).join(''):'');
 }
 window.setUnitsAndRebuild = setUnitsAndRebuild;
 
@@ -2778,7 +2727,6 @@ function mountData(d,label){
   assignLapNumbers();
   buildMap();
   buildStrokeTable();
-  document.getElementById('hrsec').style.display=HR.length>10?'block':'none';
   schedRender();
   buildCurveSection();
   vidOnMount(d);
@@ -2806,14 +2754,13 @@ function resetApp(){
   document.getElementById('startup').style.display='none';
   document.getElementById('startup').innerHTML='';
   document.getElementById('openbtn').style.display='';
-  document.getElementById('hrsec').style.display='none';
   document.getElementById('lapsec').style.display='none';
   document.getElementById('mapsec').style.display='none';
   document.getElementById('map-stroke-row').classList.remove('on');
   document.getElementById('curvesec').style.display='none';
   document.getElementById('statsstrip').style.display='none';
   document.getElementById('tblwrap').style.display='block';
-  ['mainC','ovC','hrC'].forEach(id=>{const c=document.getElementById(id);if(c)c.getContext('2d').clearRect(0,0,c.width,c.height);});
+  ['mainC','ovC'].forEach(id=>{const c=document.getElementById(id);if(c)c.getContext('2d').clearRect(0,0,c.width,c.height);});
 }
 
 // ── Startup screen ──────────────────────────────────────────────────────────
