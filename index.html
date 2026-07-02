@@ -1365,6 +1365,7 @@ function buildCards(sum) {
   const distLbl=distULabelU();
   const dur=fmtTime(+sum.duration_s);
   const movPace=+sum.avg_moving_pace_s_per_500m||0;
+  const avgPace=+sum.avg_pace_s_per_500m||0;
   // Session-level per-metric averages
   const vals={};
   for(const m of METRIC_DEFS){const arr=ST.filter(m.filter).map(m.val);vals[m.k]=arr.length?{mean:arrMean(arr),min:arrMin(arr),max:arrMax(arr),n:arr.length}:null;}
@@ -1372,7 +1373,7 @@ function buildCards(sum) {
   const card=(cls,lbl,val,sub,k,tip)=>`<div class="card ${cls}${k?' clickable':''}${k&&!vis[k]?' dim':''}"${k?` id="card-${k}" data-vis="${k}"`:''}${tip?` title="${tip}"`:''}>` +
     `<div class="lbl">${lbl}</div><div class="val">${val}</div><div class="sub">${sub}</div></div>`;
   const CARD_BUILDERS={
-    pace:()=>vals.pace?card('c-pace','Pace',fmtPaceU(vals.pace.mean),movPace>0?'mov '+fmtPaceU(movPace):paceULabel(),'pace',tipOf('pace')):'',
+    pace:()=>vals.pace?card('c-pace','Pace',fmtPaceU(avgPace>0?avgPace:vals.pace.mean),movPace>0?'mov '+fmtPaceU(movPace):paceULabel(),'pace',tipOf('pace')):'',
     rate:()=>vals.rate?card('c-rate','Rate',f1(vals.rate.mean),'spm · max '+f0(vals.rate.max),'rate',tipOf('rate')):'',
     dps:()=>vals.dps?card('c-dps','DPS',fmtDPSU(vals.dps.mean),dpsULabelU()+'/stroke','dps',tipOf('dps')):'',
     cdelta:()=>vals.cdelta?`<div class="card clickable${!vis.cdelta?' dim':''}" id="card-cdelta" data-vis="cdelta" style="border-top:2px solid var(--mc-cdelta)" title="${tipOf('cdelta')}"><div class="lbl">Check Delta</div><div class="val" style="color:var(--mc-cdelta)">${f2(vals.cdelta.mean)} m/s</div><div class="sub">speed range</div></div>`:'',
