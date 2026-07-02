@@ -13,7 +13,7 @@
     --g: #3cbe4f; --b: #1a68d4; --y: #e9e05d; --r: #cd2020;
     --p: #7e56a6; --o: #c07012; --i: #be3e8d; --d: #1c48b9;
     --mc-pace:#1E88E5; --mc-rate:#FB8C00; --mc-hr:#E53935;
-    --mc-dps:#29B6F6; --mc-rloss:#AB47BC; --mc-slope:#9E9D24;
+    --mc-dps:#66BB6A; --mc-rloss:#AB47BC; --mc-slope:#9E9D24;
     --mc-impulse:#00897B; --mc-schar:#D81B60; --mc-ratio:#5C6BC0;
     --mc-oar:#26C6DA; --mc-cdelta:#546E7A; --mc-cdur:#FFB300; --mc-speedloss:#D84315; --mc-speedgain:#43A047;
     --text: #dce8fa; --muted: #46597a; --faint: #0d1e38;
@@ -28,7 +28,7 @@
     --g: #3cbe4f; --b: #1a68d4; --y: #e9e05d; --r: #cd2020;
     --p: #7e56a6; --o: #c07012; --i: #be3e8d; --d: #1c48b9;
     --mc-pace:#1E88E5; --mc-rate:#FB8C00; --mc-hr:#E53935;
-    --mc-dps:#29B6F6; --mc-rloss:#AB47BC; --mc-slope:#9E9D24;
+    --mc-dps:#66BB6A; --mc-rloss:#AB47BC; --mc-slope:#9E9D24;
     --mc-impulse:#00897B; --mc-schar:#D81B60; --mc-ratio:#5C6BC0;
     --mc-oar:#26C6DA; --mc-cdelta:#546E7A; --mc-cdur:#FFB300; --mc-speedloss:#D84315; --mc-speedgain:#43A047;
     --text: #0e1624; --muted: #40506e; --faint: #6a88b7;
@@ -1700,8 +1700,8 @@ function drawMain(){
   }
 
   // Series
-  if(vis.pace&&pv.length){ctx.beginPath();let st=false;for(let i=0;i<N;i++){const v=sv[i].pace;if(isNaN(v)||v<50||v>500){st=false;continue;}const vc=Math.max(yPMin,Math.min(yPMax,v));st?ctx.lineTo(toX(xs[i]),toYP(vc)):ctx.moveTo(toX(xs[i]),toYP(vc));st=true;}ctx.strokeStyle=C.mc_pace;ctx.lineWidth=2.0;ctx.stroke();}
-  if(vis.dps&&dv.length){ctx.beginPath();let st=false;for(let i=0;i<N;i++){const v=sv[i].dps;if(isNaN(v)||v<1||v>25){st=false;continue;}st?ctx.lineTo(toX(xs[i]),toYD(v)):ctx.moveTo(toX(xs[i]),toYD(v));st=true;}ctx.strokeStyle=C.mc_dps;ctx.lineWidth=1.5;ctx.stroke();}
+  if(vis.pace&&pv.length){ctx.beginPath();let st=false;for(let i=0;i<N;i++){const v=sv[i].pace;if(isNaN(v)||v<50||v>500){st=false;continue;}const vc=Math.max(yPMin,Math.min(yPMax,v));st?ctx.lineTo(toX(xs[i]),toYP(vc)):ctx.moveTo(toX(xs[i]),toYP(vc));st=true;}ctx.strokeStyle=C.mc_pace;ctx.lineWidth=2.5;ctx.stroke();}
+  if(vis.dps&&dv.length){ctx.beginPath();let st=false;for(let i=0;i<N;i++){const v=sv[i].dps;if(isNaN(v)||v<1||v>25){st=false;continue;}st?ctx.lineTo(toX(xs[i]),toYD(v)):ctx.moveTo(toX(xs[i]),toYD(v));st=true;}ctx.strokeStyle=C.mc_dps;ctx.lineWidth=2.5;ctx.stroke();}
   if(vis.rate&&rv.length){ctx.fillStyle=C.mc_rate;for(let i=0;i<N;i++){const v=sv[i].rate;if(isNaN(v)||v<5||v>50)continue;ctx.beginPath();ctx.arc(toX(xs[i]),toYR(v),2.2,0,6.283);ctx.fill();}}
   if(vis.slope&&jv.length){const jMax=arrMax(jv);for(let i=0;i<N;i++){const v=sv[i].slope;if(isNaN(v)||v<=0||v>300)continue;const rad=clamp(1.5+(v/jMax)*3.5,1.5,5);ctx.beginPath();ctx.arc(toX(xs[i]),toYR(v),rad,0,6.283);ctx.fillStyle=C.mc_slope;ctx.fill();}}
   if(vis.impulse&&iv.length){ctx.fillStyle=C.mc_impulse;for(let i=0;i<N;i++){const v=sv[i].impulse;if(isNaN(v)||v<=0||v>1000)continue;ctx.beginPath();ctx.arc(toX(xs[i]),toYImp(v),2.5,0,6.283);ctx.fill();}}
@@ -1713,7 +1713,7 @@ function drawMain(){
   if(vis.cdur&&cdurv.length){ctx.fillStyle=C.mc_cdur;for(let i=0;i<N;i++){const v=sv[i].catchDuration;if(isNaN(v)||v<=10||v>=500)continue;ctx.beginPath();ctx.arc(toX(xs[i]),toYCDur(v),2.2,0,6.283);ctx.fill();}}
   if(vis.speedloss&&slv.length){ctx.fillStyle=C.mc_speedloss;for(let i=0;i<N;i++){const v=sv[i].speedLossPct;if(isNaN(v)||v<=0||v>=100)continue;ctx.beginPath();ctx.arc(toX(xs[i]),toYRL(v),2.2,0,6.283);ctx.fill();}}
   if(vis.speedgain&&sgv.length){ctx.fillStyle=C.mc_speedgain;for(let i=0;i<N;i++){const v=sv[i].speedGainPct;if(isNaN(v)||v<=0||v>=100)continue;ctx.beginPath();ctx.arc(toX(xs[i]),toYRL(v),2.2,0,6.283);ctx.fill();}}
-  if(vis.hr&&hrv.length){let px=null,py=null;ctx.lineWidth=1.8;for(let i=0;i<N;i++){const b=nearestHRAt(view[i].ms);if(b==null||b<40||b>220){px=null;continue;}const x=toX(xs[i]),y=toYHR(b);if(px!=null){ctx.beginPath();ctx.moveTo(px,py);ctx.lineTo(x,y);ctx.strokeStyle=hrZoneColor(b);ctx.stroke();}px=x;py=y;}}
+  if(vis.hr&&hrv.length){let px=null,py=null;ctx.lineWidth=2.5;for(let i=0;i<N;i++){const b=nearestHRAt(view[i].ms);if(b==null||b<40||b>220){px=null;continue;}const x=toX(xs[i]),y=toYHR(b);if(px!=null){ctx.beginPath();ctx.moveTo(px,py);ctx.lineTo(x,y);ctx.strokeStyle=hrZoneColor(b);ctx.stroke();}px=x;py=y;}}
 
   drawLapLines(ctx,computeLapBoundaryXValues(),toX,xMin,xRng,PT,ph,true);
   ctx.strokeStyle=C.frameLn;ctx.lineWidth=1;ctx.strokeRect(PL,PT,pw,ph);
