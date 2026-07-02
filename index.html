@@ -686,11 +686,18 @@ function applyTileOrder(ord){
 applyTileOrder();
 
 let ST=[],HR=[],LAPS=[],GPSTRACE=[];
+let HR_T=[],HR_BPM=[];
+function buildHRIndex(){
+  const arr=HR.map(h=>({t:new Date(h.ts).getTime(),b:h.bpm})).sort((a,b)=>a.t-b.t);
+  HR_T=arr.map(x=>x.t); HR_BPM=arr.map(x=>x.b);
+}
 function nearestHRAt(ms){
-  if(!HR.length||ms==null)return null;
-  let best=null,bestDiff=Infinity;
-  for(const h of HR){const t=new Date(h.ts).getTime(),diff=Math.abs(t-ms);if(diff<bestDiff){bestDiff=diff;best=h.bpm;}}
-  return bestDiff<30000?best:null;
+  if(!HR_T.length||ms==null)return null;
+  let lo=0,hi=HR_T.length-1;
+  while(lo<hi){const mid=(lo+hi)>>1;if(HR_T[mid]<ms)lo=mid+1;else hi=mid;}
+  let best=HR_T[lo],bestBpm=HR_BPM[lo];
+  if(lo>0&&Math.abs(HR_T[lo-1]-ms)<Math.abs(best-ms)){best=HR_T[lo-1];bestBpm=HR_BPM[lo-1];}
+  return Math.abs(best-ms)<30000?bestBpm:null;
 }
 let curveGroups = []; // [{color,bg,strokes,absS,absE,label}]
 let currentView=[];
@@ -2709,7 +2716,7 @@ function mountData(d,label){
   ST=d.strokes;
   _rawOarAngles = ST.map(s => s.oarAngle);  // snapshot before any conversion
   computeStrokeAngles(ST);
-  HR=d.hr; LAPS=[...d.laps,...d.glaps]; GPSTRACE=d.gpsTrace||[];
+  HR=d.hr; buildHRIndex(); LAPS=[...d.laps,...d.glaps]; GPSTRACE=d.gpsTrace||[];
   viewS=0; viewE=ST.length-1; selS=-1; selE=-1;
   if(!ST.length&&LAPS.length){toast('No stroke data — showing laps only',4000);}
   else if(!ST.length){toast('No stroke data found in this file',4000);return;}
@@ -2739,7 +2746,7 @@ function mountData(d,label){
 
 function resetApp(){
   vidTeardown();
-  ST=[];HR=[];LAPS=[];GPSTRACE=[];curveGroups=[];
+  ST=[];HR=[];HR_T=[];HR_BPM=[];LAPS=[];GPSTRACE=[];curveGroups=[];
   SESSIONS=[];activeSessionIdx=-1;_addMode=false;
   selS=-1;selE=-1;ovAbsSelS=-1;ovAbsSelE=-1;
   unitSettings={..._unitDefaults};
