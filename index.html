@@ -3078,10 +3078,10 @@ async function showStartup(){
       const monthNav='<span class="sumnav"><button id="sum-m-prev">\u2039</button><span class="sumnav-lbl">'+monthRange.label+'</span><button id="sum-m-next"'+(sumMonthOff<=0?' disabled':'')+'>\u203a</button></span>';
       const weekNav='<span class="sumnav"><button id="sum-w-prev">\u2039</button><span class="sumnav-lbl">'+weekRange.label+'</span><button id="sum-w-next"'+(sumWeekOff<=0?' disabled':'')+'>\u203a</button></span>';
       let html='<div class="sz-lhd">Summary</div>';
+      html+='<div class="sumgrp-cards" style="margin-bottom:16px;">'+mk('co','Longest',(longestDist/1000).toFixed(1)+'km')+mk('cd','Total Strokes',totalStrokes.toLocaleString())+'</div>';
       html+='<div class="sumgrp"><div class="sumgrp-hd">Total</div>'+grp('cb',T.all)+'</div>';
       html+='<div class="sumgrp"><div class="sumgrp-hd">Monthly'+monthNav+'</div>'+grp('c-amber',T.month)+'</div>';
       html+='<div class="sumgrp"><div class="sumgrp-hd">Weekly'+weekNav+'</div>'+grp('cp',T.week)+'</div>';
-      html+='<div class="sumgrp-cards" style="margin-bottom:16px;">'+mk('co','Longest',(longestDist/1000).toFixed(1)+'km')+mk('cd','Total Strokes',totalStrokes.toLocaleString())+'</div>';
       sumEl.innerHTML=html;
       document.getElementById('sum-m-prev').onclick=()=>{sumMonthOff++;renderSummary();};
       document.getElementById('sum-m-next').onclick=()=>{if(sumMonthOff>0){sumMonthOff--;renderSummary();}};
