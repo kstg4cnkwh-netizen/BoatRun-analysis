@@ -93,6 +93,15 @@
   .c-cdur{border-top:3px solid var(--mc-cdur)}.c-cdur .val{color:var(--mc-cdur)}
   .c-speedloss{border-top:3px solid var(--mc-speedloss)}.c-speedloss .val{color:var(--mc-speedloss)}
   .c-speedgain{border-top:3px solid var(--mc-speedgain)}.c-speedgain .val{color:var(--mc-speedgain)}
+.sumgrp{margin-bottom:14px;}
+.sumgrp-hd{font-size:9px;font-weight:600;letter-spacing:.08em;color:var(--muted);text-transform:uppercase;margin-bottom:6px;display:flex;align-items:center;gap:8px;}
+.sumgrp-cards{display:grid;grid-template-columns:repeat(auto-fill,minmax(92px,1fr));gap:7px;}
+.sumnav{display:flex;align-items:center;gap:6px;margin-left:auto;text-transform:none;letter-spacing:0;}
+.sumnav button{background:var(--s2);border:1px solid var(--border);color:var(--muted);width:18px;height:18px;border-radius:5px;font-size:11px;line-height:1;cursor:pointer;padding:0;}
+.sumnav button:hover{border-color:var(--b);color:var(--b);}
+.sumnav button:disabled{opacity:.3;cursor:default;}
+.sumnav button:disabled:hover{border-color:var(--border);color:var(--muted);}
+.sumnav-lbl{font-size:9px;color:var(--text);font-weight:600;}
   .card.clickable{cursor:pointer;}
   .card.dim{opacity:.25;}
   .card.clickable:hover{opacity:1!important;box-shadow:var(--sh-h);transform:translateY(-1px);}
@@ -242,6 +251,15 @@
 .asc-l{font-size:7px;color:var(--muted);letter-spacing:.1em;text-transform:uppercase;display:block;}
 .sz-loading{color:var(--muted);font-size:.85rem;padding:20px 0;text-align:center;}
 .sz-drop-hint{font-size:.75rem;color:var(--faint);margin-top:20px;text-align:center;}
+.sumgrp{margin-bottom:14px;}
+.sumgrp-hd{font-size:9px;font-weight:600;letter-spacing:.08em;color:var(--muted);text-transform:uppercase;margin-bottom:6px;display:flex;align-items:center;gap:8px;}
+.sumgrp-cards{display:grid;grid-template-columns:repeat(auto-fill,minmax(92px,1fr));gap:7px;}
+.sumnav{display:flex;align-items:center;gap:6px;margin-left:auto;text-transform:none;letter-spacing:0;}
+.sumnav button{background:var(--s2);border:1px solid var(--border);color:var(--muted);width:18px;height:18px;border-radius:5px;font-size:11px;line-height:1;cursor:pointer;padding:0;}
+.sumnav button:hover{border-color:var(--b);color:var(--b);}
+.sumnav button:disabled{opacity:.3;cursor:default;}
+.sumnav button:disabled:hover{border-color:var(--border);color:var(--muted);}
+.sumnav-lbl{font-size:9px;color:var(--text);font-weight:600;}
 .hmenu-wrap{position:relative;display:inline-block;}
 .hmenu{position:absolute;top:calc(100% + 4px);right:0;background:var(--s2);border:1px solid var(--border);border-radius:10px;padding:6px;display:none;flex-direction:column;gap:4px;min-width:175px;z-index:50;box-shadow:0 8px 24px rgba(0,0,0,.3);}
 .hmenu.open{display:flex;}
@@ -2995,6 +3013,7 @@ async function showStartup(){
     if(!container)return;
     if(!files.length){container.innerHTML='<div class="sz-loading">No sessions on Drive</div>';return;}
     let fileList=[...files];
+    let sumMonthOff=0,sumWeekOff=0;
     function parseFn(name){
       const dist=name.match(/_(\d+)m_/);
       const dur=name.match(/_(\d{2})h(\d{2})m(\d{2})s/);
@@ -3015,43 +3034,59 @@ async function showStartup(){
         approxTs: ts?new Date(+ts[1],+ts[2]-1,+ts[3],+ts[4],+ts[5]).getTime():0
       };
     }
-    function calcSummary(list){
+    function getMonthRange(off){
+      const d=new Date(); d.setDate(1); d.setHours(0,0,0,0); d.setMonth(d.getMonth()-off);
+      const start=new Date(d.getFullYear(),d.getMonth(),1).getTime();
+      const end=new Date(d.getFullYear(),d.getMonth()+1,1).getTime();
+      const label=d.toLocaleDateString('en-AU',{month:'long',year:'numeric'});
+      return {start,end,label};
+    }
+    function getWeekRange(off){
       const now=new Date();
-      const sow=new Date(now); const dow=(sow.getDay()+6)%7; sow.setDate(sow.getDate()-dow); sow.setHours(0,0,0,0);
-      const som=new Date(now.getFullYear(),now.getMonth(),1).getTime();
-      const wkTs=sow.getTime();
-      const T={all:{dist:0,dur:0,n:0,strokes:0},month:{dist:0,dur:0,n:0},week:{dist:0,dur:0,n:0}};
-      let longestDist=0;
+      const dow=(now.getDay()+6)%7;
+      const mon=new Date(now); mon.setHours(0,0,0,0); mon.setDate(mon.getDate()-dow-off*7);
+      const start=mon.getTime();
+      const end=start+7*86400000;
+      const endD=new Date(end-86400000);
+      const label=mon.toLocaleDateString('en-AU',{day:'numeric',month:'short'})+' \u2013 '+endD.toLocaleDateString('en-AU',{day:'numeric',month:'short',year:'numeric'});
+      return {start,end,label};
+    }
+    function calcSummary(list,monthRange,weekRange){
+      const T={all:{dist:0,dur:0,n:0},month:{dist:0,dur:0,n:0},week:{dist:0,dur:0,n:0}};
+      let longestDist=0,totalStrokes=0;
       list.forEach(f=>{
         const p=parseFn(f.name);
         const ts=p.approxTs||new Date(f.createdTime).getTime()||0;
         const d=p.distM||0,t=p.durS||0,s=p.strokes||0;
-        T.all.dist+=d;T.all.dur+=t;T.all.n++;T.all.strokes+=s;
+        T.all.dist+=d;T.all.dur+=t;T.all.n++;
+        totalStrokes+=s;
         if(d>longestDist)longestDist=d;
-        if(ts>=som){T.month.dist+=d;T.month.dur+=t;T.month.n++;}
-        if(ts>=wkTs){T.week.dist+=d;T.week.dur+=t;T.week.n++;}
+        if(ts>=monthRange.start&&ts<monthRange.end){T.month.dist+=d;T.month.dur+=t;T.month.n++;}
+        if(ts>=weekRange.start&&ts<weekRange.end){T.week.dist+=d;T.week.dur+=t;T.week.n++;}
       });
-      return {T,longestDist};
+      return {T,longestDist,totalStrokes};
     }
     function renderSummary(){
       const sumEl=document.getElementById('sz-summary');
       if(!sumEl)return;
-      const {T,longestDist}=calcSummary(fileList);
-      const avgPace=T.all.dist&&T.all.dur?(T.all.dur/T.all.dist*500):null;
-      const mk=(cls,lbl,val,sub)=>'<div class="card '+cls+'"><div class="lbl">'+lbl+'</div><div class="val">'+val+'</div>'+(sub?'<div class="sub">'+sub+'</div>':'')+'</div>';
-      let html='<div class="sz-lhd">Summary</div><div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(92px,1fr));gap:7px;margin-bottom:16px;">';
-      html+=mk('cb','Sessions',T.all.n);
-      html+=mk('cg','Total Dist',(T.all.dist/1000).toFixed(1)+'km');
-      html+=mk('cg','Total Time',fmtTime(T.all.dur));
-      html+=mk('cy','Month Dist',(T.month.dist/1000).toFixed(1)+'km',T.month.n+' sessions');
-      html+=mk('cy','Month Time',fmtTime(T.month.dur));
-      html+=mk('co','Week Dist',(T.week.dist/1000).toFixed(1)+'km',T.week.n+' sessions');
-      html+=mk('co','Week Time',fmtTime(T.week.dur));
-      if(avgPace!=null)html+=mk('cb','Avg Pace',fmtPace(avgPace));
-      if(longestDist)html+=mk('cp','Longest',(longestDist/1000).toFixed(1)+'km');
-      if(T.all.strokes)html+=mk('cd','Total Strokes',T.all.strokes.toLocaleString());
-      html+='</div>';
+      const monthRange=getMonthRange(sumMonthOff);
+      const weekRange=getWeekRange(sumWeekOff);
+      const {T,longestDist,totalStrokes}=calcSummary(fileList,monthRange,weekRange);
+      const pace=t=>t.dist&&t.dur?fmtPace(t.dur/t.dist*500):EM;
+      const mk=(cls,lbl,val)=>'<div class="card '+cls+'"><div class="lbl">'+lbl+'</div><div class="val">'+val+'</div></div>';
+      const grp=(cls,t)=>'<div class="sumgrp-cards">'+mk(cls,'Sessions',t.n)+mk(cls,'Distance',(t.dist/1000).toFixed(1)+'km')+mk(cls,'Time',fmtTime(t.dur))+mk(cls,'Avg Pace',pace(t))+'</div>';
+      const monthNav='<span class="sumnav"><button id="sum-m-prev">\u2039</button><span class="sumnav-lbl">'+monthRange.label+'</span><button id="sum-m-next"'+(sumMonthOff<=0?' disabled':'')+'>\u203a</button></span>';
+      const weekNav='<span class="sumnav"><button id="sum-w-prev">\u2039</button><span class="sumnav-lbl">'+weekRange.label+'</span><button id="sum-w-next"'+(sumWeekOff<=0?' disabled':'')+'>\u203a</button></span>';
+      let html='<div class="sz-lhd">Summary</div>';
+      html+='<div class="sumgrp"><div class="sumgrp-hd">Total</div>'+grp('cb',T.all)+'</div>';
+      html+='<div class="sumgrp"><div class="sumgrp-hd">Monthly'+monthNav+'</div>'+grp('c-amber',T.month)+'</div>';
+      html+='<div class="sumgrp"><div class="sumgrp-hd">Weekly'+weekNav+'</div>'+grp('cp',T.week)+'</div>';
+      html+='<div class="sumgrp-cards" style="margin-bottom:16px;">'+mk('co','Longest',(longestDist/1000).toFixed(1)+'km')+mk('cd','Total Strokes',totalStrokes.toLocaleString())+'</div>';
       sumEl.innerHTML=html;
+      document.getElementById('sum-m-prev').onclick=()=>{sumMonthOff++;renderSummary();};
+      document.getElementById('sum-m-next').onclick=()=>{if(sumMonthOff>0){sumMonthOff--;renderSummary();}};
+      document.getElementById('sum-w-prev').onclick=()=>{sumWeekOff++;renderSummary();};
+      document.getElementById('sum-w-next').onclick=()=>{if(sumWeekOff>0){sumWeekOff--;renderSummary();}};
     }
     function renderList(){
       renderSummary();
