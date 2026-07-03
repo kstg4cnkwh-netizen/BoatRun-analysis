@@ -313,7 +313,7 @@
 </div>
 
 <div id="startup"></div>
-<input type="file" id="fin" accept=".csv,.txt,.json" multiple style="display:none">
+<input type="file" id="fin" accept=".csv,.txt,.json,.fit,.tcx" multiple style="display:none">
 
 <div id="app">
   <!-- Loaded session tabs (shown when 2+ files loaded) -->
@@ -834,6 +834,168 @@ function sessionToAnalyserFmt(s) {
     name: s.name || null,
     vidSync: s.vidSync || null };
 }
+// ══════════════════════════════════════════════════════════════════════════
+// GARMIN FIT / TCX IMPORT
+// ══════════════════════════════════════════════════════════════════════════
+const FIT_EPOCH_OFFSET=631065600;
+
+function fitBaseSize(bt) {
+  switch(bt) {
+    case 0x00: case 0x01: case 0x02: case 0x0A: case 0x0D: return 1;
+    case 0x83: case 0x84: case 0x8B: return 2;
+    case 0x85: case 0x86: case 0x88: case 0x8C: return 4;
+    case 0x89: case 0x8E: case 0x8F: case 0x90: return 8;
+    default: return 1;
+  }
+}
+function fitReadField(dv, offset, bt, little) {
+  switch(bt) {
+    case 0x00: case 0x02: case 0x0A: return dv.getUint8(offset);
+    case 0x01: return dv.getInt8(offset);
+    case 0x83: return dv.getInt16(offset, little);
+    case 0x84: case 0x8B: return dv.getUint16(offset, little);
+    case 0x85: return dv.getInt32(offset, little);
+    case 0x86: case 0x8C: return dv.getUint32(offset, little);
+    case 0x88: return dv.getFloat32(offset, little);
+    case 0x89: return dv.getFloat64(offset, little);
+    default: return dv.getUint8(offset);
+  }
+}
+function parseFIT(buf) {
+  const dv=new DataView(buf);
+  const headerSize=dv.getUint8(0);
+  const dataSize=dv.getUint32(4, true);
+  let pos=headerSize;
+  const end=headerSize+dataSize;
+  const localDefs={};
+  const records=[];
+  while (pos<end) {
+    const rh=dv.getUint8(pos); pos+=1;
+    let localId;
+    if (rh & 0x40) {
+      localId=rh & 0x0F;
+      pos+=1;
+      const arch=dv.getUint8(pos); pos+=1;
+      const little=arch===0;
+      const gmesg=dv.getUint16(pos, little); pos+=2;
+      const numFields=dv.getUint8(pos); pos+=1;
+      const fields=[];
+      for (let i=0;i<numFields;i++) {
+        fields.push([dv.getUint8(pos), dv.getUint8(pos+1), dv.getUint8(pos+2)]);
+        pos+=3;
+      }
+      localDefs[localId]={little, gmesg, fields};
+      continue;
+    } else if (rh & 0x80) {
+      localId=(rh>>5)&0x03;
+    } else {
+      localId=rh & 0x0F;
+    }
+    const d=localDefs[localId];
+    if (!d) break;
+    const rec={};
+    for (const [fnum,size,btype] of d.fields) {
+      const bsize=fitBaseSize(btype);
+      const n=bsize?Math.max(1,Math.floor(size/bsize)):1;
+      if (n>1) {
+        const arr=[];
+        for (let k=0;k<n;k++) arr.push(fitReadField(dv,pos+k*bsize,btype,d.little));
+        rec[fnum]=arr;
+      } else {
+        rec[fnum]=fitReadField(dv,pos,btype,d.little);
+      }
+      pos+=size;
+    }
+    if (d.gmesg===20) {
+      const lat=rec[0]!=null && rec[0]!==-2147483648 ? rec[0]*(180/2147483648) : null;
+      const lon=rec[1]!=null && rec[1]!==-2147483648 ? rec[1]*(180/2147483648) : null;
+      const ts=rec[253];
+      const tMs=ts!=null ? (ts+FIT_EPOCH_OFFSET)*1000 : null;
+      const hr=rec[3]!=null && rec[3]!==255 ? rec[3] : NaN;
+      const cadence=rec[4]!=null && rec[4]!==255 ? rec[4] : NaN;
+      const dist=rec[5]!=null && rec[5]!==4294967295 ? rec[5]/100 : null;
+      let speed=NaN;
+      if (rec[73]!=null && rec[73]!==4294967295) speed=rec[73]/1000;
+      else if (rec[6]!=null && rec[6]!==65535) speed=rec[6]/1000;
+      records.push({tMs, lat, lon, hr, cadence, dist, speed});
+    }
+  }
+  return records;
+}
+
+function parseTCX(xmlText) {
+  const doc=new DOMParser().parseFromString(xmlText, 'text/xml');
+  const tps=Array.from(doc.getElementsByTagName('Trackpoint'));
+  return tps.map(tp => {
+    const timeEl=tp.getElementsByTagName('Time')[0];
+    const tMs=timeEl ? Date.parse(timeEl.textContent) : null;
+    const hrEl=tp.getElementsByTagName('HeartRateBpm')[0];
+    const hr=hrEl ? parseFloat(hrEl.getElementsByTagName('Value')[0].textContent) : NaN;
+    let cadence=NaN;
+    const cadEl=tp.getElementsByTagName('Cadence')[0];
+    if (cadEl) cadence=parseFloat(cadEl.textContent);
+    if (isNaN(cadence)) {
+      const rcadEl=tp.getElementsByTagName('RunCadence')[0];
+      if (rcadEl) cadence=parseFloat(rcadEl.textContent);
+    }
+    const latEl=tp.getElementsByTagName('LatitudeDegrees')[0];
+    const lonEl=tp.getElementsByTagName('LongitudeDegrees')[0];
+    const lat=latEl ? parseFloat(latEl.textContent) : null;
+    const lon=lonEl ? parseFloat(lonEl.textContent) : null;
+    const distEl=tp.getElementsByTagName('DistanceMeters')[0];
+    const dist=distEl ? parseFloat(distEl.textContent) : null;
+    let speed=NaN;
+    const spdEl=tp.getElementsByTagName('Speed')[0];
+    if (spdEl) speed=parseFloat(spdEl.textContent);
+    return {tMs, lat, lon, hr, cadence, dist, speed};
+  });
+}
+
+function garminToAnalyserFmt(records, filename) {
+  records=records.filter(r=>r.tMs!=null).sort((a,b)=>a.tMs-b.tMs);
+  const t0=records.length ? records[0].tMs : Date.now();
+  const tEnd=records.length ? records[records.length-1].tMs : t0;
+  const strokes=records.map((r,i) => {
+    const speed=r.speed>0.05 ? r.speed : null;
+    const rate=r.cadence>0 ? r.cadence : NaN;
+    const pace=speed ? 500/speed : NaN;
+    const dps=(speed && rate>0) ? speed*60/rate : NaN;
+    return {
+      n:i+1, ms:r.tMs-t0, elapsed:(r.tMs-t0)/1000,
+      slope:NaN, schar:NaN, consistency:NaN,
+      rate, pace, dist:r.dist!=null?r.dist:NaN, dps,
+      rloss:NaN, runeff:NaN, impulse:NaN,
+      ratio:NaN, oarAngle:NaN, checkDelta:NaN,
+      catchDuration:NaN, speedLossPct:NaN, speedGainPct:NaN,
+      curve:null, curveDriveFrac:null,
+    };
+  });
+  const hr=records.filter(r=>r.hr>0).map(r=>({ts:new Date(r.tMs).toISOString(), bpm:r.hr}));
+  const gpsTrace=records.filter(r=>r.lat!=null&&r.lon!=null).map(r=>({lat:r.lat, lon:r.lon, t:r.tMs-t0, dist:r.dist!=null?r.dist:null}));
+  const validRates=strokes.map(s=>s.rate).filter(v=>!isNaN(v));
+  const avgRate=validRates.length ? validRates.reduce((a,b)=>a+b,0)/validRates.length : NaN;
+  const maxRate=validRates.length ? Math.max(...validRates) : NaN;
+  const dist=records.length ? (records[records.length-1].dist||0) : 0;
+  const dur=(tEnd-t0)/1000;
+  const sum={
+    start_time:new Date(t0).toISOString(),
+    end_time:new Date(tEnd).toISOString(),
+    duration_s:dur, distance_m:dist, stroke_count:strokes.length,
+    avg_pace_s_per_500m:(dist>0&&dur>0)?(dur/dist)*500:NaN,
+    avg_rate_spm:avgRate, max_rate_spm:maxRate,
+    catch_peak_sess_ms3:NaN, avg_catch_ms3:NaN,
+    avg_dps_m:NaN, avg_moving_pace_s_per_500m:NaN,
+    avg_run_loss_m_per_stroke:NaN, avg_efficiency_vmin_vmax:NaN,
+    avg_impulse:NaN, avg_stroke_char_pct:NaN,
+    avg_catch_consistency_stdev:NaN, avg_oar_angle_deg:NaN,
+    avg_check_delta_ms:NaN, detected_axis:null,
+    cal_noise_floor_ms2:NaN, cal_slope_thresh_ms3:NaN,
+  };
+  return { sum, strokes, hr, laps:[], glaps:[], gpsTrace,
+    workoutLapMetrics:null, workoutId:null, workoutName:null,
+    squadCode:null, name:filename.replace(/\.(fit|tcx)$/i,''), vidSync:null };
+}
+
 
 // ══════════════════════════════════════════════════════════════════════════
 // FILE IO
@@ -841,6 +1003,19 @@ function sessionToAnalyserFmt(s) {
 function loadFile(f,replace) {
   const name=f.name.toLowerCase();
   const reader=new FileReader();
+  if (name.endsWith('.fit')) {
+    reader.onload = e => {
+      try {
+        const records=parseFIT(e.target.result);
+        applySessionUnits(null);
+        const d=garminToAnalyserFmt(records, f.name);
+        if (!d.strokes.length) { alert('No stroke data found in this file.'); return; }
+        addSessionFromData(d, (d.name||f.name), replace);
+      } catch(err) { alert('FIT parse error: '+err.message); console.error(err); }
+    };
+    reader.readAsArrayBuffer(f);
+    return;
+  }
   reader.onload = e => {
     try {
       let d;
@@ -849,6 +1024,10 @@ function loadFile(f,replace) {
         const s=Array.isArray(session)?session[0]:session;
         applySessionUnits(s);
         d=(s.strokes&&s.strokes.length&&typeof s.strokes[0].elapsed==='number')?s:sessionToAnalyserFmt(s);
+      } else if (name.endsWith('.tcx')) {
+        const records=parseTCX(e.target.result);
+        applySessionUnits(null);
+        d=garminToAnalyserFmt(records, f.name);
       } else {
         applySessionUnits(null);
         d=parseCSV(e.target.result);
