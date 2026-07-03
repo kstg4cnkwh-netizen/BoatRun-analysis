@@ -305,7 +305,7 @@
       <button class="hbtn" id="tcxbtn" style="display:none;">⬇ Export TCX</button>
     </div>
   </div>
-  <button class="hbtn" id="openbtn">☁ Open Session</button>
+  <button class="hbtn" id="openbtn">Open Session</button>
   <button class="hbtn" id="hdrThemeBtn">Dark Mode</button>
   <button class="hbtn" id="infobtn" title="What the metrics mean">ⓘ Info</button>
   <button class="hbtn" id="reorderbtn" title="Change tile order">⇅ Reorder</button>
@@ -1148,7 +1148,7 @@ async function showAddComparePicker() {
     content.innerHTML = '<div class="sz-loading">Choose a source above to browse sessions.</div>';
     const srcDefs = [
         { id: 'squad', label: '\ud83d\udce4 Squad' },
-        { id: 'drive', label: '\u2601 Drive' },
+        { id: 'drive', label: 'Google Drive' },
         { id: 'device', label: '\ud83d\udcc2 Device' }
     ];
     const srcBtns = srcDefs.map(s => {
@@ -2966,7 +2966,7 @@ async function showStartup(){
       <div class="ico">🚣</div>
       <h2>BoatRun Analyser</h2>
       <p>Connect Google Drive to access your sessions</p>
-      <button class="dzbtn dzbtn-pri" id="sz-signin">☁ Sign in to Google</button>
+      <button class="dzbtn dzbtn-pri" id="sz-signin">Sign in to Google</button>
       <button class="dzbtn dzbtn-sec" id="sz-squad">📤 From Squad</button>
       <button class="dzbtn dzbtn-sec" id="sz-openfile">📂 Open file</button>
     </div>`;
@@ -2981,6 +2981,7 @@ async function showStartup(){
       <button class="dzbtn dzbtn-sec" id="sz-squad" style="flex:1;">📤 From Squad</button>
       <button class="dzbtn dzbtn-sec" id="sz-openfile" style="flex:1;">📂 Open file</button>
     </div>
+    <div id="sz-summary"></div>
     <div class="sz-lhd">Sessions<span class="sz-signout" id="sz-signout">Sign out</span></div>
     <div id="sz-files" class="sz-loading">Loading…</div>
   </div>`;
@@ -3014,7 +3015,46 @@ async function showStartup(){
         approxTs: ts?new Date(+ts[1],+ts[2]-1,+ts[3],+ts[4],+ts[5]).getTime():0
       };
     }
+    function calcSummary(list){
+      const now=new Date();
+      const sow=new Date(now); const dow=(sow.getDay()+6)%7; sow.setDate(sow.getDate()-dow); sow.setHours(0,0,0,0);
+      const som=new Date(now.getFullYear(),now.getMonth(),1).getTime();
+      const wkTs=sow.getTime();
+      const T={all:{dist:0,dur:0,n:0,strokes:0},month:{dist:0,dur:0,n:0},week:{dist:0,dur:0,n:0}};
+      let longestDist=0;
+      list.forEach(f=>{
+        const p=parseFn(f.name);
+        const ts=p.approxTs||new Date(f.createdTime).getTime()||0;
+        const d=p.distM||0,t=p.durS||0,s=p.strokes||0;
+        T.all.dist+=d;T.all.dur+=t;T.all.n++;T.all.strokes+=s;
+        if(d>longestDist)longestDist=d;
+        if(ts>=som){T.month.dist+=d;T.month.dur+=t;T.month.n++;}
+        if(ts>=wkTs){T.week.dist+=d;T.week.dur+=t;T.week.n++;}
+      });
+      return {T,longestDist};
+    }
+    function renderSummary(){
+      const sumEl=document.getElementById('sz-summary');
+      if(!sumEl)return;
+      const {T,longestDist}=calcSummary(fileList);
+      const avgPace=T.all.dist&&T.all.dur?(T.all.dur/T.all.dist*500):null;
+      const mk=(cls,lbl,val,sub)=>'<div class="card '+cls+'"><div class="lbl">'+lbl+'</div><div class="val">'+val+'</div>'+(sub?'<div class="sub">'+sub+'</div>':'')+'</div>';
+      let html='<div class="sz-lhd">Summary</div><div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(92px,1fr));gap:7px;margin-bottom:16px;">';
+      html+=mk('cb','Sessions',T.all.n);
+      html+=mk('cg','Total Dist',(T.all.dist/1000).toFixed(1)+'km');
+      html+=mk('cg','Total Time',fmtTime(T.all.dur));
+      html+=mk('cy','Month Dist',(T.month.dist/1000).toFixed(1)+'km',T.month.n+' sessions');
+      html+=mk('cy','Month Time',fmtTime(T.month.dur));
+      html+=mk('co','Week Dist',(T.week.dist/1000).toFixed(1)+'km',T.week.n+' sessions');
+      html+=mk('co','Week Time',fmtTime(T.week.dur));
+      if(avgPace!=null)html+=mk('cb','Avg Pace',fmtPace(avgPace));
+      if(longestDist)html+=mk('cp','Longest',(longestDist/1000).toFixed(1)+'km');
+      if(T.all.strokes)html+=mk('cd','Total Strokes',T.all.strokes.toLocaleString());
+      html+='</div>';
+      sumEl.innerHTML=html;
+    }
     function renderList(){
+      renderSummary();
       container.innerHTML='';
       fileList.forEach(f=>{
         const p=parseFn(f.name);
