@@ -405,9 +405,11 @@
     <div class="sec-hd">
       <h2>Video Overlay</h2>
       <span class="vid-mini" style="margin-left:6px;">Overlay live metrics &amp; curve on coach video</span>
-      <button class="hbtn" id="vidAddBtn" style="margin-left:auto;font-size:10px;">＋ Add video</button>
+      <button class="hbtn" id="vidDirBtn" style="margin-left:auto;font-size:10px;">&#128193; Video folder</button>
+      <button class="hbtn" id="vidAddBtn" style="font-size:10px;">＋ Add video</button>
     </div>
     <input type="file" id="vidFin" accept="video/*" multiple style="display:none">
+    <div id="vidMatchBox" style="margin:6px 0;"></div>
     <div id="vidBody"></div>
   </div>
 
@@ -850,7 +852,8 @@ function sessionToAnalyserFmt(s) {
     workoutName: s.workoutName || null,
     squadCode: s.squadCode || null,
     name: s.name || null,
-    vidSync: s.vidSync || null };
+    vidSync: s.vidSync || null,
+    videoFlags: s.videoFlags || null };
 }
 // ══════════════════════════════════════════════════════════════════════════
 // GARMIN FIT / TCX IMPORT
@@ -3410,9 +3413,12 @@ const VID_METRIC_ORDER = ['rate','pace','dps','slope','impulse','rloss','schar',
 function vidOnMount(d){
   vidTeardown();
   VID_SESS_T0 = (d.strokes && d.strokes[0] && d.strokes[0].ms) || Date.parse(d.sum && d.sum.start_time) || 0;
+  VID_SESS_DUR_MS = (+(d.sum && d.sum.duration_s) || 0)*1000;
+  VID_FLAGS = d.videoFlags || [];
   document.getElementById('videosec').style.display='block';
   if(!VID.built){ vidWire(); VID.built=true; }
   vidRenderBody();
+  vidScanMatches();
 }
 
 function vidTeardown(){
@@ -3426,8 +3432,108 @@ function vidTeardown(){
   }
 }
 
+let VID_SESS_DUR_MS = 0;
+let VID_FLAGS = [];
+const AnVidDirDB = (() => {
+  const DB_NAME = 'boatrun_analyser_viddir', STORE = 'handles';
+  function open() {
+    return new Promise((res, rej) => {
+      const req = indexedDB.open(DB_NAME, 1);
+      req.onupgradeneeded = () => req.result.createObjectStore(STORE);
+      req.onsuccess = () => res(req.result);
+      req.onerror = () => rej(req.error);
+    });
+  }
+  async function get(key) {
+    const db = await open();
+    return new Promise((res, rej) => {
+      const rq = db.transaction(STORE, 'readonly').objectStore(STORE).get(key);
+      rq.onsuccess = () => res(rq.result || null);
+      rq.onerror = () => rej(rq.error);
+    });
+  }
+  async function set(key, val) {
+    const db = await open();
+    return new Promise((res, rej) => {
+      const tx = db.transaction(STORE, 'readwrite');
+      tx.objectStore(STORE).put(val, key);
+      tx.oncomplete = () => res();
+      tx.onerror = () => rej(tx.error);
+    });
+  }
+  return { get, set };
+})();
+let _anVidDirHandle = null;
+async function loadAnVidDir() {
+  try { _anVidDirHandle = await AnVidDirDB.get('vidDir'); } catch { _anVidDirHandle = null; }
+  vidScanMatches();
+}
+async function chooseAnVidDir() {
+  if (!window.showDirectoryPicker) { toast('Folder picker not supported in this browser'); return; }
+  try {
+    const h = await window.showDirectoryPicker();
+    _anVidDirHandle = h;
+    await AnVidDirDB.set('vidDir', h);
+    toast('Video folder set: ' + h.name);
+    vidScanMatches();
+  } catch (e) {}
+}
+async function vidScanMatches() {
+  const box = document.getElementById('vidMatchBox');
+  if (!box) return;
+  if (!VID_SESS_T0) { box.innerHTML = ''; return; }
+  const flags = VID_FLAGS || [];
+  if (!_anVidDirHandle) {
+    if (flags.length) {
+      box.innerHTML = '<div class="vid-mini">This session has ' + flags.length + ' coach video' + (flags.length > 1 ? 's' : '') + ' recorded. <button class="vid-clip-tab" onclick="chooseAnVidDir()">Choose video folder</button> to find ' + (flags.length > 1 ? 'them' : 'it') + '.</div>';
+    } else { box.innerHTML = ''; }
+    return;
+  }
+  try {
+    let perm = await _anVidDirHandle.queryPermission({ mode: 'read' });
+    if (perm !== 'granted') perm = await _anVidDirHandle.requestPermission({ mode: 'read' });
+    if (perm !== 'granted') { box.innerHTML = ''; return; }
+    const flagged = [];
+    for (const f of flags) {
+      try { await _anVidDirHandle.getFileHandle(f.id); flagged.push(f.id); } catch (e) {}
+    }
+    const lo = VID_SESS_T0 - 15 * 60 * 1000;
+    const hi = VID_SESS_T0 + VID_SESS_DUR_MS + 15 * 60 * 1000;
+    const others = [];
+    for await (const [name, handle] of _anVidDirHandle.entries()) {
+      if (handle.kind !== 'file') continue;
+      if (flagged.includes(name)) continue;
+      const m = /_([0-9]{13})\.(webm|mp4|mov)$/i.exec(name);
+      if (!m) continue;
+      const ms = parseInt(m[1], 10);
+      if (ms >= lo && ms <= hi) others.push({ name, ms });
+    }
+    others.sort((a, b) => a.ms - b.ms);
+    let html = '';
+    if (flagged.length) {
+      html += '<div class="vid-mini" style="margin-bottom:4px;">\u2714 Coach video' + (flagged.length > 1 ? 's' : '') + ' for this session:</div>' +
+        flagged.map(name => `<button class="vid-clip-tab" style="background:var(--b);color:#000;border-color:var(--b);" onclick="vidAddFromDir('${name.replace(/'/g, "\\'")}')">${vidShort(name)}</button>`).join('');
+    }
+    if (others.length) {
+      html += '<div class="vid-mini" style="margin:6px 0 4px;">Other videos near this session time:</div>' +
+        others.map(m => `<button class="vid-clip-tab" onclick="vidAddFromDir('${m.name.replace(/'/g, "\\'")}')">${vidShort(m.name)} \u2014 ${new Date(m.ms).toLocaleTimeString()}</button>`).join('');
+    }
+    if (!html) html = flags.length ? '<div class="vid-mini">Coach video' + (flags.length > 1 ? 's' : '') + ' flagged for this session, but not found in the chosen folder.</div>' : '';
+    box.innerHTML = html;
+  } catch (e) { box.innerHTML = ''; }
+}
+async function vidAddFromDir(name) {
+  if (!_anVidDirHandle) return;
+  try {
+    const fh = await _anVidDirHandle.getFileHandle(name);
+    const file = await fh.getFile();
+    vidAddClip(file);
+  } catch (e) { toast('Could not open ' + name); }
+}
+
 function vidWire(){
   document.getElementById('vidAddBtn').onclick=()=>document.getElementById('vidFin').click();
+  document.getElementById('vidDirBtn').onclick=chooseAnVidDir;
   document.getElementById('vidFin').onchange=e=>{
     const files=[...e.target.files];
     e.target.value='';
@@ -4338,6 +4444,7 @@ window.addEventListener('resize',()=>{ if(VID.clips.length){ vidSizeOverlay(); v
 
 // ── Init ─────────────────────────────────────────────────────────────────────
 AnalyserDrive.init();
+loadAnVidDir();
 (function(){
   const xfer=localStorage.getItem('scull_xfer_session');
   if(xfer){
