@@ -2228,16 +2228,17 @@ function computeGroupCurve(strokes){
   const valid=strokes.filter(s=>s.curve&&s.curve.length===CURVE_POINTS);
   if(!valid.length)return null;
   const avg=new Array(CURVE_POINTS).fill(0);
-  let dfSum=0,rateSum=0,rateN=0,dpsSum=0,dpsN=0;
+  let dfSum=0,rateSum=0,rateN=0,dpsSum=0,dpsN=0,paceSum=0,paceN=0;
   for(const s of valid){
     for(let i=0;i<CURVE_POINTS;i++)avg[i]+=s.curve[i];
     dfSum+=(s.curveDriveFrac||0.5);
     if(s.rate>5&&s.rate<50){rateSum+=s.rate;rateN++;}
     if(s.dps>1&&s.dps<25){dpsSum+=s.dps;dpsN++;}
+    if(s.pace>50&&s.pace<500){paceSum+=s.pace;paceN++;}
   }
   for(let i=0;i<CURVE_POINTS;i++)avg[i]/=valid.length;
   return{data:avg,driveFrac:dfSum/valid.length,n:valid.length,total:strokes.length,
-    avgRate:rateN?rateSum/rateN:null,avgDPS:dpsN?dpsSum/dpsN:null};
+    avgRate:rateN?rateSum/rateN:null,avgDPS:dpsN?dpsSum/dpsN:null,avgPace:paceN?paceSum/paceN:null};
 }
 
 function buildCurveSection(){
@@ -2293,7 +2294,7 @@ function drawCurvePanel(){
   // x=0 is blade entry (catch) — no rotation needed, curve is already catch-to-catch
   const enriched=curves.map(c=>{
     const sp=integrateSpeed(c.data,c.avgRate,c.avgDPS);
-    return{...c,accelRot:c.data,catchFrac:0,finishFrac:c.driveFrac,speed:sp?sp.v:null,T:sp?sp.T:null};
+    return{...c,accelRot:c.data,catchFrac:0,finishFrac:c.driveFrac,speed:sp?sp.v:null,T:sp?sp.T:null,avgSpeedMS:c.avgPace?500/c.avgPace:null};
   });
 
   const maxT=Math.max(...enriched.map(c=>c.T||0));
@@ -2317,7 +2318,10 @@ function drawCurvePanel(){
 
   // Speed Y range
   let sMin=Infinity,sMax=-Infinity;
-  enriched.forEach(c=>{if(!c.speed)return;c.speed.forEach(v=>{if(v<sMin)sMin=v;if(v>sMax)sMax=v;});});
+  enriched.forEach(c=>{
+    if(c.speed)c.speed.forEach(v=>{if(v<sMin)sMin=v;if(v>sMax)sMax=v;});
+    if(c.avgSpeedMS!=null){if(c.avgSpeedMS<sMin)sMin=c.avgSpeedMS;if(c.avgSpeedMS>sMax)sMax=c.avgSpeedMS;}
+  });
   const hasSpeeds=sMin<Infinity;
   if(hasSpeeds){const sp=(sMax-sMin)*0.12;sMin-=sp;sMax+=sp;}
   const sRng=sMax-sMin||1;
@@ -2360,7 +2364,7 @@ function drawCurvePanel(){
 
     [[accelTop,ph1],[speedTop,ph2]].forEach(([top,ph])=>{
       if(finishX>0){
-        ctx.setLineDash([3,4]);ctx.strokeStyle=c.color;ctx.lineWidth=1;ctx.globalAlpha=0.45;
+        ctx.setLineDash([3,4]);ctx.strokeStyle=c.color;ctx.lineWidth=2;ctx.globalAlpha=0.45;
         ctx.beginPath();ctx.moveTo(finishX,top);ctx.lineTo(finishX,top+ph);ctx.stroke();
         ctx.setLineDash([]);ctx.globalAlpha=1;
       }
@@ -2383,6 +2387,17 @@ function drawCurvePanel(){
       ctx.beginPath();
       for(let i=0;i<CURVE_POINTS;i++){const x=toPx(i*step);i===0?ctx.moveTo(x,toSY(c.speed[i])):ctx.lineTo(x,toSY(c.speed[i]));}
       ctx.strokeStyle=c.color;ctx.lineWidth=2.5;ctx.stroke();
+    }
+
+    // Average speed per stroke (avg pace converted to m/s) — dashed line
+    if(hasSpeeds&&c.avgSpeedMS!=null){
+      ctx.save();
+      ctx.beginPath();ctx.rect(PL,speedTop,pw,ph2);ctx.clip();
+      const ySp=toSY(c.avgSpeedMS);
+      ctx.setLineDash([5,3]);ctx.strokeStyle=c.color;ctx.lineWidth=1.5;ctx.globalAlpha=1;
+      ctx.beginPath();ctx.moveTo(PL,ySp);ctx.lineTo(PL+pw,ySp);ctx.stroke();
+      ctx.setLineDash([]);
+      ctx.restore();
     }
   });
 
@@ -2448,7 +2463,7 @@ function showCurveTooltip(clientX,clientY){
   const C=pal();
   const ctx=canvas.getContext('2d');
   ctx.save();
-  ctx.strokeStyle=C.frameLn;ctx.lineWidth=1;ctx.setLineDash([3,3]);
+  ctx.strokeStyle=document.body.classList.contains('light')?'#000':'#fff';ctx.lineWidth=2;ctx.setLineDash([3,3]);
   ctx.beginPath();ctx.moveTo(lineX,pTop);ctx.lineTo(lineX,pBot);ctx.stroke();
   ctx.restore();
 
