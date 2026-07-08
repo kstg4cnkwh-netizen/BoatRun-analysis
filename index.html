@@ -3454,7 +3454,7 @@ function vidAddClip(file){
   const url=URL.createObjectURL(file);
   const id=file.name+':'+file.size;
   const savedSync=SESSIONS[activeSessionIdx]?.d?.vidSync?.[id];
-  const clip={ name:file.name, url, el:null, offset:savedSync!=null?savedSync.offset:0, probedMs:null, file, _id:id };
+  const clip={ name:file.name, url, el:null, offset:savedSync!=null?savedSync.offset:0, probedMs:null, probeSource:null, file, _id:id };
   if(savedSync!=null) setTimeout(()=>toast('\u2714 Sync restored: offset '+clip.offset+'s'),400);
   VID.clips.push(clip);
   VID.active=VID.clips.length-1;
@@ -3464,9 +3464,13 @@ function vidAddClip(file){
   }
   vidRenderBody();
   // try to auto-detect capture time in background
-  vidProbeTime(file).then(ms=>{
-    clip.probedMs=ms;
-    if(ms && VID_SESS_T0 && savedSync==null){ clip.offset=Math.round((VID_SESS_T0 - ms)/1000*10)/10; }
+  vidProbeTime(file).then(res=>{
+    clip.probedMs=res && res.ms;
+    clip.probeSource=res && res.source;
+    if(clip.probedMs && VID_SESS_T0 && savedSync==null){
+      clip.offset=Math.round((VID_SESS_T0 - clip.probedMs)/1000*10)/10;
+      setTimeout(()=>toast('\u2714 Auto-synced from coach video timestamp (offset '+clip.offset+'s)'),450);
+    }
     if(VID.clips[VID.active]===clip) vidRenderBody();
   }).catch(()=>{});
 }
@@ -3497,7 +3501,7 @@ function vidRenderBody(){
   const cfg=VID.cfg;
   const tabs=VID.clips.map((c,i)=>`<div class="vid-clip-tab${i===VID.active?' on':''}" onclick="vidSetActive(${i})">${vidShort(c.name)}<span class="x" onclick="event.stopPropagation();vidRemoveClip(${i})">\u00D7</span></div>`).join('');
   const mchips=VID_METRIC_ORDER.map(k=>`<div class="vid-mchip${cfg.metrics.includes(k)?' on':''}" onclick="vidToggleMetric('${k}')">${VID_METRICS[k].l}</div>`).join('');
-  const probe = a.probedMs ? ('capture \u2248 '+new Date(a.probedMs).toLocaleTimeString()) : 'no capture time in file';
+  const probe = a.probedMs ? ((a.probeSource==='filename'?'Coach clip start ':'capture \u2248 ')+new Date(a.probedMs).toLocaleTimeString()) : 'no capture/coach timestamp found';
 
   body.innerHTML=`
   <div class="vid-clip-tabs">${tabs}</div>
@@ -3802,6 +3806,8 @@ function vidAutoTime(){
 // Parse MP4 mvhd creation_time. Reads head + tail only.
 function vidProbeTime(file){
   return new Promise((resolve)=>{
+    const m=/_([0-9]{13})\.webm$/i.exec(file.name);
+    if(m){ resolve({ms:parseInt(m[1],10), source:'filename'}); return; }
     const HEAD=Math.min(file.size, 96*1024);
     const TAIL=Math.min(file.size, 3*1024*1024);
     const findMvhd=(buf)=>{
@@ -3821,9 +3827,10 @@ function vidProbeTime(file){
     const readBlob=(blob)=>blob.arrayBuffer();
     readBlob(file.slice(0,HEAD)).then(h=>{
       let ms=findMvhd(h);
-      if(ms){ resolve(ms); return; }
+      if(ms){ resolve({ms,source:'mp4'}); return; }
       readBlob(file.slice(Math.max(0,file.size-TAIL))).then(t=>{
-        resolve(findMvhd(t));
+        const ms2=findMvhd(t);
+        resolve(ms2?{ms:ms2,source:'mp4'}:null);
       }).catch(()=>resolve(null));
     }).catch(()=>resolve(null));
   });
