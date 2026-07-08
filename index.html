@@ -409,6 +409,7 @@
       <button class="hbtn" id="vidAddBtn" style="font-size:10px;">＋ Add video</button>
     </div>
     <input type="file" id="vidFin" accept="video/*" multiple style="display:none">
+    <input type="file" id="vidDirFin" accept="video/*" multiple webkitdirectory style="display:none">
     <div id="vidMatchBox" style="margin:6px 0;"></div>
     <div id="vidBody"></div>
   </div>
@@ -3479,44 +3480,58 @@ const AnVidDirDB = (() => {
   return { get, set };
 })();
 let _anVidDirHandle = null;
+let _anVidDirFiles = null;
 async function loadAnVidDir() {
   try { _anVidDirHandle = await AnVidDirDB.get('vidDir'); } catch { _anVidDirHandle = null; }
   vidScanMatches();
 }
 async function chooseAnVidDir() {
-  if (!window.showDirectoryPicker) { toast('Folder picker not supported in this browser'); return; }
-  try {
-    const h = await window.showDirectoryPicker();
-    _anVidDirHandle = h;
-    await AnVidDirDB.set('vidDir', h);
-    toast('Video folder set: ' + h.name);
-    vidScanMatches();
-  } catch (e) {}
+  if (window.showDirectoryPicker) {
+    try {
+      const h = await window.showDirectoryPicker();
+      _anVidDirHandle = h;
+      _anVidDirFiles = null;
+      await AnVidDirDB.set('vidDir', h);
+      toast('Video folder set: ' + h.name);
+      vidScanMatches();
+    } catch (e) {}
+    return;
+  }
+  const fin = document.getElementById('vidDirFin');
+  if (fin) fin.click();
 }
 async function vidScanMatches() {
   const box = document.getElementById('vidMatchBox');
   if (!box) return;
   if (!VID_SESS_T0) { box.innerHTML = ''; return; }
   const flags = VID_FLAGS || [];
-  if (!_anVidDirHandle) {
+  if (!_anVidDirHandle && !_anVidDirFiles) {
     if (flags.length) {
       box.innerHTML = '<div class="vid-mini">This session has ' + flags.length + ' coach video' + (flags.length > 1 ? 's' : '') + ' recorded. <button class="vid-clip-tab" onclick="chooseAnVidDir()">Choose video folder</button> to find ' + (flags.length > 1 ? 'them' : 'it') + '.</div>';
     } else { box.innerHTML = ''; }
     return;
   }
   try {
-    let perm = await _anVidDirHandle.queryPermission({ mode: 'read' });
-    if (perm !== 'granted') perm = await _anVidDirHandle.requestPermission({ mode: 'read' });
-    if (perm !== 'granted') { box.innerHTML = ''; return; }
+    let names = [];
+    if (_anVidDirHandle) {
+      let perm = await _anVidDirHandle.queryPermission({ mode: 'read' });
+      if (perm !== 'granted') perm = await _anVidDirHandle.requestPermission({ mode: 'read' });
+      if (perm !== 'granted') { box.innerHTML = ''; return; }
+      for await (const [name, handle] of _anVidDirHandle.entries()) {
+        if (handle.kind !== 'file') continue;
+        names.push(name);
+      }
+    } else {
+      names = [..._anVidDirFiles.keys()];
+    }
     const flagged = [];
     for (const f of flags) {
-      try { await _anVidDirHandle.getFileHandle(f.id); flagged.push(f.id); } catch (e) {}
+      if (names.includes(f.id)) flagged.push(f.id);
     }
     const lo = VID_SESS_T0 - 15 * 60 * 1000;
     const hi = VID_SESS_T0 + VID_SESS_DUR_MS + 15 * 60 * 1000;
     const others = [];
-    for await (const [name, handle] of _anVidDirHandle.entries()) {
-      if (handle.kind !== 'file') continue;
+    for (const name of names) {
       if (flagged.includes(name)) continue;
       const m = /_([0-9]{13})\.(webm|mp4|mov)$/i.exec(name);
       if (!m) continue;
@@ -3538,17 +3553,37 @@ async function vidScanMatches() {
   } catch (e) { box.innerHTML = ''; }
 }
 async function vidAddFromDir(name) {
-  if (!_anVidDirHandle) return;
-  try {
-    const fh = await _anVidDirHandle.getFileHandle(name);
-    const file = await fh.getFile();
-    vidAddClip(file);
-  } catch (e) { toast('Could not open ' + name); }
+  if (_anVidDirHandle) {
+    try {
+      const fh = await _anVidDirHandle.getFileHandle(name);
+      const file = await fh.getFile();
+      vidAddClip(file);
+    } catch (e) { toast('Could not open ' + name); }
+    return;
+  }
+  if (_anVidDirFiles) {
+    const file = _anVidDirFiles.get(name);
+    if (file) { vidAddClip(file); return; }
+  }
+  toast('Could not open ' + name);
 }
 
 function vidWire(){
   document.getElementById('vidAddBtn').onclick=()=>document.getElementById('vidFin').click();
   document.getElementById('vidDirBtn').onclick=chooseAnVidDir;
+  document.getElementById('vidDirFin').onchange=e=>{
+    const files=[...e.target.files];
+    e.target.value='';
+    if(!files.length) return;
+    _anVidDirFiles=new Map();
+    files.forEach(f=>{
+      const name=f.webkitRelativePath?f.webkitRelativePath.split('/').pop():f.name;
+      _anVidDirFiles.set(name,f);
+    });
+    _anVidDirHandle=null;
+    toast('Video folder set: '+files.length+' file'+(files.length>1?'s':''));
+    vidScanMatches();
+  };
   document.getElementById('vidFin').onchange=e=>{
     const files=[...e.target.files];
     e.target.value='';
@@ -3570,6 +3605,7 @@ function vidWire(){
   document.addEventListener('fullscreenchange',fsc);
   document.addEventListener('webkitfullscreenchange',fsc);
 }
+
 
 function vidAddClip(file){
   const url=URL.createObjectURL(file);
