@@ -1865,7 +1865,7 @@ function drawMain(){
   if(ratv.length){const[lo,hi]=pctBounds(ratv,0.05,0.95,0.10);yRatMin=1;yRatMax=Math.min(5.0,hi);}
   const toYRatio=v=>PT+ph-(v-yRatMin)/(yRatMax-yRatMin||1)*ph;
   let yAngMin=0,yAngMax=130;
-  if(angv.length){const[lo,hi]=pctBounds(angv,0.05,0.95,0.08);yAngMin=0;yAngMax=Math.min(180,hi);}
+  if(angv.length){const[lo,hi]=pctBounds(angv,0.05,0.95,0.08);yAngMin=Math.max(0,lo);yAngMax=Math.min(180,hi);}
   const toYAngle=v=>PT+ph-(v-yAngMin)/(yAngMax-yAngMin||1)*ph;
   let yCDMin=85,yCDMax=100;
   if(cdv.length){const[lo,hi]=pctBounds(cdv,0.03,0.97,0.10);yCDMin=Math.max(50,lo);yCDMax=Math.min(100,hi);}
