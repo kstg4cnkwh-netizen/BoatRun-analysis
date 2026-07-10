@@ -3625,7 +3625,7 @@ function vidAddClip(file){
     clip.probedMs=res && res.ms;
     clip.probeSource=res && res.source;
     if(clip.probedMs && VID_SESS_T0 && savedSync==null){
-      clip.offset=Math.round((VID_SESS_T0 - clip.probedMs)/1000*10)/10;
+      clip.offset=Math.round((clip.probedMs - VID_SESS_T0)/1000*10)/10;
       setTimeout(()=>toast('\u2714 Auto-synced from coach video timestamp (offset '+clip.offset+'s)'),450);
     }
     if(VID.clips[VID.active]===clip) vidRenderBody();
@@ -3955,7 +3955,7 @@ function vidAutoTime(){
   const a=VID.clips[VID.active]; if(!a) return;
   if(!a.probedMs){ toast('No capture time found in this file'); return; }
   if(!VID_SESS_T0){ toast('Session start time unknown'); return; }
-  a.offset=Math.round((VID_SESS_T0 - a.probedMs)/1000*10)/10;
+  a.offset=Math.round((a.probedMs - VID_SESS_T0)/1000*10)/10;
   const inp=document.getElementById('vidOffset'); if(inp) inp.value=a.offset;
   toast('Auto offset '+a.offset+'s (verify with a known moment)'); vidDraw(); vidQueueSaveSync();
 }
