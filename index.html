@@ -93,9 +93,9 @@
   .c-cdur{border-top:3px solid var(--mc-cdur)}.c-cdur .val{color:var(--mc-cdur)}
   .c-speedloss{border-top:3px solid var(--mc-speedloss)}.c-speedloss .val{color:var(--mc-speedloss)}
   .c-speedgain{border-top:3px solid var(--mc-speedgain)}.c-speedgain .val{color:var(--mc-speedgain)}
-.sumgrp{margin-bottom:14px;}
+.sumgrp{margin-bottom:6px;}
 .sumgrp-hd{font-size:9px;font-weight:600;letter-spacing:.08em;color:var(--muted);text-transform:uppercase;margin-bottom:6px;display:flex;align-items:center;gap:8px;}
-.sumgrp-cards{display:grid;grid-template-columns:repeat(auto-fill,minmax(92px,1fr));gap:7px;}
+.sumgrp-cards{display:grid;grid-template-columns:repeat(auto-fill,minmax(92px,1fr));gap:4px;}
 .sumnav{display:flex;align-items:center;gap:6px;margin-left:auto;text-transform:none;letter-spacing:0;}
 .sumnav button{background:var(--s2);border:1px solid var(--border);color:var(--muted);width:18px;height:18px;border-radius:5px;font-size:11px;line-height:1;cursor:pointer;padding:0;}
 .sumnav button:hover{border-color:var(--b);color:var(--b);}
@@ -235,7 +235,7 @@
 .sz-prompt h2{font-size:1.1rem;font-weight:700;margin:0;}
 .sz-prompt p{font-size:.85rem;color:var(--muted);margin:0;}
 .sz-list{width:100%;max-width:480px;}
-.sz-lhd{font-size:.75rem;font-weight:600;letter-spacing:.1em;color:var(--muted);text-transform:uppercase;margin-bottom:12px;display:flex;align-items:center;justify-content:space-between;}
+.sz-lhd{font-size:.75rem;font-weight:600;letter-spacing:.1em;color:var(--muted);text-transform:uppercase;margin-bottom:2px;display:flex;align-items:center;justify-content:space-between;}
 .sz-signout{font-size:.75rem;color:var(--b);cursor:pointer;font-weight:400;text-transform:none;letter-spacing:0;}
 .sz-signout:hover{text-decoration:underline;}
 .sz-file-row{display:flex;align-items:center;gap:6px;margin-bottom:6px;}
@@ -251,9 +251,9 @@
 .asc-l{font-size:7px;color:var(--muted);letter-spacing:.1em;text-transform:uppercase;display:block;}
 .sz-loading{color:var(--muted);font-size:.85rem;padding:20px 0;text-align:center;}
 .sz-drop-hint{font-size:.75rem;color:var(--faint);margin-top:20px;text-align:center;}
-.sumgrp{margin-bottom:14px;}
+.sumgrp{margin-bottom:6px;}
 .sumgrp-hd{font-size:9px;font-weight:600;letter-spacing:.08em;color:var(--muted);text-transform:uppercase;margin-bottom:6px;display:flex;align-items:center;gap:8px;}
-.sumgrp-cards{display:grid;grid-template-columns:repeat(auto-fill,minmax(92px,1fr));gap:7px;}
+.sumgrp-cards{display:grid;grid-template-columns:repeat(auto-fill,minmax(92px,1fr));gap:4px;}
 .sumnav{display:flex;align-items:center;gap:6px;margin-left:auto;text-transform:none;letter-spacing:0;}
 .sumnav button{background:var(--s2);border:1px solid var(--border);color:var(--muted);width:18px;height:18px;border-radius:5px;font-size:11px;line-height:1;cursor:pointer;padding:0;}
 .sumnav button:hover{border-color:var(--b);color:var(--b);}
@@ -3101,9 +3101,9 @@ async function showStartup(){
     </div>
     <div id="sz-summary"></div>
     <div id="sz-records"></div>
-    <div style="display:flex;gap:8px;margin-top:8px;">
-      <button class="dzbtn dzbtn-sec" id="sz-rescan" style="flex:1;">🔄 Scan All for Records</button>
-      <button class="dzbtn dzbtn-sec" id="sz-resetrecords" style="flex:1;">🗑️ Reset Records</button>
+    <div style="display:flex;gap:8px;margin-top:4px;margin-bottom:10px;">
+      <button class="dzbtn dzbtn-sec" id="sz-rescan" style="flex:1;margin-top:0;">🔄 Scan All for Records</button>
+      <button class="dzbtn dzbtn-sec" id="sz-resetrecords" style="flex:1;margin-top:0;">🗑️ Reset Records</button>
     </div>
     <div class="sz-lhd">Sessions<span class="sz-signout" id="sz-signout">Sign out</span></div>
     <div id="sz-files" class="sz-loading">Loading…</div>
@@ -3112,7 +3112,7 @@ async function showStartup(){
   document.getElementById('sz-squad').onclick=loadFromSquad;
   document.getElementById('sz-openfile').onclick=()=>document.getElementById('fin').click();
   document.getElementById('sz-resetrecords').onclick=()=>{
-    if(!confirm('Reset all Personal Bests? This cannot be undone.'))return;
+    if(!confirm('Reset all Personal Bests? Re-scan to restore.'))return;
     RECORDS_DB={};
     try{localStorage.setItem('br_records','{}');}catch{}
     renderRecords();
