@@ -1113,8 +1113,19 @@ function updateRecords(gpsTrace, label, dateISO, fileId) {
   }
 }
 function fmtRecordTime(ms) {
-  const s=ms/1000, m=Math.floor(s/60), ss=(s-m*60).toFixed(1);
-  return m+':'+(ss<10?'0':'')+ss;
+  const s=ms/1000;
+  const hh=Math.floor(s/3600);
+  const mm=Math.floor((s%3600)/60);
+  const ss=(s%60).toFixed(1);
+  const mmStr=(hh>0&&mm<10?'0':'')+mm;
+  const ssStr=(ss<10?'0':'')+ss;
+  return hh>0 ? (hh+':'+mmStr+':'+ssStr) : (mm+':'+ssStr);
+}
+function fmtRecordDate(dateISO) {
+  if (!dateISO) return '';
+  const d=new Date(dateISO);
+  if (isNaN(d.getTime())) return '';
+  return d.toLocaleDateString('en-AU',{day:'numeric',month:'short',year:'numeric'});
 }
 function renderRecords() {
   const el=document.getElementById('sz-records');
@@ -1125,11 +1136,13 @@ function renderRecords() {
     const r=RECORDS_DB[d];
     const lbl=d>=1000?(d/1000)+'km':d+'m';
     const val=r?fmtRecordTime(r.timeMs):'—';
-    html+='<div class="card cb" style="cursor:'+(r&&r.fileId?'pointer':'default')+';" onclick="'+(r&&r.fileId?'window.loadRecordSession(\''+d+'\')':'')+'"><div class="lbl">'+lbl+'</div><div class="val">'+val+'</div></div>';
+    const dateStr=r?fmtRecordDate(r.date):'';
+    html+='<div class="card cb" style="cursor:'+(r&&r.fileId?'pointer':'default')+';" onclick="'+(r&&r.fileId?'window.loadRecordSession(\''+d+'\')':'')+'"><div class="lbl">'+lbl+'</div><div class="val">'+val+'</div><div class="sub">'+dateStr+'</div></div>';
   });
   html+='</div></div>';
   el.innerHTML=html;
 }
+
 window.loadRecordSession=async function(dist){
   const r=RECORDS_DB[dist];
   if (!r||!r.fileId) return;
@@ -3095,8 +3108,16 @@ async function showStartup(){
   document.getElementById('sz-signout').onclick=()=>{AnalyserDrive.signOut();showStartup();};
   document.getElementById('sz-squad').onclick=loadFromSquad;
   document.getElementById('sz-openfile').onclick=()=>document.getElementById('fin').click();
+  document.getElementById('sz-resetrecords').onclick=()=>{
+    if(!confirm('Reset all Personal Bests? This cannot be undone.'))return;
+    RECORDS_DB={};
+    try{localStorage.setItem('br_records','{}');}catch{}
+    renderRecords();
+    toast('Personal Bests reset');
+  };
 
   try{
+
     const files=await AnalyserDrive.list();
     const container=document.getElementById('sz-files');
     if(!container)return;
