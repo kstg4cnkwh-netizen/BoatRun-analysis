@@ -3101,7 +3101,10 @@ async function showStartup(){
     </div>
     <div id="sz-summary"></div>
     <div id="sz-records"></div>
-    <button class="dzbtn dzbtn-sec" id="sz-rescan" style="width:100%;margin-top:8px;">🔄 Scan All for Records</button>
+    <div style="display:flex;gap:8px;margin-top:8px;">
+      <button class="dzbtn dzbtn-sec" id="sz-rescan" style="flex:1;">🔄 Scan All for Records</button>
+      <button class="dzbtn dzbtn-sec" id="sz-resetrecords" style="flex:1;">🗑️ Reset Records</button>
+    </div>
     <div class="sz-lhd">Sessions<span class="sz-signout" id="sz-signout">Sign out</span></div>
     <div id="sz-files" class="sz-loading">Loading…</div>
   </div>`;
