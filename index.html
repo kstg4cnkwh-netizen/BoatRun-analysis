@@ -739,6 +739,7 @@ let _clickStartX=-1,_clickStartTime=0;
 let SESSIONS=[]; // [{label,d}] — all loaded workout files
 let activeSessionIdx=-1;
 let _addMode=false; // true while "+ Add file" flow is choosing a file
+let RECORDS_DB={}; try{RECORDS_DB=JSON.parse(localStorage.getItem('br_records')||'{}');}catch{}
 
 // ══════════════════════════════════════════════════════════════════════════
 // PARSE CSV
@@ -1069,8 +1070,75 @@ function addSessionFromData(d, label, replace, fileId, squadCode) {
   if (replace) { SESSIONS=[]; curveGroups=[]; activeSessionIdx=-1; }
   const idx=SESSIONS.length;
   SESSIONS.push({label, d, fileId: fileId||null, squadCode: squadCode || d.squadCode || null});
+  updateRecords(d.gpsTrace, label, d.sum&&d.sum.start_time, fileId);
   switchSession(idx);
 }
+function bestEffortForDistance(pts, targetDist) {
+  if (pts.length < 2) return null;
+  let i=0, bestMs=Infinity;
+  for (let j=1; j<pts.length; j++) {
+    while (i<j && pts[j].dist-pts[i+1].dist>=targetDist) i++;
+    if (pts[j].dist-pts[i].dist < targetDist) continue;
+    const d0=pts[i].dist, d1=pts[i+1]?pts[i+1].dist:d0;
+    const t0=pts[i].t, t1=pts[i+1]?pts[i+1].t:t0;
+    const distAtStart=pts[j].dist-targetDist;
+    let startT;
+    if (d1>d0) { const frac=(distAtStart-d0)/(d1-d0); startT=t0+frac*(t1-t0); }
+    else startT=t0;
+    const elapsedMs=pts[j].t-startT;
+    if (elapsedMs>0 && elapsedMs<bestMs) bestMs=elapsedMs;
+  }
+  return bestMs===Infinity ? null : bestMs;
+}
+function computeBestEfforts(gpsTrace) {
+  const pts=(gpsTrace||[]).filter(p=>p.dist!=null&&p.t!=null);
+  const targets=[500,1000,2000,5000,10000];
+  const out={};
+  targets.forEach(d=>{ const ms=bestEffortForDistance(pts,d); if(ms!=null) out[d]=ms; });
+  return out;
+}
+function updateRecords(gpsTrace, label, dateISO, fileId) {
+  const efforts=computeBestEfforts(gpsTrace);
+  let changed=false;
+  Object.keys(efforts).forEach(d=>{
+    const cur=RECORDS_DB[d];
+    if (!cur || efforts[d]<cur.timeMs) {
+      RECORDS_DB[d]={timeMs:efforts[d], date:dateISO||null, label:label||'', fileId:fileId||null};
+      changed=true;
+    }
+  });
+  if (changed) {
+    try{localStorage.setItem('br_records',JSON.stringify(RECORDS_DB));}catch{}
+    renderRecords();
+  }
+}
+function fmtRecordTime(ms) {
+  const s=ms/1000, m=Math.floor(s/60), ss=(s-m*60).toFixed(1);
+  return m+':'+(ss<10?'0':'')+ss;
+}
+function renderRecords() {
+  const el=document.getElementById('sz-records');
+  if (!el) return;
+  const targets=[500,1000,2000,5000,10000];
+  let html='<div class="sumgrp"><div class="sumgrp-hd">Personal Bests</div><div class="sumgrp-cards">';
+  targets.forEach(d=>{
+    const r=RECORDS_DB[d];
+    const lbl=d>=1000?(d/1000)+'km':d+'m';
+    const val=r?fmtRecordTime(r.timeMs):'—';
+    html+='<div class="card cb" style="cursor:'+(r&&r.fileId?'pointer':'default')+';" onclick="'+(r&&r.fileId?'window.loadRecordSession(\''+d+'\')':'')+'"><div class="lbl">'+lbl+'</div><div class="val">'+val+'</div></div>';
+  });
+  html+='</div></div>';
+  el.innerHTML=html;
+}
+window.loadRecordSession=async function(dist){
+  const r=RECORDS_DB[dist];
+  if (!r||!r.fileId) return;
+  try{
+    const session=await AnalyserDrive.fetchSession(r.fileId);
+    applySessionUnits(session);
+    addSessionFromData(sessionToAnalyserFmt(session), r.label||'Session', true, r.fileId);
+  }catch(err){ toast('Load failed: '+err.message); }
+};
 
 function switchSession(idx) {
   if (idx<0||idx>=SESSIONS.length) return;
@@ -3019,6 +3087,8 @@ async function showStartup(){
       <button class="dzbtn dzbtn-sec" id="sz-openfile" style="flex:1;">📂 Open file</button>
     </div>
     <div id="sz-summary"></div>
+    <div id="sz-records"></div>
+    <button class="dzbtn dzbtn-sec" id="sz-rescan" style="width:100%;margin-top:8px;">🔄 Scan All for Records</button>
     <div class="sz-lhd">Sessions<span class="sz-signout" id="sz-signout">Sign out</span></div>
     <div id="sz-files" class="sz-loading">Loading…</div>
   </div>`;
@@ -3032,6 +3102,23 @@ async function showStartup(){
     if(!container)return;
     if(!files.length){container.innerHTML='<div class="sz-loading">No sessions on Drive</div>';return;}
     let fileList=[...files];
+    document.getElementById('sz-rescan').onclick=async()=>{
+      const btn=document.getElementById('sz-rescan');
+      btn.disabled=true;
+      for(let idx=0; idx<fileList.length; idx++){
+        const f=fileList[idx];
+        btn.textContent='Scanning '+(idx+1)+'/'+fileList.length+'…';
+        try{
+          const session=await AnalyserDrive.fetchSession(f.id);
+          applySessionUnits(session);
+          const conv=sessionToAnalyserFmt(session);
+          updateRecords(conv.gpsTrace, f.name||conv.name||'Session', conv.sum&&conv.sum.start_time, f.id);
+        }catch(err){}
+      }
+      btn.textContent='🔄 Scan All for Records';
+      btn.disabled=false;
+      renderRecords();
+    };
     let sumMonthOff=0,sumWeekOff=0;
     function parseFn(name){
       const dist=name.match(/_(\d+)m_/);
@@ -3109,6 +3196,7 @@ async function showStartup(){
     }
     function renderList(){
       renderSummary();
+      renderRecords();
       container.innerHTML='';
       fileList.forEach(f=>{
         const p=parseFn(f.name);
