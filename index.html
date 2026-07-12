@@ -58,8 +58,9 @@
   #dz p { color: var(--muted); font-size: 11px; line-height: 1.7; }
   .dzbtn { margin-top: 6px; padding: 8px 22px; font-family: -apple-system, BlinkMacSystemFont, Helvetica Neue, sans-serif; font-weight: 700; font-size: 12px; cursor: pointer; border-radius: 8px; border: none; }
   .dzbtn-pri { background: var(--g); color: #000; }
-  .dzbtn-sec { background: transparent; border: 1px solid var(--border); color: var(--muted); font-family: -apple-system, BlinkMacSystemFont, Helvetica Neue, sans-serif; font-size: 11px; }
+  .dzbtn-sec { background: transparent; border: 1px solid var(--border); color: var(--muted); font-family: -apple-system, BlinkMacSystemFont, Helvetica Neue, sans-serif; font-size: 11px; display: flex; align-items: center; justify-content: center; gap: 7px; }
   .dzbtn-sec:hover { border-color: var(--b); color: var(--b); }
+  .dzbtn-sec img { width: 16px; height: 16px; display: block; object-fit: contain; }
 
   #app { display: none; padding-bottom: 40px; }
   #unitsbar { display: none; }
@@ -241,7 +242,8 @@
 .sz-file-row{display:flex;align-items:center;gap:6px;margin-bottom:6px;}
 .sz-file-btn{flex:1;text-align:left;padding:9px 13px;background:var(--s2);border:1px solid var(--border);border-radius:8px;color:var(--text);font-family:-apple-system, BlinkMacSystemFont, Helvetica Neue, sans-serif;font-size:.85rem;cursor:pointer;line-height:1.5;transition:border-color .15s;}
 .sz-file-btn:hover{border-color:var(--b);}
-.sz-del{padding:9px 10px;background:rgba(192,57,43,.15);border:1px solid rgba(192,57,43,.4);border-radius:8px;color:#e74c3c;cursor:pointer;font-size:.85rem;flex-shrink:0;}
+.sz-del{display:flex;align-items:center;justify-content:center;padding:9px 10px;background:rgba(192,57,43,.15);border:1px solid rgba(192,57,43,.4);border-radius:8px;color:#e74c3c;cursor:pointer;font-size:.85rem;flex-shrink:0;}
+.sz-del img{width:16px;height:16px;display:block;object-fit:contain;}
 .asc{background:var(--s2);border-radius:8px;border-left:3px solid var(--b);border-top:1px solid var(--border);border-right:1px solid var(--border);border-bottom:1px solid var(--border);padding:11px 13px;cursor:pointer;flex:1;text-align:left;transition:border-color .15s;}
 .asc:hover{border-top-color:var(--b);border-right-color:var(--b);border-bottom-color:var(--b);}
 .asc-date{font-size:9px;color:var(--muted);margin-bottom:5px;letter-spacing:.04em;display:flex;align-items:center;gap:4px;flex-wrap:wrap;}
@@ -449,7 +451,7 @@
 const TIER_SETTINGS_KEY = 'scull_settings_v1';
 function getTier() {
     try { const v = JSON.parse(localStorage.getItem(TIER_SETTINGS_KEY)); if (v && v.tier) return v.tier; } catch {}
-    return 'pro';
+    return 'basic';
 }
 function setTier(t) {
     let v = {};
@@ -3113,8 +3115,8 @@ async function showStartup(){
       <h2>BoatRun Analyser</h2>
       <p>Connect Google Drive to access your sessions</p>
       <button class="dzbtn dzbtn-pri" id="sz-signin">Sign in to Google</button>
-      <button class="dzbtn dzbtn-sec" id="sz-squad">📤 From Squad</button>
-      <button class="dzbtn dzbtn-sec" id="sz-openfile">📂 Open file</button>
+      <button class="dzbtn dzbtn-sec" id="sz-squad"><img src="icons/Import.svg"><span>From Squad</span></button>
+      <button class="dzbtn dzbtn-sec" id="sz-openfile"><img src="icons/Open.svg"><span>Open file</span></button>
     </div>`;
     document.getElementById('sz-signin').onclick=()=>AnalyserDrive.signIn();
     document.getElementById('sz-squad').onclick=loadFromSquad;
@@ -3124,14 +3126,14 @@ async function showStartup(){
 
   el.innerHTML=`<div class="sz-list">
     <div style="display:flex;gap:8px;margin-bottom:14px;">
-      <button class="dzbtn dzbtn-sec" id="sz-squad" style="flex:1;">📤 From Squad</button>
-      <button class="dzbtn dzbtn-sec" id="sz-openfile" style="flex:1;">📂 Open file</button>
+      <button class="dzbtn dzbtn-sec" id="sz-squad" style="flex:1;"><img src="icons/Import.svg"><span>From Squad</span></button>
+      <button class="dzbtn dzbtn-sec" id="sz-openfile" style="flex:1;"><img src="icons/Open.svg"><span>Open file</span></button>
     </div>
     <div id="sz-summary"></div>
     <div id="sz-records"></div>
     <div style="display:flex;gap:8px;margin-top:4px;margin-bottom:10px;">
-      <button class="dzbtn dzbtn-sec" id="sz-rescan" style="flex:1;margin-top:0;">🔄 Scan All for Records</button>
-      <button class="dzbtn dzbtn-sec" id="sz-resetrecords" style="flex:1;margin-top:0;">🗑️ Reset Records</button>
+      <button class="dzbtn dzbtn-sec" id="sz-rescan" style="flex:1;margin-top:0;"><img src="icons/Scan.svg"><span>Scan All for Records</span></button>
+      <button class="dzbtn dzbtn-sec" id="sz-resetrecords" style="flex:1;margin-top:0;"><img src="icons/Reset.svg"><span>Reset Records</span></button>
     </div>
     <div class="sz-lhd">Sessions<span class="sz-signout" id="sz-signout">Sign out</span></div>
     <div id="sz-files" class="sz-loading">Loading…</div>
@@ -3159,7 +3161,7 @@ async function showStartup(){
       btn.disabled=true;
       for(let idx=0; idx<fileList.length; idx++){
         const f=fileList[idx];
-        btn.textContent='Scanning '+(idx+1)+'/'+fileList.length+'…';
+        btn.innerHTML='<img src="icons/Scan.svg"><span>Scanning '+(idx+1)+'/'+fileList.length+'…</span>';
         try{
           const session=await AnalyserDrive.fetchSession(f.id);
           applySessionUnits(session);
@@ -3167,7 +3169,7 @@ async function showStartup(){
           updateRecords(conv.gpsTrace, f.name||conv.name||'Session', conv.sum&&conv.sum.start_time, f.id);
         }catch(err){}
       }
-      btn.textContent='🔄 Scan All for Records';
+      btn.innerHTML='<img src="icons/Scan.svg"><span>Scan All for Records</span>';
       btn.disabled=false;
       renderRecords();
     };
@@ -3284,12 +3286,12 @@ async function showStartup(){
         if(p.name){const nameDiv=document.createElement('div');nameDiv.style.cssText='font-weight:700;font-size:.85rem;color:var(--text);margin-bottom:2px;';nameDiv.textContent=p.name;btn.appendChild(nameDiv);}
         btn.appendChild(dateDiv);btn.appendChild(statsDiv);
 
-        const del=document.createElement('button');del.className='sz-del';del.textContent='🗑';del.title='Delete from Drive';
+        const del=document.createElement('button');del.className='sz-del';del.innerHTML='<img src="icons/Delete.svg">';del.title='Delete from Drive';
         del.onclick=async()=>{
           if(!confirm('Delete from Drive?'))return;
-          del.textContent='…';del.disabled=true;
+          del.innerHTML='…';del.disabled=true;
           try{await AnalyserDrive.deleteFile(f.id);fileList=fileList.filter(x=>x.id!==f.id);renderList();}
-          catch(e){toast('Delete failed: '+e.message);del.textContent='🗑';del.disabled=false;}
+          catch(e){toast('Delete failed: '+e.message);del.innerHTML='<img src="icons/Delete.svg">';del.disabled=false;}
         };
         row.appendChild(btn);row.appendChild(del);
         container.appendChild(row);
