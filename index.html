@@ -232,7 +232,7 @@
 #startup{min-height:calc(100vh - 52px);display:flex;flex-direction:column;align-items:center;justify-content:flex-start;padding:28px 16px 40px;box-sizing:border-box;}
 #startup.over{background:var(--s2);}
 .sz-prompt{display:flex;flex-direction:column;align-items:center;gap:12px;text-align:center;padding:40px 20px;}
-.sz-prompt .ico{font-size:2.4rem;}
+.sz-prompt .ico{width:44px;height:44px;object-fit:contain;}
 .sz-prompt h2{font-size:1.1rem;font-weight:700;margin:0;}
 .sz-prompt p{font-size:.85rem;color:var(--muted);margin:0;}
 .sz-list{width:100%;max-width:480px;}
@@ -3119,7 +3119,7 @@ async function showStartup(){
 
   if(!AnalyserDrive.isSignedIn()){
     el.innerHTML=`<div class="sz-prompt">
-      <div class="ico">🚣</div>
+      <img class="ico" src="icons/icon-192.png" alt="BoatRun">
       <h2>BoatRun Analyser</h2>
       <p>Connect Google Drive to access your sessions</p>
       <button class="dzbtn dzbtn-pri" id="sz-signin">Sign in to Google</button>
