@@ -742,6 +742,10 @@ let selS=-1,selE=-1;
 let vis={pace:true,rate:true,slope:false,dps:false,impulse:false,rloss:false,schar:false,ratio:false,angle:false,cdelta:false,cdur:false,speedloss:false,speedgain:false,hr:false};
 try{const sv=JSON.parse(localStorage.getItem('br_tile_vis')||'null');if(sv&&typeof sv==='object')Object.assign(vis,sv);}catch{}
 vis.pace=true; vis.rate=true;
+let hid={pace:false,rate:false,slope:false,dps:false,impulse:false,rloss:false,schar:false,ratio:false,angle:false,cdelta:false,cdur:false,speedloss:false,speedgain:false,hr:false};
+try{const sh=JSON.parse(localStorage.getItem('br_tile_hidden')||'null');if(sh&&typeof sh==='object')Object.assign(hid,sh);}catch{}
+hid.pace=false; hid.rate=false;
+vis=new Proxy(vis,{get(t,k){return hid[k]?false:t[k];},set(t,k,v){t[k]=v;return true;}});
 let hrZones=[106,124,142,160]; // Z1–Z4 upper bounds (bpm); above last = Z5
 try{const z=JSON.parse(localStorage.getItem('br_hr_zones')||'null');if(Array.isArray(z)&&z.length===4&&z.every(v=>v>40&&v<230))hrZones=z;}catch{}
 const HR_ZONE_COLORS=['#3498db','#27ae60','#f1c40f','#e67e22','#c0392b'];
@@ -1691,7 +1695,7 @@ function buildCards(sum) {
   let html=
     card('cw','Distance',distDisp,distLbl,null,'Total distance travelled (GPS), in km or mi based on units setting.')+
     card('cw','Duration',dur,ST.length+' strokes',null,'Total elapsed time of the session.')+
-    METRIC_DEFS.map(m=>CARD_BUILDERS[m.k]?CARD_BUILDERS[m.k]():'').join('');
+    METRIC_DEFS.map(m=>(hid[m.k]||!CARD_BUILDERS[m.k])?'':CARD_BUILDERS[m.k]()).join('');
   document.getElementById('cards').innerHTML=html;
 }
 
@@ -3443,7 +3447,7 @@ function showReorderModal(){
     list.innerHTML=order.map((k,i)=>{
       const m=METRIC_DEFS.find(d=>d.k===k);
       const locked=(k==='pace'||k==='rate');
-      const shown=!!vis[k];
+      const shown=!hid[k];
       return `<div style="display:flex;align-items:center;gap:8px;padding:7px 8px;background:var(--s2);border:1px solid var(--border);border-radius:6px;margin-bottom:6px;">
         <span style="flex:1;font-size:12px;color:var(--text);">${m?m.l:k}</span>
         <button data-showk="${k}" ${locked?'disabled':''} style="background:${shown?'var(--b)':'var(--s3)'};border:1px solid var(--border);color:${shown?'#000':'var(--muted)'};border-radius:5px;padding:3px 9px;font-size:11px;cursor:${locked?'default':'pointer'};min-width:64px;">${locked?'Always on':(shown?'Shown':'Hidden')}</button>
@@ -3454,7 +3458,7 @@ function showReorderModal(){
     list.querySelectorAll('button[data-showk]').forEach(btn=>{
       btn.onclick=()=>{
         const k=btn.dataset.showk;
-        window.toggleVis(k);
+        hid[k]=!hid[k];
         renderList();
       };
     });
@@ -3468,12 +3472,14 @@ function showReorderModal(){
     });
     panel.querySelector('#_ro_close').onclick=()=>{
       try{localStorage.setItem('br_tile_order',JSON.stringify(order));}catch{}
-      try{localStorage.setItem('br_tile_vis',JSON.stringify(vis));}catch{}
+      try{localStorage.setItem('br_tile_hidden',JSON.stringify(hid));}catch{}
+      VID.cfg.metrics=VID.cfg.metrics.filter(k=>!vidKeyHidden(k));
       applyTileOrder(order);
       if(_lastSum)buildCards(_lastSum);
       if(ST.length)buildStrokeTable();
       schedRender();
       if(curveGroups.length)buildCurveStats();
+      if(VID.built)vidRenderBody();
       overlay.remove();
     };
   }
@@ -3599,6 +3605,11 @@ const VID_METRICS = {
   time:         {l:'Session',    fmt:(s,i,t)=>({v:fmtTime(t),u:''})},
 };
 const VID_METRIC_ORDER = ['rate','pace','dps','slope','impulse','rloss','schar','ratio','oarAngle','checkDelta','catchDuration','speedloss','speedgain','dist','stroke','time'];
+const VID_KEY_TO_TILE = {oarAngle:'angle',checkDelta:'cdelta',catchDuration:'cdur'};
+function vidKeyHidden(vidKey){
+  const tileKey = VID_KEY_TO_TILE[vidKey] || vidKey;
+  return !!hid[tileKey];
+}
 
 function vidOnMount(d){
   vidTeardown();
@@ -3831,7 +3842,7 @@ function vidRenderBody(){
   const a=VID.clips[VID.active];
   const cfg=VID.cfg;
   const tabs=VID.clips.map((c,i)=>`<div class="vid-clip-tab${i===VID.active?' on':''}" onclick="vidSetActive(${i})">${vidShort(c.name)}<span class="x" onclick="event.stopPropagation();vidRemoveClip(${i})">\u00D7</span></div>`).join('');
-  const mchips=VID_METRIC_ORDER.map(k=>`<div class="vid-mchip${cfg.metrics.includes(k)?' on':''}" onclick="vidToggleMetric('${k}')">${VID_METRICS[k].l}</div>`).join('');
+  const mchips=VID_METRIC_ORDER.filter(k=>!vidKeyHidden(k)).map(k=>`<div class="vid-mchip${cfg.metrics.includes(k)?' on':''}" onclick="vidToggleMetric('${k}')">${VID_METRICS[k].l}</div>`).join('');
   const probe = a.probedMs ? ((a.probeSource==='filename'?'Coach clip start ':'capture \u2248 ')+new Date(a.probedMs).toLocaleTimeString()) : 'no capture/coach timestamp found';
 
   body.innerHTML=`
@@ -4274,6 +4285,7 @@ function vidDrawBox(ctx,W,H,st){
   let yy=r.y+r.pad+r.fs;
   VID.cfg.metrics.forEach(k=>{
     const def=VID_METRICS[k]; if(!def) return;
+    if(vidKeyHidden(k)) return;
     const o=def.fmt(st.stroke||{},st.idx,st.sessT);
     ctx.font='600 '+Math.round(r.fs*0.62)+'px -apple-system, BlinkMacSystemFont, Helvetica Neue, sans-serif';
     ctx.fillStyle='rgba(150,180,210,0.9)'; ctx.textAlign='left';
