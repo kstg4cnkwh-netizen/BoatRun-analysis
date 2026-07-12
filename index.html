@@ -2157,7 +2157,7 @@ function showTooltip(e){
     <div class="tt-hd">Stroke ${s.n}</div>
     ${ttRow('Time',fmtTime(s.elapsed))}
     ${ttRow('Distance',isNaN(s.dist)?EM:s.dist.toFixed(0)+'m')}
-    ${METRIC_DEFS.filter(m=>vis[m.k]).map(m=>TT_BUILDERS[m.k]?TT_BUILDERS[m.k]():'').join('')}
+    ${METRIC_DEFS.filter(m=>!hid[m.k]).map(m=>TT_BUILDERS[m.k]?TT_BUILDERS[m.k]():'').join('')}
   `;
   const tip=document.getElementById('tooltip');
   tip.style.display='block';
@@ -2289,7 +2289,7 @@ function updateStatsStrip(){
     html+=sp('Time',fmtTime(dur));
   }
   for(const m of METRIC_DEFS){
-    if(!vis[m.k])continue;
+    if(hid[m.k])continue;
     const arr=strokes.filter(m.filter).map(m.val);
     if(!arr.length)continue;
     html+=sp('Avg '+m.l,m.fmtAvg(arrMean(arr)),m.c);
@@ -2622,7 +2622,7 @@ function buildCurveStats(){
     {l:'Time',fn:g=>{const a=g.strokes;return a.length?fmtTime(a[a.length-1].elapsed-a[0].elapsed):EM;}},
   ];
   for(const m of METRIC_DEFS){
-    if(!vis[m.k])continue;
+    if(hid[m.k])continue;
     rows.push({l:'Avg '+m.l, c:m.c, fn:g=>{
       const arr=g.strokes.filter(m.filter).map(m.val);
       return arr.length?m.fmtAvg(arrMean(arr)):EM;
@@ -2932,7 +2932,7 @@ const TBL_COLS={
   hr:{h:'HR bpm', cell:s=>{const b=nearestHRAt(s.ms);return `<td style="color:var(--mc-hr)">${b!=null?b:EM}</td>`;}},
 };
 function buildStrokeTable(){
-  const cols=METRIC_DEFS.filter(m=>vis[m.k]).map(m=>TBL_COLS[m.k]).filter(Boolean);
+  const cols=METRIC_DEFS.filter(m=>!hid[m.k]).map(m=>TBL_COLS[m.k]).filter(Boolean);
   document.getElementById('sth').innerHTML=`<tr><th>#</th><th>Lap</th><th>Dist m</th><th>Time</th><th>Consist σ</th>${cols.map(c=>`<th>${c.h}</th>`).join('')}</tr>`;
   document.getElementById('stb').innerHTML=ST.slice(0,1000).map(s=>`<tr data-i="${s.n-1}">
     <td>${s.n}</td>
