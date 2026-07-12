@@ -42,9 +42,9 @@
   body { background: var(--bg); color: var(--text); font-family: -apple-system, BlinkMacSystemFont, Helvetica Neue, sans-serif; font-size: 13px; overflow-x: hidden; }
 
   /* ── Header ── */
-  #hdr { display: flex; align-items: center; gap: 10px; padding: 11px 20px; background: var(--s1); border-bottom: 1px solid var(--border); position: sticky; top: 0; z-index: 200; flex-wrap: wrap; box-shadow: 0 1px 0 var(--border), 0 4px 16px rgba(0,0,0,.14); }
-  #hdr h1 { font-family: -apple-system, BlinkMacSystemFont, Helvetica Neue, sans-serif; font-size: 17px; font-weight: 700; color: var(--b); letter-spacing: -.4px; }
-  #hdr .meta { color: var(--muted); font-size: 10px; line-height: 1.6; }
+  #hdr { display: flex; align-items: center; gap: 10px; padding: 11px 20px; background: var(--b); border-bottom: 1px solid var(--border); position: sticky; top: 0; z-index: 200; flex-wrap: wrap; box-shadow: 0 1px 0 var(--border), 0 4px 16px rgba(0,0,0,.14); }
+  #hdr h1 { font-family: -apple-system, BlinkMacSystemFont, Helvetica Neue, sans-serif; font-size: 17px; font-weight: 700; color: #fff; letter-spacing: -.4px; }
+  #hdr .meta { color: rgba(255,255,255,.78); font-size: 10px; line-height: 1.6; }
   #hdr .sp { flex: 1; }
   .hbtn { background: transparent; border: 1px solid var(--border); color: var(--muted); padding: 5px 13px; border-radius: 7px; font-family: -apple-system, BlinkMacSystemFont, Helvetica Neue, sans-serif; font-size: 11px; cursor: pointer; white-space: nowrap; transition: border-color .15s, color .15s, background .15s; }
   .hbtn:hover { border-color: var(--b); color: var(--b); background: var(--sel-fill); }
@@ -265,7 +265,13 @@
 .hmenu-wrap{position:relative;display:inline-block;}
 .hmenu{position:absolute;top:calc(100% + 4px);right:0;background:var(--s2);border:1px solid var(--border);border-radius:10px;padding:6px;display:none;flex-direction:column;gap:4px;min-width:175px;z-index:50;box-shadow:0 8px 24px rgba(0,0,0,.3);}
 .hmenu.open{display:flex;}
-.hmenu .hbtn{width:100%;text-align:left;}
+.hmenu .hbtn{width:100%;text-align:left;color:var(--text);background:transparent;}
+.hmenu .hbtn:hover{border-color:var(--b);color:var(--b);background:var(--sel-fill);}
+.hicon-btn{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;padding:5px 11px 4px;border-radius:12px;font-size:9px;font-weight:600;letter-spacing:.02em;text-transform:uppercase;}
+.hicon-img{width:20px;height:20px;display:block;object-fit:contain;}
+.hicon-txt{line-height:1;white-space:nowrap;}
+.hbtn.hicon-btn{background:rgba(255,255,255,.14);border:none;color:#fff;}
+.hbtn.hicon-btn:hover{background:rgba(255,255,255,.26);border-color:transparent;color:#fff;}
 
   /* ── Video overlay ── */
   #videosec{display:none;}
@@ -318,19 +324,19 @@
   <div class="meta" id="hdrmeta"></div>
   <div class="sp"></div>
   <div class="hmenu-wrap">
-    <button class="hbtn" id="filemenubtn" style="display:none;">☰ Files ▾</button>
+    <button class="hbtn hicon-btn" id="filemenubtn" style="display:none;"><img class="hicon-img" src="icons/Files.svg"><span class="hicon-txt">Files ▾</span></button>
     <div class="hmenu" id="filemenu">
       <button class="hbtn" id="resetbtn" style="display:none;">↩ Open New File</button>
       <button class="hbtn" id="addcompbtn" style="display:none;">＋ Add for comparison</button>
       <button class="hbtn" id="tcxbtn" style="display:none;">⬇ Export TCX</button>
     </div>
   </div>
-  <button class="hbtn" id="openbtn">Open Session</button>
-  <button class="hbtn" id="hdrThemeBtn">Dark Mode</button>
-  <button class="hbtn" id="infobtn" title="What the metrics mean">ⓘ Info</button>
-  <button class="hbtn" id="reorderbtn" title="Reorder and show/hide tiles">⇅ Tiles</button>
-  <button class="hbtn" id="aboutbtn" title="How to use BoatRun, and send feedback">？ About</button>
-  <button class="hbtn" id="planbtn" title="Basic / Pro plan">＄ Plan</button>
+  <button class="hbtn hicon-btn" id="openbtn"><img class="hicon-img" src="icons/Open.svg"><span class="hicon-txt">Open</span></button>
+  <button class="hbtn hicon-btn" id="hdrThemeBtn"><img class="hicon-img" id="hdrThemeIcon" src="icons/Dark.svg"><span class="hicon-txt" id="hdrThemeLabel">Dark Mode</span></button>
+  <button class="hbtn hicon-btn" id="infobtn" title="What the metrics mean"><img class="hicon-img" src="icons/Metrics.svg"><span class="hicon-txt">Metrics</span></button>
+  <button class="hbtn hicon-btn" id="reorderbtn" title="Reorder and show/hide tiles"><img class="hicon-img" src="icons/Tiles.svg"><span class="hicon-txt">Tiles</span></button>
+  <button class="hbtn hicon-btn" id="aboutbtn" title="How to use BoatRun, and send feedback"><img class="hicon-img" src="icons/About.svg"><span class="hicon-txt">About</span></button>
+  <button class="hbtn hicon-btn" id="planbtn" title="Basic / Pro plan"><img class="hicon-img" src="icons/Lock.svg"><span class="hicon-txt">Plan</span></button>
 </div>
 
 <div id="startup"></div>
@@ -590,7 +596,9 @@ function pal() {
 
 function toggleTheme() {
   document.body.classList.toggle('light');
-  document.getElementById('hdrThemeBtn').textContent = document.body.classList.contains('light') ? 'Dark Mode' : 'Light Mode';
+  const isLight = document.body.classList.contains('light');
+  document.getElementById('hdrThemeIcon').src = isLight ? 'icons/Dark.svg' : 'icons/Light.svg';
+  document.getElementById('hdrThemeLabel').textContent = isLight ? 'Dark Mode' : 'Light Mode';
   if (ST.length) schedRender();
 }
 document.getElementById('hdrThemeBtn').addEventListener('click', toggleTheme);
