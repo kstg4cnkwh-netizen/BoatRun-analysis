@@ -265,13 +265,14 @@
 .hmenu-wrap{position:relative;display:inline-block;}
 .hmenu{position:absolute;top:calc(100% + 4px);right:0;background:var(--s2);border:1px solid var(--border);border-radius:10px;padding:6px;display:none;flex-direction:column;gap:4px;min-width:175px;z-index:50;box-shadow:0 8px 24px rgba(0,0,0,.3);}
 .hmenu.open{display:flex;}
-.hmenu .hbtn{width:100%;text-align:left;color:var(--text);background:transparent;}
+.hmenu .hbtn{display:flex;align-items:center;gap:8px;width:100%;text-align:left;color:var(--text);background:transparent;}
 .hmenu .hbtn:hover{border-color:var(--b);color:var(--b);background:var(--sel-fill);}
 .hicon-btn{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;padding:5px 11px 4px;border-radius:12px;font-size:9px;font-weight:600;letter-spacing:.02em;text-transform:uppercase;}
 .hicon-img{width:20px;height:20px;display:block;object-fit:contain;}
 .hicon-txt{line-height:1;white-space:nowrap;}
 .hbtn.hicon-btn{background:rgba(255,255,255,.14);border:none;color:#fff;}
 .hbtn.hicon-btn:hover{background:rgba(255,255,255,.26);border-color:transparent;color:#fff;}
+.hmenu-icon{width:15px;height:15px;display:block;object-fit:contain;flex-shrink:0;}
 
   /* ── Video overlay ── */
   #videosec{display:none;}
@@ -326,9 +327,9 @@
   <div class="hmenu-wrap">
     <button class="hbtn hicon-btn" id="filemenubtn" style="display:none;"><img class="hicon-img" src="icons/Files.svg"><span class="hicon-txt">Files ▾</span></button>
     <div class="hmenu" id="filemenu">
-      <button class="hbtn" id="resetbtn" style="display:none;">↩ Open New File</button>
-      <button class="hbtn" id="addcompbtn" style="display:none;">＋ Add for comparison</button>
-      <button class="hbtn" id="tcxbtn" style="display:none;">⬇ Export TCX</button>
+      <button class="hbtn" id="resetbtn" style="display:none;"><img class="hmenu-icon" src="icons/Open.svg"><span>Open New File</span></button>
+      <button class="hbtn" id="addcompbtn" style="display:none;"><img class="hmenu-icon" src="icons/Add.svg"><span>Add for comparison</span></button>
+      <button class="hbtn" id="tcxbtn" style="display:none;"><img class="hmenu-icon" src="icons/Export.svg"><span>Export TCX</span></button>
     </div>
   </div>
   <button class="hbtn hicon-btn" id="openbtn"><img class="hicon-img" src="icons/Open.svg"><span class="hicon-txt">Open</span></button>
