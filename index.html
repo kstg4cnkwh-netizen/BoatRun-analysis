@@ -328,6 +328,7 @@
   <button class="hbtn" id="infobtn" title="What the metrics mean">ⓘ Info</button>
   <button class="hbtn" id="reorderbtn" title="Reorder and show/hide tiles">⇅ Tiles</button>
   <button class="hbtn" id="aboutbtn" title="How to use BoatRun, and send feedback">？ About</button>
+  <button class="hbtn" id="planbtn" title="Basic / Pro plan">＄ Plan</button>
 </div>
 
 <div id="startup"></div>
@@ -443,6 +444,20 @@
 
 <script>
 'use strict';
+
+// ── TIER / MONETIZATION ─────────────────────────────────────────────
+const TIER_SETTINGS_KEY = 'scull_settings_v1';
+function getTier() {
+    try { const v = JSON.parse(localStorage.getItem(TIER_SETTINGS_KEY)); if (v && v.tier) return v.tier; } catch {}
+    return 'pro';
+}
+function setTier(t) {
+    let v = {};
+    try { v = JSON.parse(localStorage.getItem(TIER_SETTINGS_KEY)) || {}; } catch {}
+    v.tier = t;
+    try { localStorage.setItem(TIER_SETTINGS_KEY, JSON.stringify(v)); } catch {}
+}
+function isPro() { return getTier() === 'pro'; }
 
 // ══════════════════════════════════════════════════════════════════════════
 // DRIVE (inline — works without drive-sync.js)
@@ -1229,6 +1244,7 @@ async function loadFromSquad() {
 }
 
 async function showAddComparePicker() {
+    if (!isPro()) { showPlanModal('Multi-session comparison is a Pro feature.'); return; }
     document.getElementById('_add_comp_picker')?.remove();
     document.getElementById('filemenu').classList.remove('open');
     const SQUAD_DB = 'https://boatrun-default-rtdb.asia-southeast1.firebasedatabase.app';
@@ -3478,6 +3494,30 @@ function showAboutModal(){
   document.body.appendChild(overlay);
   document.getElementById('_about_close').onclick=()=>overlay.remove();
 }
+function showPlanModal(msg){
+  document.getElementById('_plan_modal')?.remove();
+  const overlay=document.createElement('div');
+  overlay.id='_plan_modal';
+  overlay.style.cssText='position:fixed;inset:0;background:rgba(0,0,0,.72);display:flex;align-items:center;justify-content:center;z-index:9999;padding:16px;';
+  const panel=document.createElement('div');
+  panel.style.cssText='background:#f4f4f4;border-radius:10px;max-width:420px;width:100%;overflow:hidden;';
+  const pro=isPro();
+  panel.innerHTML=`<div style="display:flex;align-items:center;gap:10px;padding:10px 14px;background:var(--s1);border-bottom:1px solid var(--border);"><div style="font-size:13px;font-weight:600;color:var(--text);">Plan</div><button id="_plan_close" style="margin-left:auto;background:var(--s3);border:1px solid var(--border);color:var(--muted);border-radius:6px;padding:4px 10px;font-family:-apple-system, BlinkMacSystemFont, Helvetica Neue, sans-serif;font-size:11px;cursor:pointer;">Close</button></div>
+  <div style="padding:16px;font-family:-apple-system, BlinkMacSystemFont, Helvetica Neue, sans-serif;">
+  ${msg?`<div style="font-size:12px;color:var(--text);margin-bottom:14px;">${msg}</div>`:''}
+  <div style="display:flex;gap:8px;">
+  <button id="_plan_basic" style="flex:1;padding:10px;border-radius:8px;border:1px solid var(--border);cursor:pointer;background:${pro?'var(--s2)':'var(--b)'};color:${pro?'var(--text)':'#000'};font-weight:700;">BASIC</button>
+  <button id="_plan_pro" style="flex:1;padding:10px;border-radius:8px;border:1px solid var(--border);cursor:pointer;background:${pro?'var(--b)':'var(--s2)'};color:${pro?'#000':'var(--text)'};font-weight:700;">PRO</button>
+  </div>
+  <div style="font-size:11px;color:var(--muted);margin-top:12px;line-height:1.5;">Basic: full single-session replay, always free. Pro: multi-session comparison and video overlay/sync.</div>
+  </div>`;
+  overlay.appendChild(panel);
+  overlay.onclick=e=>{if(e.target===overlay)overlay.remove();};
+  document.body.appendChild(overlay);
+  document.getElementById('_plan_close').onclick=()=>overlay.remove();
+  document.getElementById('_plan_basic').onclick=()=>{setTier('basic');overlay.remove();toast('Basic plan active');};
+  document.getElementById('_plan_pro').onclick=()=>{setTier('pro');overlay.remove();toast('Pro plan active');};
+}
 // ── Wiring ──────────────────────────────────────────────────────────────────
 document.getElementById('resetbtn').onclick=()=>document.getElementById('openbtn').click();
 document.getElementById('tcxbtn').onclick=exportTCX;
@@ -3485,6 +3525,7 @@ document.getElementById('openbtn').onclick=()=>{const s=document.getElementById(
 document.getElementById('infobtn').onclick=showInfoModal;
 document.getElementById('reorderbtn').onclick=showReorderModal;
 document.getElementById('aboutbtn').onclick=showAboutModal;
+document.getElementById('planbtn').onclick=()=>showPlanModal();
 document.getElementById('filemenubtn').onclick=(e)=>{e.stopPropagation();document.getElementById('filemenu').classList.toggle('open');};
 document.addEventListener('click',()=>{document.getElementById('filemenu').classList.remove('open');});
 document.getElementById('fin').onchange=e=>{
@@ -3702,7 +3743,7 @@ async function vidAddFromDir(name) {
 }
 
 function vidWire(){
-  document.getElementById('vidAddBtn').onclick=()=>document.getElementById('vidFin').click();
+  document.getElementById('vidAddBtn').onclick=()=>{if(!isPro()){showPlanModal('Video overlay is a Pro feature.');return;}document.getElementById('vidFin').click();};
   document.getElementById('vidDirBtn').onclick=chooseAnVidDir;
   document.getElementById('vidDirFin').onchange=e=>{
     const files=[...e.target.files];
