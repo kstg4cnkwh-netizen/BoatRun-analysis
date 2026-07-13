@@ -15,7 +15,7 @@
     --mc-pace:#1E88E5; --mc-rate:#FB8C00; --mc-hr:#E53935;
     --mc-dps:#66BB6A; --mc-rloss:#AB47BC; --mc-slope:#9E9D24;
     --mc-impulse:#00897B; --mc-schar:#D81B60; --mc-ratio:#5C6BC0;
-    --mc-oar:#26C6DA; --mc-cdelta:#546E7A; --mc-cdur:#FFB300; --mc-speedloss:#D84315; --mc-speedgain:#43A047;
+    --mc-oar:#26C6DA; --mc-cdelta:#546E7A; --mc-cdur:#FFB300; --mc-recoveryaccel:#D84315; --mc-driveaccel:#43A047;
     --text: #dce8fa; --muted: #46597a; --faint: #0d1e38;
     --grid-ln: rgba(17,40,72,1); --grid-lb: #1e3d6a; --frame-ln: #173358;
     --sel-fill: rgba(41,184,255,.06); --sel-stk: rgba(41,184,255,.32);
@@ -30,7 +30,7 @@
     --mc-pace:#1E88E5; --mc-rate:#FB8C00; --mc-hr:#E53935;
     --mc-dps:#66BB6A; --mc-rloss:#AB47BC; --mc-slope:#9E9D24;
     --mc-impulse:#00897B; --mc-schar:#D81B60; --mc-ratio:#5C6BC0;
-    --mc-oar:#26C6DA; --mc-cdelta:#546E7A; --mc-cdur:#FFB300; --mc-speedloss:#D84315; --mc-speedgain:#43A047;
+    --mc-oar:#26C6DA; --mc-cdelta:#546E7A; --mc-cdur:#FFB300; --mc-recoveryaccel:#D84315; --mc-driveaccel:#43A047;
     --text: #0e1624; --muted: #40506e; --faint: #6a88b7;
     --grid-ln: #e2ecf7; --grid-lb: #7080a0; --frame-ln: #bccadd;
     --sel-fill: rgba(0,116,200,.05); --sel-stk: rgba(0,116,200,.36);
@@ -92,8 +92,8 @@
   .c-oar{border-top:3px solid var(--mc-oar)}.c-oar .val{color:var(--mc-oar)}
   .c-cdelta{border-top:3px solid var(--mc-cdelta)}.c-cdelta .val{color:var(--mc-cdelta)}
   .c-cdur{border-top:3px solid var(--mc-cdur)}.c-cdur .val{color:var(--mc-cdur)}
-  .c-speedloss{border-top:3px solid var(--mc-speedloss)}.c-speedloss .val{color:var(--mc-speedloss)}
-  .c-speedgain{border-top:3px solid var(--mc-speedgain)}.c-speedgain .val{color:var(--mc-speedgain)}
+  .c-recoveryaccel{border-top:3px solid var(--mc-recoveryaccel)}.c-recoveryaccel .val{color:var(--mc-recoveryaccel)}
+  .c-driveaccel{border-top:3px solid var(--mc-driveaccel)}.c-driveaccel .val{color:var(--mc-driveaccel)}
 .sumgrp{margin-bottom:6px;}
 .sumgrp-hd{font-size:9px;font-weight:600;letter-spacing:.08em;color:var(--muted);text-transform:uppercase;margin-bottom:6px;display:flex;align-items:center;gap:8px;}
 .sumgrp-cards{display:grid;grid-template-columns:repeat(auto-fill,minmax(92px,1fr));gap:4px;}
@@ -586,7 +586,7 @@ function pal() {
     mc_pace:v('--mc-pace'), mc_rate:v('--mc-rate'), mc_hr:v('--mc-hr'),
     mc_dps:v('--mc-dps'), mc_rloss:v('--mc-rloss'), mc_slope:v('--mc-slope'),
     mc_impulse:v('--mc-impulse'), mc_schar:v('--mc-schar'), mc_ratio:v('--mc-ratio'),
-    mc_oar:v('--mc-oar'), mc_cdelta:v('--mc-cdelta'), mc_cdur:v('--mc-cdur'), mc_speedloss:v('--mc-speedloss'), mc_speedgain:v('--mc-speedgain'),
+    mc_oar:v('--mc-oar'), mc_cdelta:v('--mc-cdelta'), mc_cdur:v('--mc-cdur'), mc_recoveryaccel:v('--mc-recoveryaccel'), mc_driveaccel:v('--mc-driveaccel'),
     gridLn: v('--grid-ln'), gridLb: v('--grid-lb'), frameLn: v('--frame-ln'),
     selFill: v('--sel-fill'), selStk: v('--sel-stk'),
     text: v('--text'), muted: v('--muted'), s1: v('--s1'), s2: v('--s2'),
@@ -713,8 +713,8 @@ const METRIC_DEFS = [
   {k:'cdur',   l:'Catch Dur',   c:'var(--mc-cdur)',  cat:'boat',  filter:s=>!isNaN(s.catchDuration)&&s.catchDuration>10&&s.catchDuration<500, val:s=>s.catchDuration, fmtAvg:v=>f0(v)+' ms', fmtBest:null, tip:'Time spent in the catch — from the deceleration spike at body stop and blade entry until drive force builds and the boat accelerates again. Shorter usually means a quicker, more direct connection at the catch. IMU-derived — scale varies with boat class and mass.'},
   {k:'slope',  l:'Catch Slope', c:'var(--mc-slope)', cat:'boat',  filter:s=>s.slope>0&&s.slope<300,       val:s=>s.slope,       fmtAvg:v=>f0(v),            fmtBest:null, tip:'Rate of acceleration rise at the catch. Higher means a sharper, more aggressive catch. IMU-derived — scale varies with boat class and mass.'},
   {k:'impulse',l:'Impulse',     c:'var(--mc-impulse)', cat:'boat',  filter:s=>s.impulse>0&&s.impulse<1000,  val:s=>s.impulse,     fmtAvg:v=>Math.round(v).toString(),fmtBest:null, tip:'Total positive acceleration during the drive, integrated as a change in velocity (Δv). Higher means more drive power applied to the hull — not a peak value. IMU-derived — scale varies with boat class and mass.'},
-  {k:'speedgain', l:'Speed Gain', c:'var(--mc-speedgain)', cat:'cond', filter:s=>!isNaN(s.speedGainPct)&&s.speedGainPct>0&&s.speedGainPct<100, val:s=>s.speedGainPct, fmtAvg:v=>f1(v)+'%', fmtBest:null, tip:'Speed gain within one stroke — (max minus avg speed) ÷ avg speed, catch to catch. GPS-derived — only valid for comparing the same stretch, direction and tide.'},
-  {k:'speedloss', l:'Speed Loss', c:'var(--mc-speedloss)', cat:'cond', filter:s=>!isNaN(s.speedLossPct)&&s.speedLossPct>0&&s.speedLossPct<100, val:s=>s.speedLossPct, fmtAvg:v=>f1(v)+'%', fmtBest:null, tip:'Speed loss within one stroke — (avg minus min speed) ÷ avg speed, catch to catch. GPS-derived — only valid for comparing the same stretch, direction and tide.'},
+  {k:'driveaccel', l:'Drive Accel', c:'var(--mc-driveaccel)', cat:'boat', filter:s=>!isNaN(s.driveAccel)&&s.driveAccel>0&&s.driveAccel<20, val:s=>s.driveAccel, fmtAvg:v=>f1(v)+' m/s²', fmtBest:null, tip:'Peak forward acceleration during the drive, catch to finish. IMU-derived — scale varies with boat class and mass.'},
+  {k:'recoveryaccel', l:'Recovery Accel', c:'var(--mc-recoveryaccel)', cat:'boat', filter:s=>!isNaN(s.recoveryAccel)&&s.recoveryAccel>0&&s.recoveryAccel<20, val:s=>s.recoveryAccel, fmtAvg:v=>f1(v)+' m/s²', fmtBest:null, tip:'Peak forward acceleration during the recovery, taken after the small drag-dip that follows the finish. IMU-derived — scale varies with boat class and mass.'},
   {k:'rloss',  l:'Recovery Loss', c:'var(--mc-rloss)', cat:'indep', filter:s=>!isNaN(s.rloss)&&s.rloss>0&&s.rloss<100, val:s=>s.rloss, fmtAvg:v=>fmtRunLossU(v), fmtBest:null, tip:'Percentage of drive speed lost to deceleration during recovery. Accelerometer-derived, condition-independent. Lower is better.'},
   {k:'ratio',  l:'Ratio',       c:'var(--mc-ratio)', cat:'indep', filter:s=>!isNaN(s.ratio)&&s.ratio>0.5&&s.ratio<5, val:s=>s.ratio, fmtAvg:v=>f2(v),       fmtBest:null, tip:'Recovery time ÷ drive time. Higher means a longer, more relaxed recovery relative to the drive.'},
   {k:'schar',  l:'Stroke Char', c:'var(--mc-schar)', cat:'indep', filter:s=>!isNaN(s.schar)&&s.schar>0&&s.schar<=100, val:s=>s.schar,       fmtAvg:v=>f0(v)+'%',        fmtBest:null, tip:'Where peak power (acceleration) occurs during the drive, as % of drive duration. ~30-45% = front-loaded catch (preferred), ~65%+ = back-loaded/late catch.'},
@@ -750,10 +750,9 @@ let curveGroups = []; // [{color,bg,strokes,absS,absE,label}]
 let currentView=[];
 let viewS=0,viewE=0;
 let selS=-1,selE=-1;
-let vis={pace:true,rate:true,slope:false,dps:false,impulse:false,rloss:false,schar:false,ratio:false,angle:false,cdelta:false,cdur:false,speedloss:false,speedgain:false,hr:false};
+let vis={pace:true,rate:true,slope:false,dps:false,impulse:false,rloss:false,schar:false,ratio:false,angle:false,cdelta:false,cdur:false,driveaccel:false,recoveryaccel:false,hr:false};
 try{const sv=JSON.parse(localStorage.getItem('br_tile_vis')||'null');if(sv&&typeof sv==='object')Object.assign(vis,sv);}catch{}
-vis.pace=true; vis.rate=true;
-let hid={pace:false,rate:false,slope:false,dps:false,impulse:false,rloss:false,schar:false,ratio:false,angle:false,cdelta:false,cdur:false,speedloss:false,speedgain:false,hr:false};
+let hid={pace:false,rate:false,slope:false,dps:false,impulse:false,rloss:false,schar:false,ratio:false,angle:false,cdelta:false,cdur:false,driveaccel:false,recoveryaccel:false,hr:false};
 try{const sh=JSON.parse(localStorage.getItem('br_tile_hidden')||'null');if(sh&&typeof sh==='object')Object.assign(hid,sh);}catch{}
 hid.pace=false; hid.rate=false;
 vis=new Proxy(vis,{get(t,k){return hid[k]?false:t[k];},set(t,k,v){t[k]=v;return true;}});
@@ -872,7 +871,7 @@ function sessionToAnalyserFmt(s) {
     rate:num(r.rate), pace:num(r.pace), dist:num(r.dist), dps:num(r.dps),
     rloss:!isNaN(num(r.runLossPct))?num(r.runLossPct):(num(r.runLossM)>0&&num(r.dps)>0?num(r.runLossM)/num(r.dps)*100:NaN), runeff:num(r.runEfficiency), impulse:num(r.driveImpulse)*100,
     ratio:num(r.strokeRatio), oarAngle:num(r.oarAngle), checkDelta:num(r.velEff),
-    catchDuration:num(r.catchDuration), speedLossPct:num(r.speedLossPct), speedGainPct:num(r.speedGainPct),
+    catchDuration:num(r.catchDuration), recoveryAccel:num(r.recoveryAccel), driveAccel:num(r.driveAccel),
     curve: r.curve||null, curveDriveFrac: r.curveDriveFrac||null,
   }));
   const hr = (s.hrTrace||[]).map(h=>({ ts:new Date(h.t).toISOString(), bpm:h.hr }));
@@ -1021,7 +1020,7 @@ function garminToAnalyserFmt(records, filename) {
       rate, pace, dist:r.dist!=null?r.dist:NaN, dps,
       rloss:NaN, runeff:NaN, impulse:NaN,
       ratio:NaN, oarAngle:NaN, checkDelta:NaN,
-      catchDuration:NaN, speedLossPct:NaN, speedGainPct:NaN,
+      catchDuration:NaN, recoveryAccel:NaN, driveAccel:NaN,
       curve:null, curveDriveFrac:null,
     };
   });
@@ -1688,8 +1687,8 @@ function buildCards(sum) {
   const card=(cls,lbl,val,sub,k,tip)=>`<div class="card ${cls}${k?' clickable':''}${k&&!vis[k]?' dim':''}"${k?` id="card-${k}" data-vis="${k}"`:''}${tip?` title="${tip}"`:''}>` +
     `<div class="lbl">${lbl}</div><div class="val">${val}</div><div class="sub">${sub}</div></div>`;
   const CARD_BUILDERS={
-    pace:()=>vals.pace?card('c-pace','Pace',fmtPaceU(avgPace>0?avgPace:vals.pace.mean),movPace>0?'mov '+fmtPaceU(movPace):paceULabel(),null,tipOf('pace')):'',
-    rate:()=>vals.rate?card('c-rate','Rate',f1(vals.rate.mean),'spm · max '+f0(vals.rate.max),null,tipOf('rate')):'',
+    pace:()=>vals.pace?card('c-pace','Pace',fmtPaceU(avgPace>0?avgPace:vals.pace.mean),movPace>0?'mov '+fmtPaceU(movPace):paceULabel(),'pace',tipOf('pace')):'',
+    rate:()=>vals.rate?card('c-rate','Rate',f1(vals.rate.mean),'spm · max '+f0(vals.rate.max),'rate',tipOf('rate')):'',
     dps:()=>vals.dps?card('c-dps','DPS',fmtDPSU(vals.dps.mean),dpsULabelU()+'/stroke','dps',tipOf('dps')):'',
     cdelta:()=>vals.cdelta?`<div class="card clickable${!vis.cdelta?' dim':''}" id="card-cdelta" data-vis="cdelta" style="border-top:2px solid var(--mc-cdelta)" title="${tipOf('cdelta')}"><div class="lbl">Vel Efficiency</div><div class="val" style="color:var(--mc-cdelta)">${f1(vals.cdelta.mean)}%</div><div class="sub">vs steady hull</div></div>`:'',
     rloss:()=>vals.rloss?card('c-rloss','Recovery Loss',fmtRunLossU(vals.rloss.mean),'avg/stroke','rloss',tipOf('rloss')):'',
@@ -1699,8 +1698,8 @@ function buildCards(sum) {
     ratio:()=>vals.ratio?card('c-ratio','Ratio',f2(vals.ratio.mean),'rec÷drive','ratio',tipOf('ratio')):'',
     schar:()=>vals.schar?card('c-schar','Stroke Char',f0(vals.schar.mean)+'%','','schar',tipOf('schar')):'',
     cdur:()=>vals.cdur?`<div class="card clickable${!vis.cdur?' dim':''}" id="card-cdur" data-vis="cdur" style="border-top:2px solid var(--mc-cdur)" title="${tipOf('cdur')}"><div class="lbl">Catch Dur</div><div class="val" style="color:var(--mc-cdur)">${f0(vals.cdur.mean)} ms</div><div class="sub">avg/stroke</div></div>`:'',
-    speedloss:()=>vals.speedloss?card('c-speedloss','Speed Loss',f1(vals.speedloss.mean)+'%','avg/stroke','speedloss',tipOf('speedloss')):'',
-    speedgain:()=>vals.speedgain?card('c-speedgain','Speed Gain',f1(vals.speedgain.mean)+'%','avg/stroke','speedgain',tipOf('speedgain')):'',
+    driveaccel:()=>vals.driveaccel?card('c-driveaccel','Drive Accel',f1(vals.driveaccel.mean)+' m/s²','avg/stroke','driveaccel',tipOf('driveaccel')):'',
+    recoveryaccel:()=>vals.recoveryaccel?card('c-recoveryaccel','Recovery Accel',f1(vals.recoveryaccel.mean)+' m/s²','avg/stroke','recoveryaccel',tipOf('recoveryaccel')):'',
     hr:()=>vals.hr?card('c-hr','Avg HR',f0(vals.hr.mean),'max '+f0(vals.hr.max)+' bpm','hr',tipOf('hr')):'',
   };
   let html=
@@ -1712,7 +1711,6 @@ function buildCards(sum) {
 
 // ── Legend ──────────────────────────────────────────────────────────────────
 window.toggleVis=function(k){
-  if(k==='pace'||k==='rate')return;
   vis[k]=!vis[k];
   try{localStorage.setItem('br_tile_vis',JSON.stringify(vis));}catch{}
   const card=document.getElementById('card-'+k);
@@ -1945,7 +1943,7 @@ function drawMain(){
   const xRng=xMax-xMin||1;
   const toX=v=>PL+(v-xMin)/xRng*pw;
 
-  const pv=[],rv=[],jv=[],dv=[],iv=[],rlv=[],scv=[],ratv=[],angv=[],cdv=[],cdurv=[],slv=[],sgv=[],hrv=[];
+  const pv=[],rv=[],jv=[],dv=[],iv=[],rlv=[],scv=[],ratv=[],angv=[],cdv=[],cdurv=[],daccv=[],raccv=[],hrv=[];
   for(let i=0;i<N;i++){const s=sv[i];
     if(vis.pace&&s.pace>50&&s.pace<500)pv.push(s.pace);
     if(vis.rate&&s.rate>5&&s.rate<50)rv.push(s.rate);
@@ -1958,8 +1956,8 @@ function drawMain(){
     if(vis.angle&&!isNaN(s.strokeAngle)&&s.strokeAngle>20&&s.strokeAngle<180)angv.push(s.strokeAngle);
     if(vis.cdelta&&!isNaN(s.checkDelta)&&s.checkDelta>=50&&s.checkDelta<=100)cdv.push(s.checkDelta);
     if(vis.cdur&&!isNaN(s.catchDuration)&&s.catchDuration>10&&s.catchDuration<500)cdurv.push(s.catchDuration);
-    if(vis.speedloss&&!isNaN(s.speedLossPct)&&s.speedLossPct>0&&s.speedLossPct<100)slv.push(s.speedLossPct);
-    if(vis.speedgain&&!isNaN(s.speedGainPct)&&s.speedGainPct>0&&s.speedGainPct<100)sgv.push(s.speedGainPct);
+    if(vis.driveaccel&&!isNaN(s.driveAccel)&&s.driveAccel>0&&s.driveAccel<20)daccv.push(s.driveAccel);
+    if(vis.recoveryaccel&&!isNaN(s.recoveryAccel)&&s.recoveryAccel>0&&s.recoveryAccel<20)raccv.push(s.recoveryAccel);
     if(vis.hr){const b=nearestHRAt(view[i].ms);if(b!=null&&b>40&&b<220)hrv.push(b);}
 }
 
@@ -1976,8 +1974,10 @@ function drawMain(){
   let yImpMin=0.2,yImpMax=2.0;
   if(iv.length){const[lo,hi]=pctBounds(iv,0.03,0.97,0.10);yImpMin=Math.max(0,lo);yImpMax=Math.min(1000,hi);}
   const toYImp=v=>PT+ph-(v-yImpMin)/(yImpMax-yImpMin||1)*ph;
-  const rlAll=[...rlv,...slv,...sgv];const yRLMax=rlAll.length?Math.min(Math.max(pctBounds(rlAll,0.03,0.97,0.10)[1],0.5),50):2;
+  const yRLMax=rlv.length?Math.min(Math.max(pctBounds(rlv,0.03,0.97,0.10)[1],0.5),50):2;
   const toYRL=v=>PT+ph-(v/yRLMax)*ph;
+  const accAll=[...daccv,...raccv];const yAccMax=accAll.length?Math.min(Math.max(pctBounds(accAll,0.03,0.97,0.10)[1],0.5),20):6;
+  const toYAcc=v=>PT+ph-(v/yAccMax)*ph;
   const toYSC=v=>PT+ph-(v/100)*ph;
   let yRatMin=1.0,yRatMax=4.0;
   if(ratv.length){const[lo,hi]=pctBounds(ratv,0.05,0.95,0.10);yRatMin=1;yRatMax=Math.min(5.0,hi);}
@@ -2043,8 +2043,8 @@ function drawMain(){
   if(vis.angle&&angv.length){ctx.fillStyle=C.mc_oar;for(let i=0;i<N;i++){const v=sv[i].strokeAngle;if(isNaN(v)||v<20||v>180)continue;ctx.beginPath();ctx.arc(toX(xs[i]),toYAngle(v),2.2,0,6.283);ctx.fill();}}
   if(vis.cdelta&&cdv.length){ctx.fillStyle=C.mc_cdelta;for(let i=0;i<N;i++){const v=sv[i].checkDelta;if(isNaN(v)||v<50||v>100)continue;ctx.beginPath();ctx.arc(toX(xs[i]),toYCD(v),2.2,0,6.283);ctx.fill();}}
   if(vis.cdur&&cdurv.length){ctx.fillStyle=C.mc_cdur;for(let i=0;i<N;i++){const v=sv[i].catchDuration;if(isNaN(v)||v<=10||v>=500)continue;ctx.beginPath();ctx.arc(toX(xs[i]),toYCDur(v),2.2,0,6.283);ctx.fill();}}
-  if(vis.speedloss&&slv.length){ctx.fillStyle=C.mc_speedloss;for(let i=0;i<N;i++){const v=sv[i].speedLossPct;if(isNaN(v)||v<=0||v>=100)continue;ctx.beginPath();ctx.arc(toX(xs[i]),toYRL(v),2.2,0,6.283);ctx.fill();}}
-  if(vis.speedgain&&sgv.length){ctx.fillStyle=C.mc_speedgain;for(let i=0;i<N;i++){const v=sv[i].speedGainPct;if(isNaN(v)||v<=0||v>=100)continue;ctx.beginPath();ctx.arc(toX(xs[i]),toYRL(v),2.2,0,6.283);ctx.fill();}}
+  if(vis.driveaccel&&daccv.length){ctx.fillStyle=C.mc_driveaccel;for(let i=0;i<N;i++){const v=sv[i].driveAccel;if(isNaN(v)||v<=0||v>=20)continue;ctx.beginPath();ctx.arc(toX(xs[i]),toYAcc(v),2.2,0,6.283);ctx.fill();}}
+  if(vis.recoveryaccel&&raccv.length){ctx.fillStyle=C.mc_recoveryaccel;for(let i=0;i<N;i++){const v=sv[i].recoveryAccel;if(isNaN(v)||v<=0||v>=20)continue;ctx.beginPath();ctx.arc(toX(xs[i]),toYAcc(v),2.2,0,6.283);ctx.fill();}}
   if(vis.hr&&hrv.length){let px=null,py=null;ctx.lineWidth=2.5;for(let i=0;i<N;i++){const b=nearestHRAt(view[i].ms);if(b==null||b<40||b>220){px=null;continue;}const x=toX(xs[i]),y=toYHR(b);if(px!=null){ctx.beginPath();ctx.moveTo(px,py);ctx.lineTo(x,y);ctx.strokeStyle=hrZoneColor(b);ctx.stroke();}px=x;py=y;}}
 
   drawLapLines(ctx,computeLapBoundaryXValues(),toX,xMin,xRng,PT,ph,true);
@@ -2153,8 +2153,8 @@ function showTooltip(e){
     rate:()=>ttRow('Rate',isNaN(s.rate)||s.rate<1?EM:f1(s.rate)+' spm',C.mc_rate),
     dps:()=>ttRow('DPS',isNaN(s.dps)||s.dps<1?EM:fmtDPSU(s.dps)+dpsULabelU(),C.mc_dps),
     cdelta:()=>ttRow('Vel Efficiency',(!isNaN(s.checkDelta)&&s.checkDelta>=50)?f1(s.checkDelta)+'%':EM,C.mc_cdelta),
-    speedloss:()=>ttRow('Speed Loss',isNaN(s.speedLossPct)||s.speedLossPct<=0?EM:f1(s.speedLossPct)+'%',C.mc_speedloss),
-    speedgain:()=>ttRow('Speed Gain',isNaN(s.speedGainPct)||s.speedGainPct<=0?EM:f1(s.speedGainPct)+'%',C.mc_speedgain),
+    driveaccel:()=>ttRow('Drive Accel',isNaN(s.driveAccel)||s.driveAccel<=0?EM:f1(s.driveAccel)+' m/s²',C.mc_driveaccel),
+    recoveryaccel:()=>ttRow('Recovery Accel',isNaN(s.recoveryAccel)||s.recoveryAccel<=0?EM:f1(s.recoveryAccel)+' m/s²',C.mc_recoveryaccel),
     rloss:()=>ttRow('Recovery Loss',isNaN(s.rloss)||s.rloss<=0?EM:fmtRunLossU(s.rloss),C.mc_rloss),
     angle:()=>ttRow('Oar Arc',(!isNaN(s.strokeAngle)&&s.strokeAngle>20)?f1(s.strokeAngle)+'°':EM,C.mc_oar),
     impulse:()=>ttRow('Impulse',isNaN(s.impulse)||s.impulse<=0?EM:Math.round(s.impulse).toString(),C.mc_impulse),
@@ -2938,8 +2938,8 @@ const TBL_COLS={
   ratio:{h:'Ratio', cell:s=>`<td style="color:var(--mc-ratio)">${(s.ratio==null||isNaN(s.ratio)||s.ratio<0.5||s.ratio>5)?EM:s.ratio.toFixed(2)}</td>`},
   schar:{h:'Stroke Char%', cell:s=>`<td style="color:var(--mc-schar)">${isNaN(s.schar)||s.schar<=0?EM:f0(s.schar)+'%'}</td>`},
   cdur:{h:'Catch Dur ms', cell:s=>`<td style="color:var(--mc-cdur)">${(!isNaN(s.catchDuration)&&s.catchDuration>10)?f0(s.catchDuration):EM}</td>`},
-  speedloss:{h:'Spd Loss%', cell:s=>`<td style="color:var(--mc-speedloss)">${isNaN(s.speedLossPct)||s.speedLossPct<=0?EM:f1(s.speedLossPct)+'%'}</td>`},
-  speedgain:{h:'Spd Gain%', cell:s=>`<td style="color:var(--mc-speedgain)">${isNaN(s.speedGainPct)||s.speedGainPct<=0?EM:f1(s.speedGainPct)+'%'}</td>`},
+  driveaccel:{h:'Drv Accel', cell:s=>`<td style="color:var(--mc-driveaccel)">${isNaN(s.driveAccel)||s.driveAccel<=0?EM:f1(s.driveAccel)}</td>`},
+  recoveryaccel:{h:'Rec Accel', cell:s=>`<td style="color:var(--mc-recoveryaccel)">${isNaN(s.recoveryAccel)||s.recoveryAccel<=0?EM:f1(s.recoveryAccel)}</td>`},
   hr:{h:'HR bpm', cell:s=>{const b=nearestHRAt(s.ms);return `<td style="color:var(--mc-hr)">${b!=null?b:EM}</td>`;}},
 };
 function buildStrokeTable(){
@@ -3609,13 +3609,13 @@ const VID_METRICS = {
   oarAngle:     {l:'Oar Arc',    fmt:s=>({v:f0(s.oarAngle),u:'\u00B0'})},
   checkDelta:   {l:'Vel Eff',fmt:s=>({v:f1(s.checkDelta),u:'%'})},
   catchDuration:{l:'Catch Dur',  fmt:s=>({v:f0(s.catchDuration),u:'ms'})},
-  speedloss:    {l:'Spd Loss',   fmt:s=>({v:f1(s.speedLossPct),u:'%'})},
-  speedgain:    {l:'Spd Gain',   fmt:s=>({v:f1(s.speedGainPct),u:'%'})},
+  driveaccel:    {l:'Drive Accel',   fmt:s=>({v:f1(s.driveAccel),u:'m/s²'})},
+  recoveryaccel: {l:'Recovery Accel',fmt:s=>({v:f1(s.recoveryAccel),u:'m/s²'})},
   dist:         {l:'Distance',   fmt:s=>({v:f0(s.dist),u:'m'})},
   stroke:       {l:'Stroke #',   fmt:(s,i)=>({v:String(i+1),u:''})},
   time:         {l:'Session',    fmt:(s,i,t)=>({v:fmtTime(t),u:''})},
 };
-const VID_METRIC_ORDER = ['rate','pace','dps','slope','impulse','rloss','schar','ratio','oarAngle','checkDelta','catchDuration','speedloss','speedgain','dist','stroke','time'];
+const VID_METRIC_ORDER = ['rate','pace','dps','slope','impulse','driveaccel','recoveryaccel','rloss','schar','ratio','oarAngle','checkDelta','catchDuration','dist','stroke','time'];
 const VID_KEY_TO_TILE = {oarAngle:'angle',checkDelta:'cdelta',catchDuration:'cdur'};
 function vidKeyHidden(vidKey){
   const tileKey = VID_KEY_TO_TILE[vidKey] || vidKey;
