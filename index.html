@@ -715,7 +715,7 @@ const METRIC_DEFS = [
   {k:'impulse',l:'Impulse',     c:'var(--mc-impulse)', cat:'boat',  filter:s=>s.impulse>0&&s.impulse<1000,  val:s=>s.impulse,     fmtAvg:v=>Math.round(v).toString(),fmtBest:null, tip:'Total positive acceleration during the drive, integrated as a change in velocity (Δv). Higher means more drive power applied to the hull — not a peak value. IMU-derived — scale varies with boat class and mass.'},
   {k:'driveaccel', l:'Drive Accel', c:'var(--mc-driveaccel)', cat:'boat', filter:s=>!isNaN(s.driveAccel)&&s.driveAccel>0&&s.driveAccel<20, val:s=>s.driveAccel, fmtAvg:v=>f1(v)+' m/s²', fmtBest:null, tip:'Peak forward acceleration during the drive, catch to finish. IMU-derived — scale varies with boat class and mass.'},
   {k:'recoveryaccel', l:'Recovery Accel', c:'var(--mc-recoveryaccel)', cat:'boat', filter:s=>!isNaN(s.recoveryAccel)&&s.recoveryAccel>0&&s.recoveryAccel<20, val:s=>s.recoveryAccel, fmtAvg:v=>f1(v)+' m/s²', fmtBest:null, tip:'Peak forward acceleration during the recovery, taken after the small drag-dip that follows the finish. IMU-derived — scale varies with boat class and mass.'},
-  {k:'rloss',  l:'Recovery Loss', c:'var(--mc-rloss)', cat:'indep', filter:s=>!isNaN(s.rloss)&&s.rloss>0&&s.rloss<100, val:s=>s.rloss, fmtAvg:v=>fmtRunLossU(v), fmtBest:null, tip:'Percentage of drive speed lost to deceleration during recovery. Accelerometer-derived, condition-independent. Lower is better.'},
+  {k:'rloss',  l:'Recovery Loss', c:'var(--mc-rloss)', cat:'indep', filter:s=>!isNaN(s.rloss)&&s.rloss>=0&&s.rloss<100, val:s=>s.rloss, fmtAvg:v=>fmtRunLossU(v), fmtBest:null, tip:'Percentage of drive speed lost to deceleration during recovery. Accelerometer-derived, condition-independent. Lower is better.'},
   {k:'ratio',  l:'Ratio',       c:'var(--mc-ratio)', cat:'indep', filter:s=>!isNaN(s.ratio)&&s.ratio>0.5&&s.ratio<5, val:s=>s.ratio, fmtAvg:v=>f2(v),       fmtBest:null, tip:'Recovery time ÷ drive time. Higher means a longer, more relaxed recovery relative to the drive.'},
   {k:'schar',  l:'Stroke Char', c:'var(--mc-schar)', cat:'indep', filter:s=>!isNaN(s.schar)&&s.schar>0&&s.schar<=100, val:s=>s.schar,       fmtAvg:v=>f0(v)+'%',        fmtBest:null, tip:'Where peak power (acceleration) occurs during the drive, as % of drive duration. ~30-45% = front-loaded catch (preferred), ~65%+ = back-loaded/late catch.'},
   {k:'cdelta', l:'Vel Efficiency', c:'var(--mc-cdelta)',  cat:'boat',  filter:s=>!isNaN(s.checkDelta)&&s.checkDelta>=50&&s.checkDelta<=100, val:s=>s.checkDelta, fmtAvg:v=>f1(v)+'%', fmtBest:null, tip:'Hydrodynamic efficiency of the boat\'s speed profile within one stroke — 100% = perfectly steady hull, typical sculling 93–97%. Drag power rises with the cube of speed, so speed swings waste energy versus a constant speed. Higher is better. GPS-anchored IMU metric.'},
@@ -809,7 +809,7 @@ function parseCSV(text) {
           slope:parseFloat(row.catch_ms3), schar:parseFloat(row.char),
           consistency:parseFloat(row.consistency), rate:parseFloat(row.rate_spm),
           pace:parseFloat(row.pace_s500), dist:parseFloat(row.dist_m),
-          dps:parseFloat(row.dps_m), rloss:(parseFloat(row.run_loss_m)>0&&parseFloat(row.dps_m)>0?parseFloat(row.run_loss_m)/parseFloat(row.dps_m)*100:NaN),
+          dps:parseFloat(row.dps_m), rloss:(parseFloat(row.run_loss_m)>=0&&parseFloat(row.dps_m)>0?parseFloat(row.run_loss_m)/parseFloat(row.dps_m)*100:NaN),
           ratio:parseFloat(row.ratio), impulse:parseFloat(row.impulse) });
         break;
       }
@@ -869,7 +869,7 @@ function sessionToAnalyserFmt(s) {
     n:i+1, ms:r.t, elapsed:(r.t-t0)/1000,
     slope:num(r.catchPeak), schar:num(r.char), consistency:num(r.catchConsistency),
     rate:num(r.rate), pace:num(r.pace), dist:num(r.dist), dps:num(r.dps),
-    rloss:!isNaN(num(r.runLossPct))?num(r.runLossPct):(num(r.runLossM)>0&&num(r.dps)>0?num(r.runLossM)/num(r.dps)*100:NaN), runeff:num(r.runEfficiency), impulse:num(r.driveImpulse)*100,
+    rloss:!isNaN(num(r.runLossPct))?num(r.runLossPct):(num(r.runLossM)>=0&&num(r.dps)>0?num(r.runLossM)/num(r.dps)*100:NaN), runeff:num(r.runEfficiency), impulse:num(r.driveImpulse)*100,
     ratio:num(r.strokeRatio), oarAngle:num(r.oarAngle), checkDelta:num(r.velEff),
     catchDuration:num(r.catchDuration), recoveryAccel:num(r.recoveryAccel), driveAccel:num(r.driveAccel),
     curve: r.curve||null, curveDriveFrac: r.curveDriveFrac||null,
@@ -1950,7 +1950,7 @@ function drawMain(){
     if(vis.slope&&s.slope>0&&s.slope<300)jv.push(s.slope);
     if(vis.dps&&s.dps>1&&s.dps<25)dv.push(s.dps);
     if(vis.impulse&&s.impulse>0&&s.impulse<1000)iv.push(s.impulse);
-    if(vis.rloss&&s.rloss>0&&s.rloss<100)rlv.push(s.rloss);
+    if(vis.rloss&&s.rloss>=0&&s.rloss<100)rlv.push(s.rloss);
     if(vis.schar&&!isNaN(s.schar)&&s.schar>=0&&s.schar<=100)scv.push(s.schar);
     if(vis.ratio&&!isNaN(s.ratio)&&s.ratio>0.5&&s.ratio<5)ratv.push(s.ratio);
     if(vis.angle&&!isNaN(s.strokeAngle)&&s.strokeAngle>20&&s.strokeAngle<180)angv.push(s.strokeAngle);
@@ -2037,7 +2037,7 @@ function drawMain(){
   if(vis.rate&&rv.length){ctx.fillStyle=C.mc_rate;for(let i=0;i<N;i++){const v=sv[i].rate;if(isNaN(v)||v<5||v>50)continue;ctx.beginPath();ctx.arc(toX(xs[i]),toYR(v),2.2,0,6.283);ctx.fill();}}
   if(vis.slope&&jv.length){const jMax=arrMax(jv);for(let i=0;i<N;i++){const v=sv[i].slope;if(isNaN(v)||v<=0||v>300)continue;const rad=clamp(1.5+(v/jMax)*3.5,1.5,5);ctx.beginPath();ctx.arc(toX(xs[i]),toYR(v),rad,0,6.283);ctx.fillStyle=C.mc_slope;ctx.fill();}}
   if(vis.impulse&&iv.length){ctx.fillStyle=C.mc_impulse;for(let i=0;i<N;i++){const v=sv[i].impulse;if(isNaN(v)||v<=0||v>1000)continue;ctx.beginPath();ctx.arc(toX(xs[i]),toYImp(v),2.5,0,6.283);ctx.fill();}}
-  if(vis.rloss&&rlv.length){ctx.fillStyle=C.mc_rloss;for(let i=0;i<N;i++){const v=sv[i].rloss;if(isNaN(v)||v<=0||v>=100)continue;ctx.beginPath();ctx.arc(toX(xs[i]),toYRL(v),2.2,0,6.283);ctx.fill();}}
+  if(vis.rloss&&rlv.length){ctx.fillStyle=C.mc_rloss;for(let i=0;i<N;i++){const v=sv[i].rloss;if(isNaN(v)||v<0||v>=100)continue;ctx.beginPath();ctx.arc(toX(xs[i]),toYRL(v),2.2,0,6.283);ctx.fill();}}
   if(vis.schar&&scv.length){ctx.fillStyle=C.mc_schar;for(let i=0;i<N;i++){const v=sv[i].schar;if(isNaN(v)||v<0||v>100)continue;ctx.beginPath();ctx.arc(toX(xs[i]),toYSC(v),2.2,0,6.283);ctx.fill();}}
   if(vis.ratio&&ratv.length){ctx.fillStyle=C.mc_ratio;for(let i=0;i<N;i++){const v=sv[i].ratio;if(isNaN(v)||v<0.5||v>5)continue;ctx.beginPath();ctx.arc(toX(xs[i]),toYRatio(v),2.2,0,6.283);ctx.fill();}}
   if(vis.angle&&angv.length){ctx.fillStyle=C.mc_oar;for(let i=0;i<N;i++){const v=sv[i].strokeAngle;if(isNaN(v)||v<20||v>180)continue;ctx.beginPath();ctx.arc(toX(xs[i]),toYAngle(v),2.2,0,6.283);ctx.fill();}}
@@ -2155,7 +2155,7 @@ function showTooltip(e){
     cdelta:()=>ttRow('Vel Efficiency',(!isNaN(s.checkDelta)&&s.checkDelta>=50)?f1(s.checkDelta)+'%':EM,C.mc_cdelta),
     driveaccel:()=>ttRow('Drive Accel',isNaN(s.driveAccel)||s.driveAccel<=0?EM:f1(s.driveAccel)+' m/s²',C.mc_driveaccel),
     recoveryaccel:()=>ttRow('Recovery Accel',isNaN(s.recoveryAccel)||s.recoveryAccel<=0?EM:f1(s.recoveryAccel)+' m/s²',C.mc_recoveryaccel),
-    rloss:()=>ttRow('Recovery Loss',isNaN(s.rloss)||s.rloss<=0?EM:fmtRunLossU(s.rloss),C.mc_rloss),
+    rloss:()=>ttRow('Recovery Loss',isNaN(s.rloss)||s.rloss<0?EM:fmtRunLossU(s.rloss),C.mc_rloss),
     angle:()=>ttRow('Oar Arc',(!isNaN(s.strokeAngle)&&s.strokeAngle>20)?f1(s.strokeAngle)+'°':EM,C.mc_oar),
     impulse:()=>ttRow('Impulse',isNaN(s.impulse)||s.impulse<=0?EM:Math.round(s.impulse).toString(),C.mc_impulse),
     slope:()=>ttRow('Catch slope',isNaN(s.slope)||s.slope<=0?EM:f0(s.slope),C.mc_slope),
@@ -2931,7 +2931,7 @@ const TBL_COLS={
   rate:{h:'Rate', cell:s=>`<td style="color:var(--mc-rate)">${isNaN(s.rate)||s.rate<1?EM:f0(s.rate)}</td>`},
   dps:{h:'DPS '+dpsULabelU(), cell:s=>`<td style="color:var(--mc-dps)">${isNaN(s.dps)||s.dps<1?EM:fmtDPSU(s.dps)}</td>`},
   cdelta:{h:'Vel Eff %', cell:s=>`<td style="color:var(--mc-cdelta)">${(!isNaN(s.checkDelta)&&s.checkDelta>=50)?f1(s.checkDelta):EM}</td>`},
-  rloss:{h:'Recovery Loss %', cell:s=>`<td style="color:var(--mc-rloss)">${isNaN(s.rloss)||s.rloss<=0?EM:fmtRunLossU(s.rloss)}</td>`},
+  rloss:{h:'Recovery Loss %', cell:s=>`<td style="color:var(--mc-rloss)">${isNaN(s.rloss)||s.rloss<0?EM:fmtRunLossU(s.rloss)}</td>`},
   angle:{h:'Oar Arc°', cell:s=>`<td style="color:var(--mc-oar)">${(!isNaN(s.strokeAngle)&&s.strokeAngle>20&&s.strokeAngle<180)?f1(s.strokeAngle)+'°':EM}</td>`},
   impulse:{h:'Impulse', cell:s=>`<td style="color:var(--mc-impulse)">${isNaN(s.impulse)||s.impulse<=0?EM:Math.round(s.impulse)}</td>`},
   slope:{h:'Catch slope', cell:s=>`<td style="color:var(--mc-slope)">${isNaN(s.slope)||s.slope<=0?EM:f1(s.slope)}</td>`},
