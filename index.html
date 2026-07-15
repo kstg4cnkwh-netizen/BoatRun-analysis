@@ -317,6 +317,8 @@
 
 <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" crossorigin=""/>
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" crossorigin=""></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-auth-compat.js"></script>
 </head>
 <body class="light">
 
@@ -467,6 +469,67 @@ function setTier(t) {
     try { localStorage.setItem(TIER_SETTINGS_KEY, JSON.stringify(v)); } catch {}
 }
 function isPro() { return getTier() === 'pro'; }
+// ── FIREBASE AUTH (account + entitlement) ───────────────────────────────────
+const firebaseConfig = {
+  apiKey: "AIzaSyBXpkmVnRzp6a-FqWmjxqrjzxdHtKiwP7I",
+  authDomain: "boatrun.firebaseapp.com",
+  databaseURL: "https://boatrun-default-rtdb.asia-southeast1.firebasedatabase.app",
+  projectId: "boatrun",
+  storageBucket: "boatrun.firebasestorage.app",
+  messagingSenderId: "118760764612",
+  appId: "1:118760764612:web:d9810245caed9744768591"
+};
+firebase.initializeApp(firebaseConfig);
+const fbAuth = firebase.auth();
+
+const AnalyserAuth = {
+  user: null,
+  _listeners: [],
+  onChange(fn) { this._listeners.push(fn); },
+  _notify() { this._listeners.forEach(fn => { try { fn(this.user); } catch {} }); },
+  init() {
+    fbAuth.onAuthStateChanged(async (u) => {
+      this.user = u;
+      if (u) { await this._syncEntitlement(); }
+      this._notify();
+    });
+  },
+  async signInGoogle() {
+    try {
+      const provider = new firebase.auth.GoogleAuthProvider();
+      await fbAuth.signInWithPopup(provider);
+      toast('Signed in with Google');
+    } catch (e) {
+      toast('Google sign-in failed: ' + e.message);
+    }
+  },
+  async linkApple() {
+    if (!this.user) { toast('Sign in first, then link Apple'); return; }
+    try {
+      const provider = new firebase.auth.OAuthProvider('apple.com');
+      await this.user.linkWithPopup(provider);
+      toast('Apple account linked');
+      await this._syncEntitlement();
+      this._notify();
+    } catch (e) {
+      toast('Apple linking not set up yet: ' + e.message);
+    }
+  },
+  async signOut() {
+    await fbAuth.signOut();
+    toast('Signed out');
+  },
+  async _syncEntitlement() {
+    if (!this.user) return;
+    try {
+      const idToken = await this.user.getIdToken();
+      const r = await fetch(`https://boatrun-default-rtdb.asia-southeast1.firebasedatabase.app/users/${this.user.uid}.json?auth=${idToken}`);
+      if (!r.ok) return;
+      const data = await r.json();
+      if (data && data.tier) setTier(data.tier);
+    } catch (e) { console.error('entitlement sync failed', e); }
+  }
+};
 
 // ══════════════════════════════════════════════════════════════════════════
 // DRIVE (inline — works without drive-sync.js)
@@ -3527,8 +3590,25 @@ function showPlanModal(msg){
   const panel=document.createElement('div');
   panel.style.cssText='background:#f4f4f4;border-radius:10px;max-width:420px;width:100%;overflow:hidden;';
   const pro=isPro();
+  const u=AnalyserAuth.user;
+  const providers=u?u.providerData.map(p=>p.providerId):[];
+  const hasGoogle=providers.includes('google.com');
+  const hasApple=providers.includes('apple.com');
   panel.innerHTML=`<div style="display:flex;align-items:center;gap:10px;padding:10px 14px;background:var(--s1);border-bottom:1px solid var(--border);"><div style="font-size:13px;font-weight:600;color:var(--text);">Plan</div><button id="_plan_close" style="margin-left:auto;background:var(--s3);border:1px solid var(--border);color:var(--muted);border-radius:6px;padding:4px 10px;font-family:-apple-system, BlinkMacSystemFont, Helvetica Neue, sans-serif;font-size:11px;cursor:pointer;">Close</button></div>
   <div style="padding:16px;font-family:-apple-system, BlinkMacSystemFont, Helvetica Neue, sans-serif;">
+  <div style="border:1px solid var(--border);border-radius:8px;padding:12px;margin-bottom:14px;">
+  ${u?`
+    <div style="font-size:12px;color:var(--text);margin-bottom:8px;">Signed in as <b>${u.email||u.uid}</b></div>
+    <div style="font-size:11px;color:var(--muted);margin-bottom:10px;">Linked: ${hasGoogle?'Google':''}${hasGoogle&&hasApple?' + ':''}${hasApple?'Apple':''}</div>
+    <div style="display:flex;gap:8px;">
+    ${!hasApple?'<button id="_plan_linkapple" style="flex:1;padding:8px;border-radius:6px;border:1px solid var(--border);cursor:pointer;background:var(--s2);color:var(--text);font-size:11px;">Link Apple account</button>':''}
+    <button id="_plan_signout" style="flex:1;padding:8px;border-radius:6px;border:1px solid var(--border);cursor:pointer;background:var(--s2);color:var(--text);font-size:11px;">Sign out</button>
+    </div>
+  `:`
+    <div style="font-size:12px;color:var(--text);margin-bottom:10px;">Sign in to sync your plan across devices</div>
+    <button id="_plan_signin" style="width:100%;padding:8px;border-radius:6px;border:1px solid var(--border);cursor:pointer;background:var(--s2);color:var(--text);font-size:11px;">Sign in with Google</button>
+  `}
+  </div>
   ${msg?`<div style="font-size:12px;color:var(--text);margin-bottom:14px;">${msg}</div>`:''}
   <div style="display:flex;gap:8px;">
   <button id="_plan_basic" style="flex:1;padding:10px;border-radius:8px;border:1px solid var(--border);cursor:pointer;background:${pro?'var(--s2)':'var(--b)'};color:${pro?'var(--text)':'#000'};font-weight:700;">BASIC</button>
@@ -3542,6 +3622,12 @@ function showPlanModal(msg){
   document.getElementById('_plan_close').onclick=()=>overlay.remove();
   document.getElementById('_plan_basic').onclick=()=>{setTier('basic');overlay.remove();toast('Basic plan active');};
   document.getElementById('_plan_pro').onclick=()=>{setTier('pro');overlay.remove();toast('Pro plan active');};
+  const signinBtn=document.getElementById('_plan_signin');
+  if(signinBtn) signinBtn.onclick=async()=>{await AnalyserAuth.signInGoogle();overlay.remove();showPlanModal(msg);};
+  const linkBtn=document.getElementById('_plan_linkapple');
+  if(linkBtn) linkBtn.onclick=async()=>{await AnalyserAuth.linkApple();overlay.remove();showPlanModal(msg);};
+  const signoutBtn=document.getElementById('_plan_signout');
+  if(signoutBtn) signoutBtn.onclick=async()=>{await AnalyserAuth.signOut();overlay.remove();showPlanModal(msg);};
 }
 // ── Wiring ──────────────────────────────────────────────────────────────────
 document.getElementById('resetbtn').onclick=()=>document.getElementById('openbtn').click();
@@ -4700,6 +4786,7 @@ window.addEventListener('resize',()=>{ if(VID.clips.length){ vidSizeOverlay(); v
 
 // ── Init ─────────────────────────────────────────────────────────────────────
 AnalyserDrive.init();
+AnalyserAuth.init();
 loadAnVidDir();
 (function(){
   const xfer=localStorage.getItem('scull_xfer_session');
