@@ -2357,7 +2357,15 @@ function computeGroupCurve(strokes){
     if(s.pace>50&&s.pace<500){paceSum+=s.pace;paceN++;}
   }
   for(let i=0;i<CURVE_POINTS;i++)avg[i]/=valid.length;
-  return{data:avg,driveFrac:dfSum/valid.length,n:valid.length,total:strokes.length,
+  let df=dfSum/valid.length;
+  let pk=0,pki=-1;
+  const pkEnd=Math.round(CURVE_POINTS*0.70);
+  for(let i=0;i<pkEnd;i++){if(avg[i]>pk){pk=avg[i];pki=i;}}
+  if(pki>0&&pk>0.3){
+    const thr=pk*0.25;
+    for(let i=pki+1;i<CURVE_POINTS;i++){if(avg[i]<thr){df=i/(CURVE_POINTS-1);break;}}
+  }
+  return{data:avg,driveFrac:df,n:valid.length,total:strokes.length,
     avgRate:rateN?rateSum/rateN:null,avgDPS:dpsN?dpsSum/dpsN:null,avgPace:paceN?paceSum/paceN:null};
 }
 
