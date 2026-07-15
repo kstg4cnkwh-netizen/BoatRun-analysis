@@ -53,4 +53,4 @@ We may update this policy as the app evolves. Material changes will be reflected
 
 ## Contact
 
-[Your contact email here]
+[bigwig.91mash@icloud.com]
