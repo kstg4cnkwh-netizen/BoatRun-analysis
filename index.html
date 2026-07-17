@@ -1886,7 +1886,7 @@ window.panSlide=function(val){
 function emaSmooth(view,alpha){
   if(alpha>=1)return view;
   const out=view.map(s=>Object.assign({},s));
-  const fields=['pace','rate','slope','dps','impulse','rloss','schar','ratio','strokeAngle','checkDelta','catchDuration'];
+  const fields=['pace','rate','slope','dps','impulse','rloss','schar','ratio','checkDelta','catchDuration','driveAccel','recoveryAccel','driveTimeMs'];
   for(const f of fields){let ema=NaN;for(let i=0;i<out.length;i++){const v=out[i][f];if(isNaN(v)||v==null){ema=NaN;continue;}ema=isNaN(ema)?v:alpha*v+(1-alpha)*ema;out[i][f]=ema;}}
   return out;
 }
