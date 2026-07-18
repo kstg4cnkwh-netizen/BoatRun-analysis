@@ -277,6 +277,7 @@ body.light .hdr-tabs{background:#e3e3e6;border-radius:22px;padding:6px;box-shado
 body.light .hdr-tabs .hbtn.hicon-btn{background:#fff;color:#333;box-shadow:0 1px 2px rgba(0,0,0,.1);}
 body.light .hdr-tabs .hbtn.hicon-btn:hover{background:#fff;color:var(--b);}
 body.light .hdr-tabs .hmenu{background:#fff;}
+body.light .hdrname{color:#fff;}
 .hmenu-icon{width:15px;height:15px;display:block;object-fit:contain;flex-shrink:0;}
 
   /* ── Video overlay ── */
@@ -1721,7 +1722,7 @@ function buildMeta(fname,sum) {
   const sq=SESSIONS[activeSessionIdx]?.squadCode;
   const sqBadge=sq?' <span style="font-size:8px;background:var(--s3);border:1px solid var(--border);border-radius:3px;padding:1px 5px;color:var(--b);letter-spacing:.07em;vertical-align:middle;">'+sq+'</span>':'';
   document.getElementById('hdrmeta').innerHTML=
-    '<span style="cursor:pointer;border-bottom:1px dotted var(--muted);color:var(--text);" onclick="renameCurrentSession()" title="Tap to rename">'+safe+'</span>'
+    '<span class="hdrname" style="cursor:pointer;border-bottom:1px dotted var(--muted);color:var(--text);" onclick="renameCurrentSession()" title="Tap to rename">'+safe+'</span>'
     +' <span style="color:var(--muted);font-size:9px;">✎</span>'+sqBadge+'<br>'+date+(time?' '+time:'')+' · '+dist+' · '+dur;
 }
 function renameCurrentSession() {
