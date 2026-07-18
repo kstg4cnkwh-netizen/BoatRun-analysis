@@ -3405,6 +3405,11 @@ async function showStartup(){
 }
 
 // ── TCX Export ───────────────────────────────────────────────────────────────
+function boatrunFname(){
+  const startMs=_lastSum?new Date(_lastSum.start_time).getTime():(ST[0]?.ms||Date.now());
+  const d=new Date(startMs),pad=x=>String(x).padStart(2,'0');
+  return 'BoatRun_'+d.getFullYear()+'_'+pad(d.getMonth()+1)+'_'+pad(d.getDate())+'_'+pad(d.getHours())+pad(d.getMinutes());
+}
 function exportTCX() {
   if (!ST.length) { toast('No session loaded'); return; }
   const pad2=n=>String(n).padStart(2,'0');
@@ -3476,7 +3481,7 @@ ${trackpoints}        </Track>
   const url=URL.createObjectURL(blob);
   const a=document.createElement('a');a.href=url;
   const d=new Date(startMs);
-  a.download='BoatRun_'+d.getFullYear()+'-'+pad2(d.getMonth()+1)+'-'+pad2(d.getDate())+'_'+pad2(d.getHours())+pad2(d.getMinutes())+'.tcx';
+  a.download=boatrunFname()+'.tcx';
   a.click();URL.revokeObjectURL(url);toast('TCX exported');
 }
 // ── FIT Export ──────────────────────────────────────────────────────────────
@@ -3645,7 +3650,7 @@ function exportFIT() {
   const url=URL.createObjectURL(blob);
   const a=document.createElement('a');a.href=url;
   const d=new Date(startMs),pad2=n=>String(n).padStart(2,'0');
-  a.download='BoatRun_'+d.getFullYear()+'-'+pad2(d.getMonth()+1)+'-'+pad2(d.getDate())+'_'+pad2(d.getHours())+pad2(d.getMinutes())+'.fit';
+  a.download=boatrunFname()+'.fit';
   a.click();URL.revokeObjectURL(url);toast('FIT exported');
 }
 function showInfoModal(){
