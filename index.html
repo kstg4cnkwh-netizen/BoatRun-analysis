@@ -3634,9 +3634,11 @@ function buildSessionFIT() {
     endFit, Math.round(totalTime * 1000), 1, 0, 26, 1
   ]);
   const dataSize = bytes.length;
-  const header = [12, 0x10, 0, 0, 0, 0, 0, 0, 0x2E, 0x46, 0x49, 0x54];
+  const header = [14, 0x10, 0, 0, 0, 0, 0, 0, 0x2E, 0x46, 0x49, 0x54];
   header[4] = dataSize & 0xFF; header[5] = (dataSize >>> 8) & 0xFF;
   header[6] = (dataSize >>> 16) & 0xFF; header[7] = (dataSize >>> 24) & 0xFF;
+  const headerCrc = fitCrc16(header);
+  header.push(headerCrc & 0xFF, (headerCrc >> 8) & 0xFF);
   const full = header.concat(bytes);
   const crc = fitCrc16(full);
   full.push(crc & 0xFF, (crc >> 8) & 0xFF);
