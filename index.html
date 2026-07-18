@@ -2039,8 +2039,8 @@ function drawMain(){
     if(vis.hr){const b=nearestHRAt(view[i].ms);if(b!=null&&b>40&&b<220)hrv.push(b);}
 }
 
-  let yPMin=80,yPMax=210;
-  if(pv.length){const[lo,hi]=pctBounds(pv,0.03,0.97,0.08);yPMin=Math.max(60,lo);yPMax=Math.min(400,hi);}
+  let yPMin=90,yPMax=300;
+  if(pv.length){let pFast=Infinity;for(let i=0;i<pv.length;i++)if(pv[i]<pFast)pFast=pv[i];let top=Math.floor(pFast/30)*30;if(top>=pFast)top-=30;yPMin=Math.max(30,top);}
   const toYP=v=>PT+ph-(1-(v-yPMin)/(yPMax-yPMin))*ph;
   let yRMin=0,yRMax=30;
   if(rv.length){const[lo,hi]=pctBounds(rv,0.03,0.97,0.10);yRMin=0;yRMax=Math.min(50,hi);}
@@ -2274,7 +2274,7 @@ function setupMainEvents(canvas){
   mainCanvas=canvas;
   canvas.addEventListener('mousedown',e=>{
     hideTooltip();isDragMain=true;
-    _clickStartX=e.clientX-canvas.getBoundingClientRect().left;
+  for(let g=yPMax;g>=yPMin-0.01;g-=30){const y=toYP(g);ctx.beginPath();ctx.moveTo(PL,y);ctx.lineTo(PL+pw,y);ctx.strokeStyle=C.gridLn;ctx.lineWidth=1;ctx.stroke();ctx.fillStyle=C.gridLb;ctx.textAlign='right';ctx.fillText(fmtPaceU(g),PL-4,y+3);}
     _clickStartTime=Date.now();
     selS=selE=getMainIdx(_clickStartX);schedRender();
   });
