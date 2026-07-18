@@ -3503,7 +3503,7 @@ function buildSessionFIT() {
   const FIT_EPOCH_MS = Date.UTC(1989, 11, 31, 0, 0, 0);
   const toFitTime = ms => Math.floor((ms - FIT_EPOCH_MS) / 1000) >>> 0;
   const toSemi = deg => Math.round(deg * 11930464.711111112);
-  const FT_ENUM = 0x00, FT_U8 = 0x02, FT_U16 = 0x84, FT_S32 = 0x85, FT_U32 = 0x86;
+  const FT_ENUM = 0x00, FT_U8 = 0x02, FT_U16 = 0x84, FT_S32 = 0x85, FT_U32 = 0x86, FT_U32Z = 0x8C;
   const bytes = [];
   const u8 = v => { bytes.push(v & 0xFF); };
   const u16 = v => { bytes.push(v & 0xFF, (v >> 8) & 0xFF); };
@@ -3534,24 +3534,15 @@ function buildSessionFIT() {
       const gpMs = gp.t;
       let nearStroke = null, nearDiff = Infinity;
       for (const st of ST) { const diff = Math.abs(st.ms - gpMs); if (diff < nearDiff) { nearDiff = diff; nearStroke = st; } }
-      points.push({
-        tMs: gpMs, lat: gp.lat, lon: gp.lon,
-        dist: gp.dist != null ? gp.dist : null,
-        hr: nearestHR(gpMs),
-        cad: nearStroke ? Math.round(nearStroke.rate || 0) : null
-      });
+      points.push({ tMs: gpMs, lat: gp.lat, lon: gp.lon, dist: gp.dist != null ? gp.dist : null, hr: nearestHR(gpMs), cad: nearStroke ? Math.round(nearStroke.rate || 0) : null });
     }
   } else {
     for (const st of ST) {
       const tpMs = st.ms || (startMs + (st.elapsed || 0) * 1000);
-      points.push({
-        tMs: tpMs, lat: null, lon: null,
-        dist: st.dist != null ? st.dist : null,
-        hr: nearestHR(tpMs),
-        cad: Math.round(st.rate || 0)
-      });
+      points.push({ tMs: tpMs, lat: null, lon: null, dist: st.dist != null ? st.dist : null, hr: nearestHR(tpMs), cad: Math.round(st.rate || 0) });
     }
   }
+  points.sort((a, b) => a.tMs - b.tMs);
   const totalDist = _lastSum ? (+_lastSum.distance_m || 0) : 0;
   const totalTime = _lastSum ? (+_lastSum.duration_s || 0) : 0;
   const hrValid = HR.filter(h => h.bpm > 40 && h.bpm < 220);
@@ -3563,14 +3554,22 @@ function buildSessionFIT() {
   const startFit = toFitTime(startMs);
   const endMs = startMs + totalTime * 1000;
   const endFit = toFitTime(endMs);
+  const SERIAL = 1701;
   defMsg(0, 0, [
     { num: 0, size: 1, type: FT_ENUM }, { num: 1, size: 2, type: FT_U16 },
-    { num: 2, size: 2, type: FT_U16 }, { num: 3, size: 4, type: FT_U32 },
+    { num: 2, size: 2, type: FT_U16 }, { num: 3, size: 4, type: FT_U32Z },
     { num: 4, size: 4, type: FT_U32 }
   ]);
   dataMsg(0, [
-    { type: FT_ENUM }, { type: FT_U16 }, { type: FT_U16 }, { type: FT_U32 }, { type: FT_U32 }
-  ], [4, 255, 0, 0, startFit]);
+    { type: FT_ENUM }, { type: FT_U16 }, { type: FT_U16 }, { type: FT_U32Z }, { type: FT_U32 }
+  ], [4, 255, 0, SERIAL, startFit]);
+  const devFields = [
+    { num: 253, size: 4, type: FT_U32 }, { num: 3, size: 4, type: FT_U32Z },
+    { num: 2, size: 2, type: FT_U16 }, { num: 4, size: 2, type: FT_U16 },
+    { num: 0, size: 1, type: FT_U8 }, { num: 25, size: 1, type: FT_ENUM }
+  ];
+  defMsg(5, 23, devFields);
+  dataMsg(5, devFields, [startFit, SERIAL, 255, 0, 0, 5]);
   const recFields = [
     { num: 253, size: 4, type: FT_U32 }, { num: 0, size: 4, type: FT_S32 },
     { num: 1, size: 4, type: FT_S32 }, { num: 5, size: 4, type: FT_U32 },
@@ -3597,12 +3596,8 @@ function buildSessionFIT() {
   ];
   defMsg(2, 19, lapFields);
   dataMsg(2, lapFields, [
-    endFit, startFit,
-    Math.round(totalTime * 1000), Math.round(totalTime * 1000),
-    Math.round(totalDist * 100),
-    avgHR != null ? avgHR : 0xFF, maxHR != null ? maxHR : 0xFF,
-    avgCad != null ? avgCad : 0xFF, maxCad != null ? maxCad : 0xFF,
-    9, 1
+    endFit, startFit, Math.round(totalTime * 1000), Math.round(totalTime * 1000), Math.round(totalDist * 100),
+    avgHR != null ? avgHR : 0xFF, maxHR != null ? maxHR : 0xFF, avgCad != null ? avgCad : 0xFF, maxCad != null ? maxCad : 0xFF, 9, 1
   ]);
   const sessFields = [
     { num: 253, size: 4, type: FT_U32 }, { num: 2, size: 4, type: FT_U32 },
@@ -3616,13 +3611,8 @@ function buildSessionFIT() {
   ];
   defMsg(3, 18, sessFields);
   dataMsg(3, sessFields, [
-    endFit, startFit,
-    Math.round(totalTime * 1000), Math.round(totalTime * 1000),
-    Math.round(totalDist * 100),
-    15, 0,
-    avgHR != null ? avgHR : 0xFF, maxHR != null ? maxHR : 0xFF,
-    avgCad != null ? avgCad : 0xFF, maxCad != null ? maxCad : 0xFF,
-    8, 1, 0, 1
+    endFit, startFit, Math.round(totalTime * 1000), Math.round(totalTime * 1000), Math.round(totalDist * 100),
+    15, 0, avgHR != null ? avgHR : 0xFF, maxHR != null ? maxHR : 0xFF, avgCad != null ? avgCad : 0xFF, maxCad != null ? maxCad : 0xFF, 8, 1, 0, 1
   ]);
   const actFields = [
     { num: 253, size: 4, type: FT_U32 }, { num: 0, size: 4, type: FT_U32 },
@@ -3630,9 +3620,7 @@ function buildSessionFIT() {
     { num: 3, size: 1, type: FT_ENUM }, { num: 4, size: 1, type: FT_ENUM }
   ];
   defMsg(4, 34, actFields);
-  dataMsg(4, actFields, [
-    endFit, Math.round(totalTime * 1000), 1, 0, 26, 1
-  ]);
+  dataMsg(4, actFields, [endFit, Math.round(totalTime * 1000), 1, 0, 26, 1]);
   const dataSize = bytes.length;
   const header = [14, 0x10, 0, 0, 0, 0, 0, 0, 0x2E, 0x46, 0x49, 0x54];
   header[4] = dataSize & 0xFF; header[5] = (dataSize >>> 8) & 0xFF;
