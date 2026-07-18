@@ -645,6 +645,13 @@ const AnalyserDrive = {
   _expire() { this._token = null; sessionStorage.removeItem('_ad_token'); this._updateBtn(); },
   _updateBtn() {},
 };
+function driveAuthExpired(err){
+  const m=(err&&err.message)||'';
+  if(m.indexOf('Not signed in to Drive')===-1 && m.indexOf('Session expired')===-1) return false;
+  toast('Sign in time expired');
+  showStartup();
+  return true;
+}
 
 // ══════════════════════════════════════════════════════════════════════════
 // PALETTE
@@ -1253,7 +1260,7 @@ window.loadRecordSession=async function(dist){
     const session=await AnalyserDrive.fetchSession(r.fileId);
     applySessionUnits(session);
     addSessionFromData(sessionToAnalyserFmt(session), r.label||'Session', true, r.fileId);
-  }catch(err){ toast('Load failed: '+err.message); }
+  }catch(err){ if(!driveAuthExpired(err)) toast('Load failed: '+err.message); }
 };
 
 function switchSession(idx) {
@@ -1297,7 +1304,7 @@ async function loadFromDrive() {
     showDrivePicker(files, async (fileId,label) => {
       toast('Loading '+label+'…');
       try { const session=await AnalyserDrive.fetchSession(fileId); applySessionUnits(session); addSessionFromData(sessionToAnalyserFmt(session),label,true,fileId); }
-      catch(err) { toast('Load failed: '+err.message); }
+      catch(err) { if(!driveAuthExpired(err)) toast('Load failed: '+err.message); }
     });
   } catch(err) { toast('Drive error: '+err.message); }
 }
@@ -1481,7 +1488,7 @@ async function showAddComparePicker() {
                             btn.dataset.added = '1';
                             dd.innerHTML += ' <span style="color:var(--b);">\u2713 added</span>';
                             btn.style.opacity = '1'; btn.style.pointerEvents = '';
-                        } catch (e2) { toast('Load failed: ' + e2.message); btn.style.opacity = '1'; btn.style.pointerEvents = ''; }
+                        } catch (e2) { if(!driveAuthExpired(e2)){ toast('Load failed: ' + e2.message); btn.style.opacity = '1'; btn.style.pointerEvents = ''; } }
                     };
                     content.appendChild(btn);
                 });
@@ -3353,7 +3360,7 @@ async function showStartup(){
         btn.onclick=async()=>{
           btn.style.opacity='.5';btn.style.pointerEvents='none';
           try{const session=await AnalyserDrive.fetchSession(f.id);applySessionUnits(session);addSessionFromData(sessionToAnalyserFmt(session),p.name||f.name.replace('RowSess_','').replace('.json',''),true,f.id);}
-          catch(err){toast('Load failed: '+err.message);btn.style.opacity='';btn.style.pointerEvents='';}
+          catch(err){if(!driveAuthExpired(err)){toast('Load failed: '+err.message);btn.style.opacity='';btn.style.pointerEvents='';}}
         };
 
         const dateDiv=document.createElement('div');
