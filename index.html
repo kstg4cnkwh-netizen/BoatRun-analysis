@@ -477,7 +477,7 @@ function setTier(t) {
     v.tier = t;
     try { localStorage.setItem(TIER_SETTINGS_KEY, JSON.stringify(v)); } catch {}
 }
-function isPro() { return getTier() === 'pro'; }
+function isPro() { return true; } // BETA: Analyser fully unlocked until full release then: function isPro() { return getTier() === 'pro'; }
 // ── FIREBASE AUTH (account + entitlement) ───────────────────────────────────
 const firebaseConfig = {
   apiKey: "AIzaSyBXpkmVnRzp6a-FqWmjxqrjzxdHtKiwP7I",
