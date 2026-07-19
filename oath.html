@@ -1,0 +1,15 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>BoatRun</title>
+<script>
+(function(){try{var q=new URLSearchParams(location.search),code=q.get("code"),state=q.get("state");if(!code||state!=="strava")return;try{history.replaceState({},"",location.pathname);}catch{}window._stravaOAuthCode=code;try{sessionStorage.setItem("_strava_oauth_code",code);}catch{}try{localStorage.setItem("_strava_oauth_code_ls",JSON.stringify({code:code,ts:Date.now()}));}catch{}if(window.opener&&!window.opener.closed){try{window.opener.postMessage({type:"_stravaOAuthCode",code:code},"*");window.close();}catch{}}else if(!(window.parent&&window.parent!==window)){var u="boatrunmetrics://oauth?code="+encodeURIComponent(code)+"&state=strava";try{location.href=u;}catch{}document.write('<!doctype html><html><head><meta name="viewport" content="width=device-width,initial-scale=1"></head><body style="margin:0;font-family:-apple-system,sans-serif;background:#1a5276;color:#fff;display:flex;align-items:center;justify-content:center;height:100vh;text-align:center;"><a href="'+u+'" style="color:#fff;font-size:20px;text-decoration:none;border:2px solid #fff;padding:16px 24px;border-radius:10px;">Tap to return to BoatRun</a></body></html>');document.close();}}catch{}})();
+(function(){try{var q=new URLSearchParams(location.search),code=q.get("code"),state=q.get("state");if(!code||state!=="drive")return;try{history.replaceState({},"",location.pathname);}catch{}window._driveOAuthCode=code;try{sessionStorage.setItem("_drive_oauth_code",code);}catch{}try{localStorage.setItem("_drive_oauth_code_ls",JSON.stringify({code:code,ts:Date.now()}));}catch{}if(window.opener&&!window.opener.closed){try{window.opener.postMessage({type:"_driveOAuthCode",code:code},"*");window.close();}catch{}}else if(!(window.parent&&window.parent!==window)){var u="boatrunmetrics://oauth?code="+encodeURIComponent(code)+"&state=drive";try{location.href=u;}catch{}document.write('<!doctype html><html><head><meta name="viewport" content="width=device-width,initial-scale=1"></head><body style="margin:0;font-family:-apple-system,sans-serif;background:#1a5276;color:#fff;display:flex;align-items:center;justify-content:center;height:100vh;text-align:center;"><a href="'+u+'" style="color:#fff;font-size:20px;text-decoration:none;border:2px solid #fff;padding:16px 24px;border-radius:10px;">Tap to return to BoatRun</a></body></html>');document.close();}}catch{}})();
+</script>
+</head>
+<body style="margin:0;font-family:-apple-system,'Roboto',sans-serif;background:#1a5276;color:#fff;display:flex;align-items:center;justify-content:center;height:100vh;text-align:center;">
+  <div style="font-size:16px;letter-spacing:.05em;">Returning to BoatRun&hellip;</div>
+</body>
+</html>
