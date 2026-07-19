@@ -499,8 +499,11 @@ const AnalyserAuth = {
   init() {
     fbAuth.onAuthStateChanged(async (u) => {
       this.user = u;
-      if (u) { await this._syncEntitlement(); }
+      if (u) { await this._syncEntitlement(); } else { setTier('basic'); }
       this._notify();
+    });
+    document.addEventListener('visibilitychange', () => {
+      if (document.visibilityState === 'visible' && this.user) this._syncEntitlement();
     });
   },
   async signInGoogle() {
@@ -535,7 +538,7 @@ const AnalyserAuth = {
       const r = await fetch(`https://boatrun-default-rtdb.asia-southeast1.firebasedatabase.app/users/${this.user.uid}.json?auth=${idToken}`);
       if (!r.ok) return;
       const data = await r.json();
-      if (data && data.tier) setTier(data.tier);
+      setTier(data && data.tier ? data.tier : 'basic');
     } catch (e) { console.error('entitlement sync failed', e); }
   }
 };
@@ -3789,18 +3792,15 @@ function showPlanModal(msg){
   `}
   </div>
   ${msg?`<div style="font-size:12px;color:var(--text);margin-bottom:14px;">${msg}</div>`:''}
-  <div style="display:flex;gap:8px;">
-  <button id="_plan_basic" style="flex:1;padding:10px;border-radius:8px;border:1px solid var(--border);cursor:pointer;background:${pro?'var(--s2)':'var(--b)'};color:${pro?'var(--text)':'#000'};font-weight:700;">BASIC</button>
-  <button id="_plan_pro" style="flex:1;padding:10px;border-radius:8px;border:1px solid var(--border);cursor:pointer;background:${pro?'var(--b)':'var(--s2)'};color:${pro?'#000':'var(--text)'};font-weight:700;">PRO</button>
+  <div style="display:flex;align-items:center;gap:8px;">
+  <div style="padding:8px 14px;border-radius:8px;background:${pro?'var(--b)':'var(--s2)'};color:${pro?'#000':'var(--text)'};font-weight:700;">${pro?'PRO':'BASIC'}</div>
   </div>
-  <div style="font-size:11px;color:var(--muted);margin-top:12px;line-height:1.5;">Basic: full single-session replay, always free. Pro: multi-session comparison and video overlay/sync.</div>
+  <div style="font-size:11px;color:var(--muted);margin-top:12px;line-height:1.5;">Basic: full single-session replay, always free. Pro unlocks multi-session comparison and video overlay/sync — buy Pro in the Metrics app while signed in to this same account, and it syncs here automatically.</div>
   </div>`;
   overlay.appendChild(panel);
   overlay.onclick=e=>{if(e.target===overlay)overlay.remove();};
   document.body.appendChild(overlay);
   document.getElementById('_plan_close').onclick=()=>overlay.remove();
-  document.getElementById('_plan_basic').onclick=()=>{setTier('basic');overlay.remove();toast('Basic plan active');};
-  document.getElementById('_plan_pro').onclick=()=>{setTier('pro');overlay.remove();toast('Pro plan active');};
   const signinBtn=document.getElementById('_plan_signin');
   if(signinBtn) signinBtn.onclick=async()=>{await AnalyserAuth.signInGoogle();overlay.remove();showPlanModal(msg);};
   const linkBtn=document.getElementById('_plan_linkapple');
