@@ -2074,7 +2074,7 @@ function drawMain(){
   ctx.font='9px -apple-system, BlinkMacSystemFont, Helvetica Neue, sans-serif';
 
   // Grid
-  niceSteps(yPMin,yPMax,5).forEach(g=>{const y=toYP(g);ctx.beginPath();ctx.moveTo(PL,y);ctx.lineTo(PL+pw,y);ctx.strokeStyle=C.gridLn;ctx.lineWidth=1;ctx.stroke();ctx.fillStyle=C.gridLb;ctx.textAlign='right';ctx.fillText(fmtPaceU(g),PL-4,y+3);});
+  for(let g=yPMax;g>=yPMin-0.01;g-=30){const y=toYP(g);ctx.beginPath();ctx.moveTo(PL,y);ctx.lineTo(PL+pw,y);ctx.strokeStyle=C.gridLn;ctx.lineWidth=1;ctx.stroke();ctx.fillStyle=C.gridLb;ctx.textAlign='right';ctx.fillText(fmtPaceU(g),PL-4,y+3);}
   niceSteps(xMin,xMax,6).forEach(g=>{const x=toX(g);ctx.beginPath();ctx.moveTo(x,PT);ctx.lineTo(x,PT+ph);ctx.strokeStyle=C.gridLn;ctx.lineWidth=1;ctx.stroke();ctx.fillStyle=C.gridLb;ctx.textAlign='center';ctx.fillText(g.toFixed(0),x,PT+ph+13);});
   if(vis.rate||vis.slope){niceSteps(yRMin,yRMax,5).forEach(g=>{ctx.fillStyle=C.gridLb;ctx.textAlign='left';ctx.fillText(g.toFixed(0),PL+pw+4,toYR(g)+3);});}
 
