@@ -1,0 +1,190 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="theme-color" content="#051738">
+<title>BoatRun — Instrument your rowing</title>
+<meta name="description" content="BoatRun turns a phone or a coach launch into a live rowing instrument — stroke rate, pace, drive acceleration and more, on the water.">
+<link href="https://fonts.googleapis.com/css2?family=Roboto+Condensed:wght@400;700&family=Roboto:wght@400;500;700&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --navy:#051738; --steel:#1a5276; --green:#27ae60;
+    --ink:#0c1220; --grey:#7d8a99; --line:#111;
+    --paper:#f4f6f8;
+  }
+  *,*::before,*::after{box-sizing:border-box;margin:0;padding:0;}
+  html{scroll-behavior:smooth;}
+  body{
+    font-family:'Roboto',-apple-system,sans-serif;
+    background:var(--paper); color:var(--ink);
+    -webkit-font-smoothing:antialiased;
+  }
+  a{color:inherit;}
+  .wrap{max-width:1040px;margin:0 auto;padding:0 24px;}
+
+  /* ── NAV ───────────────────────────────────────── */
+  .nav{display:flex;align-items:center;justify-content:space-between;padding:22px 24px;max-width:1040px;margin:0 auto;}
+  .word{font-family:'Roboto Condensed',sans-serif;font-weight:700;font-size:18px;letter-spacing:.14em;text-transform:uppercase;}
+  .nav a{font-size:12px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;text-decoration:none;color:var(--grey);}
+
+  /* ── HERO ──────────────────────────────────────── */
+  .hero{background:var(--navy);color:#fff;padding:44px 0 60px;}
+  .hero .wrap{display:flex;flex-direction:column;gap:34px;}
+  .hero h1{
+    font-family:'Roboto Condensed',sans-serif;font-weight:700;
+    font-size:clamp(34px,6vw,58px);line-height:1.02;letter-spacing:-.01em;
+    max-width:14ch;
+  }
+  .hero h1 em{font-style:normal;color:#8fc2e0;}
+  .hero p.lead{font-size:16px;line-height:1.6;color:rgba(255,255,255,.72);max-width:46ch;}
+  .cta-row{display:flex;flex-wrap:wrap;gap:12px;margin-top:4px;}
+  .cta{
+    display:inline-flex;align-items:center;gap:8px;
+    padding:13px 22px;border-radius:3px;font-weight:700;font-size:13px;
+    letter-spacing:.06em;text-transform:uppercase;text-decoration:none;
+    touch-action:manipulation;
+  }
+  .cta-primary{background:#fff;color:var(--navy);}
+  .cta-secondary{background:transparent;color:#fff;border:1px solid rgba(255,255,255,.35);}
+
+  /* ── INSTRUMENT STRIP (signature element) ─────── */
+  .instr{display:grid;grid-template-columns:repeat(4,1fr);border:1px solid var(--line);border-radius:4px;overflow:hidden;background:#fff;}
+  .instr-cell{padding:16px 10px 12px;text-align:center;border-right:1px solid var(--line);}
+  .instr-cell:last-child{border-right:none;}
+  .instr-val{
+    font-family:'Roboto Condensed',sans-serif;font-weight:700;color:var(--ink);
+    font-size:clamp(20px,3.6vw,32px);line-height:1;font-variant-numeric:tabular-nums;
+  }
+  .instr-lbl{margin-top:7px;font-size:9.5px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:var(--grey);}
+  .instr-note{margin-top:10px;font-size:10px;letter-spacing:.08em;text-transform:uppercase;color:rgba(255,255,255,.4);text-align:center;}
+  @media(max-width:640px){.instr{grid-template-columns:repeat(2,1fr);}
+    .instr-cell:nth-child(2){border-right:none;}
+    .instr-cell:nth-child(1),.instr-cell:nth-child(2){border-bottom:1px solid var(--line);}}
+
+  /* ── TOOLS ─────────────────────────────────────── */
+  .tools{padding:56px 0 40px;}
+  .tools h2{font-family:'Roboto Condensed',sans-serif;font-weight:700;font-size:12px;letter-spacing:.18em;text-transform:uppercase;color:var(--grey);margin-bottom:22px;}
+  .cards{display:grid;grid-template-columns:repeat(3,1fr);gap:14px;}
+  @media(max-width:760px){.cards{grid-template-columns:1fr;}}
+  .card{
+    background:#fff;border:1px solid #e3e6ea;border-radius:4px;padding:22px 20px;
+    display:flex;flex-direction:column;gap:10px;text-decoration:none;color:var(--ink);
+    transition:border-color .15s, transform .1s;
+  }
+  .card:active{transform:scale(.99);}
+  .card:hover{border-color:var(--steel);}
+  .card .tag{font-size:10px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:var(--green);}
+  .card h3{font-family:'Roboto Condensed',sans-serif;font-weight:700;font-size:21px;}
+  .card p{font-size:13px;line-height:1.55;color:var(--grey);}
+  .card .go{margin-top:auto;font-size:11px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:var(--steel);}
+
+  /* ── FOOTER ────────────────────────────────────── */
+  footer{border-top:1px solid #e3e6ea;padding:28px 0 40px;}
+  footer .wrap{display:flex;flex-wrap:wrap;gap:20px;align-items:center;justify-content:space-between;}
+  .flinks{display:flex;flex-wrap:wrap;gap:18px;}
+  .flinks a{font-size:12px;font-weight:600;letter-spacing:.04em;text-decoration:none;color:var(--grey);}
+  .flinks a:hover{color:var(--steel);}
+  .fine{font-size:11px;color:#a7b0ba;}
+
+  @media(prefers-reduced-motion:reduce){*{transition:none!important;}}
+</style>
+</head>
+<body>
+
+<nav class="nav">
+  <span class="word">BoatRun</span>
+  <a href="guide.html">Guide</a>
+</nav>
+
+<header class="hero">
+  <div class="wrap">
+    <div>
+      <h1>Your boat, <em>instrumented.</em></h1>
+      <p class="lead">Stroke rate, pace, drive acceleration and heart rate — live, on the water, from a phone mounted on the boat or a coach launch watching the whole squad.</p>
+    </div>
+
+    <div class="cta-row">
+      <!-- TODO: swap href to the live App Store URL once approved -->
+      <a class="cta cta-primary" href="https://testflight.apple.com/join/U1VQeYdz">Get the app</a>
+      <a class="cta cta-secondary" href="https://testflight.apple.com/join/U1VQeYdz">Join the beta on TestFlight</a>
+    </div>
+
+    <div>
+      <div class="instr" id="instr">
+        <div class="instr-cell"><div class="instr-val" id="v-pace">1:52</div><div class="instr-lbl">Pace / 500m</div></div>
+        <div class="instr-cell"><div class="instr-val" id="v-rate">24</div><div class="instr-lbl">Stroke rate</div></div>
+        <div class="instr-cell"><div class="instr-val" id="v-dps">9.6</div><div class="instr-lbl">Dist / stroke</div></div>
+        <div class="instr-cell"><div class="instr-val" id="v-hr">158</div><div class="instr-lbl">Heart rate</div></div>
+      </div>
+      <div class="instr-note">Live example — what your crew sees mid-piece</div>
+    </div>
+  </div>
+</header>
+
+<section class="tools">
+  <div class="wrap">
+    <h2>Three ways in</h2>
+    <div class="cards">
+      <!-- TODO: swap href and label to App Store once approved -->
+      <a class="card" href="https://testflight.apple.com/join/U1VQeYdz">
+        <span class="tag">On the water</span>
+        <h3>Record</h3>
+        <p>Mount your phone facing the stern and get live pace, rate and drive metrics every stroke. Free to start, no card required.</p>
+        <span class="go">Join beta ↗</span>
+      </a>
+      <a class="card" href="analyser.html">
+        <span class="tag">After the row</span>
+        <h3>Analyser</h3>
+        <p>Open any session and replay it stroke by stroke — curves, splits and laps, straight from your own Google Drive.</p>
+        <span class="go">Open Analyser ↗</span>
+      </a>
+      <a class="card" href="https://viewer.boatrun.au/">
+        <span class="tag">From the bank</span>
+        <h3>Viewer</h3>
+        <p>Watch a crew's live pace and rate from your phone or laptop while they're out on the water — no app install needed.</p>
+        <span class="go">Open Viewer ↗</span>
+      </a>
+    </div>
+  </div>
+</section>
+
+<footer>
+  <div class="wrap">
+    <div class="flinks">
+      <a href="about.html">About</a>
+      <a href="guide.html">Guide</a>
+      <a href="support.html">Support</a>
+      <a href="privacy.html">Privacy</a>
+      <a href="terms.html">Terms</a>
+    </div>
+    <span class="fine">© <span id="yr"></span> BoatRun</span>
+  </div>
+</footer>
+
+<script>
+document.getElementById('yr').textContent = new Date().getFullYear();
+
+(function(){
+  var reduce = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+  if (reduce) return;
+  var pace = document.getElementById('v-pace');
+  var rate = document.getElementById('v-rate');
+  var dps  = document.getElementById('v-dps');
+  var hr   = document.getElementById('v-hr');
+  function fmtPace(sec){ var m=Math.floor(sec/60), s=Math.round(sec%60); return m+':'+String(s).padStart(2,'0'); }
+  function tick(){
+    var paceSec = 108 + Math.random()*14;      // ~1:48–2:02 /500m
+    var r = 20 + Math.round(Math.random()*10);  // 20–30 spm
+    var d = (8.6 + Math.random()*2.2).toFixed(1);
+    var h = 142 + Math.round(Math.random()*24);
+    pace.textContent = fmtPace(paceSec);
+    rate.textContent = r;
+    dps.textContent  = d;
+    hr.textContent   = h;
+  }
+  setInterval(tick, 1700);
+})();
+</script>
+</body>
+</html>
