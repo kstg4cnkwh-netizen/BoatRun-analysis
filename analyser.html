@@ -2277,7 +2277,7 @@ function setupMainEvents(canvas){
   mainCanvas=canvas;
   canvas.addEventListener('mousedown',e=>{
     hideTooltip();isDragMain=true;
-  for(let g=yPMax;g>=yPMin-0.01;g-=30){const y=toYP(g);ctx.beginPath();ctx.moveTo(PL,y);ctx.lineTo(PL+pw,y);ctx.strokeStyle=C.gridLn;ctx.lineWidth=1;ctx.stroke();ctx.fillStyle=C.gridLb;ctx.textAlign='right';ctx.fillText(fmtPaceU(g),PL-4,y+3);}
+    _clickStartX=e.clientX-canvas.getBoundingClientRect().left;
     _clickStartTime=Date.now();
     selS=selE=getMainIdx(_clickStartX);schedRender();
   });
