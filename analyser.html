@@ -2397,7 +2397,9 @@ function pinSelection(){
   const vlen=viewE-viewS+1;
   const s2=clamp(Math.min(selS,selE),0,vlen-1);
   const e2=clamp(Math.max(selS,selE),0,vlen-1);
-  const ci=curveGroups.length;
+  const usedColors=curveGroups.map(g=>g.color);
+  const nextColorIdx=GROUP_COLORS.findIndex(c=>!usedColors.includes(c));
+  const ci=nextColorIdx>=0?nextColorIdx:curveGroups.length%GROUP_COLORS.length;
   curveGroups.push({
     color:GROUP_COLORS[ci], bg:GROUP_BG[ci],
     strokes:ST.slice(viewS+s2,viewS+e2+1),
@@ -2414,7 +2416,7 @@ function pinSelection(){
 
 function removeCurveGroup(idx){
   curveGroups.splice(idx,1);
-  curveGroups.forEach((g,i)=>{g.label='G'+(i+1);g.color=GROUP_COLORS[i];g.bg=GROUP_BG[i];});
+  curveGroups.forEach((g,i)=>{g.label='G'+(i+1);});
   buildCurveSection();
   updateMapGroups();
   schedRender();
