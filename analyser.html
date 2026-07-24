@@ -782,7 +782,7 @@ let _lastLabel = '', _lastSum = {};
 // ── State ──────────────────────────────────────────────────────────────────
 const CURVE_POINTS = 80;
 const GROUP_COLORS = ['#c084fc','#29b8ff','#f54040','#54a0ff','#fd79a8','#e17055','#00cec9','#ffc947'];
-const GROUP_BG     = ['rgba(255,201,71,.14)','rgba(192,132,252,.14)','rgba(41,184,255,.14)','rgba(245,64,64,.14)','rgba(84,160,255,.14)','rgba(253,121,168,.14)','rgba(225,112,85,.14)','rgba(0,206,201,.14)'];
+const GROUP_BG     = ['rgba(192,132,252,.14)','rgba(41,184,255,.14)','rgba(245,64,64,.14)','rgba(84,160,255,.14)','rgba(253,121,168,.14)','rgba(225,112,85,.14)','rgba(0,206,201,.14)','rgba(255,201,71,.14)'];
 function hexToRgba(hex,a){const h=hex.replace('#','');const r=parseInt(h.substring(0,2),16),g=parseInt(h.substring(2,4),16),b=parseInt(h.substring(4,6),16);return`rgba(${r},${g},${b},${a})`;}
 function nextCurveColor(){const used=curveGroups.map(g=>g.color);const idx=GROUP_COLORS.findIndex(c=>!used.includes(c));return GROUP_COLORS[idx>=0?idx:curveGroups.length%GROUP_COLORS.length];}
 
