@@ -1,190 +1,485 @@
 <!doctype html>
-<html lang="en">
+<html lang="en-AU">
 <head>
-<meta charset="utf-8">
-<meta name="viewport" content="width=device-width,initial-scale=1">
-<meta name="theme-color" content="#051738">
-<title>BoatRun — Instrument your rowing</title>
-<meta name="description" content="BoatRun turns a phone or a coach launch into a live rowing instrument — stroke rate, pace, drive acceleration and more, on the water.">
-<link href="https://fonts.googleapis.com/css2?family=Roboto+Condensed:wght@400;700&family=Roboto:wght@400;500;700&display=swap" rel="stylesheet">
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1"/>
+<meta name="theme-color" content="#081226"/>
+<title>BoatRun — Rowing Telemetry</title>
+<meta name="description" content="Real-time rowing metrics for rowers, coxes and coaches. Live stroke telemetry, squad monitoring and post-session analysis."/>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&family=Inter:wght@400;500;600;700&family=Roboto+Mono:wght@500;600&display=swap" rel="stylesheet">
 <style>
-  :root{
-    --navy:#051738; --steel:#1a5276; --green:#27ae60;
-    --ink:#0c1220; --grey:#7d8a99; --line:#111;
-    --paper:#f4f6f8;
-  }
-  *,*::before,*::after{box-sizing:border-box;margin:0;padding:0;}
-  html{scroll-behavior:smooth;}
-  body{
-    font-family:'Roboto',-apple-system,sans-serif;
-    background:var(--paper); color:var(--ink);
-    -webkit-font-smoothing:antialiased;
-  }
-  a{color:inherit;}
-  .wrap{max-width:1040px;margin:0 auto;padding:0 24px;}
+:root{
+  --navy:#081226;
+  --navy-2:#0E1B38;
+  --panel:#0F1C3A;
+  --line:rgba(255,255,255,.10);
+  --ink:#EFF3FA;
+  --ink-dim:rgba(239,243,250,.62);
+  --ink-faint:rgba(239,243,250,.38);
+  --coral:#FF5A3C;
+  --coral-dim:rgba(255,90,60,.14);
+  --teal:#2FD3C6;
+  --amber:#FFB648;
+  --paper:#F6F5F1;
+  --paper-ink:#0E1420;
+  --radius:14px;
+}
+*{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent;}
+html{scroll-behavior:smooth;}
+body{
+  font-family:'Inter',-apple-system,system-ui,sans-serif;
+  background:var(--paper);
+  color:var(--paper-ink);
+  line-height:1.6;
+  -webkit-font-smoothing:antialiased;
+}
+.mono{font-family:'Roboto Mono',monospace;}
+.disp{font-family:'Space Grotesk',sans-serif;}
+a{color:inherit;}
+.wrap{max-width:1120px;margin:0 auto;padding:0 24px;}
+.eyebrow{
+  display:inline-flex;align-items:center;gap:8px;
+  font-family:'Roboto Mono',monospace;font-size:11px;font-weight:600;
+  letter-spacing:.14em;text-transform:uppercase;
+  padding:6px 12px;border-radius:100px;
+  border:1px solid var(--line);
+}
 
-  /* ── NAV ───────────────────────────────────────── */
-  .nav{display:flex;align-items:center;justify-content:space-between;padding:22px 24px;max-width:1040px;margin:0 auto;}
-  .word{font-family:'Roboto Condensed',sans-serif;font-weight:700;font-size:18px;letter-spacing:.14em;text-transform:uppercase;}
-  .nav a{font-size:12px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;text-decoration:none;color:var(--grey);}
+/* ===== NAV ===== */
+header{
+  position:sticky;top:0;z-index:40;
+  background:rgba(8,18,38,.86);backdrop-filter:blur(10px);
+  border-bottom:1px solid rgba(255,255,255,.08);
+}
+.nav{display:flex;align-items:center;justify-content:space-between;height:64px;color:var(--ink);}
+.brand{display:flex;align-items:center;gap:9px;font-family:'Space Grotesk',sans-serif;font-weight:700;font-size:18px;letter-spacing:-.01em;}
+.brand .dot{width:9px;height:9px;border-radius:2px;background:var(--coral);transform:rotate(45deg);}
+.navlinks{display:flex;gap:28px;font-size:14px;font-weight:500;}
+.navlinks a{text-decoration:none;color:var(--ink-dim);transition:color .15s;}
+.navlinks a:hover{color:var(--ink);}
+.navcta{
+  display:inline-flex;align-items:center;gap:8px;
+  background:var(--coral);color:#fff;text-decoration:none;
+  font-size:13px;font-weight:700;padding:9px 16px;border-radius:9px;
+  letter-spacing:.01em;
+}
+.navmenu-btn{display:none;}
+@media(max-width:840px){
+  .navlinks{display:none;}
+}
 
-  /* ── HERO ──────────────────────────────────────── */
-  .hero{background:var(--navy);color:#fff;padding:44px 0 60px;}
-  .hero .wrap{display:flex;flex-direction:column;gap:34px;}
-  .hero h1{
-    font-family:'Roboto Condensed',sans-serif;font-weight:700;
-    font-size:clamp(34px,6vw,58px);line-height:1.02;letter-spacing:-.01em;
-    max-width:14ch;
-  }
-  .hero h1 em{font-style:normal;color:#8fc2e0;}
-  .hero p.lead{font-size:16px;line-height:1.6;color:rgba(255,255,255,.72);max-width:46ch;}
-  .cta-row{display:flex;flex-wrap:wrap;gap:12px;margin-top:4px;}
-  .cta{
-    display:inline-flex;align-items:center;gap:8px;
-    padding:13px 22px;border-radius:3px;font-weight:700;font-size:13px;
-    letter-spacing:.06em;text-transform:uppercase;text-decoration:none;
-    touch-action:manipulation;
-  }
-  .cta-primary{background:#fff;color:var(--navy);}
-  .cta-secondary{background:transparent;color:#fff;border:1px solid rgba(255,255,255,.35);}
+/* ===== HERO ===== */
+.hero{background:radial-gradient(ellipse 900px 500px at 20% -10%, #142a56 0%, transparent 60%),linear-gradient(180deg,var(--navy) 0%, var(--navy-2) 100%);color:var(--ink);padding:76px 0 90px;position:relative;overflow:hidden;}
+.hero:after{content:"";position:absolute;inset:0;pointer-events:none;background:
+  linear-gradient(rgba(255,255,255,.035) 1px,transparent 1px);
+  background-size:100% 44px;mix-blend-mode:overlay;opacity:.5;}
+.hero-grid{display:grid;grid-template-columns:1.05fr .95fr;gap:56px;align-items:center;position:relative;z-index:1;}
+@media(max-width:900px){.hero-grid{grid-template-columns:1fr;}}
+.hero-eyebrow{color:var(--coral);border-color:rgba(255,90,60,.35);background:var(--coral-dim);}
+h1.hero-h{font-family:'Space Grotesk',sans-serif;font-weight:700;font-size:clamp(36px,5.2vw,58px);line-height:1.03;letter-spacing:-.02em;margin:18px 0 18px;}
+h1.hero-h em{font-style:normal;color:var(--coral);}
+.hero-sub{font-size:16.5px;color:var(--ink-dim);max-width:480px;margin-bottom:30px;}
+.hero-ctas{display:flex;gap:12px;flex-wrap:wrap;margin-bottom:36px;}
+.btn{
+  display:inline-flex;align-items:center;gap:8px;text-decoration:none;
+  font-size:14.5px;font-weight:700;padding:13px 22px;border-radius:10px;
+  border:1px solid transparent;transition:transform .1s ease,opacity .15s;
+}
+.btn:active{transform:scale(.98);}
+.btn-coral{background:var(--coral);color:#fff;box-shadow:0 8px 24px -8px rgba(255,90,60,.55);}
+.btn-ghost{background:transparent;color:var(--ink);border-color:rgba(255,255,255,.22);}
+.btn-ghost:hover{border-color:rgba(255,255,255,.45);}
+.btn[aria-disabled="true"]{opacity:.42;cursor:default;pointer-events:none;box-shadow:none;}
+.hero-stats{display:flex;gap:30px;}
+.hstat b{display:block;font-family:'Space Grotesk',sans-serif;font-size:22px;font-weight:700;}
+.hstat span{font-size:12px;color:var(--ink-faint);letter-spacing:.03em;}
 
-  /* ── INSTRUMENT STRIP (signature element) ─────── */
-  .instr{display:grid;grid-template-columns:repeat(4,1fr);border:1px solid var(--line);border-radius:4px;overflow:hidden;background:#fff;}
-  .instr-cell{padding:16px 10px 12px;text-align:center;border-right:1px solid var(--line);}
-  .instr-cell:last-child{border-right:none;}
-  .instr-val{
-    font-family:'Roboto Condensed',sans-serif;font-weight:700;color:var(--ink);
-    font-size:clamp(20px,3.6vw,32px);line-height:1;font-variant-numeric:tabular-nums;
-  }
-  .instr-lbl{margin-top:7px;font-size:9.5px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:var(--grey);}
-  .instr-note{margin-top:10px;font-size:10px;letter-spacing:.08em;text-transform:uppercase;color:rgba(255,255,255,.4);text-align:center;}
-  @media(max-width:640px){.instr{grid-template-columns:repeat(2,1fr);}
-    .instr-cell:nth-child(2){border-right:none;}
-    .instr-cell:nth-child(1),.instr-cell:nth-child(2){border-bottom:1px solid var(--line);}}
+/* device mockup — built live, not an image */
+.device{
+  background:linear-gradient(180deg,#0C1730,#081020);
+  border:1px solid rgba(255,255,255,.12);
+  border-radius:20px;
+  box-shadow:0 40px 80px -28px rgba(0,0,0,.65), inset 0 1px 0 rgba(255,255,255,.06);
+  padding:16px 16px 18px;
+  position:relative;
+}
+.device-top{display:flex;align-items:center;justify-content:space-between;font-size:10.5px;color:var(--ink-faint);margin-bottom:10px;font-family:'Roboto Mono',monospace;letter-spacing:.02em;}
+.device-top .live{display:inline-flex;align-items:center;gap:5px;color:var(--coral);font-weight:700;}
+.device-top .live:before{content:"";width:6px;height:6px;border-radius:50%;background:var(--coral);animation:pulse 1.6s infinite;}
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:.3}}
+.curve-box{background:#0A1424;border:1px solid rgba(255,255,255,.08);border-radius:12px;padding:12px 12px 6px;margin-bottom:10px;}
+.curve-hdr{display:flex;justify-content:space-between;font-family:'Roboto Mono',monospace;font-size:10px;color:var(--ink-faint);margin-bottom:6px;letter-spacing:.02em;}
+.curve-nums{display:flex;justify-content:space-between;align-items:flex-end;margin-bottom:2px;}
+.curve-nums b{font-family:'Space Grotesk',sans-serif;font-size:30px;font-weight:700;line-height:1;}
+.curve-nums .drive{color:var(--teal);}
+.curve-nums .rec{color:var(--ink-faint);font-size:20px;}
+svg.curve{display:block;width:100%;height:70px;}
+.device-tiles{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;}
+.dtile{background:#0A1424;border:1px solid rgba(255,255,255,.08);border-radius:10px;padding:9px 6px;text-align:center;}
+.dtile b{display:block;font-family:'Space Grotesk',sans-serif;font-size:17px;font-weight:700;}
+.dtile span{font-size:9px;color:var(--ink-faint);letter-spacing:.06em;text-transform:uppercase;}
+.device-side{position:absolute;right:-13px;top:16px;display:flex;flex-direction:column;gap:8px;}
+.sidebtn{width:11px;height:30px;border-radius:3px;}
+.sidebtn.blue{background:#2E6BF2;}
+.sidebtn.red{background:#D64545;}
+.sidebtn.orange{background:var(--coral);}
 
-  /* ── TOOLS ─────────────────────────────────────── */
-  .tools{padding:56px 0 40px;}
-  .tools h2{font-family:'Roboto Condensed',sans-serif;font-weight:700;font-size:12px;letter-spacing:.18em;text-transform:uppercase;color:var(--grey);margin-bottom:22px;}
-  .cards{display:grid;grid-template-columns:repeat(3,1fr);gap:14px;}
-  @media(max-width:760px){.cards{grid-template-columns:1fr;}}
-  .card{
-    background:#fff;border:1px solid #e3e6ea;border-radius:4px;padding:22px 20px;
-    display:flex;flex-direction:column;gap:10px;text-decoration:none;color:var(--ink);
-    transition:border-color .15s, transform .1s;
-  }
-  .card:active{transform:scale(.99);}
-  .card:hover{border-color:var(--steel);}
-  .card .tag{font-size:10px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:var(--green);}
-  .card h3{font-family:'Roboto Condensed',sans-serif;font-weight:700;font-size:21px;}
-  .card p{font-size:13px;line-height:1.55;color:var(--grey);}
-  .card .go{margin-top:auto;font-size:11px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:var(--steel);}
+/* ===== SECTIONS ===== */
+section{padding:84px 0;}
+.section-head{max-width:600px;margin-bottom:44px;}
+.section-eyebrow{color:#B45A34;border-color:rgba(180,90,52,.28);background:rgba(180,90,52,.08);}
+h2.section-h{font-family:'Space Grotesk',sans-serif;font-size:clamp(26px,3.4vw,36px);font-weight:700;letter-spacing:-.015em;margin:14px 0 12px;}
+.section-p{color:rgba(14,20,32,.62);font-size:15.5px;max-width:520px;}
+.on-navy{color:var(--ink);}
+.on-navy .section-p{color:var(--ink-dim);}
 
-  /* ── FOOTER ────────────────────────────────────── */
-  footer{border-top:1px solid #e3e6ea;padding:28px 0 40px;}
-  footer .wrap{display:flex;flex-wrap:wrap;gap:20px;align-items:center;justify-content:space-between;}
-  .flinks{display:flex;flex-wrap:wrap;gap:18px;}
-  .flinks a{font-size:12px;font-weight:600;letter-spacing:.04em;text-decoration:none;color:var(--grey);}
-  .flinks a:hover{color:var(--steel);}
-  .fine{font-size:11px;color:#a7b0ba;}
+.stat-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:14px;}
+@media(max-width:760px){.stat-grid{grid-template-columns:repeat(2,1fr);}}
+.stat-card{background:#fff;border:1px solid rgba(14,20,32,.08);border-radius:var(--radius);padding:20px 18px;}
+.stat-card.wide{grid-column:span 2;}
+@media(max-width:760px){.stat-card.wide{grid-column:span 2;}}
+.stat-top{display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;}
+.stat-active{font-family:'Roboto Mono',monospace;font-size:10px;font-weight:600;letter-spacing:.08em;color:var(--teal);background:rgba(47,211,198,.12);padding:3px 8px;border-radius:100px;}
+.stat-label{font-size:12.5px;color:rgba(14,20,32,.5);margin-bottom:4px;}
+.stat-val{font-family:'Space Grotesk',sans-serif;font-size:28px;font-weight:700;}
 
-  @media(prefers-reduced-motion:reduce){*{transition:none!important;}}
+.feature-row{display:grid;grid-template-columns:1fr 1fr;gap:60px;align-items:center;}
+@media(max-width:860px){.feature-row{grid-template-columns:1fr;gap:32px;}}
+.feature-row.rev .fr-media{order:2;}
+@media(max-width:860px){.feature-row.rev .fr-media{order:0;}}
+.checklist{list-style:none;margin-top:18px;display:flex;flex-direction:column;gap:9px;}
+.checklist li{display:flex;gap:10px;align-items:flex-start;font-size:14.5px;color:rgba(14,20,32,.75);}
+.checklist li:before{content:"";flex:0 0 auto;width:16px;height:16px;margin-top:2px;border-radius:5px;background:var(--coral-dim);border:1px solid rgba(255,90,60,.4);}
+.on-navy .checklist li{color:var(--ink-dim);}
+.on-navy .checklist li:before{background:rgba(47,211,198,.14);border-color:rgba(47,211,198,.45);}
+
+.shot{
+  border-radius:16px;overflow:hidden;border:1px solid rgba(14,20,32,.10);
+  background:#EDEBE4;position:relative;
+}
+.shot img{display:block;width:100%;height:auto;}
+.shot-placeholder{
+  aspect-ratio:16/10.5;display:flex;align-items:center;justify-content:center;
+  flex-direction:column;gap:8px;color:rgba(14,20,32,.32);
+  font-family:'Roboto Mono',monospace;font-size:11px;letter-spacing:.04em;text-align:center;padding:20px;
+}
+.shot-placeholder .ic{width:34px;height:34px;border-radius:8px;border:1.5px dashed rgba(14,20,32,.28);}
+.on-navy .shot{background:#101E3E;border-color:rgba(255,255,255,.10);}
+.on-navy .shot-placeholder{color:var(--ink-faint);}
+.on-navy .shot-placeholder .ic{border-color:rgba(255,255,255,.22);}
+
+/* interface catalog */
+.catalog{display:flex;gap:14px;overflow-x:auto;padding:4px 4px 14px;scrollbar-width:none;}
+.catalog::-webkit-scrollbar{display:none;}
+.cat-card{flex:0 0 190px;height:150px;border-radius:14px;position:relative;overflow:hidden;display:flex;align-items:flex-end;padding:14px;}
+.cat-card b{font-size:13px;font-weight:700;position:relative;z-index:1;}
+.cat-card span{display:block;font-size:10.5px;color:rgba(255,255,255,.55);position:relative;z-index:1;margin-top:2px;}
+.cat-dark{background:linear-gradient(155deg,#132548,#0A1428);border:1px solid rgba(255,255,255,.10);color:#fff;}
+.cat-light{background:#EEEDE7;border:1px solid rgba(14,20,32,.08);color:var(--paper-ink);}
+.cat-light span{color:rgba(14,20,32,.45);}
+
+/* three apps band */
+.apps-band{background:var(--navy);color:var(--ink);}
+.app-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:16px;}
+@media(max-width:820px){.app-grid{grid-template-columns:1fr;}}
+.app-card{background:var(--panel);border:1px solid var(--line);border-radius:16px;padding:26px 24px;display:flex;flex-direction:column;gap:12px;}
+.app-tag{font-family:'Roboto Mono',monospace;font-size:10.5px;letter-spacing:.1em;text-transform:uppercase;color:var(--ink-faint);}
+.app-card h3{font-family:'Space Grotesk',sans-serif;font-size:19px;font-weight:700;}
+.app-card p{font-size:13.5px;color:var(--ink-dim);flex:1;}
+.app-link{display:inline-flex;align-items:center;gap:6px;font-size:13.5px;font-weight:700;color:var(--teal);text-decoration:none;margin-top:4px;}
+.app-link:after{content:"→";transition:transform .15s;}
+.app-link:hover:after{transform:translateX(3px);}
+
+/* guides / resources */
+.res-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:16px;}
+@media(max-width:700px){.res-grid{grid-template-columns:1fr;}}
+.res-card{
+  display:flex;justify-content:space-between;align-items:center;gap:16px;
+  background:#fff;border:1px solid rgba(14,20,32,.08);border-radius:14px;padding:20px 22px;
+  text-decoration:none;color:var(--paper-ink);
+}
+.res-card:hover{border-color:rgba(255,90,60,.4);}
+.res-card h4{font-family:'Space Grotesk',sans-serif;font-size:16px;font-weight:700;margin-bottom:3px;}
+.res-card p{font-size:13px;color:rgba(14,20,32,.5);}
+.res-arrow{flex:0 0 auto;width:34px;height:34px;border-radius:50%;border:1.5px solid rgba(14,20,32,.15);display:flex;align-items:center;justify-content:center;font-size:15px;}
+
+/* final CTA */
+.cta-band{background:linear-gradient(180deg,var(--navy-2),var(--navy));color:var(--ink);text-align:center;padding:96px 0;}
+.cta-band h2{font-family:'Space Grotesk',sans-serif;font-size:clamp(28px,4vw,42px);font-weight:700;letter-spacing:-.02em;margin-bottom:16px;}
+.cta-band p{color:var(--ink-dim);max-width:460px;margin:0 auto 30px;}
+.cta-band .hero-ctas{justify-content:center;margin-bottom:0;}
+
+footer{background:var(--navy);color:var(--ink-faint);border-top:1px solid rgba(255,255,255,.08);padding:44px 0 34px;}
+.foot-grid{display:flex;justify-content:space-between;flex-wrap:wrap;gap:28px;margin-bottom:28px;}
+.foot-brand{display:flex;align-items:center;gap:9px;font-family:'Space Grotesk',sans-serif;font-weight:700;font-size:16px;color:var(--ink);}
+.foot-cols{display:flex;gap:56px;flex-wrap:wrap;}
+.foot-col h5{font-size:11px;letter-spacing:.1em;text-transform:uppercase;color:var(--ink-faint);margin-bottom:12px;}
+.foot-col a{display:block;font-size:13.5px;color:var(--ink-dim);text-decoration:none;margin-bottom:9px;}
+.foot-col a:hover{color:var(--ink);}
+.foot-bottom{display:flex;justify-content:space-between;flex-wrap:wrap;gap:10px;font-size:12px;border-top:1px solid rgba(255,255,255,.08);padding-top:22px;}
 </style>
 </head>
 <body>
 
-<nav class="nav">
-  <span class="word">BoatRun</span>
-  <a href="guide.html">Guide</a>
-</nav>
-
-<header class="hero">
-  <div class="wrap">
-    <div>
-      <h1>Your boat, <em>instrumented.</em></h1>
-      <p class="lead">Stroke rate, pace, drive acceleration and heart rate — live, on the water, from a phone mounted on the boat or a coach launch watching the whole squad.</p>
-    </div>
-
-    <div class="cta-row">
-      <!-- TODO: swap href to the live App Store URL once approved -->
-      <a class="cta cta-primary" href="https://testflight.apple.com/join/U1VQeYdz">Get the app</a>
-      <a class="cta cta-secondary" href="https://testflight.apple.com/join/U1VQeYdz">Join the beta on TestFlight</a>
-    </div>
-
-    <div>
-      <div class="instr" id="instr">
-        <div class="instr-cell"><div class="instr-val" id="v-pace">1:52</div><div class="instr-lbl">Pace / 500m</div></div>
-        <div class="instr-cell"><div class="instr-val" id="v-rate">24</div><div class="instr-lbl">Stroke rate</div></div>
-        <div class="instr-cell"><div class="instr-val" id="v-dps">9.6</div><div class="instr-lbl">Dist / stroke</div></div>
-        <div class="instr-cell"><div class="instr-val" id="v-hr">158</div><div class="instr-lbl">Heart rate</div></div>
-      </div>
-      <div class="instr-note">Live example — what your crew sees mid-piece</div>
-    </div>
+<header>
+  <div class="wrap nav">
+    <div class="brand"><span class="dot"></span>BoatRun</div>
+    <nav class="navlinks">
+      <a href="#rowers">For Rowers</a>
+      <a href="#coaches">For Coaches</a>
+      <a href="#analysis">Analysis</a>
+      <a href="#spectator">Spectator</a>
+      <a href="./guide.html">Guide</a>
+    </nav>
+    <a class="navcta" href="#get-app">Get BoatRun</a>
   </div>
 </header>
 
-<section class="tools">
+<!-- HERO -->
+<section class="hero">
+  <div class="wrap hero-grid">
+    <div>
+      <span class="eyebrow hero-eyebrow">Premium Rowing Telemetry</span>
+      <h1 class="hero-h">Master Every <em>Stroke</em></h1>
+      <p class="hero-sub">Real-time rowing metrics built for scullers, coxes and coaches who want raw data, honest precision, and tactical confidence on the water.</p>
+      <div class="hero-ctas">
+        <a class="btn btn-coral" href="#get-app">Get the App</a>
+        <a class="btn btn-ghost" href="https://boatrun.au/analyser.html">Open Web Analyser</a>
+      </div>
+      <div class="hero-stats">
+        <div class="hstat"><b>50Hz</b><span>Sensor sample rate</span></div>
+        <div class="hstat"><b>3</b><span>Apps · one squad</span></div>
+        <div class="hstat"><b>0</b><span>Setup required</span></div>
+      </div>
+    </div>
+    <div class="device">
+      <div class="device-top">
+        <span>GPS 1m · A±X</span>
+        <span class="live">REC · 11:58 · 3.01 km</span>
+      </div>
+      <div class="curve-box">
+        <div class="curve-hdr"><span>DRIVE ACCEL</span><span>RECOVERY ACCEL</span></div>
+        <div class="curve-nums"><b class="drive">3.1</b><b class="rec">0.4</b></div>
+        <svg class="curve" viewBox="0 0 300 70" preserveAspectRatio="none">
+          <polyline points="0,52 20,58 40,20 60,10 80,18 100,34 120,44 140,48 160,46 180,44 200,42 220,40 240,41 260,40 280,41 300,40" fill="none" stroke="#2FD3C6" stroke-width="2"/>
+          <polyline points="0,54 20,56 40,26 60,14 80,22 100,36 120,46 140,50 160,47 180,45 200,43 220,41 240,42 260,41 280,42 300,41" fill="none" stroke="#FF5A3C" stroke-width="1.4" opacity=".6"/>
+        </svg>
+      </div>
+      <div class="device-tiles">
+        <div class="dtile"><b>02:13</b><span>Pace /500</span></div>
+        <div class="dtile"><b>21</b><span>Rate</span></div>
+        <div class="dtile"><b>350</b><span>Catch Dur</span></div>
+        <div class="dtile"><b>155</b><span>HR bpm</span></div>
+      </div>
+      <div class="device-side">
+        <div class="sidebtn blue"></div>
+        <div class="sidebtn red"></div>
+        <div class="sidebtn orange"></div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- TELEMETRY PACK -->
+<section>
   <div class="wrap">
-    <h2>Three ways in</h2>
-    <div class="cards">
-      <!-- TODO: swap href and label to App Store once approved -->
-      <a class="card" href="https://testflight.apple.com/join/U1VQeYdz">
-        <span class="tag">On the water</span>
-        <h3>Record</h3>
-        <p>Mount your phone facing the stern and get live pace, rate and drive metrics every stroke. Free to start, no card required.</p>
-        <span class="go">Join beta ↗</span>
-      </a>
-      <a class="card" href="analyser.html">
-        <span class="tag">After the row</span>
-        <h3>Analyser</h3>
-        <p>Open any session and replay it stroke by stroke — curves, splits and laps, straight from your own Google Drive.</p>
-        <span class="go">Open Analyser ↗</span>
-      </a>
-      <a class="card" href="https://viewer.boatrun.au/">
-        <span class="tag">From the bank</span>
+    <div class="section-head">
+      <span class="eyebrow section-eyebrow">Precision Indicators</span>
+      <h2 class="section-h">Real-Time Telemetry Pack</h2>
+      <p class="section-p">The sensor engine reads boat motion, stroke dynamics and biometric data up to 50 times a second, every stroke, every session.</p>
+    </div>
+    <div class="stat-grid">
+      <div class="stat-card"><div class="stat-top"><span class="stat-active">Active</span></div><div class="stat-label">Stroke Rate (SPM)</div><div class="stat-val">32.4</div></div>
+      <div class="stat-card"><div class="stat-top"><span class="stat-active">Active</span></div><div class="stat-label">500m Split Time</div><div class="stat-val">1:42.5</div></div>
+      <div class="stat-card"><div class="stat-top"><span class="stat-active">Active</span></div><div class="stat-label">Total Distance</div><div class="stat-val">4,250m</div></div>
+      <div class="stat-card"><div class="stat-top"><span class="stat-active">Active</span></div><div class="stat-label">Heart Rate</div><div class="stat-val">164 bpm</div></div>
+      <div class="stat-card wide"><div class="stat-top"><span class="stat-active">Active</span></div><div class="stat-label">Power Output</div><div class="stat-val">380 W</div></div>
+      <div class="stat-card wide"><div class="stat-top"><span class="stat-active">Active</span></div><div class="stat-label">Drive-to-Recovery Ratio</div><div class="stat-val">1 : 2.1</div></div>
+    </div>
+  </div>
+</section>
+
+<!-- FOR ROWERS -->
+<section id="rowers" style="background:#EFEDE6;">
+  <div class="wrap feature-row">
+    <div>
+      <span class="eyebrow section-eyebrow">For Rowers</span>
+      <h2 class="section-h">Your Cockpit on the Water</h2>
+      <p class="section-p">Mount your phone flat and screen-up facing the stern. BoatRun delivers a high-contrast, sun-readable metric overlay, acoustic stroke prompts, and immediate pacing targets to keep you in perfect flow.</p>
+      <ul class="checklist">
+        <li>Live session audio guidance</li>
+        <li>Real-time visual metrics overlay</li>
+        <li>Automatic sync to your personal Google Drive</li>
+      </ul>
+    </div>
+    <div class="fr-media">
+      <div class="shot">
+        <div class="shot-placeholder"><div class="ic"></div>Rower session interface — screenshot</div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- FOR COACHES -->
+<section id="coaches" class="on-navy apps-band">
+  <div class="wrap feature-row rev">
+    <div>
+      <span class="eyebrow" style="color:var(--teal);border-color:rgba(47,211,198,.35);background:rgba(47,211,198,.1);">For Coaches</span>
+      <h2 class="section-h">Command Your Entire Fleet</h2>
+      <p class="section-p">Follow every rower's metrics live from the launch. Track real-time splits side-by-side, monitor power degradation, and address technical decay before the crew finishes their piece.</p>
+      <ul class="checklist">
+        <li>Multi-athlete squad dashboard</li>
+        <li>Tap-to-open detail view with stroke curve, stats and mini-map</li>
+        <li>In-app video recording with live telemetry overlay</li>
+      </ul>
+    </div>
+    <div class="fr-media">
+      <div class="shot"><div class="shot-placeholder"><div class="ic"></div>Coach squad grid — screenshot</div></div>
+    </div>
+  </div>
+</section>
+
+<!-- ANALYSER -->
+<section id="analysis">
+  <div class="wrap feature-row">
+    <div>
+      <span class="eyebrow section-eyebrow">Deep Analysis</span>
+      <h2 class="section-h">The Web-Based Analyser</h2>
+      <p class="section-p">Your data deserves a bigger screen. Sessions sync straight to the desktop portal for close study — compare strokes, overlay power curves against video, and track structural improvements across a season.</p>
+      <a class="btn btn-coral" style="margin-top:8px;" href="https://boatrun.au/analyser.html">Launch Web Analyser</a>
+    </div>
+    <div class="fr-media">
+      <div class="shot"><div class="shot-placeholder"><div class="ic"></div>Analyser charts dashboard — screenshot</div></div>
+    </div>
+  </div>
+</section>
+
+<!-- SPECTATOR -->
+<section id="spectator" style="background:#EFEDE6;">
+  <div class="wrap feature-row rev">
+    <div>
+      <span class="eyebrow section-eyebrow">Spectator Mode</span>
+      <h2 class="section-h">Put the Race on Screen</h2>
+      <p class="section-p">Share live positions and pacing with parents, supporters and coaches on the bank. No install, no account — just a link and a squad code.</p>
+      <a class="btn btn-ghost" style="border-color:rgba(14,20,32,.2);margin-top:8px;" href="https://viewer.boatrun.au/">Open Viewer</a>
+    </div>
+    <div class="fr-media">
+      <div class="shot"><div class="shot-placeholder"><div class="ic"></div>Live race map — screenshot</div></div>
+    </div>
+  </div>
+
+  <div class="wrap" style="margin-top:70px;">
+    <h2 class="section-h" style="font-size:22px;margin-bottom:18px;">Explore the Interface</h2>
+    <div class="catalog">
+      <div class="cat-card cat-dark"><b>Metric Overlay</b><span>Live stroke data</span></div>
+      <div class="cat-card cat-light"><b>Acoustic Pacing Coach</b><span>Audio cues</span></div>
+      <div class="cat-card cat-dark"><b>Interactive Map</b><span>GPS track & splits</span></div>
+      <div class="cat-card cat-light"><b>Power Matrix</b><span>Session breakdown</span></div>
+      <div class="cat-card cat-dark"><b>Stroke Curve</b><span>Drive / recovery</span></div>
+    </div>
+  </div>
+</section>
+
+<!-- THREE APPS -->
+<section class="apps-band">
+  <div class="wrap">
+    <div class="section-head on-navy">
+      <span class="eyebrow" style="color:var(--teal);border-color:rgba(47,211,198,.35);background:rgba(47,211,198,.1);">One Squad, Three Apps</span>
+      <h2 class="section-h">Everything Talks to Everything</h2>
+    </div>
+    <div class="app-grid">
+      <div class="app-card">
+        <span class="app-tag">On the water</span>
+        <h3>BoatRun App</h3>
+        <p>Row, Cox or Coach — one native app for iPhone. Live metrics, squad sync, video and Strava export.</p>
+        <a class="app-link" href="#get-app">Get the app</a>
+      </div>
+      <div class="app-card">
+        <span class="app-tag">Post-session</span>
+        <h3>Web Analyser</h3>
+        <p>Full single-session review is always free, on any browser. No install needed.</p>
+        <a class="app-link" href="https://boatrun.au/analyser.html">Open Analyser</a>
+      </div>
+      <div class="app-card">
+        <span class="app-tag">On the bank</span>
         <h3>Viewer</h3>
-        <p>Watch a crew's live pace and rate from your phone or laptop while they're out on the water — no app install needed.</p>
-        <span class="go">Open Viewer ↗</span>
+        <p>Live squad position, pace and stroke rate for spectators and coaches ashore.</p>
+        <a class="app-link" href="https://viewer.boatrun.au/">Open Viewer</a>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- GUIDES -->
+<section>
+  <div class="wrap">
+    <div class="section-head">
+      <span class="eyebrow section-eyebrow">Documentation</span>
+      <h2 class="section-h">Get Rowing in Minutes</h2>
+      <p class="section-p">Everything from mounting your phone to building custom squad workouts.</p>
+    </div>
+    <div class="res-grid">
+      <a class="res-card" href="./guide.html#quick-start">
+        <div><h4>Quick Start</h4><p>Install, calibrate, and record your first session</p></div>
+        <span class="res-arrow">→</span>
       </a>
+      <a class="res-card" href="./guide.html">
+        <div><h4>User Guide</h4><p>Full reference — Metrics, Coach, Analyser and Viewer</p></div>
+        <span class="res-arrow">→</span>
+      </a>
+    </div>
+  </div>
+</section>
+
+<!-- FINAL CTA -->
+<section class="cta-band" id="get-app">
+  <div class="wrap">
+    <span class="eyebrow" style="color:var(--coral);border-color:rgba(255,90,60,.35);background:var(--coral-dim);">Get BoatRun</span>
+    <h2>Ready to see every stroke?</h2>
+    <p>BoatRun is currently in TestFlight beta ahead of its App Store launch.</p>
+    <div class="hero-ctas">
+      <a class="btn btn-coral" aria-disabled="true" href="#">Download on the App Store — Coming Soon</a>
+      <a class="btn btn-ghost" href="https://boatrun.au/analyser.html">Try the Web Analyser free</a>
     </div>
   </div>
 </section>
 
 <footer>
   <div class="wrap">
-    <div class="flinks">
-      <a href="about.html">About</a>
-      <a href="guide.html">Guide</a>
-      <a href="support.html">Support</a>
-      <a href="privacy.html">Privacy</a>
-      <a href="terms.html">Terms</a>
+    <div class="foot-grid">
+      <div class="foot-brand"><span class="dot" style="width:8px;height:8px;border-radius:2px;background:var(--coral);transform:rotate(45deg);"></span>BoatRun</div>
+      <div class="foot-cols">
+        <div class="foot-col">
+          <h5>Product</h5>
+          <a href="#get-app">The App</a>
+          <a href="https://boatrun.au/analyser.html">Analyser</a>
+          <a href="https://viewer.boatrun.au/">Viewer</a>
+        </div>
+        <div class="foot-col">
+          <h5>Docs</h5>
+          <a href="./guide.html#quick-start">Quick Start</a>
+          <a href="./guide.html">User Guide</a>
+        </div>
+        <div class="foot-col">
+          <h5>Legal</h5>
+          <a href="./privacy.html">Privacy Policy</a>
+          <a href="./terms.html">Terms of Use</a>
+          <a href="./support.html">Support</a>
+        </div>
+        <div class="foot-col">
+          <h5>Contact</h5>
+          <a href="mailto:bigwig.91mash@icloud.com?subject=BoatRun%20feedback">Send feedback</a>
+        </div>
+      </div>
     </div>
-    <span class="fine">© <span id="yr"></span> BoatRun</span>
+    <div class="foot-bottom">
+      <span>© 2026 BoatRun</span>
+      <span>Rowing telemetry for rowers, coxes and coaches</span>
+    </div>
   </div>
 </footer>
 
-<script>
-document.getElementById('yr').textContent = new Date().getFullYear();
-
-(function(){
-  var reduce = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
-  if (reduce) return;
-  var pace = document.getElementById('v-pace');
-  var rate = document.getElementById('v-rate');
-  var dps  = document.getElementById('v-dps');
-  var hr   = document.getElementById('v-hr');
-  function fmtPace(sec){ var m=Math.floor(sec/60), s=Math.round(sec%60); return m+':'+String(s).padStart(2,'0'); }
-  function tick(){
-    var paceSec = 108 + Math.random()*14;      // ~1:48–2:02 /500m
-    var r = 20 + Math.round(Math.random()*10);  // 20–30 spm
-    var d = (8.6 + Math.random()*2.2).toFixed(1);
-    var h = 142 + Math.round(Math.random()*24);
-    pace.textContent = fmtPace(paceSec);
-    rate.textContent = r;
-    dps.textContent  = d;
-    hr.textContent   = h;
-  }
-  setInterval(tick, 1700);
-})();
-</script>
 </body>
 </html>
