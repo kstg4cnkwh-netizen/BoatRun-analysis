@@ -38,6 +38,13 @@ fetch('./BoatRun_README_v5.md?'+Date.now())
   .then(md=>{
     document.getElementById('loading').style.display='none';
     document.getElementById('content').innerHTML=marked.parse(md);
+    document.querySelectorAll('#content h1,#content h2,#content h3').forEach(function(h){
+      h.id = h.textContent.toLowerCase().replace(/[^a-z0-9]+/g,'-').replace(/^-+|-+$/g,'');
+    });
+    if(location.hash){
+      var t = document.getElementById(location.hash.slice(1));
+      if(t) t.scrollIntoView();
+    }
   })
   .catch(()=>{
     document.getElementById('loading').textContent='Could not load guide. Check your connection.';
