@@ -22,6 +22,13 @@ body{font-family:'Georgia',serif;background:#f4f4f4;color:#222;line-height:1.7;p
 #content pre{background:#1a1a2e;color:#cdd6f4;padding:12px;border-radius:6px;overflow-x:auto;margin-bottom:12px;}
 #content pre code{background:none;color:inherit;}
 #content hr{border:none;border-top:1px solid #ddd;margin:20px 0;}
+#content blockquote{border-left:3px solid #1a5276;background:#eaf1f6;padding:10px 14px;margin:0 0 12px;font-size:14px;}
+#content blockquote p{margin:0;}
+#content img{display:block;max-width:100%;height:auto;margin:14px auto;border:1px solid #d5d5d5;border-radius:8px;box-shadow:0 1px 4px rgba(0,0,0,.12);background:#fff;}
+#content img.shot-missing{display:flex;align-items:center;justify-content:center;}
+.shot-ph{display:block;margin:14px auto;padding:26px 18px;border:2px dashed #b8c6d0;border-radius:8px;background:#eef3f7;text-align:center;color:#6b7f8d;font-family:-apple-system,system-ui,sans-serif;font-size:12px;line-height:1.6;}
+.shot-ph b{display:block;font-size:11px;letter-spacing:.12em;text-transform:uppercase;color:#1a5276;margin-bottom:6px;}
+.shot-ph span{display:block;font-size:11px;color:#93a5b1;margin-top:6px;font-style:italic;}
 .back{display:inline-block;margin-top:30px;font-size:13px;color:#1a5276;text-decoration:none;}
 #loading{color:#888;font-size:14px;padding:20px 0;}
 </style>
@@ -33,22 +40,31 @@ body{font-family:'Georgia',serif;background:#f4f4f4;color:#222;line-height:1.7;p
   <a class="back" href="./about.html">← Back to About</a>
 </div>
 <script>
-fetch('./BoatRun_README_v5.md?'+Date.now())
+fetch('./BoatRun_README_v6.md?'+Date.now())
   .then(r=>r.text())
   .then(md=>{
     document.getElementById('loading').style.display='none';
     document.getElementById('content').innerHTML=marked.parse(md);
-    document.querySelectorAll('#content h1,#content h2,#content h3').forEach(function(h){
-      h.id = h.textContent.toLowerCase().replace(/[^a-z0-9]+/g,'-').replace(/^-+|-+$/g,'');
-    });
-    if(location.hash){
-      var t = document.getElementById(location.hash.slice(1));
-      if(t) t.scrollIntoView();
-    }
+    swapMissingImages();
   })
   .catch(()=>{
     document.getElementById('loading').textContent='Could not load guide. Check your connection.';
   });
+
+// Any screenshot not yet dropped in renders as a labelled placeholder box
+// instead of a broken-image icon. Delete this function once every
+// screenshots/*.png file exists.
+function swapMissingImages(){
+  document.querySelectorAll('#content img').forEach(function(img){
+    img.addEventListener('error',function(){
+      var ph=document.createElement('div');
+      ph.className='shot-ph';
+      ph.innerHTML='<b>Screenshot</b>'+(img.alt||'')+'<span>'+(img.getAttribute('src')||'')+'</span>';
+      if(img.parentNode) img.parentNode.replaceChild(ph,img);
+    });
+    if(img.complete && img.naturalWidth===0) img.dispatchEvent(new Event('error'));
+  });
+}
 </script>
 </body>
 </html>
