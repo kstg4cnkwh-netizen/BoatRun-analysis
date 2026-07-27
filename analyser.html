@@ -167,8 +167,6 @@
   .twrap { overflow: auto; max-height: 200px; background: var(--s1); border: 1px solid var(--border); border-radius: 12px; box-shadow: var(--sh); }
   table { width: 100%; border-collapse: collapse; font-size: 10px; white-space: nowrap; }
   #curvetbl, #curvetbl * { -webkit-user-select: none; user-select: none; -webkit-touch-callout: none; -webkit-tap-highlight-color: transparent; }
-  #curvetbl tbody tr{cursor:pointer;}
-  #curvetbl tbody tr.yhl td{background:#ffd60a !important;color:#000 !important;}
   thead th { position: sticky; top: 0; background: var(--s2); color: var(--muted); padding: 7px 10px; border-bottom: 1px solid var(--border); text-align: right; font-size: 8px; text-transform: uppercase; letter-spacing: .7px; font-weight: 600; }
   thead th:first-child { text-align: left; }
   tbody tr { border-bottom: 1px solid var(--dim); transition: background .1s; }
@@ -697,7 +695,7 @@ function arrMean(a){return a.length?arrSum(a)/a.length:NaN;}
 function pctBounds(arr,lo=0.03,hi=0.97,pad=0.08){if(!arr.length)return[0,1];const s=[...arr].sort((a,b)=>a-b);const p=q=>{const i=q*(s.length-1),f=Math.floor(i);return s[f]+((s[f+1]??s[f])-s[f])*(i-f);};const vlo=p(lo),vhi=p(hi),rng=(vhi-vlo)||Math.abs(vhi)*0.1||1;return[vlo-rng*pad,vhi+rng*pad];}
 function clamp(v,a,b){return v<a?a:v>b?b:v;}
 const EM='—';
-function fmtPace(s){if(!s||isNaN(s)||s<50||s>600)return EM;return Math.floor(s/60)+':'+(Math.round(s%60)<10?'0':'')+Math.round(s%60);}
+function fmtPace(s){if(!s||isNaN(s)||s<50||s>600)return EM;const r=Math.round(s);const m=Math.floor(r/60),sec=r%60;return m+':'+(sec<10?'0':'')+sec;}
 function fmtTime(s){if(!s||isNaN(s))return'0:00';const h=Math.floor(s/3600),m=Math.floor((s%3600)/60),sec=Math.round(s%60);if(h>0)return h+':'+(m<10?'0':'')+m+':'+(sec<10?'0':'')+sec;return m+':'+(sec<10?'0':'')+sec;}
 function f1(v){return isNaN(v)?EM:v.toFixed(1);}
 function f2(v){return isNaN(v)?EM:v.toFixed(2);}
@@ -834,7 +832,6 @@ function nearestHRAt(ms){
   return Math.abs(best-ms)<30000?bestBpm:null;
 }
 let curveGroups = []; // [{color,bg,strokes,absS,absE,label}]
-let curveRowHl=new Set(); // row labels highlighted yellow in the curve comparison table
 let currentView=[];
 let viewS=0,viewE=0;
 let selS=-1,selE=-1;
@@ -2744,14 +2741,7 @@ function buildCurveStats(){
   const thead=document.getElementById('curvethead');
   const tbody=document.getElementById('curvebody');
   thead.innerHTML=`<tr><th>Metric</th>${curveGroups.map(g=>`<th><span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:${g.color};margin-right:4px;vertical-align:middle;"></span>${g.label}${g.sessionLabel?`<div style="font-size:8px;color:var(--muted);font-weight:400;">${shortName(g.sessionLabel)}</div>`:''}</th>`).join('')}</tr>`;
-  tbody.innerHTML=rows.map(row=>`<tr data-l="${row.l}" class="${curveRowHl.has(row.l)?'yhl':''}"><td style="${row.c?'color:'+row.c:''}">${row.l}</td>${curveGroups.map(g=>`<td>${row.fn(g)}</td>`).join('')}</tr>`).join('');
-  tbody.querySelectorAll('tr[data-l]').forEach(tr=>{
-    tr.onclick=()=>{
-      const l=tr.dataset.l;
-      if(curveRowHl.has(l))curveRowHl.delete(l);else curveRowHl.add(l);
-      tr.classList.toggle('yhl');
-    };
-  });
+  tbody.innerHTML=rows.map(row=>`<tr><td style="${row.c?'color:'+row.c:''}">${row.l}</td>${curveGroups.map(g=>`<td>${row.fn(g)}</td>`).join('')}</tr>`).join('');
 }
 
 // ── helpers for pending selection absolute positions ──────────────────────
