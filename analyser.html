@@ -171,10 +171,9 @@
   #curvetbl tbody tr.yhl td{background:#ffd60a !important;color:#000 !important;}
   thead th { position: sticky; top: 0; background: var(--s2); color: var(--muted); padding: 7px 10px; border-bottom: 1px solid var(--border); text-align: right; font-size: 8px; text-transform: uppercase; letter-spacing: .7px; font-weight: 600; }
   thead th:first-child { text-align: left; }
-  tbody tr { border-bottom: 1px solid var(--dim); transition: background .1s; }
+  tbody tr { border-bottom: 1px solid var(--dim); transition: background .1s; scroll-margin-top: 30px; }
   tbody tr:hover td { background: var(--s2); }
   tbody tr.hl td { background: rgba(41,184,255,.08) !important; }
-  tbody tr.stroke-pin td { background: rgba(41,184,255,.14) !important; }
   tbody td { padding: 6px 10px; color: var(--muted); text-align: right; }
   tbody td:first-child { color: var(--text); text-align: left; }
   .curve-stats-col .twrap { max-height: none; overflow: visible; }
@@ -187,6 +186,7 @@
   tbody tr.hl-g5 td { background: rgba(253,121,168,.09) !important; }
   tbody tr.hl-g6 td { background: rgba(225,112,85,.09) !important; }
   tbody tr.hl-g7 td { background: rgba(0,206,201,.09) !important; }
+  tbody tr.stroke-pin td { background: #ffd60a !important; color: #000 !important; }
 
   /* ── Map-left + Stroke-right row ── */
   #map-stroke-row { display: none; flex-wrap: wrap; gap: 12px; padding: 0 16px 12px; }
@@ -420,6 +420,7 @@ body.light .hdrname{color:#fff;}
         <div class="hint" id="curvehint" style="margin-top:4px;"></div>
       </div>
       <div class="curve-stats-col">
+        <div class="hint" style="margin-bottom:4px;">Click any row to highlight it</div>
         <div class="twrap"><table id="curvetbl"><thead id="curvethead"></thead><tbody id="curvebody"></tbody></table></div>
       </div>
     </div>
@@ -457,6 +458,7 @@ body.light .hdrname{color:#fff;}
         <span id="tblcount" style="font-size:10px;color:var(--muted);"></span>
         <button class="hbtn" id="tbltogglebtn" style="margin-left:auto;font-size:10px;" onclick="window.toggleTable()">Hide ▴</button>
       </div>
+      <div class="hint" style="padding:4px 12px 0;">Tap a row here, or a point on the chart above, to highlight that stroke's position on the chart, table, and map</div>
       <div id="tblwrap">
         <div class="twrap"><table><thead id="sth"></thead><tbody id="stb"></tbody></table></div>
       </div>
@@ -876,6 +878,14 @@ function nearestHRAt(ms){
   while(lo<hi){const mid=(lo+hi)>>1;if(HR_T[mid]<ms)lo=mid+1;else hi=mid;}
   let best=HR_T[lo],bestBpm=HR_BPM[lo];
   if(lo>0&&Math.abs(HR_T[lo-1]-ms)<Math.abs(best-ms)){best=HR_T[lo-1];bestBpm=HR_BPM[lo-1];}
+  return Math.abs(best-ms)<30000?bestBpm:null;
+}
+function nearestHRIn(hrT,hrBpm,ms){
+  if(!hrT||!hrT.length||ms==null)return null;
+  let lo=0,hi=hrT.length-1;
+  while(lo<hi){const mid=(lo+hi)>>1;if(hrT[mid]<ms)lo=mid+1;else hi=mid;}
+  let best=hrT[lo],bestBpm=hrBpm[lo];
+  if(lo>0&&Math.abs(hrT[lo-1]-ms)<Math.abs(best-ms)){best=hrT[lo-1];bestBpm=hrBpm[lo-1];}
   return Math.abs(best-ms)<30000?bestBpm:null;
 }
 let curveGroups = []; // [{color,bg,strokes,absS,absE,label}]
@@ -2454,6 +2464,8 @@ function pinSelection(){
   const usedColors=curveGroups.map(g=>g.color);
   const nextColorIdx=GROUP_COLORS.findIndex(c=>!usedColors.includes(c));
   const ci=nextColorIdx>=0?nextColorIdx:curveGroups.length%GROUP_COLORS.length;
+  const _hrRaw=(SESSIONS[activeSessionIdx]&&SESSIONS[activeSessionIdx].d&&SESSIONS[activeSessionIdx].d.hr)||[];
+  const _hrSorted=_hrRaw.map(h=>({t:new Date(h.ts).getTime(),b:h.bpm})).sort((a,b)=>a.t-b.t);
   curveGroups.push({
     color:GROUP_COLORS[ci], bg:GROUP_BG[ci],
     strokes:ST.slice(viewS+s2,viewS+e2+1),
@@ -2461,6 +2473,7 @@ function pinSelection(){
     label:'G'+(ci+1),
     sessionIdx:activeSessionIdx,
     sessionLabel:(SESSIONS[activeSessionIdx]&&SESSIONS[activeSessionIdx].label)||'',
+    hrT:_hrSorted.map(x=>x.t), hrBpm:_hrSorted.map(x=>x.b),
   });
   selS=-1;selE=-1;
   buildCurveSection();
@@ -2777,6 +2790,13 @@ function buildCurveStats(){
   ];
   for(const m of METRIC_DEFS){
     if(hid[m.k])continue;
+    if(m.k==='hr'){
+      rows.push({l:'Avg '+m.l, c:m.c, fn:g=>{
+        const arr=g.strokes.map(s=>nearestHRIn(g.hrT,g.hrBpm,s.ms)).filter(b=>b!=null&&b>40&&b<220);
+        return arr.length?m.fmtAvg(arrMean(arr)):EM;
+      }});
+      continue;
+    }
     rows.push({l:'Avg '+m.l, c:m.c, fn:g=>{
       const arr=g.strokes.filter(m.filter).map(m.val);
       return arr.length?m.fmtAvg(arrMean(arr)):EM;
