@@ -3687,6 +3687,8 @@ function buildSessionFIT() {
       pt.cad != null ? pt.cad : 0xFF
     ]);
   }
+  const lapSource = LAPS.length ? [...LAPS].sort((a, b) => (a.lap || 0) - (b.lap || 0)) : null;
+  const lapAnchorMs = points.length ? points[0].tMs : startMs;
   const lapFields = [
     { num: 253, size: 4, type: FT_U32 }, { num: 2, size: 4, type: FT_U32 },
     { num: 7, size: 4, type: FT_U32 }, { num: 8, size: 4, type: FT_U32 },
@@ -3696,10 +3698,28 @@ function buildSessionFIT() {
     { num: 1, size: 1, type: FT_ENUM }
   ];
   defMsg(2, 19, lapFields);
-  dataMsg(2, lapFields, [
-    endFit, startFit, Math.round(totalTime * 1000), Math.round(totalTime * 1000), Math.round(totalDist * 100),
-    avgHR != null ? avgHR : 0xFF, maxHR != null ? maxHR : 0xFF, avgCad != null ? avgCad : 0xFF, maxCad != null ? maxCad : 0xFF, 9, 1
-  ]);
+  if (lapSource) {
+    let cumSec = 0;
+    for (const lap of lapSource) {
+      const lapDurSec = lap.time_s || 0;
+      const lapStartAbs = lapAnchorMs + cumSec * 1000;
+      const lapEndAbs = lapStartAbs + lapDurSec * 1000;
+      cumSec += lapDurSec;
+      const lapAvgHr = lap.avg_hr_bpm != null ? Math.round(lap.avg_hr_bpm) : null;
+      const lapMaxHr = lap.max_hr_bpm != null ? Math.round(lap.max_hr_bpm) : lapAvgHr;
+      const lapCad = lap.stroke_rate_spm != null ? Math.round(lap.stroke_rate_spm) : (lap.avg_spm != null ? Math.round(lap.avg_spm) : null);
+      dataMsg(2, lapFields, [
+        toFitTime(lapEndAbs), toFitTime(lapStartAbs), Math.round(lapDurSec * 1000), Math.round(lapDurSec * 1000), Math.round((lap.distance_m || 0) * 100),
+        lapAvgHr != null ? lapAvgHr : 0xFF, lapMaxHr != null ? lapMaxHr : 0xFF, lapCad != null ? lapCad : 0xFF, lapCad != null ? lapCad : 0xFF, 9, 1
+      ]);
+    }
+  } else {
+    dataMsg(2, lapFields, [
+      endFit, startFit, Math.round(totalTime * 1000), Math.round(totalTime * 1000), Math.round(totalDist * 100),
+      avgHR != null ? avgHR : 0xFF, maxHR != null ? maxHR : 0xFF, avgCad != null ? avgCad : 0xFF, maxCad != null ? maxCad : 0xFF, 9, 1
+    ]);
+  }
+  const numLaps = lapSource ? lapSource.length : 1;
   const sessFields = [
     { num: 253, size: 4, type: FT_U32 }, { num: 2, size: 4, type: FT_U32 },
     { num: 7, size: 4, type: FT_U32 }, { num: 8, size: 4, type: FT_U32 },
@@ -3713,7 +3733,7 @@ function buildSessionFIT() {
   defMsg(3, 18, sessFields);
   dataMsg(3, sessFields, [
     endFit, startFit, Math.round(totalTime * 1000), Math.round(totalTime * 1000), Math.round(totalDist * 100),
-    15, 0, avgHR != null ? avgHR : 0xFF, maxHR != null ? maxHR : 0xFF, avgCad != null ? avgCad : 0xFF, maxCad != null ? maxCad : 0xFF, 8, 1, 0, 1
+    15, 0, avgHR != null ? avgHR : 0xFF, maxHR != null ? maxHR : 0xFF, avgCad != null ? avgCad : 0xFF, maxCad != null ? maxCad : 0xFF, 8, 1, numLaps, 1
   ]);
   const actFields = [
     { num: 253, size: 4, type: FT_U32 }, { num: 0, size: 4, type: FT_U32 },
