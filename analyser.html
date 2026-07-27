@@ -350,6 +350,7 @@ body.light .hdrname{color:#fff;}
   <button class="hbtn hicon-btn" id="infobtn" title="What the metrics mean"><img class="hicon-img" src="icons/Metrics.svg"><span class="hicon-txt">Metrics</span></button>
   <button class="hbtn hicon-btn" id="reorderbtn" title="Reorder and show/hide tiles"><img class="hicon-img" src="icons/Tiles.svg"><span class="hicon-txt">Tiles</span></button>
   <button class="hbtn hicon-btn" id="aboutbtn" title="How to use BoatRun, and send feedback"><img class="hicon-img" src="icons/About.svg"><span class="hicon-txt">About</span></button>
+  <button class="hbtn hicon-btn" id="gdrivebtn" title="Google Drive sign-in status — click to sign in or re-sign in"><span id="gdrivedot" style="display:inline-block;width:8px;height:8px;border-radius:50%;background:#c0392b;margin-right:5px;"></span><span class="hicon-txt" id="gdrivelabel">Drive: Signed out</span></button>
   <button class="hbtn hicon-btn" id="planbtn" title="Basic / Pro plan"><img class="hicon-img" src="icons/Lock.svg"><span class="hicon-txt">Plan</span></button>
   </div>
 </div>
@@ -468,6 +469,21 @@ body.light .hdrname{color:#fff;}
 <script>
 'use strict';
 
+// Google sign-in popup callback — if this window was opened as the sign-in popup, relay the token back and close it.
+(function(){
+  try {
+    if (window.opener && window.opener !== window && location.hash.indexOf('access_token=') !== -1) {
+      const params = new URLSearchParams(location.hash.slice(1));
+      const token = params.get('access_token');
+      if (token) {
+        window.opener.postMessage({ type: 'ad_oauth_token', token: token }, location.origin);
+        document.body.innerHTML = '<div style="font-family:sans-serif;padding:40px;text-align:center;">Signed in — you can close this window.</div>';
+        setTimeout(() => window.close(), 400);
+      }
+    }
+  } catch (e) {}
+})();
+
 // ── TIER / MONETIZATION ─────────────────────────────────────────────
 const TIER_SETTINGS_KEY = 'scull_settings_v1';
 function getTier() {
@@ -583,9 +599,27 @@ const AnalyserDrive = {
       }
     }
     this._updateBtn();
+    window.addEventListener('message', (ev) => {
+      if (ev.origin !== location.origin) return;
+      if (ev.data && ev.data.type === 'ad_oauth_token' && ev.data.token) {
+        this._token = ev.data.token;
+        sessionStorage.setItem('_ad_token', ev.data.token);
+        this._updateBtn();
+        toast('Signed in with Google');
+        if (typeof showStartup === 'function') showStartup();
+      }
+    });
   },
   isSignedIn() { return !!this._token; },
   signIn() {
+    const p = new URLSearchParams({ client_id: this.CLIENT_ID, redirect_uri: location.origin + location.pathname, response_type: 'token', scope: this.SCOPE, prompt: 'select_account' });
+    const w = 480, h = 640;
+    const left = Math.round((screen.width - w) / 2), top = Math.round((screen.height - h) / 2);
+    const popup = window.open('https://accounts.google.com/o/oauth2/v2/auth?' + p, 'boatrun_google_signin', `width=${w},height=${h},left=${left},top=${top}`);
+    if (!popup) { this._redirectSignIn(); return; }
+    const closeCheck = setInterval(() => { if (popup.closed) clearInterval(closeCheck); }, 500);
+  },
+  _redirectSignIn() {
     sessionStorage.setItem('_ad_pending', '1');
     const p = new URLSearchParams({ client_id: this.CLIENT_ID, redirect_uri: location.origin + location.pathname, response_type: 'token', scope: this.SCOPE });
     window.location.href = 'https://accounts.google.com/o/oauth2/v2/auth?' + p;
@@ -649,7 +683,18 @@ const AnalyserDrive = {
   },
   _check() { if (!this._token) throw new Error('Not signed in to Drive'); },
   _expire() { this._token = null; sessionStorage.removeItem('_ad_token'); this._updateBtn(); },
-  _updateBtn() {},
+  _updateBtn() {
+    const dot = document.getElementById('gdrivedot');
+    const label = document.getElementById('gdrivelabel');
+    if (!dot || !label) return;
+    if (this.isSignedIn()) {
+      dot.style.background = '#2ecc71';
+      label.textContent = 'Drive: Signed in';
+    } else {
+      dot.style.background = '#c0392b';
+      label.textContent = 'Drive: Signed out';
+    }
+  },
 };
 function driveAuthExpired(err){
   const m=(err&&err.message)||'';
@@ -3835,6 +3880,7 @@ document.getElementById('infobtn').onclick=showInfoModal;
 document.getElementById('reorderbtn').onclick=showReorderModal;
 document.getElementById('aboutbtn').onclick=showAboutModal;
 document.getElementById('planbtn').onclick=()=>showPlanModal();
+document.getElementById('gdrivebtn').onclick=()=>AnalyserDrive.signIn();
 document.getElementById('filemenubtn').onclick=(e)=>{e.stopPropagation();document.getElementById('filemenu').classList.toggle('open');};
 document.addEventListener('click',()=>{document.getElementById('filemenu').classList.remove('open');});
 document.getElementById('fin').onchange=e=>{
