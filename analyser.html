@@ -1738,7 +1738,7 @@ function buildMeta(fname,sum) {
   const sq=SESSIONS[activeSessionIdx]?.squadCode;
   const sqBadge=sq?' <span style="font-size:8px;background:var(--s3);border:1px solid var(--border);border-radius:3px;padding:1px 5px;color:var(--b);letter-spacing:.07em;vertical-align:middle;">'+sq+'</span>':'';
   document.getElementById('hdrmeta').innerHTML=
-    '<span class="hdrname" style="cursor:pointer;border-bottom:1px dotted var(--muted);color:var(--text);" onclick="renameCurrentSession()" title="Tap to rename">'+safe+'</span>'
+    '<span class="hdrname" style="cursor:pointer;border-bottom:1px dotted rgba(255,255,255,.5);" onclick="renameCurrentSession()" title="Tap to rename">'+safe+'</span>'
     +' <span style="color:var(--muted);font-size:9px;">✎</span>'+sqBadge+'<br>'+date+(time?' '+time:'')+' · '+dist+' · '+dur;
 }
 function renameCurrentSession() {
