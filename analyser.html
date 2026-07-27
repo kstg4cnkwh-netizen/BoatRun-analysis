@@ -612,7 +612,7 @@ const AnalyserDrive = {
   },
   isSignedIn() { return !!this._token; },
   signIn() {
-    const p = new URLSearchParams({ client_id: this.CLIENT_ID, redirect_uri: location.origin + location.pathname, response_type: 'token', scope: this.SCOPE, prompt: 'select_account' });
+    const p = new URLSearchParams({ client_id: this.CLIENT_ID, redirect_uri: location.origin + location.pathname, response_type: 'token', scope: this.SCOPE });
     const w = 480, h = 640;
     const left = Math.round((screen.width - w) / 2), top = Math.round((screen.height - h) / 2);
     const popup = window.open('https://accounts.google.com/o/oauth2/v2/auth?' + p, 'boatrun_google_signin', `width=${w},height=${h},left=${left},top=${top}`);
@@ -3880,7 +3880,7 @@ document.getElementById('infobtn').onclick=showInfoModal;
 document.getElementById('reorderbtn').onclick=showReorderModal;
 document.getElementById('aboutbtn').onclick=showAboutModal;
 document.getElementById('planbtn').onclick=()=>showPlanModal();
-document.getElementById('gdrivebtn').onclick=()=>AnalyserDrive.signIn();
+document.getElementById('gdrivebtn').onclick=()=>{ if (AnalyserDrive.isSignedIn()) { toast('Already signed in to Google Drive'); return; } AnalyserDrive.signIn(); };
 document.getElementById('filemenubtn').onclick=(e)=>{e.stopPropagation();document.getElementById('filemenu').classList.toggle('open');};
 document.addEventListener('click',()=>{document.getElementById('filemenu').classList.remove('open');});
 document.getElementById('fin').onchange=e=>{
