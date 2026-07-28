@@ -254,30 +254,8 @@ footer{background:var(--navy);color:var(--ink-faint);border-top:1px solid rgba(2
         <div class="hstat"><b>0</b><span>Setup required</span></div>
       </div>
     </div>
-    <div class="device">
-      <div class="device-top">
-        <span>GPS 1m · A±X</span>
-        <span class="live">REC · 11:58 · 3.01 km</span>
-      </div>
-      <div class="curve-box">
-        <div class="curve-hdr"><span>DRIVE ACCEL</span><span>RECOVERY ACCEL</span></div>
-        <div class="curve-nums"><b class="drive">3.1</b><b class="rec">0.4</b></div>
-        <svg class="curve" viewBox="0 0 300 70" preserveAspectRatio="none">
-          <polyline points="0,52 20,58 40,20 60,10 80,18 100,34 120,44 140,48 160,46 180,44 200,42 220,40 240,41 260,40 280,41 300,40" fill="none" stroke="#2FD3C6" stroke-width="2"/>
-          <polyline points="0,54 20,56 40,26 60,14 80,22 100,36 120,46 140,50 160,47 180,45 200,43 220,41 240,42 260,41 280,42 300,41" fill="none" stroke="#FF5A3C" stroke-width="1.4" opacity=".6"/>
-        </svg>
-      </div>
-      <div class="device-tiles">
-        <div class="dtile"><b>02:13</b><span>Pace /500</span></div>
-        <div class="dtile"><b>21</b><span>Rate</span></div>
-        <div class="dtile"><b>350</b><span>Catch Dur</span></div>
-        <div class="dtile"><b>155</b><span>HR bpm</span></div>
-      </div>
-      <div class="device-side">
-        <div class="sidebtn blue"></div>
-        <div class="sidebtn red"></div>
-        <div class="sidebtn orange"></div>
-      </div>
+    <div class="shot" style="background:#101E3E;border-color:rgba(255,255,255,.10);">
+      <img src="hero-video-overlay.jpg" alt="BoatRun live metrics overlay on rowing video">
     </div>
   </div>
 </section>
@@ -290,14 +268,7 @@ footer{background:var(--navy);color:var(--ink-faint);border-top:1px solid rgba(2
       <h2 class="section-h">Real-Time Telemetry Pack</h2>
       <p class="section-p">The sensor engine reads boat motion, stroke dynamics and biometric data up to 50 times a second, every stroke, every session.</p>
     </div>
-    <div class="stat-grid">
-      <div class="stat-card"><div class="stat-top"><span class="stat-active">Active</span></div><div class="stat-label">Stroke Rate (SPM)</div><div class="stat-val">32.4</div></div>
-      <div class="stat-card"><div class="stat-top"><span class="stat-active">Active</span></div><div class="stat-label">500m Split Time</div><div class="stat-val">1:42.5</div></div>
-      <div class="stat-card"><div class="stat-top"><span class="stat-active">Active</span></div><div class="stat-label">Total Distance</div><div class="stat-val">4,250m</div></div>
-      <div class="stat-card"><div class="stat-top"><span class="stat-active">Active</span></div><div class="stat-label">Heart Rate</div><div class="stat-val">164 bpm</div></div>
-      <div class="stat-card wide"><div class="stat-top"><span class="stat-active">Active</span></div><div class="stat-label">Power Output</div><div class="stat-val">380 W</div></div>
-      <div class="stat-card wide"><div class="stat-top"><span class="stat-active">Active</span></div><div class="stat-label">Drive-to-Recovery Ratio</div><div class="stat-val">1 : 2.1</div></div>
-    </div>
+    <div class="shot"><img src="screenshot-live-metrics.png" alt="BoatRun live telemetry grid — real stroke data"></div>
   </div>
 </section>
 
@@ -316,8 +287,9 @@ footer{background:var(--navy);color:var(--ink-faint);border-top:1px solid rgba(2
     </div>
     <div class="fr-media">
       <div class="shot">
-        <div class="shot-placeholder"><div class="ic"></div>Rower session interface — screenshot</div>
+        <img src="screenshot-cockpit-curve.png" alt="BoatRun rower cockpit — stroke curve and live metrics">
       </div>
+    </div>
     </div>
   </div>
 </section>
@@ -336,7 +308,7 @@ footer{background:var(--navy);color:var(--ink-faint);border-top:1px solid rgba(2
       </ul>
     </div>
     <div class="fr-media">
-      <div class="shot"><div class="shot-placeholder"><div class="ic"></div>Coach squad grid — screenshot</div></div>
+      <div class="shot"><img src="screenshot-coach-fleet.png" alt="BoatRun coach live squad dashboard"></div>
     </div>
   </div>
 </section>
@@ -351,7 +323,7 @@ footer{background:var(--navy);color:var(--ink-faint);border-top:1px solid rgba(2
       <a class="btn btn-coral" style="margin-top:8px;" href="https://boatrun.au/analyser.html">Launch Web Analyser</a>
     </div>
     <div class="fr-media">
-      <div class="shot"><div class="shot-placeholder"><div class="ic"></div>Analyser charts dashboard — screenshot</div></div>
+      <div class="shot"><img src="screenshot-analyser.png" alt="BoatRun web analyser dashboard"></div>
     </div>
   </div>
 </section>
@@ -394,7 +366,7 @@ footer{background:var(--navy);color:var(--ink-faint);border-top:1px solid rgba(2
         <span class="app-tag">On the water</span>
         <h3>BoatRun App</h3>
         <p>Row, Cox or Coach — one native app for iPhone. Live metrics, squad sync, video and Strava export.</p>
-        <a class="app-link" href="#get-app">Get the app</a>
+        <a class="app-link" href="https://testflight.apple.com/join/U1VQeYdz" target="_blank" rel="noopener">Get the app</a>
       </div>
       <div class="app-card">
         <span class="app-tag">Post-session</span>
