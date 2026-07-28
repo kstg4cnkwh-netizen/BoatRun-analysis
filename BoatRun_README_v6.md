@@ -106,7 +106,7 @@ Top left of the live screen, left to right:
 | CAL pill red | You skipped calibration — HOME → SETTINGS, or restart the session |
 | GPS pill red | Settings → Privacy & Security → Location Services → BoatRun → While Using, Precise Location **on** |
 | Motion never asked for | iOS Settings → BoatRun → Motion & Fitness → on |
-| Nothing uploads | Tap the ☁ button in the top bar and sign in to Drive |
+| Nothing uploads | Tap the ☁ button in the top bar and connect Drive |
 | Recording stops at 5 minutes | You're on Basic. See [Basic, trial and Pro](#6-basic-trial-and-pro) |
 | Screen goes dark mid-row | Shouldn't happen — the app holds the screen awake. If it does, check iOS Low Power Mode |
 
@@ -169,51 +169,59 @@ Row and Cox both broadcast to a squad if a squad code is set. Coach receives.
 
 -----
 
-# 4. Signing in — Drive, Account and Apple
+# 4. Signing in — your account and your storage
 
-This trips people up, so here it is plainly. There are **two separate sign-ins** and they do different jobs. You can use one, both, or neither.
+There are two of these and they do genuinely different jobs. Once you see the difference it stops being confusing:
+
+- **Your BoatRun account** — *who you are.* Carries your Pro subscription.
+- **Your Google Drive** — *where your files go.* Storage, not a login.
+
+You can have one, both, or neither.
 
 ![Settings showing the Drive button and the Account & Plan button](screenshots/auth-01-overview.png)
 
-## Google Drive sign-in — *where your sessions are stored*
-
-The **☁ Drive** button in the top bar.
-
-- Gives BoatRun permission to write into a private app folder in **your own** Google Drive
-- Every finished session is uploaded there automatically
-- This folder is hidden — it does not appear in your normal Drive file list, and no other app can read it
-- The Analyser reads from this same folder, which is how your sessions appear there
-- If you skip this, sessions live only on the phone
-
-**This is the one that matters most.** Without it there is no backup and the Analyser has nothing to open.
-
-![Drive sign-in flow](screenshots/auth-02-drive.png)
-
-## Account & Plan sign-in — *who you are, and what you've paid for*
+## Your BoatRun account
 
 **HOME → SETTINGS → ACCOUNT → ACCOUNT & PLAN…**
 
-- A BoatRun account, signed in with Google
-- Carries your Pro subscription between the app and the Analyser
-- Nothing to do with where your files are stored
+Two buttons, either will do:
 
-Without it, a Pro subscription bought on your phone stays on that phone and the Analyser won't know about it.
+- **Continue with Apple**
+- **Continue with Google**
 
-![Account & Plan modal](screenshots/auth-03-plan.png)
+Pick whichever you prefer. They create exactly the same account and neither is better than the other. Apple's App Store rules require any app offering Google sign-in to offer Sign in with Apple on equal terms, and BoatRun does — it isn't a fallback or a second-class option.
 
-## Sign in with Apple — *a second key to the same account*
+What the account is for:
 
-In the Account & Plan panel, **Link Apple account**.
+- It carries your Pro subscription between the app and the Analyser
+- It's how the Analyser knows you've paid
 
-Apple requires any app offering third-party sign-in to also offer Sign in with Apple. Beyond compliance it's genuinely useful: it links your Apple ID to the **same** BoatRun account, so you can get back in even if you lose access to the Google account.
+Without it, a Pro subscription bought on your phone stays on that phone and the Analyser won't recognise it.
 
-Note that your Apple ID and your Google account usually use different email addresses, so they will not merge automatically — you have to link them deliberately with this button.
+![Account & Plan sign-in with Apple and Google buttons](screenshots/auth-03-plan.png)
+
+**Adding the second provider.** Once you're signed in, the panel offers to link the other one — Apple if you signed in with Google, Google if you signed in with Apple. Optional, and it takes one tap. Worth doing: it's a spare key to the same account if you ever lose access to the first.
+
+Do it deliberately, because your Apple ID and your Google account almost certainly use different email addresses, so they are **not** recognised as the same person automatically.
+
+## Your Google Drive
+
+The **☁ Drive** button in the top bar. This is **not** a second account — it's you granting BoatRun permission to write into a private folder inside your own Google Drive.
+
+- Every finished session uploads there automatically
+- The folder is hidden — it does not appear in your normal Drive file list, and no other app can read it
+- The Analyser reads from this same folder, which is how your sessions get there
+- Skip it and sessions live only on the phone
+
+You connect Drive the same way whether you signed into BoatRun with Apple or with Google. It's independent of which provider you chose.
+
+![Drive connection flow](screenshots/auth-02-drive.png)
 
 ## Recommendations
 
-1. **Sign in to Drive first.** This is the one that protects your data.
-2. **Then sign in to Account & Plan** using the same Google account. Less to remember.
-3. **Then link Apple.** One tap, and it's a spare key.
+1. **Connect Drive first.** This is the one that protects your data — without it there's no backup and the Analyser has nothing to open.
+2. **Then sign in to your BoatRun account**, with whichever of Apple or Google you prefer.
+3. **Then link the other provider.** One tap, spare key.
 4. If you only ever do one thing, do Drive.
 
 -----
@@ -626,11 +634,11 @@ It reads directly from the same Google Drive folder the app writes to, so anythi
 
 ## Getting in
 
-![Analyser sign-in screen](screenshots/an-01-signin.png)
+![Analyser start screen — connect Drive, from squad, or open a file](screenshots/an-01-signin.png)
 
 Three ways to load data:
 
-- **Sign in to Google** — lists everything in your Drive folder
+- **Connect Google Drive** — lists everything in your Drive folder
 - **From Squad** — enter a squad code and pull sessions your rowers have sent. This is how a coach reviews the squad's work.
 - **Open file** — a `.json`, `.fit`, `.tcx` or `.csv` from anywhere. Drag and drop works too.
 
@@ -940,7 +948,7 @@ Basic tier limit. Upgrade to Pro for unlimited recording.
 That metric is Pro-only. The tile stays visible so you can see what's there.
 
 **Drive sync failing**
-Check you're signed in (☁ button). Pending sessions retry automatically when the connection comes back. Export JSON as a backup if it keeps failing.
+Check Drive is connected (☁ button). Pending sessions retry automatically when the connection comes back. Export JSON as a backup if it keeps failing.
 
 **Session missing from the phone**
 HOME → LOG → ☁ Restore from Drive.
