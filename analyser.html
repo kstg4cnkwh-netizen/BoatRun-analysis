@@ -537,20 +537,26 @@ const AnalyserAuth = {
       const provider = new firebase.auth.GoogleAuthProvider();
       await fbAuth.signInWithPopup(provider);
       toast('Signed in with Google');
+      return true;
     } catch (e) {
+      console.error('Google sign-in failed', e);
       toast('Google sign-in failed: ' + e.message);
+      return false;
     }
   },
   async linkApple() {
-    if (!this.user) { toast('Sign in first, then link Apple'); return; }
+    if (!this.user) { toast('Sign in first, then link Apple'); return false; }
     try {
       const provider = new firebase.auth.OAuthProvider('apple.com');
       await this.user.linkWithPopup(provider);
       toast('Apple account linked');
       await this._syncEntitlement();
       this._notify();
+      return true;
     } catch (e) {
-      toast('Apple linking not set up yet: ' + e.message);
+      console.error('Apple linking failed', e);
+      toast('Apple linking failed: ' + e.message);
+      return false;
     }
   },
   async signInApple() {
@@ -558,20 +564,26 @@ const AnalyserAuth = {
       const provider = new firebase.auth.OAuthProvider('apple.com');
       await fbAuth.signInWithPopup(provider);
       toast('Signed in with Apple');
+      return true;
     } catch (e) {
+      console.error('Apple sign-in failed', e);
       toast('Apple sign-in failed: ' + e.message);
+      return false;
     }
   },
   async linkGoogle() {
-    if (!this.user) { toast('Sign in first, then link Google'); return; }
+    if (!this.user) { toast('Sign in first, then link Google'); return false; }
     try {
       const provider = new firebase.auth.GoogleAuthProvider();
       await this.user.linkWithPopup(provider);
       toast('Google account linked');
       await this._syncEntitlement();
       this._notify();
+      return true;
     } catch (e) {
+      console.error('Google linking failed', e);
       toast('Google linking failed: ' + e.message);
+      return false;
     }
   },
   async signOut() {
@@ -3958,12 +3970,16 @@ function showPlanModal(msg){
   <div style="border:1px solid var(--border);border-radius:8px;padding:12px;margin-bottom:14px;">
   ${u?`
     <div style="font-size:12px;color:var(--text);margin-bottom:8px;">Signed in as <b>${u.email||u.uid}</b></div>
-    <div style="font-size:11px;color:var(--muted);margin-bottom:10px;">Linked: ${hasGoogle?'Google':''}${hasGoogle&&hasApple?' + ':''}${hasApple?'Apple':''}</div>
-    ${(!hasApple||!hasGoogle)?'<div style="font-size:11px;color:var(--muted);margin-bottom:8px;">Link the other provider as a spare key to this same account.</div>':''}
-    <div style="display:flex;gap:8px;flex-wrap:wrap;">
-    ${!hasApple?'<button id="_plan_linkapple" style="flex:1;min-width:130px;padding:8px;border-radius:6px;border:1px solid var(--border);cursor:pointer;background:var(--s2);color:var(--text);font-size:11px;">Link Apple account</button>':''}
-    ${!hasGoogle?'<button id="_plan_linkgoogle" style="flex:1;min-width:130px;padding:8px;border-radius:6px;border:1px solid var(--border);cursor:pointer;background:var(--s2);color:var(--text);font-size:11px;">Link Google account</button>':''}
-    <button id="_plan_signout" style="flex:1;min-width:130px;padding:8px;border-radius:6px;border:1px solid var(--border);cursor:pointer;background:var(--s2);color:var(--text);font-size:11px;">Sign out</button>
+  const signinBtn=document.getElementById('_plan_signin');
+  if(signinBtn) signinBtn.onclick=async()=>{const ok=await AnalyserAuth.signInGoogle();if(ok){overlay.remove();showPlanModal(msg);}};
+  const appleBtn=document.getElementById('_plan_apple');
+  if(appleBtn) appleBtn.onclick=async()=>{const ok=await AnalyserAuth.signInApple();if(ok){overlay.remove();showPlanModal(msg);}};
+  const linkBtn=document.getElementById('_plan_linkapple');
+  if(linkBtn) linkBtn.onclick=async()=>{const ok=await AnalyserAuth.linkApple();if(ok){overlay.remove();showPlanModal(msg);}};
+  const linkGBtn=document.getElementById('_plan_linkgoogle');
+  if(linkGBtn) linkGBtn.onclick=async()=>{const ok=await AnalyserAuth.linkGoogle();if(ok){overlay.remove();showPlanModal(msg);}};
+  const signoutBtn=document.getElementById('_plan_signout');
+  if(signoutBtn) signoutBtn.onclick=async()=>{await AnalyserAuth.signOut();overlay.remove();showPlanModal(msg);};
     </div>
   `:`
     <div style="font-size:12px;color:var(--text);margin-bottom:10px;">Sign in to sync your plan across devices</div>
