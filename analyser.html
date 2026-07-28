@@ -365,12 +365,6 @@ body.light .hdrname{color:#fff;}
   <div id="unitsbar" style="padding:6px 12px 5px;background:var(--s2);border-bottom:1px solid var(--border);gap:4px;flex-wrap:wrap;align-items:center;"></div>
   <!-- Summary cards -->
   <div id="cards"></div>
-  <!-- Time in Heart Rate Zones -->
-  <div class="sec" id="hrzonesec" style="display:none;">
-    <div class="sec-hd"><h2>Time in Heart Rate Zones</h2></div>
-    <div id="hrzonebody"></div>
-  </div>
-
   <!-- Overview minimap -->
   <div class="sec">
     <div class="ovbox"><canvas id="ovC" height="44"></canvas></div>
@@ -455,6 +449,11 @@ body.light .hdrname{color:#fff;}
       <div id="mapsec" style="display:none;">
         <div class="sec-hd" style="padding:0 0 4px;"><h2>Route Map</h2><span id="maplbl" style="font-size:10px;color:var(--muted);"></span></div>
         <div id="mapbox"></div>
+      </div>
+      <!-- Time in Heart Rate Zones -->
+      <div id="hrzonesec" style="display:none;">
+        <div class="sec-hd" style="padding:0 0 4px;"><h2>Time in Heart Rate Zones</h2></div>
+        <div id="hrzonebody"></div>
       </div>
     </div>
     <div class="stroke-col" id="tbsec">
