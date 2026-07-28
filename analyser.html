@@ -553,6 +553,27 @@ const AnalyserAuth = {
       toast('Apple linking not set up yet: ' + e.message);
     }
   },
+  async signInApple() {
+    try {
+      const provider = new firebase.auth.OAuthProvider('apple.com');
+      await fbAuth.signInWithPopup(provider);
+      toast('Signed in with Apple');
+    } catch (e) {
+      toast('Apple sign-in failed: ' + e.message);
+    }
+  },
+  async linkGoogle() {
+    if (!this.user) { toast('Sign in first, then link Google'); return; }
+    try {
+      const provider = new firebase.auth.GoogleAuthProvider();
+      await this.user.linkWithPopup(provider);
+      toast('Google account linked');
+      await this._syncEntitlement();
+      this._notify();
+    } catch (e) {
+      toast('Google linking failed: ' + e.message);
+    }
+  },
   async signOut() {
     await fbAuth.signOut();
     toast('Signed out');
@@ -3348,7 +3369,7 @@ async function showStartup(){
       <img class="ico" src="icons/icon-192.png" alt="BoatRun">
       <h2>BoatRun Analyser</h2>
       <p>Connect Google Drive to access your sessions</p>
-      <button class="dzbtn dzbtn-pri" id="sz-signin">Sign in to Google</button>
+      <button class="dzbtn dzbtn-pri" id="sz-signin">Connect Google Drive</button>
       <button class="dzbtn dzbtn-sec" id="sz-squad"><img src="icons/Import.svg"><span>From Squad</span></button>
       <button class="dzbtn dzbtn-sec" id="sz-openfile"><img src="icons/Open.svg"><span>Open file</span></button>
     </div>`;
@@ -3932,26 +3953,30 @@ function showPlanModal(msg){
   const providers=u?u.providerData.map(p=>p.providerId):[];
   const hasGoogle=providers.includes('google.com');
   const hasApple=providers.includes('apple.com');
-  panel.innerHTML=`<div style="display:flex;align-items:center;gap:10px;padding:10px 14px;background:var(--s1);border-bottom:1px solid var(--border);"><div style="font-size:13px;font-weight:600;color:var(--text);">Plan</div><button id="_plan_close" style="margin-left:auto;background:var(--s3);border:1px solid var(--border);color:var(--muted);border-radius:6px;padding:4px 10px;font-family:-apple-system, BlinkMacSystemFont, Helvetica Neue, sans-serif;font-size:11px;cursor:pointer;">Close</button></div>
+  panel.innerHTML=`<div style="display:flex;align-items:center;gap:10px;padding:10px 14px;background:var(--s1);border-bottom:1px solid var(--border);"><div style="font-size:13px;font-weight:600;color:var(--text);">Account &amp; Plan</div><button id="_plan_close" style="margin-left:auto;background:var(--s3);border:1px solid var(--border);color:var(--muted);border-radius:6px;padding:4px 10px;font-family:-apple-system, BlinkMacSystemFont, Helvetica Neue, sans-serif;font-size:11px;cursor:pointer;">Close</button></div>
   <div style="padding:16px;font-family:-apple-system, BlinkMacSystemFont, Helvetica Neue, sans-serif;">
   <div style="border:1px solid var(--border);border-radius:8px;padding:12px;margin-bottom:14px;">
   ${u?`
     <div style="font-size:12px;color:var(--text);margin-bottom:8px;">Signed in as <b>${u.email||u.uid}</b></div>
     <div style="font-size:11px;color:var(--muted);margin-bottom:10px;">Linked: ${hasGoogle?'Google':''}${hasGoogle&&hasApple?' + ':''}${hasApple?'Apple':''}</div>
-    <div style="display:flex;gap:8px;">
-    ${!hasApple?'<button id="_plan_linkapple" style="flex:1;padding:8px;border-radius:6px;border:1px solid var(--border);cursor:pointer;background:var(--s2);color:var(--text);font-size:11px;">Link Apple account</button>':''}
-    <button id="_plan_signout" style="flex:1;padding:8px;border-radius:6px;border:1px solid var(--border);cursor:pointer;background:var(--s2);color:var(--text);font-size:11px;">Sign out</button>
+    ${(!hasApple||!hasGoogle)?'<div style="font-size:11px;color:var(--muted);margin-bottom:8px;">Link the other provider as a spare key to this same account.</div>':''}
+    <div style="display:flex;gap:8px;flex-wrap:wrap;">
+    ${!hasApple?'<button id="_plan_linkapple" style="flex:1;min-width:130px;padding:8px;border-radius:6px;border:1px solid var(--border);cursor:pointer;background:var(--s2);color:var(--text);font-size:11px;">Link Apple account</button>':''}
+    ${!hasGoogle?'<button id="_plan_linkgoogle" style="flex:1;min-width:130px;padding:8px;border-radius:6px;border:1px solid var(--border);cursor:pointer;background:var(--s2);color:var(--text);font-size:11px;">Link Google account</button>':''}
+    <button id="_plan_signout" style="flex:1;min-width:130px;padding:8px;border-radius:6px;border:1px solid var(--border);cursor:pointer;background:var(--s2);color:var(--text);font-size:11px;">Sign out</button>
     </div>
   `:`
     <div style="font-size:12px;color:var(--text);margin-bottom:10px;">Sign in to sync your plan across devices</div>
-    <button id="_plan_signin" style="width:100%;padding:8px;border-radius:6px;border:1px solid var(--border);cursor:pointer;background:var(--s2);color:var(--text);font-size:11px;">Sign in with Google</button>
+    <button id="_plan_apple" style="width:100%;padding:11px;border-radius:6px;border:none;cursor:pointer;background:#000;color:#fff;font-size:13px;font-weight:600;margin-bottom:8px;">&#63743;&nbsp; Continue with Apple</button>
+    <button id="_plan_signin" style="width:100%;padding:11px;border-radius:6px;border:1px solid var(--border);cursor:pointer;background:var(--s2);color:var(--text);font-size:13px;font-weight:600;">Continue with Google</button>
+    <div style="font-size:10px;color:var(--muted);margin-top:8px;line-height:1.5;">Either one creates the same account. This is separate from connecting Google Drive, which is where your session files are stored.</div>
   `}
   </div>
   ${msg?`<div style="font-size:12px;color:var(--text);margin-bottom:14px;">${msg}</div>`:''}
   <div style="display:flex;align-items:center;gap:8px;">
   <div style="padding:8px 14px;border-radius:8px;background:${pro?'var(--b)':'var(--s2)'};color:${pro?'#000':'var(--text)'};font-weight:700;">${pro?'PRO':'BASIC'}</div>
   </div>
-  <div style="font-size:11px;color:var(--muted);margin-top:12px;line-height:1.5;">Basic: full single-session replay, always free. Pro unlocks multi-session comparison and video overlay/sync — buy Pro in the Metrics app while signed in to this same account, and it syncs here automatically.</div>
+  <div style="font-size:11px;color:var(--muted);margin-top:12px;line-height:1.5;">Basic: full single-session replay, always free. Pro unlocks multi-session comparison and video overlay/sync — buy Pro in the BoatRun app while signed in to this same account, and it syncs here automatically.</div>
   </div>`;
   overlay.appendChild(panel);
   overlay.onclick=e=>{if(e.target===overlay)overlay.remove();};
@@ -3959,8 +3984,12 @@ function showPlanModal(msg){
   document.getElementById('_plan_close').onclick=()=>overlay.remove();
   const signinBtn=document.getElementById('_plan_signin');
   if(signinBtn) signinBtn.onclick=async()=>{await AnalyserAuth.signInGoogle();overlay.remove();showPlanModal(msg);};
+  const appleBtn=document.getElementById('_plan_apple');
+  if(appleBtn) appleBtn.onclick=async()=>{await AnalyserAuth.signInApple();overlay.remove();showPlanModal(msg);};
   const linkBtn=document.getElementById('_plan_linkapple');
   if(linkBtn) linkBtn.onclick=async()=>{await AnalyserAuth.linkApple();overlay.remove();showPlanModal(msg);};
+  const linkGBtn=document.getElementById('_plan_linkgoogle');
+  if(linkGBtn) linkGBtn.onclick=async()=>{await AnalyserAuth.linkGoogle();overlay.remove();showPlanModal(msg);};
   const signoutBtn=document.getElementById('_plan_signout');
   if(signoutBtn) signoutBtn.onclick=async()=>{await AnalyserAuth.signOut();overlay.remove();showPlanModal(msg);};
 }
