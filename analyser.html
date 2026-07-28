@@ -2214,7 +2214,7 @@ function drawMain(){
   const toYCD=v=>PT+ph-(v-yCDMin)/(yCDMax-yCDMin||1)*ph;
   let yCDurMin=0,yCDurMax=300;
   const cdurAll=[...cdurv,...dtv];
-  if(cdurAll.length){const[lo,hi]=pctBounds(cdurAll,0.03,0.97,0.10);yCDurMin=0;yCDurMax=Math.min(1500,hi);}
+  if(cdurAll.length){const[lo,hi]=pctBounds(cdurAll,0.03,0.98,0.15);yCDurMin=0;yCDurMax=Math.min(1500,hi);}
   const toYCDur=v=>PT+ph-(v-yCDurMin)/(yCDurMax-yCDurMin||1)*ph;
   let yHRMin=60,yHRMax=200;
   if(hrv.length){const[lo,hi]=pctBounds(hrv,0.03,0.97,0.08);yHRMin=Math.max(40,lo);yHRMax=Math.min(220,hi);}
