@@ -3971,7 +3971,7 @@ function showPlanModal(msg){
   ${u?`
     <div style="font-size:12px;color:var(--text);margin-bottom:8px;">Signed in as <b>${u.email||u.uid}</b></div>
     <div style="font-size:11px;color:var(--muted);margin-bottom:10px;">Linked: ${hasGoogle?'Google':''}${hasGoogle&&hasApple?' + ':''}${hasApple?'Apple':''}</div>
-    ${(!hasApple||!hasGoogle)?'<div style="font-size:11px;color:var(--muted);margin-bottom:8px;">Link the other provider as a spare key to this same account.</div>':''}
+    ${(!hasApple||!hasGoogle)?'<div style="font-size:11px;color:var(--muted);margin-bottom:8px;">Signing in with Google and Apple separately creates two different accounts — link the other provider below so your plan follows you either way.</div>':''}
     <div style="display:flex;gap:8px;flex-wrap:wrap;">
     ${!hasApple?'<button id="_plan_linkapple" style="flex:1;min-width:130px;padding:8px;border-radius:6px;border:1px solid var(--border);cursor:pointer;background:var(--s2);color:var(--text);font-size:11px;">Link Apple account</button>':''}
     ${!hasGoogle?'<button id="_plan_linkgoogle" style="flex:1;min-width:130px;padding:8px;border-radius:6px;border:1px solid var(--border);cursor:pointer;background:var(--s2);color:var(--text);font-size:11px;">Link Google account</button>':''}
@@ -3981,7 +3981,7 @@ function showPlanModal(msg){
     <div style="font-size:12px;color:var(--text);margin-bottom:10px;">Sign in to sync your plan across devices</div>
     <button id="_plan_apple" style="width:100%;padding:11px;border-radius:6px;border:none;cursor:pointer;background:#000;color:#fff;font-size:13px;font-weight:600;margin-bottom:8px;">&#63743;&nbsp; Continue with Apple</button>
     <button id="_plan_signin" style="width:100%;padding:11px;border-radius:6px;border:1px solid var(--border);cursor:pointer;background:var(--s2);color:var(--text);font-size:13px;font-weight:600;">Continue with Google</button>
-    <div style="font-size:10px;color:var(--muted);margin-top:8px;line-height:1.5;">Either one creates the same account. This is separate from connecting Google Drive, which is where your session files are stored.</div>
+    <div style="font-size:10px;color:var(--muted);margin-top:8px;line-height:1.5;">Either one creates the same account. This is separate from connecting Google Drive, which is where your session files are stored.<br/><br/>Already signed in with the other provider somewhere else? Use that same one here, or you'll end up with two separate accounts and your Pro plan won't follow you.</div>
   `}
   </div>
   ${msg?`<div style="font-size:12px;color:var(--text);margin-bottom:14px;">${msg}</div>`:''}
