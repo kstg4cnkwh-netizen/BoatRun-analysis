@@ -75,7 +75,7 @@ header{
 .hero:after{content:"";position:absolute;inset:0;pointer-events:none;background:
   linear-gradient(rgba(255,255,255,.035) 1px,transparent 1px);
   background-size:100% 44px;mix-blend-mode:overlay;opacity:.5;}
-.hero-grid{display:grid;grid-template-columns:1.05fr .95fr;gap:56px;align-items:center;position:relative;z-index:1;}
+.hero-grid{display:grid;grid-template-columns:.85fr 1.15fr;gap:56px;align-items:center;position:relative;z-index:1;}
 @media(max-width:900px){.hero-grid{grid-template-columns:1fr;}}
 .hero-eyebrow{color:var(--coral);border-color:rgba(255,90,60,.35);background:var(--coral-dim);}
 h1.hero-h{font-family:'Space Grotesk',sans-serif;font-weight:700;font-size:clamp(36px,5.2vw,58px);line-height:1.03;letter-spacing:-.02em;margin:18px 0 18px;}
@@ -169,6 +169,8 @@ h2.section-h{font-family:'Space Grotesk',sans-serif;font-size:clamp(26px,3.4vw,3
 .on-navy .shot{background:#101E3E;border-color:rgba(255,255,255,.10);}
 .on-navy .shot-placeholder{color:var(--ink-faint);}
 .on-navy .shot-placeholder .ic{border-color:rgba(255,255,255,.22);}
+.shot-pair{display:flex;gap:12px;}
+.shot-pair .shot{flex:1;}
 
 /* interface catalog */
 .catalog{display:flex;gap:14px;overflow-x:auto;padding:4px 4px 14px;scrollbar-width:none;}
@@ -268,7 +270,7 @@ footer{background:var(--navy);color:var(--ink-faint);border-top:1px solid rgba(2
       <h2 class="section-h">Real-Time Telemetry Pack</h2>
       <p class="section-p">The sensor engine reads boat motion, stroke dynamics and biometric data up to 50 times a second, every stroke, every session.</p>
     </div>
-    <div class="shot"><img src="screenshot-live-metrics.png" alt="BoatRun live telemetry grid — real stroke data"></div>
+    <div class="shot" style="max-width:640px;margin:0 auto;"><img src="screenshot-live-metrics.png" alt="BoatRun live telemetry grid — real stroke data"></div>
   </div>
 </section>
 
@@ -290,7 +292,6 @@ footer{background:var(--navy);color:var(--ink-faint);border-top:1px solid rgba(2
         <img src="screenshot-cockpit-curve.png" alt="BoatRun rower cockpit — stroke curve and live metrics">
       </div>
     </div>
-    </div>
   </div>
 </section>
 
@@ -305,10 +306,14 @@ footer{background:var(--navy);color:var(--ink-faint);border-top:1px solid rgba(2
         <li>Multi-athlete squad dashboard</li>
         <li>Tap-to-open detail view with stroke curve, stats and mini-map</li>
         <li>In-app video recording with live telemetry overlay</li>
+        <li>Create and distribute custom workouts</li>
       </ul>
     </div>
     <div class="fr-media">
-      <div class="shot"><img src="screenshot-coach-fleet.png" alt="BoatRun coach live squad dashboard"></div>
+      <div class="shot-pair">
+        <div class="shot"><img src="screenshot-coach-fleet.png" alt="BoatRun coach live squad dashboard"></div>
+        <div class="shot"><img src="screenshot-coach-workouts.png" alt="BoatRun coach custom workout builder"></div>
+      </div>
     </div>
   </div>
 </section>
