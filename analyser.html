@@ -322,6 +322,77 @@ body.light .hdrname{color:#fff;}
   #vidStageWrap:-webkit-full-screen #vidstage{flex:1;min-height:0;width:100%!important;display:flex;align-items:center;justify-content:center;}
   #vidStageWrap:-webkit-full-screen video{width:100%;height:100%;object-fit:contain;}
   #vidStageWrap:-webkit-full-screen .vid-transport{flex:none;background:rgba(0,0,0,.6);padding:8px 10px;margin-top:0;}
+  /* ══ BoatRun Metrics style pass ══ */
+  :root{
+    --acc:#0a84ff; --acc-g:#30d158; --acc-r:#ff453a; --acc-o:#ff9f0a; --acc-y:#ffd60a;
+    --pill:rgba(255,255,255,.06); --pill-sh:0 1px 3px rgba(0,0,0,.40);
+    --seg:#122a4d; --seg-txt:#dce8fa;
+  }
+  body.light{
+    --acc:#007aff; --acc-g:#34c759; --acc-r:#ff3b30; --acc-o:#ff9500; --acc-y:#ffcc00;
+    --pill:#e3e3e6; --pill-sh:0 1px 3px rgba(0,0,0,.12);
+    --seg:#ffffff; --seg-txt:#111111;
+  }
+
+  .brpill{background:var(--pill);border-radius:22px;padding:12px;margin-bottom:12px;box-shadow:var(--pill-sh);}
+  .brpill .sumgrp:last-child{margin-bottom:0;}
+  .brpill .sz-lhd{margin-bottom:8px;}
+  .brpill #sz-files{margin-top:2px;}
+  .brpill-row{display:flex;flex-direction:row;flex-wrap:wrap;gap:8px;background:var(--pill);border-radius:22px;padding:6px;margin-bottom:12px;box-shadow:var(--pill-sh);}
+  .brpill-col{flex-direction:column;width:100%;max-width:340px;margin:6px auto 0;}
+
+  .brpill-row .dzbtn{flex:1 1 0;min-width:130px;margin-top:0;display:flex;align-items:center;justify-content:center;gap:7px;border:none;border-radius:16px;background:var(--seg);color:var(--seg-txt);padding:11px 10px;font-size:11px;font-weight:700;letter-spacing:.04em;text-transform:uppercase;cursor:pointer;box-shadow:0 3px 6px rgba(0,0,0,.20),inset 0 1px 0 rgba(255,255,255,.25);}
+  .brpill-row .dzbtn:hover{background:var(--seg);color:var(--acc);}
+  .brpill-row .dzbtn:active{opacity:.65;}
+  .brpill-row .dzbtn-pri{background:var(--acc-g);color:#fff;}
+  .brpill-row .dzbtn-pri:hover{background:var(--acc-g);color:#fff;}
+  .brpill-row .dzbtn img{width:18px;height:18px;}
+  .brpill-col .dzbtn{width:100%;flex:none;}
+
+  .sz-del{background:var(--acc-r);border:none;border-radius:14px;color:#fff;padding:11px 13px;box-shadow:0 2px 5px rgba(0,0,0,.28),inset 0 1px 0 rgba(255,255,255,.25);}
+  .sz-del:active{opacity:.65;}
+  .sz-del img{width:16px;height:16px;filter:brightness(0) invert(1);}
+
+  .sz-star{padding:11px 13px;border:none;border-radius:14px;background:var(--pill);color:var(--muted);cursor:pointer;font-size:1.05rem;line-height:1;flex-shrink:0;box-shadow:0 2px 5px rgba(0,0,0,.22),inset 0 1px 0 rgba(255,255,255,.20);transition:background .15s,color .15s;}
+  .sz-star.on{background:var(--acc-y);color:#4a3600;text-shadow:0 1px 0 rgba(255,255,255,.4);box-shadow:0 3px 9px rgba(255,204,0,.45);}
+  .sz-star:active{opacity:.65;}
+
+  .filt-chip{padding:8px 14px;border:none;border-radius:16px;background:var(--pill);color:var(--muted);cursor:pointer;font-size:11px;font-weight:700;letter-spacing:.04em;text-transform:uppercase;font-family:-apple-system, BlinkMacSystemFont, Helvetica Neue, sans-serif;box-shadow:0 2px 5px rgba(0,0,0,.20),inset 0 1px 0 rgba(255,255,255,.18);transition:background .15s,color .15s;}
+  .filt-chip.on{background:var(--acc);color:#fff;box-shadow:0 3px 9px rgba(10,132,255,.45);}
+  .filt-chip:active{opacity:.65;}
+
+  .brsearch{display:block;width:100%;box-sizing:border-box;padding:12px 14px;margin-bottom:10px;background:var(--s2);border:none;border-radius:14px;color:var(--text);font-size:.9rem;font-family:-apple-system, BlinkMacSystemFont, Helvetica Neue, sans-serif;-webkit-appearance:none;appearance:none;box-shadow:inset 0 1px 3px rgba(0,0,0,.18);}
+  .brsearch:focus{outline:none;box-shadow:inset 0 1px 3px rgba(0,0,0,.18),0 0 0 2px var(--acc);}
+
+  .sz-file-row{gap:8px;margin-bottom:8px;}
+  .asc{border-radius:14px;border:none;border-left:4px solid var(--acc);box-shadow:0 2px 5px rgba(0,0,0,.18);padding:12px 14px;}
+  .asc:hover{border-left-color:var(--acc);box-shadow:0 4px 12px rgba(0,0,0,.28);}
+  .asc-date .asc-badge{color:var(--acc);}
+  .sz-signout{color:var(--acc);}
+
+  .card{border-width:0;border-top-width:3px;border-radius:14px;box-shadow:0 2px 5px rgba(0,0,0,.20);}
+  .sumgrp-cards{gap:6px;}
+  .sumnav button{border:none;background:var(--seg);color:var(--seg-txt);width:22px;height:22px;border-radius:11px;box-shadow:0 1px 3px rgba(0,0,0,.25);}
+  .sumnav button:hover{border:none;color:var(--acc);}
+  .sumnav button:disabled:hover{border:none;color:var(--seg-txt);}
+
+  .hbtn{border-radius:14px;}
+  .sess-tab{border:none;border-radius:16px;background:var(--pill);box-shadow:0 2px 5px rgba(0,0,0,.20);padding:7px 13px;}
+  .sess-tab.on{background:var(--acc);color:#fff;}
+  .grp-chip{border-radius:16px;padding:5px 12px;box-shadow:0 2px 5px rgba(0,0,0,.20);}
+  .cbox,.ovbox,.twrap,#statsstrip,#tooltip{border:none;border-radius:14px;box-shadow:0 2px 6px rgba(0,0,0,.22);}
+  #mapbox{border-radius:14px;}
+  #dz{border-radius:22px;}
+  #addcurvebtn{background:var(--acc);color:#fff;border-radius:14px;padding:7px 15px;box-shadow:0 2px 5px rgba(0,0,0,.22);}
+  #selclear,#clearcurvebtn{border:none;border-radius:14px;background:var(--pill);color:var(--muted);padding:6px 13px;box-shadow:0 2px 5px rgba(0,0,0,.20);}
+  #selclear:hover,#clearcurvebtn:hover{border:none;color:var(--acc-r);}
+  .zoom-btn{border:none;border-radius:12px;background:var(--seg);color:var(--seg-txt);box-shadow:0 1px 3px rgba(0,0,0,.25);}
+  .zoom-btn:hover{border:none;color:var(--acc);}
+  select{border:none;border-radius:12px;background:var(--seg);color:var(--seg-txt);padding:6px 10px;box-shadow:0 1px 3px rgba(0,0,0,.22);}
+  .vid-clip-tab,.vid-mchip,.vid-read,.vid-num{border:none;border-radius:14px;box-shadow:0 1px 3px rgba(0,0,0,.22);}
+  .vid-clip-tab.on,.vid-mchip.on{background:var(--acc);color:#fff;}
+  .vid-play{background:var(--acc);color:#fff;border-radius:14px;}
+  .vid-panel{border:none;border-radius:14px;box-shadow:0 1px 3px rgba(0,0,0,.22);}
 </style>
 
 <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" crossorigin=""/>
@@ -1405,7 +1476,7 @@ function renderRecords() {
   const el=document.getElementById('sz-records');
   if (!el) return;
   const targets=[500,1000,2000,5000,10000];
-  let html='<div class="sumgrp"><div class="sumgrp-hd">Personal Bests</div><div class="sumgrp-cards">';
+  let html='<div class="brpill"><div class="sumgrp"><div class="sumgrp-hd">Personal Bests</div><div class="sumgrp-cards">';
   targets.forEach(d=>{
     const r=RECORDS_DB[d];
     const lbl=d>=1000?(d/1000)+'km':d+'m';
@@ -1413,7 +1484,7 @@ function renderRecords() {
     const dateStr=r?fmtRecordDate(r.date):'';
     html+='<div class="card cb" style="cursor:'+(r&&r.fileId?'pointer':'default')+';" onclick="'+(r&&r.fileId?'window.loadRecordSession(\''+d+'\')':'')+'"><div class="lbl">'+lbl+'</div><div class="val">'+val+'</div><div class="sub">'+dateStr+'</div></div>';
   });
-  html+='</div></div>';
+  html+='</div></div></div>';
   el.innerHTML=html;
 }
 
@@ -1624,7 +1695,7 @@ async function showAddComparePicker() {
                     const nm = name.match(/_NAME([a-zA-Z0-9-]+)/);
                     const str = name.match(/_(\d+)str/);
                     const ts = name.match(/RowSess_(\d{4})-(\d{2})-(\d{2})_(\d{2})(\d{2})/);
-                    const fav = /_FAV1\b/.test(name);
+                    const fav = /_FAV1/.test(name);
                     return {
                         distM: dist ? parseInt(dist[1]) : null,
                         durS: dur ? +dur[1]*3600 + +dur[2]*60 + +dur[3] : null,
@@ -1636,11 +1707,11 @@ async function showAddComparePicker() {
                 }
                 const daBar = document.createElement('div');
                 daBar.style.cssText = 'margin-bottom:10px;';
-                daBar.innerHTML = '<input type="text" id="da-search" placeholder="Search sessions…" autocomplete="off" style="display:block;width:100%;box-sizing:border-box;padding:10px 12px;margin-bottom:8px;background:var(--s2);border:1px solid var(--border);border-radius:8px;color:var(--text);font-size:.85rem;font-family:-apple-system, BlinkMacSystemFont, Helvetica Neue, sans-serif;">'
+                daBar.innerHTML = '<input type="text" id="da-search" class="brsearch" placeholder="Search sessions…" autocomplete="off">'
                     + '<div style="display:flex;gap:6px;flex-wrap:wrap;">'
-                    + '<button id="da-fav-btn" style="padding:7px 12px;background:transparent;border:1px solid var(--border);border-radius:8px;color:var(--muted);cursor:pointer;font-size:.8rem;">★ Favourites</button>'
-                    + '<button id="da-sort-dist" style="padding:7px 12px;background:transparent;border:1px solid var(--border);border-radius:8px;color:var(--muted);cursor:pointer;font-size:.8rem;">Distance</button>'
-                    + '<button id="da-sort-time" style="padding:7px 12px;background:transparent;border:1px solid var(--border);border-radius:8px;color:var(--muted);cursor:pointer;font-size:.8rem;">Time</button>'
+                    + '<button id="da-fav-btn" class="filt-chip">★ Favourites</button>'
+                    + '<button id="da-sort-dist" class="filt-chip">Distance</button>'
+                    + '<button id="da-sort-time" class="filt-chip">Time</button>'
                     + '</div>';
                 content.appendChild(daBar);
                 const daRows = document.createElement('div');
@@ -1648,25 +1719,19 @@ async function showAddComparePicker() {
                 function renderDA() {
                     const favBtn = document.getElementById('da-fav-btn');
                     if (favBtn) {
-                        favBtn.style.borderColor = daFavOnly ? 'var(--b)' : 'var(--border)';
-                        favBtn.style.color = daFavOnly ? 'var(--b)' : 'var(--muted)';
-                        favBtn.style.fontWeight = daFavOnly ? '700' : '400';
+                        favBtn.className = 'filt-chip' + (daFavOnly ? ' on' : '');
                     }
                     const distBtn = document.getElementById('da-sort-dist');
                     if (distBtn) {
                         const on = daSortBy === 'distance';
                         distBtn.textContent = 'Distance' + (on ? (daSortDir === 'desc' ? ' ▼' : ' ▲') : '');
-                        distBtn.style.borderColor = on ? 'var(--b)' : 'var(--border)';
-                        distBtn.style.color = on ? 'var(--b)' : 'var(--muted)';
-                        distBtn.style.fontWeight = on ? '700' : '400';
+                        distBtn.className = 'filt-chip' + (on ? ' on' : '');
                     }
                     const timeBtn = document.getElementById('da-sort-time');
                     if (timeBtn) {
                         const on = daSortBy === 'time';
                         timeBtn.textContent = 'Time' + (on ? (daSortDir === 'desc' ? ' ▼' : ' ▲') : '');
-                        timeBtn.style.borderColor = on ? 'var(--b)' : 'var(--border)';
-                        timeBtn.style.color = on ? 'var(--b)' : 'var(--muted)';
-                        timeBtn.style.fontWeight = on ? '700' : '400';
+                        timeBtn.className = 'filt-chip' + (on ? ' on' : '');
                     }
                     daRows.innerHTML = '';
                     const q = daSearchQuery;
@@ -1705,12 +1770,12 @@ async function showAddComparePicker() {
                         const isFav = p.favourite;
 
                         const row = document.createElement('div');
-                        row.style.cssText = 'display:flex;align-items:center;gap:6px;margin-bottom:6px;';
+                        row.style.cssText = 'display:flex;align-items:center;gap:8px;margin-bottom:8px;';
 
                         const star = document.createElement('button');
                         star.textContent = isFav ? '★' : '☆';
                         star.title = isFav ? 'Remove favourite' : 'Add favourite';
-                        star.style.cssText = 'padding:9px 10px;background:'+(isFav?'rgba(241,196,15,.15)':'transparent')+';border:1px solid var(--border);border-radius:8px;color:'+(isFav?'#f1c40f':'var(--muted)')+';cursor:pointer;font-size:.95rem;flex-shrink:0;';
+                        star.className = 'sz-star' + (isFav ? ' on' : '');
                         star.onclick = async () => {
                             const wantFav = !isFav;
                             star.disabled = true; star.style.opacity = '.5';
@@ -1859,7 +1924,7 @@ function showDrivePicker(files, onSelect) {
     const wkt=name.match(/_WKT([a-zA-Z0-9\-]+)/);
     const nm=name.match(/_NAME([a-zA-Z0-9\-]+)/);
     const sq=name.match(/_SQ([A-Z0-9]{1,8})/);
-    const fav=/_FAV1\b/.test(name);
+    const fav=/_FAV1/.test(name);
     const ts=name.match(/RowSess_(\d{4})-(\d{2})-(\d{2})_(\d{2})(\d{2})/);
     return {
       distM: dist?parseInt(dist[1]):null,
@@ -3549,9 +3614,11 @@ async function showStartup(){
       <img class="ico" src="icons/icon-192.png" alt="BoatRun">
       <h2>BoatRun Analyser</h2>
       <p>Connect Google Drive to access your sessions</p>
-      <button class="dzbtn dzbtn-pri" id="sz-signin">Connect Google Drive</button>
-      <button class="dzbtn dzbtn-sec" id="sz-squad"><img src="icons/Import.svg"><span>From Squad</span></button>
-      <button class="dzbtn dzbtn-sec" id="sz-openfile"><img src="icons/Open.svg"><span>Open file</span></button>
+      <div class="brpill-row brpill-col">
+        <button class="dzbtn dzbtn-pri" id="sz-signin">Connect Google Drive</button>
+        <button class="dzbtn dzbtn-sec" id="sz-squad"><img src="icons/Import.svg"><span>From Squad</span></button>
+        <button class="dzbtn dzbtn-sec" id="sz-openfile"><img src="icons/Open.svg"><span>Open file</span></button>
+      </div>
     </div>`;
     document.getElementById('sz-signin').onclick=()=>AnalyserDrive.signIn();
     document.getElementById('sz-squad').onclick=loadFromSquad;
@@ -3560,20 +3627,22 @@ async function showStartup(){
   }
 
   el.innerHTML=`<div class="sz-list">
-    <div style="display:flex;gap:8px;margin-bottom:14px;">
-      <button class="dzbtn dzbtn-sec" id="sz-squad" style="flex:1;"><img src="icons/Import.svg"><span>From Squad</span></button>
-      <button class="dzbtn dzbtn-sec" id="sz-openfile" style="flex:1;"><img src="icons/Open.svg"><span>Open file</span></button>
+    <div class="brpill-row">
+      <button class="dzbtn dzbtn-sec" id="sz-squad"><img src="icons/Import.svg"><span>From Squad</span></button>
+      <button class="dzbtn dzbtn-sec" id="sz-openfile"><img src="icons/Open.svg"><span>Open file</span></button>
     </div>
     <div id="sz-summary"></div>
     <div id="sz-records"></div>
-    <div style="display:flex;gap:8px;margin-top:4px;margin-bottom:10px;">
-      <button class="dzbtn dzbtn-sec" id="sz-rescan" style="flex:1;margin-top:0;"><img src="icons/Scan.svg"><span>Scan All for Records</span></button>
-      <button class="dzbtn dzbtn-sec" id="sz-resetrecords" style="flex:1;margin-top:0;"><img src="icons/Reset.svg"><span>Reset Records</span></button>
+    <div class="brpill-row">
+      <button class="dzbtn dzbtn-sec" id="sz-rescan"><img src="icons/Scan.svg"><span>Scan All for Records</span></button>
+      <button class="dzbtn dzbtn-sec" id="sz-resetrecords"><img src="icons/Reset.svg"><span>Reset Records</span></button>
     </div>
-    <div class="sz-lhd">Sessions<span class="sz-signout" id="sz-signout">Sign out</span></div>
-    <input type="text" id="sz-search" placeholder="Search sessions…" autocomplete="off" style="display:block;width:100%;box-sizing:border-box;padding:10px 12px;margin-bottom:10px;background:var(--s2);border:1px solid var(--border);border-radius:8px;color:var(--text);font-size:.85rem;font-family:-apple-system, BlinkMacSystemFont, Helvetica Neue, sans-serif;">
-    <div id="sz-filterbar" style="display:flex;gap:6px;margin-bottom:10px;flex-wrap:wrap;"></div>
-    <div id="sz-files" class="sz-loading">Loading…</div>
+    <div class="brpill">
+      <div class="sz-lhd">Sessions<span class="sz-signout" id="sz-signout">Sign out</span></div>
+      <input type="text" id="sz-search" class="brsearch" placeholder="Search sessions…" autocomplete="off">
+      <div id="sz-filterbar" style="display:flex;gap:6px;margin-bottom:10px;flex-wrap:wrap;"></div>
+      <div id="sz-files" class="sz-loading">Loading…</div>
+    </div>
   </div>`;
   document.getElementById('sz-signout').onclick=()=>{AnalyserDrive.signOut();showStartup();};
   document.getElementById('sz-squad').onclick=loadFromSquad;
@@ -3601,9 +3670,9 @@ async function showStartup(){
     if(searchInput) searchInput.oninput=()=>{searchQuery=searchInput.value.trim().toLowerCase();renderList();};
     const filterBar=document.getElementById('sz-filterbar');
     if(filterBar){
-      filterBar.innerHTML='<button id="sz-fav-btn" style="padding:7px 12px;background:transparent;border:1px solid var(--border);border-radius:8px;color:var(--muted);cursor:pointer;font-size:.8rem;">★ Favourites</button>'
-        +'<button id="sz-sort-dist" style="padding:7px 12px;background:transparent;border:1px solid var(--border);border-radius:8px;color:var(--muted);cursor:pointer;font-size:.8rem;">Distance</button>'
-        +'<button id="sz-sort-time" style="padding:7px 12px;background:transparent;border:1px solid var(--border);border-radius:8px;color:var(--muted);cursor:pointer;font-size:.8rem;">Time</button>';
+      filterBar.innerHTML='<button id="sz-fav-btn" class="filt-chip">★ Favourites</button>'
+        +'<button id="sz-sort-dist" class="filt-chip">Distance</button>'
+        +'<button id="sz-sort-time" class="filt-chip">Time</button>';
       document.getElementById('sz-fav-btn').onclick=()=>{favOnly=!favOnly;renderList();};
       document.getElementById('sz-sort-dist').onclick=()=>{
         if(sortBy!=='distance'){sortBy='distance';sortDir='desc';}
@@ -3644,7 +3713,7 @@ async function showStartup(){
       const wkt=name.match(/_WKT([a-zA-Z0-9\-]+)/);
       const nm=name.match(/_NAME([a-zA-Z0-9\-]+)/);
       const sq=name.match(/_SQ([A-Z0-9]{1,8})/);
-      const fav=/_FAV1\b/.test(name);
+      const fav=/_FAV1/.test(name);
       const ts=name.match(/RowSess_(\d{4})-(\d{2})-(\d{2})_(\d{2})(\d{2})/);
       return {
         distM: dist?parseInt(dist[1]):null,
@@ -3701,11 +3770,11 @@ async function showStartup(){
       const grp=(cls,t)=>'<div class="sumgrp-cards">'+mk(cls,'Sessions',t.n)+mk(cls,'Distance',(t.dist/1000).toFixed(1)+'km')+mk(cls,'Time',fmtTime(t.dur))+mk(cls,'Avg Pace',pace(t))+'</div>';
       const monthNav='<span class="sumnav"><button id="sum-m-prev">\u2039</button><span class="sumnav-lbl">'+monthRange.label+'</span><button id="sum-m-next"'+(sumMonthOff<=0?' disabled':'')+'>\u203a</button></span>';
       const weekNav='<span class="sumnav"><button id="sum-w-prev">\u2039</button><span class="sumnav-lbl">'+weekRange.label+'</span><button id="sum-w-next"'+(sumWeekOff<=0?' disabled':'')+'>\u203a</button></span>';
-      let html='<div class="sz-lhd">Summary</div>';
+      let html='<div class="brpill"><div class="sz-lhd">Summary</div>';
       html+='<div class="sumgrp-cards" style="margin-bottom:16px;">'+mk('co','Longest',(longestDist/1000).toFixed(1)+'km')+mk('cd','Total Strokes',totalStrokes.toLocaleString())+'</div>';
       html+='<div class="sumgrp"><div class="sumgrp-hd">Total</div>'+grp('cb',T.all)+'</div>';
       html+='<div class="sumgrp"><div class="sumgrp-hd">Monthly'+monthNav+'</div>'+grp('c-amber',T.month)+'</div>';
-      html+='<div class="sumgrp"><div class="sumgrp-hd">Weekly'+weekNav+'</div>'+grp('cp',T.week)+'</div>';
+      html+='<div class="sumgrp"><div class="sumgrp-hd">Weekly'+weekNav+'</div>'+grp('cp',T.week)+'</div></div>';
       sumEl.innerHTML=html;
       document.getElementById('sum-m-prev').onclick=()=>{sumMonthOff++;renderSummary();};
       document.getElementById('sum-m-next').onclick=()=>{if(sumMonthOff>0){sumMonthOff--;renderSummary();}};
@@ -3718,25 +3787,19 @@ async function showStartup(){
       container.innerHTML='';
       const favBtn=document.getElementById('sz-fav-btn');
       if(favBtn){
-        favBtn.style.borderColor=favOnly?'var(--b)':'var(--border)';
-        favBtn.style.color=favOnly?'var(--b)':'var(--muted)';
-        favBtn.style.fontWeight=favOnly?'700':'400';
+        favBtn.className='filt-chip'+(favOnly?' on':'');
       }
       const distBtn=document.getElementById('sz-sort-dist');
       if(distBtn){
         const on=sortBy==='distance';
         distBtn.textContent='Distance'+(on?(sortDir==='desc'?' ▼':' ▲'):'');
-        distBtn.style.borderColor=on?'var(--b)':'var(--border)';
-        distBtn.style.color=on?'var(--b)':'var(--muted)';
-        distBtn.style.fontWeight=on?'700':'400';
+        distBtn.className='filt-chip'+(on?' on':'');
       }
       const timeBtn=document.getElementById('sz-sort-time');
       if(timeBtn){
         const on=sortBy==='time';
         timeBtn.textContent='Time'+(on?(sortDir==='desc'?' ▼':' ▲'):'');
-        timeBtn.style.borderColor=on?'var(--b)':'var(--border)';
-        timeBtn.style.color=on?'var(--b)':'var(--muted)';
-        timeBtn.style.fontWeight=on?'700':'400';
+        timeBtn.className='filt-chip'+(on?' on':'');
       }
 
       const q=searchQuery;
@@ -3771,7 +3834,7 @@ async function showStartup(){
         const star=document.createElement('button');
         star.textContent=isFav?'★':'☆';
         star.title=isFav?'Remove favourite':'Add favourite';
-        star.style.cssText='padding:9px 10px;background:'+(isFav?'rgba(241,196,15,.15)':'transparent')+';border:1px solid var(--border);border-radius:8px;color:'+(isFav?'#f1c40f':'var(--muted)')+';cursor:pointer;font-size:.95rem;flex-shrink:0;';
+        star.className='sz-star'+(isFav?' on':'');
         star.onclick=async()=>{
           const wantFav=!isFav;
           star.disabled=true;star.style.opacity='.5';
@@ -4302,7 +4365,7 @@ window.addEventListener('resize',()=>{if(ST.length)schedRender();});
 // ── Toast ────────────────────────────────────────────────────────────────────
 function toast(msg,ms=2500){
   let el=document.getElementById('_toast');
-  if(!el){el=document.createElement('div');el.id='_toast';el.style.cssText='position:fixed;bottom:24px;left:50%;transform:translateX(-50%) translateY(20px);background:var(--s1);border:1px solid var(--border);color:var(--text);padding:9px 18px;border-radius:8px;font-size:11px;font-family:-apple-system, BlinkMacSystemFont, Helvetica Neue, sans-serif;opacity:0;transition:opacity .2s,transform .2s;z-index:9000;pointer-events:none;box-shadow:0 4px 16px rgba(0,0,0,.4);';document.body.appendChild(el);}
+  if(!el){el=document.createElement('div');el.id='_toast';el.style.cssText='position:fixed;bottom:24px;left:50%;transform:translateX(-50%) translateY(20px);background:var(--acc);border:none;color:#fff;padding:9px 20px;border-radius:18px;font-size:11px;font-weight:700;letter-spacing:.06em;font-family:-apple-system, BlinkMacSystemFont, Helvetica Neue, sans-serif;opacity:0;transition:opacity .2s,transform .2s;z-index:9000;pointer-events:none;box-shadow:0 6px 20px rgba(0,0,0,.35);';document.body.appendChild(el);}
   el.textContent=msg;el.style.opacity='1';el.style.transform='translateX(-50%) translateY(0)';
   clearTimeout(el._t);el._t=setTimeout(()=>{el.style.opacity='0';el.style.transform='translateX(-50%) translateY(10px)';},ms);
 }
