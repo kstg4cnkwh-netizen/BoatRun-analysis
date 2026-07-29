@@ -44,7 +44,7 @@
   /* ── Header ── */
   #hdr { display: flex; align-items: center; gap: 10px; padding: 11px 20px; background: rgb(5,23,56); border-bottom: 1px solid var(--border); position: sticky; top: 0; z-index: 200; flex-wrap: wrap; box-shadow: 0 1px 0 var(--border), 0 4px 16px rgba(0,0,0,.14); }
   #hdr h1 { font-family: -apple-system, BlinkMacSystemFont, Helvetica Neue, sans-serif; font-size: 17px; font-weight: 700; color: #fff; letter-spacing: -.4px; }
-  #hdr .meta { color: rgba(255,255,255,.78); font-size: 10px; line-height: 1.6; }
+  #hdr .meta { color: rgba(255,255,255,.92); font-size: 15px; line-height: 1.5; font-weight: 500; }
   #hdr .sp { flex: 1; }
   .hbtn { background: transparent; border: 1px solid var(--border); color: var(--muted); padding: 5px 13px; border-radius: 7px; font-family: -apple-system, BlinkMacSystemFont, Helvetica Neue, sans-serif; font-size: 11px; cursor: pointer; white-space: nowrap; transition: border-color .15s, color .15s, background .15s; }
   .hbtn:hover { border-color: var(--b); color: var(--b); background: var(--sel-fill); }
@@ -2174,8 +2174,8 @@ function buildMeta(fname,sum) {
   const sq=SESSIONS[activeSessionIdx]?.squadCode;
   const sqBadge=sq?' <span style="font-size:8px;background:var(--s3);border:1px solid var(--border);border-radius:3px;padding:1px 5px;color:var(--b);letter-spacing:.07em;vertical-align:middle;">'+sq+'</span>':'';
   document.getElementById('hdrmeta').innerHTML=
-    '<span class="hdrname" style="cursor:pointer;border-bottom:1px dotted rgba(255,255,255,.5);" onclick="renameCurrentSession()" title="Tap to rename">'+safe+'</span>'
-    +' <span style="color:var(--muted);font-size:9px;">✎</span>'+sqBadge+'<br>'+date+(time?' '+time:'')+' · '+dist+' · '+dur;
+    '<span class="hdrname" style="cursor:pointer;border-bottom:1px dotted rgba(255,255,255,.5);font-size:19px;font-weight:700;" onclick="renameCurrentSession()" title="Tap to rename">'+safe+'</span>'
+    +' <span style="color:var(--muted);font-size:12px;">✎</span>'+sqBadge+'<br><span style="font-size:12px;font-weight:400;color:rgba(255,255,255,.75);">'+date+(time?' '+time:'')+' · '+dist+' · '+dur+'</span>';
 }
 function renameCurrentSession() {
   if (activeSessionIdx<0||activeSessionIdx>=SESSIONS.length) return;
@@ -5572,3 +5572,17 @@ loadAnVidDir();
 </script>
 </body>
 </html>
+<style>
+/* ══ Modals — Metrics/Tiles/About style match ══ */
+#_info_modal>div,#_reorder_modal>div,#_about_modal>div,#_plan_modal>div{border:none!important;border-radius:22px!important;box-shadow:0 12px 40px rgba(0,0,0,.5)!important;}
+#_info_close,#_ro_close,#_about_close,#_plan_close{background:var(--acc)!important;border:none!important;color:#fff!important;border-radius:14px!important;padding:7px 15px!important;font-weight:700!important;letter-spacing:.04em!important;text-transform:uppercase!important;box-shadow:0 2px 6px rgba(10,132,255,.4)!important;}
+#_info_modal div[style*="border-left:3px solid"]{border-radius:14px!important;border-left-width:4px!important;box-shadow:0 1px 3px rgba(0,0,0,.18);}
+#_info_modal div[style*="background:var(--s2);border-radius:7px"]{border:none!important;border-radius:16px!important;box-shadow:0 1px 3px rgba(0,0,0,.18);}
+#_reorder_modal #_ro_list>div{border:none!important;border-radius:14px!important;box-shadow:0 1px 3px rgba(0,0,0,.18);}
+#_reorder_modal button[data-showk],#_reorder_modal button[data-i]{border:none!important;border-radius:12px!important;box-shadow:0 1px 3px rgba(0,0,0,.20)!important;}
+#_reorder_modal button[data-showk]{font-weight:700!important;letter-spacing:.03em!important;text-transform:uppercase!important;}
+#_plan_modal div[style*="border:1px solid var(--border);border-radius:8px"]{border:none!important;border-radius:16px!important;box-shadow:0 1px 3px rgba(0,0,0,.18);}
+#_plan_modal button{border-radius:14px!important;}
+#_plan_modal button[style*="border:1px solid var(--border)"]{border:none!important;box-shadow:0 2px 5px rgba(0,0,0,.20);}
+#_about_modal>div>div:first-child{border-radius:22px 22px 0 0!important;border-bottom:none!important;}
+</style>
