@@ -720,6 +720,22 @@ const AnalyserDrive = {
       method:'PATCH',headers:{Authorization:'Bearer '+this._token},body:form});
     if(!r.ok) throw new Error('Sync save failed: HTTP '+r.status);
   },
+  async patchFavourite(fileId, isFav) {
+    this._check();
+    const mResp = await fetch(`https://www.googleapis.com/drive/v3/files/${fileId}?fields=name`, { headers: { Authorization: 'Bearer ' + this._token } });
+    if (mResp.status===401) { this._expire(); throw new Error('Session expired'); }
+    if (!mResp.ok) throw new Error('Metadata fetch failed: HTTP ' + mResp.status);
+    const { name: currentName } = await mResp.json();
+    let newName = currentName.replace(/_FAV1/,'');
+    if (isFav) newName = newName.replace(/\.json$/, '_FAV1.json');
+    const r = await fetch(`https://www.googleapis.com/drive/v3/files/${fileId}`, {
+      method: 'PATCH',
+      headers: { Authorization: 'Bearer ' + this._token, 'Content-Type': 'application/json' },
+      body: JSON.stringify({ name: newName })
+    });
+    if (!r.ok) throw new Error('Favourite save failed: HTTP ' + r.status);
+    return newName;
+  },
   _check() { if (!this._token) throw new Error('Not signed in to Drive'); },
   _expire() { this._token = null; sessionStorage.removeItem('_ad_token'); this._updateBtn(); },
   _updateBtn() {
@@ -1700,17 +1716,6 @@ function showSquadPicker(code, metas) {
     document.body.appendChild(overlay);
 }
 
-function getFavDriveSessions(){
-  try{return JSON.parse(localStorage.getItem('analyser_fav_sessions_v1')||'[]');}
-  catch(e){return [];}
-}
-function toggleFavDriveSession(id){
-  const favs=getFavDriveSessions();
-  const idx=favs.indexOf(id);
-  if(idx>=0) favs.splice(idx,1); else favs.push(id);
-  localStorage.setItem('analyser_fav_sessions_v1',JSON.stringify(favs));
-  return favs;
-}
 function showDrivePicker(files, onSelect) {
   document.getElementById('_drive_picker')?.remove();
   const overlay=document.createElement('div');
@@ -1723,16 +1728,16 @@ function showDrivePicker(files, onSelect) {
   title.style.cssText='font-size:1rem;font-weight:700;margin-bottom:12px;color:var(--b);font-family:-apple-system, BlinkMacSystemFont, Helvetica Neue, sans-serif;';
   panel.appendChild(title);
 
-  let fileList=[...files];
-  let searchQuery='';
-  let favs=getFavDriveSessions();
-
   const searchBox=document.createElement('input');
   searchBox.type='text';
   searchBox.placeholder='Search sessions…';
-  searchBox.style.cssText='width:100%;box-sizing:border-box;padding:8px 10px;margin-bottom:10px;background:var(--s2);border:1px solid var(--border);border-radius:6px;color:var(--text);font-size:.85rem;font-family:-apple-system, BlinkMacSystemFont, Helvetica Neue, sans-serif;';
-  searchBox.oninput=()=>{searchQuery=searchBox.value.trim().toLowerCase();renderList();};
+  searchBox.autocomplete='off';
+  searchBox.style.cssText='display:block;width:100%;box-sizing:border-box;padding:10px 12px;margin-bottom:12px;background:var(--s2);border:1px solid var(--border);border-radius:6px;color:var(--text);font-size:.9rem;font-family:-apple-system, BlinkMacSystemFont, Helvetica Neue, sans-serif;';
   panel.appendChild(searchBox);
+
+  let fileList=[...files];
+  let searchQuery='';
+  searchBox.oninput=()=>{searchQuery=searchBox.value.trim().toLowerCase();renderList();};
 
   function parseFn(name){
     const dist=name.match(/_(\d+)m_/);
@@ -1742,6 +1747,7 @@ function showDrivePicker(files, onSelect) {
     const wkt=name.match(/_WKT([a-zA-Z0-9\-]+)/);
     const nm=name.match(/_NAME([a-zA-Z0-9\-]+)/);
     const sq=name.match(/_SQ([A-Z0-9]{1,8})/);
+    const fav=/_FAV1\b/.test(name);
     const ts=name.match(/RowSess_(\d{4})-(\d{2})-(\d{2})_(\d{2})(\d{2})/);
     return {
       distM: dist?parseInt(dist[1]):null,
@@ -1751,17 +1757,18 @@ function showDrivePicker(files, onSelect) {
       workout: wkt?wkt[1].replace(/-/g,' '):null,
       name: nm?nm[1].replace(/-/g,' '):null,
       squadCode: sq?sq[1]:null,
+      favourite: fav,
       approxTs: ts?new Date(+ts[1],+ts[2]-1,+ts[3],+ts[4],+ts[5]).getTime():0
     };
   }
   function renderList(){
     [...panel.querySelectorAll('.drive-file-row')].forEach(el=>el.remove());
     const cancel=panel.querySelector('.drive-cancel-btn');
+    const q=searchQuery;
     const sorted=[...fileList].sort((a,b)=>{
-      const fa=favs.includes(a.id)?1:0, fb=favs.includes(b.id)?1:0;
+      const fa=parseFn(a.name).favourite?1:0, fb=parseFn(b.name).favourite?1:0;
       return fb-fa;
     });
-    const q=searchQuery;
     const shown=sorted.filter(f=>{
       if(!q) return true;
       const p=parseFn(f.name);
@@ -1774,7 +1781,7 @@ function showDrivePicker(files, onSelect) {
         ?new Date(p.approxTs).toLocaleDateString('en-AU',{day:'numeric',month:'short',year:'numeric'})+' '+new Date(p.approxTs).toLocaleTimeString('en-AU',{hour:'2-digit',minute:'2-digit'})
         :new Date(f.createdTime).toLocaleDateString();
       const pace=p.distM&&p.durS?(p.durS/p.distM*500):null;
-      const isFav=favs.includes(f.id);
+      const isFav=p.favourite;
 
       const row=document.createElement('div');
       row.className='drive-file-row';
@@ -1784,7 +1791,18 @@ function showDrivePicker(files, onSelect) {
       star.textContent=isFav?'★':'☆';
       star.title=isFav?'Remove favourite':'Add favourite';
       star.style.cssText='padding:9px 8px;background:'+(isFav?'rgba(241,196,15,.15)':'transparent')+';border:1px solid var(--border);border-radius:6px;color:'+(isFav?'#f1c40f':'var(--muted)')+';cursor:pointer;font-size:.95rem;flex-shrink:0;';
-      star.onclick=()=>{favs=toggleFavDriveSession(f.id);renderList();};
+      star.onclick=async()=>{
+        const wantFav=!isFav;
+        star.disabled=true;star.style.opacity='.5';
+        try{
+          const newName=await AnalyserDrive.patchFavourite(f.id,wantFav);
+          f.name=newName;
+          renderList();
+        }catch(e){
+          toast('Favourite failed: '+e.message);
+          star.disabled=false;star.style.opacity='1';
+        }
+      };
 
       const btn=document.createElement('div');
       btn.className='asc';
@@ -1809,7 +1827,7 @@ function showDrivePicker(files, onSelect) {
       if(p.durS!=null) statsDiv.innerHTML+='<div><span class="asc-v">'+fmtTime(p.durS)+'</span><span class="asc-l">time</span></div>';
       if(pace!=null) statsDiv.innerHTML+='<div><span class="asc-v">'+fmtPace(pace)+'</span><span class="asc-l">avg pace</span></div>';
       if(p.strokes!=null) statsDiv.innerHTML+='<div><span class="asc-v">'+p.strokes+'</span><span class="asc-l">strokes</span></div>';
-      if(!p.distM&&!p.durS) statsDiv.innerHTML='<span style="color:var(--muted);font-size:.8rem;">'+f.name.replace('RowSess_','').replace('.json','')+'</span>';
+      if(!p.distM&&!p.durS) statsDiv.innerHTML='<span style="color:var(--muted);font-size:.8rem;">'+f.name.replace('RowSess_','').replace('.json','').replace('_FAV1','')+'</span>';
 
       if(p.name){const nameDiv=document.createElement('div');nameDiv.style.cssText='font-weight:700;font-size:.85rem;color:var(--text);margin-bottom:2px;';nameDiv.textContent=p.name;btn.appendChild(nameDiv);}
       btn.appendChild(dateDiv);btn.appendChild(statsDiv);
@@ -2253,7 +2271,7 @@ function drawMain(){
   const toYCD=v=>PT+ph-(v-yCDMin)/(yCDMax-yCDMin||1)*ph;
   let yCDurMin=0,yCDurMax=300;
   const cdurAll=[...cdurv,...dtv];
-  if(cdurAll.length){const[lo,hi]=pctBounds(cdurAll,0.03,0.98,0.15);yCDurMin=0;yCDurMax=Math.min(1500,hi);}
+  if(cdurAll.length){const[lo,hi]=pctBounds(cdurAll,0.03,0.97,0.10);yCDurMin=0;yCDurMax=Math.min(1500,hi);}
   const toYCDur=v=>PT+ph-(v-yCDurMin)/(yCDurMax-yCDurMin||1)*ph;
   let yHRMin=60,yHRMax=200;
   if(hrv.length){const[lo,hi]=pctBounds(hrv,0.03,0.97,0.08);yHRMin=Math.max(40,lo);yHRMax=Math.min(220,hi);}
