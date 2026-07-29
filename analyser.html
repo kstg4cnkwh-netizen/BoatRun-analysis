@@ -393,6 +393,69 @@ body.light .hdrname{color:#fff;}
   .vid-clip-tab.on,.vid-mchip.on{background:var(--acc);color:#fff;}
   .vid-play{background:var(--acc);color:#fff;border-radius:14px;}
   .vid-panel{border:none;border-radius:14px;box-shadow:0 1px 3px rgba(0,0,0,.22);}
+
+  /* ══ Main page — Metrics style ══ */
+  :root{--acc-p:#bf5af2;}
+  body.light{--acc-p:#af52de;}
+
+  /* Settings bar (top) */
+  .brsettings{display:none;gap:8px;flex-wrap:wrap;align-items:center;background:var(--pill);border:none;border-radius:22px;margin:10px 16px 4px;padding:8px 10px;box-shadow:var(--pill-sh);}
+  .seglbl{font-size:9px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:var(--muted);margin:0 2px 0 6px;}
+  .segwrap{display:inline-flex;gap:4px;background:rgba(0,0,0,.16);border-radius:16px;padding:3px;}
+  body.light .segwrap{background:rgba(0,0,0,.05);}
+  .segbtn{border:none;border-radius:13px;background:transparent;color:var(--muted);padding:6px 12px;font-family:-apple-system, BlinkMacSystemFont, Helvetica Neue, sans-serif;font-size:10px;font-weight:700;letter-spacing:.04em;text-transform:uppercase;cursor:pointer;transition:background .15s,color .15s;}
+  .segbtn:hover{color:var(--acc);}
+  .segbtn.on{background:var(--acc);color:#fff;box-shadow:0 2px 6px rgba(10,132,255,.45);}
+  .hrzin{width:54px;padding:6px 4px;border-radius:13px;border:2px solid;background:var(--seg);font-family:-apple-system, BlinkMacSystemFont, Helvetica Neue, sans-serif;font-size:10px;font-weight:700;text-align:center;-webkit-appearance:none;appearance:none;box-shadow:0 1px 3px rgba(0,0,0,.22);}
+
+  /* Header pills */
+  .hdr-tabs{background:rgba(255,255,255,.10);border-radius:22px;padding:6px;box-shadow:0 1px 3px rgba(0,0,0,.30);flex-wrap:wrap;}
+  .hbtn.hicon-btn{border-radius:16px;box-shadow:0 2px 5px rgba(0,0,0,.22),inset 0 1px 0 rgba(255,255,255,.20);}
+  .hbtn.hicon-btn:hover{background:rgba(255,255,255,.30);color:#fff;}
+  body.light .hdr-tabs .hbtn.hicon-btn{border-radius:16px;box-shadow:0 3px 6px rgba(0,0,0,.18),inset 0 1px 0 rgba(255,255,255,.60);}
+  body.light .hdr-tabs .hbtn.hicon-btn:hover{color:var(--acc);}
+
+  /* Files sub-menu */
+  .hmenu{background:var(--pill);border:none;border-radius:20px;padding:8px;gap:6px;min-width:215px;box-shadow:0 10px 30px rgba(0,0,0,.35);}
+  .hmenu .hbtn{border:none;border-left:4px solid var(--acc);border-radius:16px;background:var(--seg);color:var(--seg-txt);padding:11px 14px;font-size:11px;font-weight:700;letter-spacing:.03em;text-transform:uppercase;box-shadow:0 2px 5px rgba(0,0,0,.20),inset 0 1px 0 rgba(255,255,255,.25);}
+  .hmenu .hbtn:hover{background:var(--seg);border-left-color:var(--acc);color:var(--acc);}
+  .hmenu #resetbtn{border-left-color:var(--acc);}
+  .hmenu #addcompbtn{border-left-color:var(--acc-p);}
+  .hmenu #addcompbtn:hover{border-left-color:var(--acc-p);color:var(--acc-p);}
+  .hmenu #tcxbtn{border-left-color:var(--acc-o);}
+  .hmenu #tcxbtn:hover{border-left-color:var(--acc-o);color:var(--acc-o);}
+  .hmenu #fitbtn{border-left-color:var(--acc-g);}
+  .hmenu #fitbtn:hover{border-left-color:var(--acc-g);color:var(--acc-g);}
+
+  /* Section headers / buttons */
+  .sec-hd h2{font-size:10px;letter-spacing:.14em;color:var(--acc);font-weight:700;}
+  .sec-hd .hbtn{border:none;border-radius:14px;background:var(--pill);color:var(--muted);padding:7px 13px;font-size:10px;font-weight:700;letter-spacing:.04em;text-transform:uppercase;box-shadow:0 2px 5px rgba(0,0,0,.20);}
+  .sec-hd .hbtn:hover{border:none;background:var(--acc);color:#fff;}
+  .leg{border:none;border-radius:14px;background:var(--pill);padding:5px 11px;font-weight:600;box-shadow:0 1px 3px rgba(0,0,0,.18);}
+  .leg:hover{border:none;color:var(--text);}
+
+  /* Dropdowns / sliders */
+  select{-webkit-appearance:none;appearance:none;font-weight:700;letter-spacing:.03em;padding:7px 26px 7px 12px;background-image:linear-gradient(45deg,transparent 50%,var(--acc) 50%),linear-gradient(135deg,var(--acc) 50%,transparent 50%);background-position:calc(100% - 14px) 52%,calc(100% - 9px) 52%;background-size:5px 5px,5px 5px;background-repeat:no-repeat;}
+  select:focus{outline:none;border:none;box-shadow:0 0 0 2px var(--acc);}
+  input[type=range]{accent-color:var(--acc);}
+
+  /* Charts */
+  .cbox{padding:14px 14px 6px;}
+  .ovbox{padding:7px 9px 3px;}
+  .hint{color:var(--muted);opacity:.75;font-size:9px;}
+  #cards{gap:8px;}
+  #statsstrip{padding:12px 16px;}
+  #stripcontext{color:var(--acc);letter-spacing:.12em;}
+  #tooltip{border-radius:16px;}
+
+  /* Tables */
+  table{font-size:10.5px;}
+  thead th{background:var(--pill);color:var(--muted);border-bottom:none;padding:9px 11px;font-size:8px;letter-spacing:.10em;}
+  tbody tr{border-bottom:1px solid rgba(127,127,127,.12);}
+  tbody td{padding:8px 11px;}
+  tbody tr:hover td{background:var(--sel-fill);}
+  tbody tr.hl td{background:rgba(10,132,255,.16)!important;}
+  tbody tr.best td{color:var(--acc-g);font-weight:700;}
 </style>
 
 <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" crossorigin=""/>
@@ -433,7 +496,7 @@ body.light .hdrname{color:#fff;}
   <!-- Loaded session tabs (shown when 2+ files loaded) -->
   <div id="sesstabs"></div>
   <!-- Units toggle bar -->
-  <div id="unitsbar" style="padding:6px 12px 5px;background:var(--s2);border-bottom:1px solid var(--border);gap:4px;flex-wrap:wrap;align-items:center;"></div>
+  <div id="unitsbar" class="brsettings"></div>
   <!-- Summary cards -->
   <div id="cards"></div>
   <!-- Overview minimap -->
@@ -448,7 +511,7 @@ body.light .hdrname{color:#fff;}
       <h2>Stroke Chart</h2>
       <div style="display:flex;align-items:center;gap:6px;margin-left:auto;flex-wrap:wrap;">
         <button class="zoom-btn" onclick="window.zoomChart(1)">＋</button>
-        <input type="range" id="zoomSlider" min="0" max="100" value="100" style="width:70px;cursor:pointer;accent-color:var(--g);" oninput="window.zoomSlide(this.value)">
+        <input type="range" id="zoomSlider" min="0" max="100" value="100" style="width:70px;cursor:pointer;accent-color:var(--acc);" oninput="window.zoomSlide(this.value)">
         <button class="zoom-btn" onclick="window.zoomChart(-1)">－</button>
         <span style="font-size:9px;color:var(--muted);margin-left:4px;">X:</span>
         <select id="xmode">
@@ -471,7 +534,7 @@ body.light .hdrname{color:#fff;}
     <div class="cbox"><canvas id="mainC" height="250"></canvas><canvas id="vidLineC"></canvas>
       <div class="hint">Drag to select · scroll to zoom · swipe/scroll sideways to pan · double-click to reset</div>
     </div>
-    <div id="panBarWrap" style="display:none;padding:1px 11px 0;"><input type="range" id="panSlider" min="0" max="100" value="0" style="width:100%;cursor:pointer;accent-color:var(--g);margin:0;" oninput="window.panSlide(this.value)"></div>
+    <div id="panBarWrap" style="display:none;padding:1px 11px 0;"><input type="range" id="panSlider" min="0" max="100" value="0" style="width:100%;cursor:pointer;accent-color:var(--acc);margin:0;" oninput="window.panSlide(this.value)"></div>
   </div>
 
   <!-- Stats strip: selection or view averages -->
@@ -3521,16 +3584,15 @@ function buildUnitsBar() {
   const bar = document.getElementById('unitsbar');
   if (!bar) return;
   function seg(key, options) {
-    return options.map(([v,l]) =>
-      `<button onclick="setUnitsAndRebuild('${key}','${v}')" style="padding:3px 8px;border-radius:3px;border:1px solid var(--border);background:${unitSettings[key]===v?'var(--b)':'var(--s3)'};color:${unitSettings[key]===v?'#000':'var(--muted)'};font-family:-apple-system, BlinkMacSystemFont, Helvetica Neue, sans-serif;font-size:10px;cursor:pointer;">${l}</button>`
-    ).join('');
+    return '<span class="segwrap">' + options.map(([v,l]) =>
+      `<button class="segbtn${unitSettings[key]===v?' on':''}" onclick="setUnitsAndRebuild('${key}','${v}')">${l}</button>`
+    ).join('') + '</span>';
   }
   bar.innerHTML =
-    `<span style="color:var(--muted);font-size:10px;margin-right:2px;">Boat</span>${seg('boatClass',[['scull','Scull'],['sweep','Sweep']])}` +
-    `<span style="color:var(--muted);font-size:10px;margin-left:8px;margin-right:2px;">Pace</span>${seg('paceUnit',[['pace500','/500m'],['pace1000','/1km'],['kph','km/h'],['pacemile','/mi'],['mph','mph']])}` +
-    `<span style="color:var(--muted);font-size:10px;margin-left:8px;margin-right:2px;">Dist</span>${seg('distUnit',[['km','km'],['mi','mi']])}` +
-    `<span style="color:var(--muted);font-size:10px;margin-left:8px;margin-right:2px;">Sub</span>${seg('dpsUnit',[['m','m'],['ft','ft'],['in','in']])}` +
-    (HR.length>10?`<span style="color:var(--muted);font-size:10px;margin-left:8px;margin-right:2px;">HR zones</span>`+hrZones.map((v,i)=>`<input type="number" value="${v}" min="40" max="230" title="Z${i+1} upper limit (bpm)" onchange="setHRZone(${i},this.value)" style="width:44px;padding:2px 4px;border-radius:3px;border:1px solid ${HR_ZONE_COLORS[i]};background:var(--s3);color:${HR_ZONE_COLORS[i]};font-family:-apple-system, BlinkMacSystemFont, Helvetica Neue, sans-serif;font-size:10px;">`).join(''):'');
+    `<span class="seglbl">Pace</span>${seg('paceUnit',[['pace500','/500m'],['pace1000','/1km'],['kph','km/h'],['pacemile','/mi'],['mph','mph']])}` +
+    `<span class="seglbl">Dist</span>${seg('distUnit',[['km','km'],['mi','mi']])}` +
+    `<span class="seglbl">Sub</span>${seg('dpsUnit',[['m','m'],['ft','ft'],['in','in']])}` +
+    (HR.length>10?`<span class="seglbl">HR zones</span><span class="segwrap">`+hrZones.map((v,i)=>`<input class="hrzin" type="number" value="${v}" min="40" max="230" title="Z${i+1} upper limit (bpm)" onchange="setHRZone(${i},this.value)" style="border-color:${HR_ZONE_COLORS[i]};color:${HR_ZONE_COLORS[i]};">`).join('')+`</span>`:'');
 }
 window.setUnitsAndRebuild = setUnitsAndRebuild;
 
