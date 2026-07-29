@@ -426,6 +426,8 @@ body.light .hdrname{color:#fff;}
   .hmenu #tcxbtn:hover{border-left-color:var(--acc-o);color:var(--acc-o);}
   .hmenu #fitbtn{border-left-color:var(--acc-g);}
   .hmenu #fitbtn:hover{border-left-color:var(--acc-g);color:var(--acc-g);}
+  .hmenu #jsonbtn{border-left-color:var(--acc-y);}
+  .hmenu #jsonbtn:hover{border-left-color:var(--acc-y);color:var(--acc-y);}
 
   /* Section headers / buttons */
   .sec-hd h2{font-size:10px;letter-spacing:.14em;color:var(--acc);font-weight:700;}
@@ -475,6 +477,7 @@ body.light .hdrname{color:#fff;}
     <div class="hmenu" id="filemenu">
       <button class="hbtn" id="resetbtn" style="display:none;"><img class="hmenu-icon" src="icons/Open.svg"><span>Open New File</span></button>
       <button class="hbtn" id="addcompbtn" style="display:none;"><img class="hmenu-icon" src="icons/Add.svg"><span>Add for comparison</span></button>
+      <button class="hbtn" id="jsonbtn" style="display:none;"><img class="hmenu-icon" src="icons/Export.svg"><span>Share JSON</span></button>
       <button class="hbtn" id="tcxbtn" style="display:none;"><img class="hmenu-icon" src="icons/Export.svg"><span>Export TCX</span></button>
       <button class="hbtn" id="fitbtn" style="display:none;"><img class="hmenu-icon" src="icons/Export.svg"><span>Export FIT (Recommended)</span></button>
     </div>
@@ -3614,6 +3617,7 @@ function mountData(d,label){
   document.getElementById('app').style.display='block';
   document.getElementById('tcxbtn').style.display='';
   document.getElementById('fitbtn').style.display='';
+  document.getElementById('jsonbtn').style.display='';
   document.getElementById('resetbtn').style.display='';
   document.getElementById('addcompbtn').style.display='';
   document.getElementById('filemenubtn').style.display='';
@@ -3647,6 +3651,7 @@ function resetApp(){
   document.getElementById('unitsbar').style.display='none';
   document.getElementById('tcxbtn').style.display='none';
   document.getElementById('fitbtn').style.display='none';
+  document.getElementById('jsonbtn').style.display='none';
   document.getElementById('resetbtn').style.display='none';
   document.getElementById('addcompbtn').style.display='none';
   document.getElementById('fin').value='';
@@ -4059,6 +4064,16 @@ ${trackpoints}        </Track>
   a.download=boatrunFname()+'.tcx';
   a.click();URL.revokeObjectURL(url);toast('TCX exported');
 }
+function exportJSON() {
+  if (!ST.length) { toast('No session loaded'); return; }
+  const data = { name:_lastLabel, sum:_lastSum, strokes:ST, hr:HR, laps:LAPS, gpsTrace:GPSTRACE };
+  const json = JSON.stringify(data);
+  const blob = new Blob([json], {type:'application/json'});
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a'); a.href = url;
+  a.download = boatrunFname() + '.json';
+  a.click(); URL.revokeObjectURL(url); toast('JSON exported');
+}
 // ── FIT Export ──────────────────────────────────────────────────────────────
 function fitCrc16(bytes) {
   const T = [0x0000, 0xCC01, 0xD801, 0x1400, 0xF001, 0x3C00, 0x2800, 0xE401, 0xA001, 0x6C00, 0x7800, 0xB401, 0x5000, 0x9C01, 0x8801, 0x4400];
@@ -4397,6 +4412,7 @@ function showPlanModal(msg){
 document.getElementById('resetbtn').onclick=()=>document.getElementById('openbtn').click();
 document.getElementById('tcxbtn').onclick=exportTCX;
 document.getElementById('fitbtn').onclick=exportFIT;
+document.getElementById('jsonbtn').onclick=exportJSON;
 document.getElementById('openbtn').onclick=()=>{const s=document.getElementById('startup');if(s.innerHTML&&s.style.display!=='none'){s.style.display='none';s.innerHTML='';}else{showStartup();}};
 document.getElementById('infobtn').onclick=showInfoModal;
 document.getElementById('reorderbtn').onclick=showReorderModal;
