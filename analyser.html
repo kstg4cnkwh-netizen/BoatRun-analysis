@@ -3460,6 +3460,7 @@ async function showStartup(){
     </div>
     <div class="sz-lhd">Sessions<span class="sz-signout" id="sz-signout">Sign out</span></div>
     <input type="text" id="sz-search" placeholder="Search sessions…" autocomplete="off" style="display:block;width:100%;box-sizing:border-box;padding:10px 12px;margin-bottom:10px;background:var(--s2);border:1px solid var(--border);border-radius:8px;color:var(--text);font-size:.85rem;font-family:-apple-system, BlinkMacSystemFont, Helvetica Neue, sans-serif;">
+    <div id="sz-filterbar" style="display:flex;gap:6px;margin-bottom:10px;flex-wrap:wrap;"></div>
     <div id="sz-files" class="sz-loading">Loading…</div>
   </div>`;
   document.getElementById('sz-signout').onclick=()=>{AnalyserDrive.signOut();showStartup();};
@@ -3481,8 +3482,30 @@ async function showStartup(){
     if(!files.length){container.innerHTML='<div class="sz-loading">No sessions on Drive</div>';return;}
     let fileList=[...files];
     let searchQuery='';
+    let favOnly=false;
+    let sortBy=null;
+    let sortDir='desc';
     const searchInput=document.getElementById('sz-search');
     if(searchInput) searchInput.oninput=()=>{searchQuery=searchInput.value.trim().toLowerCase();renderList();};
+    const filterBar=document.getElementById('sz-filterbar');
+    if(filterBar){
+      filterBar.innerHTML='<button id="sz-fav-btn" style="padding:7px 12px;background:transparent;border:1px solid var(--border);border-radius:8px;color:var(--muted);cursor:pointer;font-size:.8rem;">★ Favourites</button>'
+        +'<button id="sz-sort-dist" style="padding:7px 12px;background:transparent;border:1px solid var(--border);border-radius:8px;color:var(--muted);cursor:pointer;font-size:.8rem;">Distance</button>'
+        +'<button id="sz-sort-time" style="padding:7px 12px;background:transparent;border:1px solid var(--border);border-radius:8px;color:var(--muted);cursor:pointer;font-size:.8rem;">Time</button>';
+      document.getElementById('sz-fav-btn').onclick=()=>{favOnly=!favOnly;renderList();};
+      document.getElementById('sz-sort-dist').onclick=()=>{
+        if(sortBy!=='distance'){sortBy='distance';sortDir='desc';}
+        else if(sortDir==='desc'){sortDir='asc';}
+        else {sortBy=null;}
+        renderList();
+      };
+      document.getElementById('sz-sort-time').onclick=()=>{
+        if(sortBy!=='time'){sortBy='time';sortDir='desc';}
+        else if(sortDir==='desc'){sortDir='asc';}
+        else {sortBy=null;}
+        renderList();
+      };
+    }
     document.getElementById('sz-rescan').onclick=async()=>{
       const btn=document.getElementById('sz-rescan');
       btn.disabled=true;
@@ -3581,17 +3604,48 @@ async function showStartup(){
       renderSummary();
       renderRecords();
       container.innerHTML='';
+      const favBtn=document.getElementById('sz-fav-btn');
+      if(favBtn){
+        favBtn.style.borderColor=favOnly?'var(--b)':'var(--border)';
+        favBtn.style.color=favOnly?'var(--b)':'var(--muted)';
+        favBtn.style.fontWeight=favOnly?'700':'400';
+      }
+      const distBtn=document.getElementById('sz-sort-dist');
+      if(distBtn){
+        const on=sortBy==='distance';
+        distBtn.textContent='Distance'+(on?(sortDir==='desc'?' ▼':' ▲'):'');
+        distBtn.style.borderColor=on?'var(--b)':'var(--border)';
+        distBtn.style.color=on?'var(--b)':'var(--muted)';
+        distBtn.style.fontWeight=on?'700':'400';
+      }
+      const timeBtn=document.getElementById('sz-sort-time');
+      if(timeBtn){
+        const on=sortBy==='time';
+        timeBtn.textContent='Time'+(on?(sortDir==='desc'?' ▼':' ▲'):'');
+        timeBtn.style.borderColor=on?'var(--b)':'var(--border)';
+        timeBtn.style.color=on?'var(--b)':'var(--muted)';
+        timeBtn.style.fontWeight=on?'700':'400';
+      }
+
       const q=searchQuery;
-      const sorted=[...fileList].sort((a,b)=>{
-        const fa=parseFn(a.name).favourite?1:0, fb=parseFn(b.name).favourite?1:0;
-        return fb-fa;
-      });
-      const shown=sorted.filter(f=>{
-        if(!q) return true;
+      let shown=fileList.filter(f=>{
         const p=parseFn(f.name);
+        if(favOnly&&!p.favourite) return false;
+        if(!q) return true;
         const hay=[p.name,f.name,p.squadCode,p.axis,p.workout].filter(Boolean).join(' ').toLowerCase();
         return hay.includes(q);
       });
+      if(sortBy){
+        shown=[...shown].sort((a,b)=>{
+          const pa=parseFn(a.name),pb=parseFn(b.name);
+          const va=sortBy==='distance'?pa.distM:pa.durS;
+          const vb=sortBy==='distance'?pb.distM:pb.durS;
+          if(va==null&&vb==null) return 0;
+          if(va==null) return 1;
+          if(vb==null) return -1;
+          return sortDir==='desc'?vb-va:va-vb;
+        });
+      }
       shown.forEach(f=>{
         const p=parseFn(f.name);
         const dateStr=p.approxTs
@@ -3657,7 +3711,7 @@ async function showStartup(){
       if(!shown.length){
         const empty=document.createElement('div');
         empty.style.cssText='color:var(--muted);font-size:.85rem;padding:8px 0;';
-        empty.textContent=q?'No sessions match your search.':'No sessions on Drive.';
+        empty.textContent=(q||favOnly)?'No sessions match your filters.':'No sessions on Drive.';
         container.appendChild(empty);
       }
     }
