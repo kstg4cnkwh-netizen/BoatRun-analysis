@@ -1614,48 +1614,160 @@ async function showAddComparePicker() {
                 const files = await AnalyserDrive.list();
                 if (!files.length) { content.innerHTML = '<div class="sz-loading">No sessions on Drive.</div>'; return; }
                 content.innerHTML = '';
-                files.forEach(f => {
-                    const dist = f.name.match(/_(\d+)m_/);
-                    const dur = f.name.match(/_(\d{2})h(\d{2})m(\d{2})s/);
-                    const nm = f.name.match(/_NAME([a-zA-Z0-9-]+)/);
-                    const str = f.name.match(/_(\d+)str/);
-                    const ts = f.name.match(/RowSess_(\d{4})-(\d{2})-(\d{2})_(\d{2})(\d{2})/);
-                    const distM = dist ? parseInt(dist[1]) : null;
-                    const durS = dur ? +dur[1]*3600 + +dur[2]*60 + +dur[3] : null;
-                    const name = nm ? nm[1].replace(/-/g,' ') : null;
-                    const strokes = str ? parseInt(str[1]) : null;
-                    const approxTs = ts ? new Date(+ts[1],+ts[2]-1,+ts[3],+ts[4],+ts[5]).getTime() : 0;
-                    const dateStr = approxTs
-                        ? new Date(approxTs).toLocaleDateString('en-AU',{day:'numeric',month:'short',year:'numeric'})+' '+new Date(approxTs).toLocaleTimeString('en-AU',{hour:'2-digit',minute:'2-digit'})
-                        : new Date(f.createdTime).toLocaleDateString();
-                    const pace = distM && durS ? durS/distM*500 : null;
-                    const btn = document.createElement('div');
-                    btn.className = 'asc';
-                    btn.style.marginBottom = '6px';
-                    if (name) { const nd=document.createElement('div');nd.style.cssText='font-weight:700;font-size:.85rem;color:var(--text);margin-bottom:2px;';nd.textContent=name;btn.appendChild(nd); }
-                    const dd = document.createElement('div'); dd.className='asc-date';
-                    dd.innerHTML = '<span>' + dateStr + '</span>';
-                    btn.appendChild(dd);
-                    const sd = document.createElement('div'); sd.className='asc-stats';
-                    if(distM!=null)sd.innerHTML+='<div><span class="asc-v">'+(distM/1000).toFixed(2)+'</span><span class="asc-l">km</span></div>';
-                    if(durS!=null)sd.innerHTML+='<div><span class="asc-v">'+fmtTime(durS)+'</span><span class="asc-l">time</span></div>';
-                    if(pace!=null)sd.innerHTML+='<div><span class="asc-v">'+fmtPace(pace)+'</span><span class="asc-l">avg pace</span></div>';
-                    if(strokes!=null)sd.innerHTML+='<div><span class="asc-v">'+strokes+'</span><span class="asc-l">strokes</span></div>';
-                    btn.appendChild(sd);
-                    btn.onclick = async () => {
-                        if (btn.dataset.added) return;
-                        btn.style.opacity = '.55'; btn.style.pointerEvents = 'none';
-                        try {
-                            const session = await AnalyserDrive.fetchSession(f.id);
-                            applySessionUnits(session);
-                            addSessionFromData(sessionToAnalyserFmt(session), name || f.name.replace('RowSess_','').replace('.json',''), false, f.id);
-                            btn.dataset.added = '1';
-                            dd.innerHTML += ' <span style="color:var(--b);">\u2713 added</span>';
-                            btn.style.opacity = '1'; btn.style.pointerEvents = '';
-                        } catch (e2) { if(!driveAuthExpired(e2)){ toast('Load failed: ' + e2.message); btn.style.opacity = '1'; btn.style.pointerEvents = ''; } }
+                let daSearchQuery = '';
+                let daFavOnly = false;
+                let daSortBy = null;
+                let daSortDir = 'desc';
+                function parseDA(name) {
+                    const dist = name.match(/_(\d+)m_/);
+                    const dur = name.match(/_(\d{2})h(\d{2})m(\d{2})s/);
+                    const nm = name.match(/_NAME([a-zA-Z0-9-]+)/);
+                    const str = name.match(/_(\d+)str/);
+                    const ts = name.match(/RowSess_(\d{4})-(\d{2})-(\d{2})_(\d{2})(\d{2})/);
+                    const fav = /_FAV1\b/.test(name);
+                    return {
+                        distM: dist ? parseInt(dist[1]) : null,
+                        durS: dur ? +dur[1]*3600 + +dur[2]*60 + +dur[3] : null,
+                        name: nm ? nm[1].replace(/-/g,' ') : null,
+                        strokes: str ? parseInt(str[1]) : null,
+                        favourite: fav,
+                        approxTs: ts ? new Date(+ts[1],+ts[2]-1,+ts[3],+ts[4],+ts[5]).getTime() : 0
                     };
-                    content.appendChild(btn);
-                });
+                }
+                const daBar = document.createElement('div');
+                daBar.style.cssText = 'margin-bottom:10px;';
+                daBar.innerHTML = '<input type="text" id="da-search" placeholder="Search sessions…" autocomplete="off" style="display:block;width:100%;box-sizing:border-box;padding:10px 12px;margin-bottom:8px;background:var(--s2);border:1px solid var(--border);border-radius:8px;color:var(--text);font-size:.85rem;font-family:-apple-system, BlinkMacSystemFont, Helvetica Neue, sans-serif;">'
+                    + '<div style="display:flex;gap:6px;flex-wrap:wrap;">'
+                    + '<button id="da-fav-btn" style="padding:7px 12px;background:transparent;border:1px solid var(--border);border-radius:8px;color:var(--muted);cursor:pointer;font-size:.8rem;">★ Favourites</button>'
+                    + '<button id="da-sort-dist" style="padding:7px 12px;background:transparent;border:1px solid var(--border);border-radius:8px;color:var(--muted);cursor:pointer;font-size:.8rem;">Distance</button>'
+                    + '<button id="da-sort-time" style="padding:7px 12px;background:transparent;border:1px solid var(--border);border-radius:8px;color:var(--muted);cursor:pointer;font-size:.8rem;">Time</button>'
+                    + '</div>';
+                content.appendChild(daBar);
+                const daRows = document.createElement('div');
+                content.appendChild(daRows);
+                function renderDA() {
+                    const favBtn = document.getElementById('da-fav-btn');
+                    if (favBtn) {
+                        favBtn.style.borderColor = daFavOnly ? 'var(--b)' : 'var(--border)';
+                        favBtn.style.color = daFavOnly ? 'var(--b)' : 'var(--muted)';
+                        favBtn.style.fontWeight = daFavOnly ? '700' : '400';
+                    }
+                    const distBtn = document.getElementById('da-sort-dist');
+                    if (distBtn) {
+                        const on = daSortBy === 'distance';
+                        distBtn.textContent = 'Distance' + (on ? (daSortDir === 'desc' ? ' ▼' : ' ▲') : '');
+                        distBtn.style.borderColor = on ? 'var(--b)' : 'var(--border)';
+                        distBtn.style.color = on ? 'var(--b)' : 'var(--muted)';
+                        distBtn.style.fontWeight = on ? '700' : '400';
+                    }
+                    const timeBtn = document.getElementById('da-sort-time');
+                    if (timeBtn) {
+                        const on = daSortBy === 'time';
+                        timeBtn.textContent = 'Time' + (on ? (daSortDir === 'desc' ? ' ▼' : ' ▲') : '');
+                        timeBtn.style.borderColor = on ? 'var(--b)' : 'var(--border)';
+                        timeBtn.style.color = on ? 'var(--b)' : 'var(--muted)';
+                        timeBtn.style.fontWeight = on ? '700' : '400';
+                    }
+                    daRows.innerHTML = '';
+                    const q = daSearchQuery;
+                    let shown = files.filter(f => {
+                        const p = parseDA(f.name);
+                        if (daFavOnly && !p.favourite) return false;
+                        if (!q) return true;
+                        const hay = [p.name, f.name].filter(Boolean).join(' ').toLowerCase();
+                        return hay.includes(q);
+                    });
+                    if (daSortBy) {
+                        shown = [...shown].sort((a,b) => {
+                            const pa = parseDA(a.name), pb = parseDA(b.name);
+                            const va = daSortBy === 'distance' ? pa.distM : pa.durS;
+                            const vb = daSortBy === 'distance' ? pb.distM : pb.durS;
+                            if (va == null && vb == null) return 0;
+                            if (va == null) return 1;
+                            if (vb == null) return -1;
+                            return daSortDir === 'desc' ? vb - va : va - vb;
+                        });
+                    }
+                    if (!shown.length) {
+                        const empty = document.createElement('div');
+                        empty.style.cssText = 'color:var(--muted);font-size:.85rem;padding:8px 0;';
+                        empty.textContent = (q || daFavOnly) ? 'No sessions match your filters.' : 'No sessions on Drive.';
+                        daRows.appendChild(empty);
+                        return;
+                    }
+                    shown.forEach(f => {
+                        const p = parseDA(f.name);
+                        const distM = p.distM, durS = p.durS, name = p.name, strokes = p.strokes;
+                        const dateStr = p.approxTs
+                            ? new Date(p.approxTs).toLocaleDateString('en-AU',{day:'numeric',month:'short',year:'numeric'})+' '+new Date(p.approxTs).toLocaleTimeString('en-AU',{hour:'2-digit',minute:'2-digit'})
+                            : new Date(f.createdTime).toLocaleDateString();
+                        const pace = distM && durS ? durS/distM*500 : null;
+                        const isFav = p.favourite;
+
+                        const row = document.createElement('div');
+                        row.style.cssText = 'display:flex;align-items:center;gap:6px;margin-bottom:6px;';
+
+                        const star = document.createElement('button');
+                        star.textContent = isFav ? '★' : '☆';
+                        star.title = isFav ? 'Remove favourite' : 'Add favourite';
+                        star.style.cssText = 'padding:9px 10px;background:'+(isFav?'rgba(241,196,15,.15)':'transparent')+';border:1px solid var(--border);border-radius:8px;color:'+(isFav?'#f1c40f':'var(--muted)')+';cursor:pointer;font-size:.95rem;flex-shrink:0;';
+                        star.onclick = async () => {
+                            const wantFav = !isFav;
+                            star.disabled = true; star.style.opacity = '.5';
+                            try {
+                                const newName = await AnalyserDrive.patchFavourite(f.id, wantFav);
+                                f.name = newName;
+                                renderDA();
+                            } catch (e) {
+                                toast('Favourite failed: ' + e.message);
+                                star.disabled = false; star.style.opacity = '1';
+                            }
+                        };
+
+                        const btn = document.createElement('div');
+                        btn.className = 'asc';
+                        btn.style.marginBottom = '0';
+                        if (name) { const nd=document.createElement('div');nd.style.cssText='font-weight:700;font-size:.85rem;color:var(--text);margin-bottom:2px;';nd.textContent=name;btn.appendChild(nd); }
+                        const dd = document.createElement('div'); dd.className='asc-date';
+                        dd.innerHTML = '<span>' + dateStr + '</span>';
+                        btn.appendChild(dd);
+                        const sd = document.createElement('div'); sd.className='asc-stats';
+                        if(distM!=null)sd.innerHTML+='<div><span class="asc-v">'+(distM/1000).toFixed(2)+'</span><span class="asc-l">km</span></div>';
+                        if(durS!=null)sd.innerHTML+='<div><span class="asc-v">'+fmtTime(durS)+'</span><span class="asc-l">time</span></div>';
+                        if(pace!=null)sd.innerHTML+='<div><span class="asc-v">'+fmtPace(pace)+'</span><span class="asc-l">avg pace</span></div>';
+                        if(strokes!=null)sd.innerHTML+='<div><span class="asc-v">'+strokes+'</span><span class="asc-l">strokes</span></div>';
+                        btn.appendChild(sd);
+                        btn.onclick = async () => {
+                            if (btn.dataset.added) return;
+                            btn.style.opacity = '.55'; btn.style.pointerEvents = 'none';
+                            try {
+                                const session = await AnalyserDrive.fetchSession(f.id);
+                                applySessionUnits(session);
+                                addSessionFromData(sessionToAnalyserFmt(session), name || f.name.replace('RowSess_','').replace('.json',''), false, f.id);
+                                btn.dataset.added = '1';
+                                dd.innerHTML += ' <span style="color:var(--b);">\u2713 added</span>';
+                                btn.style.opacity = '1'; btn.style.pointerEvents = '';
+                            } catch (e2) { if(!driveAuthExpired(e2)){ toast('Load failed: ' + e2.message); btn.style.opacity = '1'; btn.style.pointerEvents = ''; } }
+                        };
+                        row.appendChild(star); row.appendChild(btn);
+                        daRows.appendChild(row);
+                    });
+                }
+                document.getElementById('da-search').oninput = (e) => { daSearchQuery = e.target.value.trim().toLowerCase(); renderDA(); };
+                document.getElementById('da-fav-btn').onclick = () => { daFavOnly = !daFavOnly; renderDA(); };
+                document.getElementById('da-sort-dist').onclick = () => {
+                    if (daSortBy !== 'distance') { daSortBy = 'distance'; daSortDir = 'desc'; }
+                    else if (daSortDir === 'desc') { daSortDir = 'asc'; }
+                    else { daSortBy = null; }
+                    renderDA();
+                };
+                document.getElementById('da-sort-time').onclick = () => {
+                    if (daSortBy !== 'time') { daSortBy = 'time'; daSortDir = 'desc'; }
+                    else if (daSortDir === 'desc') { daSortDir = 'asc'; }
+                    else { daSortBy = null; }
+                    renderDA();
+                };
+                renderDA();
             } catch (e) { content.innerHTML = '<div class="sz-loading" style="color:#e74c3c;">Drive error: ' + e.message + '</div>'; }
         }
     }
