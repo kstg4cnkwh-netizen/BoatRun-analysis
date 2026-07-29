@@ -3459,6 +3459,7 @@ async function showStartup(){
       <button class="dzbtn dzbtn-sec" id="sz-resetrecords" style="flex:1;margin-top:0;"><img src="icons/Reset.svg"><span>Reset Records</span></button>
     </div>
     <div class="sz-lhd">Sessions<span class="sz-signout" id="sz-signout">Sign out</span></div>
+    <input type="text" id="sz-search" placeholder="Search sessions…" autocomplete="off" style="display:block;width:100%;box-sizing:border-box;padding:10px 12px;margin-bottom:10px;background:var(--s2);border:1px solid var(--border);border-radius:8px;color:var(--text);font-size:.85rem;font-family:-apple-system, BlinkMacSystemFont, Helvetica Neue, sans-serif;">
     <div id="sz-files" class="sz-loading">Loading…</div>
   </div>`;
   document.getElementById('sz-signout').onclick=()=>{AnalyserDrive.signOut();showStartup();};
@@ -3479,6 +3480,9 @@ async function showStartup(){
     if(!container)return;
     if(!files.length){container.innerHTML='<div class="sz-loading">No sessions on Drive</div>';return;}
     let fileList=[...files];
+    let searchQuery='';
+    const searchInput=document.getElementById('sz-search');
+    if(searchInput) searchInput.oninput=()=>{searchQuery=searchInput.value.trim().toLowerCase();renderList();};
     document.getElementById('sz-rescan').onclick=async()=>{
       const btn=document.getElementById('sz-rescan');
       btn.disabled=true;
@@ -3505,6 +3509,7 @@ async function showStartup(){
       const wkt=name.match(/_WKT([a-zA-Z0-9\-]+)/);
       const nm=name.match(/_NAME([a-zA-Z0-9\-]+)/);
       const sq=name.match(/_SQ([A-Z0-9]{1,8})/);
+      const fav=/_FAV1\b/.test(name);
       const ts=name.match(/RowSess_(\d{4})-(\d{2})-(\d{2})_(\d{2})(\d{2})/);
       return {
         distM: dist?parseInt(dist[1]):null,
@@ -3514,6 +3519,7 @@ async function showStartup(){
         workout: wkt?wkt[1].replace(/-/g,' '):null,
         name: nm?nm[1].replace(/-/g,' '):null,
         squadCode: sq?sq[1]:null,
+        favourite: fav,
         approxTs: ts?new Date(+ts[1],+ts[2]-1,+ts[3],+ts[4],+ts[5]).getTime():0
       };
     }
@@ -3575,14 +3581,43 @@ async function showStartup(){
       renderSummary();
       renderRecords();
       container.innerHTML='';
-      fileList.forEach(f=>{
+      const q=searchQuery;
+      const sorted=[...fileList].sort((a,b)=>{
+        const fa=parseFn(a.name).favourite?1:0, fb=parseFn(b.name).favourite?1:0;
+        return fb-fa;
+      });
+      const shown=sorted.filter(f=>{
+        if(!q) return true;
+        const p=parseFn(f.name);
+        const hay=[p.name,f.name,p.squadCode,p.axis,p.workout].filter(Boolean).join(' ').toLowerCase();
+        return hay.includes(q);
+      });
+      shown.forEach(f=>{
         const p=parseFn(f.name);
         const dateStr=p.approxTs
           ?new Date(p.approxTs).toLocaleDateString('en-AU',{day:'numeric',month:'short',year:'numeric'})+' '+new Date(p.approxTs).toLocaleTimeString('en-AU',{hour:'2-digit',minute:'2-digit'})
           :new Date(f.createdTime).toLocaleDateString();
         const pace=p.distM&&p.durS?(p.durS/p.distM*500):null;
+        const isFav=p.favourite;
 
         const row=document.createElement('div');row.className='sz-file-row';
+
+        const star=document.createElement('button');
+        star.textContent=isFav?'★':'☆';
+        star.title=isFav?'Remove favourite':'Add favourite';
+        star.style.cssText='padding:9px 10px;background:'+(isFav?'rgba(241,196,15,.15)':'transparent')+';border:1px solid var(--border);border-radius:8px;color:'+(isFav?'#f1c40f':'var(--muted)')+';cursor:pointer;font-size:.95rem;flex-shrink:0;';
+        star.onclick=async()=>{
+          const wantFav=!isFav;
+          star.disabled=true;star.style.opacity='.5';
+          try{
+            const newName=await AnalyserDrive.patchFavourite(f.id,wantFav);
+            f.name=newName;
+            renderList();
+          }catch(e){
+            toast('Favourite failed: '+e.message);
+            star.disabled=false;star.style.opacity='1';
+          }
+        };
 
         const btn=document.createElement('div');btn.className='asc';
         btn.onclick=async()=>{
@@ -3604,7 +3639,7 @@ async function showStartup(){
         if(p.durS!=null) statsDiv.innerHTML+='<div><span class="asc-v">'+fmtTime(p.durS)+'</span><span class="asc-l">time</span></div>';
         if(pace!=null) statsDiv.innerHTML+='<div><span class="asc-v">'+fmtPace(pace)+'</span><span class="asc-l">avg pace</span></div>';
         if(p.strokes!=null) statsDiv.innerHTML+='<div><span class="asc-v">'+p.strokes+'</span><span class="asc-l">strokes</span></div>';
-        if(!p.distM&&!p.durS) statsDiv.innerHTML='<span style="color:var(--muted);font-size:.8rem;">'+f.name.replace('RowSess_','').replace('.json','')+'</span>';
+        if(!p.distM&&!p.durS) statsDiv.innerHTML='<span style="color:var(--muted);font-size:.8rem;">'+f.name.replace('RowSess_','').replace('.json','').replace('_FAV1','')+'</span>';
 
         if(p.name){const nameDiv=document.createElement('div');nameDiv.style.cssText='font-weight:700;font-size:.85rem;color:var(--text);margin-bottom:2px;';nameDiv.textContent=p.name;btn.appendChild(nameDiv);}
         btn.appendChild(dateDiv);btn.appendChild(statsDiv);
@@ -3616,9 +3651,15 @@ async function showStartup(){
           try{await AnalyserDrive.deleteFile(f.id);fileList=fileList.filter(x=>x.id!==f.id);renderList();}
           catch(e){toast('Delete failed: '+e.message);del.innerHTML='<img src="icons/Delete.svg">';del.disabled=false;}
         };
-        row.appendChild(btn);row.appendChild(del);
+        row.appendChild(star);row.appendChild(btn);row.appendChild(del);
         container.appendChild(row);
       });
+      if(!shown.length){
+        const empty=document.createElement('div');
+        empty.style.cssText='color:var(--muted);font-size:.85rem;padding:8px 0;';
+        empty.textContent=q?'No sessions match your search.':'No sessions on Drive.';
+        container.appendChild(empty);
+      }
     }
     renderList();
   }catch(err){
