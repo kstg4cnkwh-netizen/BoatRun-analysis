@@ -3526,7 +3526,7 @@ function buildStrokeTable(){
 function hlRows(idxs, doScroll=true){
   const set=new Set(idxs);
   document.querySelectorAll('#stb tr').forEach(r=>{r.classList.toggle('hl',set.has(+r.dataset.i));});
-  if(doScroll&&idxs.length){const f=document.querySelector(`#stb tr[data-i="${idxs[0]}"]`);if(f)f.scrollIntoView({block:'nearest',behavior:'smooth'});}
+  if(doScroll&&idxs.length){const f=document.querySelector(`#stb tr[data-i="${idxs[0]}"]`);if(f)f.scrollIntoView({block:'center',behavior:'smooth'});}
 }
 function applyGroupHighlights(){
   // Build map: absStrokeIdx → [groupIdx, ...]
