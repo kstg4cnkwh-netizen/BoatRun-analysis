@@ -3564,7 +3564,7 @@ function updatePinHighlight(){
   });
   if(_pinnedStrokeIdx>=0){
     const _pr=document.querySelector(`#stb tr[data-i="${_pinnedStrokeIdx}"]`);
-    if(_pr)_pr.scrollIntoView({block:'nearest',behavior:'smooth'});
+    if(_pr)_pr.scrollIntoView({block:'center',behavior:'smooth'});
   }
 }
 function updateMapPin(){
