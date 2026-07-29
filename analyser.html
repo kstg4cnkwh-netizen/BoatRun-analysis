@@ -266,7 +266,7 @@
 .sumnav button:disabled:hover{border-color:var(--border);color:var(--muted);}
 .sumnav-lbl{font-size:9px;color:var(--text);font-weight:600;}
 .hmenu-wrap{position:relative;display:inline-block;}
-.hmenu{position:absolute;top:calc(100% + 4px);right:0;background:var(--s2);border:1px solid var(--border);border-radius:10px;padding:6px;display:none;flex-direction:column;gap:4px;min-width:175px;z-index:50;box-shadow:0 8px 24px rgba(0,0,0,.3);}
+.hmenu{position:fixed;top:auto;right:auto;background:var(--s2);border:1px solid var(--border);border-radius:10px;padding:6px;display:none;flex-direction:column;gap:4px;min-width:175px;max-width:calc(100vw - 24px);z-index:50;box-shadow:0 8px 24px rgba(0,0,0,.3);}
 .hmenu.open{display:flex;}
 .hmenu .hbtn{display:flex;align-items:center;gap:8px;width:100%;text-align:left;color:var(--text);background:transparent;}
 .hmenu .hbtn:hover{border-color:var(--b);color:var(--b);background:var(--sel-fill);}
@@ -4403,7 +4403,7 @@ document.getElementById('reorderbtn').onclick=showReorderModal;
 document.getElementById('aboutbtn').onclick=showAboutModal;
 document.getElementById('planbtn').onclick=()=>showPlanModal();
 document.getElementById('gdrivebtn').onclick=()=>{ if (AnalyserDrive.isSignedIn()) { toast('Already signed in to Google Drive'); return; } AnalyserDrive.signIn(); };
-document.getElementById('filemenubtn').onclick=(e)=>{e.stopPropagation();document.getElementById('filemenu').classList.toggle('open');};
+document.getElementById('filemenubtn').onclick=(e)=>{e.stopPropagation();const m=document.getElementById('filemenu');const willOpen=!m.classList.contains('open');if(willOpen){const r=e.currentTarget.getBoundingClientRect();const mw=Math.min(215,window.innerWidth-24);let left=r.right-mw;if(left<12)left=12;if(left+mw>window.innerWidth-12)left=window.innerWidth-12-mw;m.style.left=left+'px';m.style.top=(r.bottom+4)+'px';}m.classList.toggle('open');};
 document.addEventListener('click',()=>{document.getElementById('filemenu').classList.remove('open');});
 document.getElementById('fin').onchange=e=>{
   if(!e.target.files.length)return;
