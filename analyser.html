@@ -1700,6 +1700,17 @@ function showSquadPicker(code, metas) {
     document.body.appendChild(overlay);
 }
 
+function getFavDriveSessions(){
+  try{return JSON.parse(localStorage.getItem('analyser_fav_sessions_v1')||'[]');}
+  catch(e){return [];}
+}
+function toggleFavDriveSession(id){
+  const favs=getFavDriveSessions();
+  const idx=favs.indexOf(id);
+  if(idx>=0) favs.splice(idx,1); else favs.push(id);
+  localStorage.setItem('analyser_fav_sessions_v1',JSON.stringify(favs));
+  return favs;
+}
 function showDrivePicker(files, onSelect) {
   document.getElementById('_drive_picker')?.remove();
   const overlay=document.createElement('div');
@@ -1711,7 +1722,17 @@ function showDrivePicker(files, onSelect) {
   title.textContent='Drive Sessions';
   title.style.cssText='font-size:1rem;font-weight:700;margin-bottom:12px;color:var(--b);font-family:-apple-system, BlinkMacSystemFont, Helvetica Neue, sans-serif;';
   panel.appendChild(title);
+
   let fileList=[...files];
+  let searchQuery='';
+  let favs=getFavDriveSessions();
+
+  const searchBox=document.createElement('input');
+  searchBox.type='text';
+  searchBox.placeholder='Search sessions…';
+  searchBox.style.cssText='width:100%;box-sizing:border-box;padding:8px 10px;margin-bottom:10px;background:var(--s2);border:1px solid var(--border);border-radius:6px;color:var(--text);font-size:.85rem;font-family:-apple-system, BlinkMacSystemFont, Helvetica Neue, sans-serif;';
+  searchBox.oninput=()=>{searchQuery=searchBox.value.trim().toLowerCase();renderList();};
+  panel.appendChild(searchBox);
 
   function parseFn(name){
     const dist=name.match(/_(\d+)m_/);
@@ -1736,16 +1757,34 @@ function showDrivePicker(files, onSelect) {
   function renderList(){
     [...panel.querySelectorAll('.drive-file-row')].forEach(el=>el.remove());
     const cancel=panel.querySelector('.drive-cancel-btn');
-    fileList.forEach(f=>{
+    const sorted=[...fileList].sort((a,b)=>{
+      const fa=favs.includes(a.id)?1:0, fb=favs.includes(b.id)?1:0;
+      return fb-fa;
+    });
+    const q=searchQuery;
+    const shown=sorted.filter(f=>{
+      if(!q) return true;
+      const p=parseFn(f.name);
+      const hay=[p.name,f.name,p.squadCode,p.axis,p.workout].filter(Boolean).join(' ').toLowerCase();
+      return hay.includes(q);
+    });
+    shown.forEach(f=>{
       const p=parseFn(f.name);
       const dateStr=p.approxTs
         ?new Date(p.approxTs).toLocaleDateString('en-AU',{day:'numeric',month:'short',year:'numeric'})+' '+new Date(p.approxTs).toLocaleTimeString('en-AU',{hour:'2-digit',minute:'2-digit'})
         :new Date(f.createdTime).toLocaleDateString();
       const pace=p.distM&&p.durS?(p.durS/p.distM*500):null;
+      const isFav=favs.includes(f.id);
 
       const row=document.createElement('div');
       row.className='drive-file-row';
       row.style.cssText='display:flex;align-items:center;gap:6px;margin-bottom:6px;';
+
+      const star=document.createElement('button');
+      star.textContent=isFav?'★':'☆';
+      star.title=isFav?'Remove favourite':'Add favourite';
+      star.style.cssText='padding:9px 8px;background:'+(isFav?'rgba(241,196,15,.15)':'transparent')+';border:1px solid var(--border);border-radius:6px;color:'+(isFav?'#f1c40f':'var(--muted)')+';cursor:pointer;font-size:.95rem;flex-shrink:0;';
+      star.onclick=()=>{favs=toggleFavDriveSession(f.id);renderList();};
 
       const btn=document.createElement('div');
       btn.className='asc';
@@ -1785,13 +1824,13 @@ function showDrivePicker(files, onSelect) {
         catch(e){toast('Delete failed: '+e.message);del.textContent='🗑';del.disabled=false;}
       };
 
-      row.appendChild(btn);row.appendChild(del);
+      row.appendChild(star);row.appendChild(btn);row.appendChild(del);
       panel.insertBefore(row,cancel);
     });
-    if(!fileList.length){
+    if(!shown.length){
       const empty=document.createElement('div');
       empty.style.cssText='color:var(--muted);font-size:.85rem;padding:8px 0;';
-      empty.textContent='No sessions on Drive.';
+      empty.textContent=q?'No sessions match your search.':'No sessions on Drive.';
       panel.insertBefore(empty,cancel);
     }
   }
@@ -2214,7 +2253,7 @@ function drawMain(){
   const toYCD=v=>PT+ph-(v-yCDMin)/(yCDMax-yCDMin||1)*ph;
   let yCDurMin=0,yCDurMax=300;
   const cdurAll=[...cdurv,...dtv];
-  if(cdurAll.length){const[lo,hi]=pctBounds(cdurAll,0.03,0.98,0.15);yCDurMin=0;yCDurMax=Math.min(1500,hi);}
+  if(cdurAll.length){const[lo,hi]=pctBounds(cdurAll,0.03,0.97,0.10);yCDurMin=0;yCDurMax=Math.min(1500,hi);}
   const toYCDur=v=>PT+ph-(v-yCDurMin)/(yCDurMax-yCDurMin||1)*ph;
   let yHRMin=60,yHRMax=200;
   if(hrv.length){const[lo,hi]=pctBounds(hrv,0.03,0.97,0.08);yHRMin=Math.max(40,lo);yHRMax=Math.min(220,hi);}
