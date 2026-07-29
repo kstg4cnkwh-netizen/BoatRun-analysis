@@ -3563,10 +3563,6 @@ function updatePinHighlight(){
   document.querySelectorAll('#stb tr').forEach(r=>{
     r.classList.toggle('stroke-pin',+r.dataset.i===_pinnedStrokeIdx);
   });
-  if(_pinnedStrokeIdx>=0){
-    const _pr=document.querySelector(`#stb tr[data-i="${_pinnedStrokeIdx}"]`);
-    if(_pr)_pr.scrollIntoView({block:'center',behavior:'smooth'});
-  }
 }
 function updateMapPin(){
   if(_mapPinMarker){if(leafletMap)leafletMap.removeLayer(_mapPinMarker);_mapPinMarker=null;}
@@ -5603,4 +5599,3 @@ loadAnVidDir();
 #_plan_modal button[style*="border:1px solid var(--border)"]{border:none!important;box-shadow:0 2px 5px rgba(0,0,0,.20);}
 #_about_modal>div>div:first-child{border-radius:22px 22px 0 0!important;border-bottom:none!important;}
 </style>
-v
