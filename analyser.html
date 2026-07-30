@@ -3563,6 +3563,18 @@ function updatePinHighlight(){
   document.querySelectorAll('#stb tr').forEach(r=>{
     r.classList.toggle('stroke-pin',+r.dataset.i===_pinnedStrokeIdx);
   });
+  if(_pinnedStrokeIdx>=0){
+    const _pr=document.querySelector(`#stb tr[data-i="${_pinnedStrokeIdx}"]`);
+    if(_pr){
+      const _wrap=_pr.closest('.twrap');
+      if(_wrap){
+        const _wrapRect=_wrap.getBoundingClientRect();
+        const _prRect=_pr.getBoundingClientRect();
+        const _target=_wrap.scrollTop+(_prRect.top-_wrapRect.top)-(_wrap.clientHeight/2)+(_pr.offsetHeight/2);
+        _wrap.scrollTo({top:_target,behavior:'smooth'});
+      }
+    }
+  }
 }
 function updateMapPin(){
   if(_mapPinMarker){if(leafletMap)leafletMap.removeLayer(_mapPinMarker);_mapPinMarker=null;}
