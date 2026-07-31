@@ -783,6 +783,7 @@ const AnalyserDrive = {
         sessionStorage.setItem('_ad_token', ev.data.token);
         this._updateBtn();
         toast('Signed in with Google');
+        pullPrefsAndApply().catch(()=>{});
         if (typeof showStartup === 'function') showStartup();
       }
     });
@@ -874,6 +875,43 @@ const AnalyserDrive = {
     if (!r.ok) throw new Error('Favourite save failed: HTTP ' + r.status);
     return newName;
   },
+  async pullPrefs() {
+    if (!this._token) return null;
+    try {
+      let fid = localStorage.getItem('_ad_prefs_fid');
+      if (!fid) {
+        const q = encodeURIComponent("name='BoatRunPrefs.json' and trashed=false");
+        const r = await fetch(`https://www.googleapis.com/drive/v3/files?spaces=appDataFolder&q=${q}&fields=files(id)`, { headers: { Authorization: 'Bearer ' + this._token } });
+        if (!r.ok) return null;
+        const d = await r.json();
+        if (d.files && d.files.length) { fid = d.files[0].id; localStorage.setItem('_ad_prefs_fid', fid); }
+      }
+      if (!fid) return null;
+      const r2 = await fetch(`https://www.googleapis.com/drive/v3/files/${fid}?alt=media`, { headers: { Authorization: 'Bearer ' + this._token } });
+      if (!r2.ok) return null;
+      return await r2.json();
+    } catch { return null; }
+  },
+  async pushPrefs(patch) {
+    if (!this._token) return false;
+    try {
+      const cur = (await this.pullPrefs()) || {};
+      const merged = { ...cur, ...patch, updatedAt: Date.now() };
+      let fid = localStorage.getItem('_ad_prefs_fid');
+      const meta = { name: 'BoatRunPrefs.json', mimeType: 'application/json', ...((!fid) ? { parents: ['appDataFolder'] } : {}) };
+      const form = new FormData();
+      form.append('metadata', new Blob([JSON.stringify(meta)], { type: 'application/json' }));
+      form.append('file', new Blob([JSON.stringify(merged)], { type: 'application/json' }));
+      const url = fid
+        ? `https://www.googleapis.com/upload/drive/v3/files/${fid}?uploadType=multipart&fields=id`
+        : 'https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart&fields=id';
+      const r = await fetch(url, { method: fid ? 'PATCH' : 'POST', headers: { Authorization: 'Bearer ' + this._token }, body: form });
+      if (!r.ok) return false;
+      const rd = await r.json();
+      if (rd && rd.id) localStorage.setItem('_ad_prefs_fid', rd.id);
+      return true;
+    } catch { return false; }
+  },
   _check() { if (!this._token) throw new Error('Not signed in to Drive'); },
   _expire() { this._token = null; sessionStorage.removeItem('_ad_token'); this._updateBtn(); },
   _updateBtn() {
@@ -889,6 +927,72 @@ const AnalyserDrive = {
     }
   },
 };
+function mergeRecords(a, b) {
+  const out = { ...a };
+  Object.keys(b || {}).forEach(d => {
+    if (!out[d] || (b[d].timeMs != null && b[d].timeMs < out[d].timeMs)) out[d] = b[d];
+  });
+  return out;
+}
+let _recordsPushTimer = null;
+function schedulePushRecordsToPrefs() {
+  if (!AnalyserDrive.isSignedIn()) return;
+  clearTimeout(_recordsPushTimer);
+  _recordsPushTimer = setTimeout(() => { AnalyserDrive.pushPrefs({ records: RECORDS_DB }).catch(() => {}); }, 2000);
+}
+function pushUnitsToPrefs() {
+  if (!AnalyserDrive.isSignedIn()) return;
+  AnalyserDrive.pushPrefs({ units: { boatClass: unitSettings.boatClass, paceUnit: unitSettings.paceUnit, distUnit: unitSettings.distUnit, dpsUnit: unitSettings.dpsUnit } }).catch(() => {});
+}
+function pushHRZoneBoundsToPrefs() {
+  if (!AnalyserDrive.isSignedIn()) return;
+  AnalyserDrive.pullPrefs().then(cur => {
+    const hz = (cur && cur.hrZones) ? { ...cur.hrZones } : {};
+    hz.zoneBounds = hrZones.slice();
+    AnalyserDrive.pushPrefs({ hrZones: hz }).catch(() => {});
+  }).catch(() => {});
+}
+let _tilesPushTimer = null;
+function schedulePushTilesToPrefs() {
+  if (!AnalyserDrive.isSignedIn()) return;
+  clearTimeout(_tilesPushTimer);
+  _tilesPushTimer = setTimeout(() => {
+    AnalyserDrive.pushPrefs({ tiles: { vis: { ...vis }, hidden: { ...hid }, order: METRIC_DEFS.map(m => m.k) } }).catch(() => {});
+  }, 1500);
+}
+async function pullPrefsAndApply() {
+  if (!AnalyserDrive.isSignedIn()) return;
+  const prefs = await AnalyserDrive.pullPrefs();
+  if (!prefs) return;
+  if (prefs.hrZones && Array.isArray(prefs.hrZones.zoneBounds) && prefs.hrZones.zoneBounds.length === 4) {
+    hrZones = prefs.hrZones.zoneBounds.slice();
+    try { localStorage.setItem('br_hr_zones', JSON.stringify(hrZones)); } catch {}
+  }
+  if (prefs.units) {
+    unitSettings = { ...unitSettings, ...prefs.units };
+  }
+  if (prefs.records) {
+    RECORDS_DB = mergeRecords(RECORDS_DB, prefs.records);
+    try { localStorage.setItem('br_records', JSON.stringify(RECORDS_DB)); } catch {}
+  }
+  if (prefs.tiles) {
+    if (prefs.tiles.vis && typeof prefs.tiles.vis === 'object') {
+      Object.assign(vis, prefs.tiles.vis);
+      try { localStorage.setItem('br_tile_vis', JSON.stringify(vis)); } catch {}
+    }
+    if (prefs.tiles.hidden && typeof prefs.tiles.hidden === 'object') {
+      Object.assign(hid, prefs.tiles.hidden);
+      try { localStorage.setItem('br_tile_hidden', JSON.stringify(hid)); } catch {}
+    }
+    if (Array.isArray(prefs.tiles.order) && prefs.tiles.order.length) {
+      try { localStorage.setItem('br_tile_order', JSON.stringify(prefs.tiles.order)); } catch {}
+      applyTileOrder(prefs.tiles.order);
+    }
+  }
+  if (typeof buildUnitsBar === 'function') buildUnitsBar();
+  if (typeof renderRecords === 'function') renderRecords();
+  if (_lastSum && typeof buildCards === 'function') buildCards(_lastSum);
+}
 function driveAuthExpired(err){
   const m=(err&&err.message)||'';
   if(m.indexOf('Not signed in to Drive')===-1 && m.indexOf('Session expired')===-1) return false;
@@ -1017,6 +1121,7 @@ function setUnitsAndRebuild(key, val) {
   buildLaps();
   buildStrokeTable();
   schedRender();
+  pushUnitsToPrefs();
 }
 let _lastLabel = '', _lastSum = {};
 
@@ -1094,7 +1199,7 @@ let hrZones=[106,124,142,160]; // Z1–Z4 upper bounds (bpm); above last = Z5
 try{const z=JSON.parse(localStorage.getItem('br_hr_zones')||'null');if(Array.isArray(z)&&z.length===4&&z.every(v=>v>40&&v<230))hrZones=z;}catch{}
 const HR_ZONE_COLORS=['#3498db','#27ae60','#f1c40f','#e67e22','#c0392b'];
 function hrZoneColor(b){for(let i=0;i<4;i++)if(b<=hrZones[i])return HR_ZONE_COLORS[i];return HR_ZONE_COLORS[4];}
-window.setHRZone=function(i,v){v=parseInt(v,10);if(!isFinite(v)||v<40||v>230){buildUnitsBar();return;}hrZones[i]=v;for(let j=i+1;j<4;j++)if(hrZones[j]<=hrZones[j-1])hrZones[j]=hrZones[j-1]+1;for(let j=i-1;j>=0;j--)if(hrZones[j]>=hrZones[j+1])hrZones[j]=hrZones[j+1]-1;try{localStorage.setItem('br_hr_zones',JSON.stringify(hrZones));}catch{toast('HR zones not saved — storage error');}buildUnitsBar();buildHRZoneTable();schedRender();};
+window.setHRZone=function(i,v){v=parseInt(v,10);if(!isFinite(v)||v<40||v>230){buildUnitsBar();return;}hrZones[i]=v;for(let j=i+1;j<4;j++)if(hrZones[j]<=hrZones[j-1])hrZones[j]=hrZones[j-1]+1;for(let j=i-1;j>=0;j--)if(hrZones[j]>=hrZones[j+1])hrZones[j]=hrZones[j+1]-1;try{localStorage.setItem('br_hr_zones',JSON.stringify(hrZones));}catch{toast('HR zones not saved — storage error');}buildUnitsBar();buildHRZoneTable();schedRender();pushHRZoneBoundsToPrefs();};
 const HR_ZONE_DESC=['Recovery','Aerobic','Tempo','Threshold','VO2 max'];
 function hrZoneTimes(){
   const ms=[0,0,0,0,0];
@@ -1522,6 +1627,7 @@ function updateRecords(gpsTrace, label, dateISO, fileId) {
   if (changed) {
     try{localStorage.setItem('br_records',JSON.stringify(RECORDS_DB));}catch{}
     renderRecords();
+    schedulePushRecordsToPrefs();
   }
 }
 function fmtRecordTime(ms) {
@@ -2246,6 +2352,7 @@ window.toggleVis=function(k){
   schedRender();
   updateStatsStrip();
   if(curveGroups.length)buildCurveStats();
+  schedulePushTilesToPrefs();
 };
 
 // ── X helper ────────────────────────────────────────────────────────────────
@@ -3728,11 +3835,10 @@ async function showStartup(){
     RECORDS_DB={};
     try{localStorage.setItem('br_records','{}');}catch{}
     renderRecords();
+    if(AnalyserDrive.isSignedIn())AnalyserDrive.pushPrefs({records:{}}).catch(()=>{});
     toast('Personal Bests reset');
   };
-
   try{
-
     const files=await AnalyserDrive.list();
     const container=document.getElementById('sz-files');
     if(!container)return;
@@ -4345,6 +4451,7 @@ function showReorderModal(){
       schedRender();
       if(curveGroups.length)buildCurveStats();
       if(VID.built)vidRenderBody();
+      schedulePushTilesToPrefs();
       overlay.remove();
     };
   }
@@ -5577,6 +5684,7 @@ window.addEventListener('resize',()=>{ if(VID.clips.length){ vidSizeOverlay(); v
 
 // ── Init ─────────────────────────────────────────────────────────────────────
 AnalyserDrive.init();
+if(AnalyserDrive.isSignedIn()) pullPrefsAndApply().catch(()=>{});
 AnalyserAuth.init();
 loadAnVidDir();
 (function(){
