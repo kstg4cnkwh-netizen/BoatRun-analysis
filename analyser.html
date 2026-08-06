@@ -1722,6 +1722,7 @@ async function loadFromSquad() {
     const raw = prompt('Squad code:', stored);
     if (!raw) return;
     const code = raw.trim().toUpperCase();
+    if (code.length !== 7) { toast('Squad codes are exactly 7 characters'); return; }
     try { localStorage.setItem('_squad_code', code); } catch {}
     toast('Fetching sessions…');
     try {
@@ -1804,6 +1805,7 @@ async function showAddComparePicker() {
             const raw = prompt('Squad code:', stored);
             if (!raw) { content.innerHTML = '<div class="sz-loading">No code entered.</div>'; return; }
             const code = raw.trim().toUpperCase();
+            if (code.length !== 7) { content.innerHTML = '<div class="sz-loading">Squad codes are exactly 7 characters.</div>'; return; }
             try { localStorage.setItem('_squad_code', code); } catch {}
             content.innerHTML = '<div class="sz-loading">Fetching sessions\u2026</div>';
             try {
