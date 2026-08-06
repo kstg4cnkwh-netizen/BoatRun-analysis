@@ -1732,6 +1732,12 @@ async function loadFromSquad() {
         if (!keys) { toast('No sessions found for squad ' + code); return; }
         const sessIds = Object.keys(keys).filter(k => !k.endsWith('_meta'));
         if (!sessIds.length) { toast('No sessions found for squad ' + code); return; }
+        let squadDesc = '';
+        try {
+            const mR = await fetch('https://boatrun-default-rtdb.asia-southeast1.firebasedatabase.app/squads/' + code + '/meta.json');
+            const meta = mR.ok ? await mR.json() : null;
+            squadDesc = (meta && meta.desc) ? String(meta.desc) : '';
+        } catch {}
         const metaR = await fetch('https://boatrun-default-rtdb.asia-southeast1.firebasedatabase.app/squads/' + code + '/coach_sessions.json?shallow=true');
         const allKeys = await metaR.json();
         const metaFetches = sessIds.map(id =>
@@ -1741,7 +1747,7 @@ async function loadFromSquad() {
                 .catch(() => ({ id, rower: 'Rower', dist: 0, dur: 0, t: parseInt(id) }))
         );
         const metas = await Promise.all(metaFetches);
-        showSquadPicker(code, metas);
+        showSquadPicker(code, metas, squadDesc);
     } catch (e) { toast('Fetch failed: ' + e.message); }
 }
 
@@ -1814,6 +1820,12 @@ async function showAddComparePicker() {
                 const keys = await r.json();
                 if (!keys) { content.innerHTML = '<div class="sz-loading">No sessions found for squad ' + code + '.</div>'; return; }
                 const sessIds = Object.keys(keys).filter(k => !k.endsWith('_meta'));
+                let squadDesc = '';
+                try {
+                    const mR = await fetch(SQUAD_DB + '/squads/' + code + '/meta.json');
+                    const meta = mR.ok ? await mR.json() : null;
+                    squadDesc = (meta && meta.desc) ? String(meta.desc) : '';
+                } catch {}
                 const metaFetches = sessIds.map(id =>
                     fetch(SQUAD_DB + '/squads/' + code + '/coach_sessions/' + id + '_meta.json')
                         .then(r2 => r2.ok ? r2.json() : null)
@@ -1822,7 +1834,9 @@ async function showAddComparePicker() {
                 );
                 const metas = await Promise.all(metaFetches);
                 const sorted = [...metas].sort((a, b) => (b.t || 0) - (a.t || 0));
-                content.innerHTML = '';
+                content.innerHTML = squadDesc
+                    ? '<div style="color:var(--muted);font-size:11px;margin-bottom:8px;">Squad: <span style="color:var(--text);font-weight:700;">' + squadDesc + '</span></div>'
+                    : '';
                 sorted.forEach(m => {
                     const d = new Date(m.t || parseInt(m.id));
                     const dateStr = d.toLocaleDateString() + ' ' + d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
@@ -2018,7 +2032,7 @@ async function showAddComparePicker() {
     document.body.appendChild(overlay);
 }
 
-function showSquadPicker(code, metas) {
+function showSquadPicker(code, metas, desc) {
     document.getElementById('_squad_picker')?.remove();
     const overlay = document.createElement('div');
     overlay.id = '_squad_picker';
@@ -2037,6 +2051,12 @@ function showSquadPicker(code, metas) {
     hdr.appendChild(title);
     hdr.appendChild(close);
     panel.appendChild(hdr);
+    if (desc) {
+        const sub = document.createElement('div');
+        sub.style.cssText = 'padding:8px 16px 0;color:#7ec8e3;font-size:12px;font-weight:700;flex-shrink:0;';
+        sub.textContent = desc;
+        panel.appendChild(sub);
+    }
     const list = document.createElement('div');
     list.style.cssText = 'overflow-y:auto;flex:1;display:flex;flex-direction:column;gap:6px;padding:14px 16px;';
     const sorted = [...metas].sort((a, b) => (b.t || 0) - (a.t || 0));
