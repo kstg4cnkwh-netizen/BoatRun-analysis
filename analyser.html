@@ -1252,7 +1252,7 @@ let isDragMain=false,isDragOv=false;
 let ovAbsSelS=-1,ovAbsSelE=-1;
 let leafletMap=null, mapBaseLine=null, mapGroupLines=[];
 let _pinnedStrokeIdx=-1, _mapPinMarker=null;
-let _clickStartX=-1,_clickStartTime=0;
+let _clickStartX=-1,_clickStartTime=0,_touchMoved=false;
 let SESSIONS=[]; // [{label,d}] — all loaded workout files
 let activeSessionIdx=-1;
 let _addMode=false; // true while "+ Add file" flow is choosing a file
@@ -2818,10 +2818,14 @@ function drawOv(){
 // ══════════════════════════════════════════════════════════════════════════
 function ttRow(lbl,val,col){if(!val||val===EM)return'';return`<div class="tt-row"><span class="tt-lbl">${lbl}</span><span class="tt-val"${col?` style="color:${col}"`:''}>${val}</span></div>`;}
 function showTooltip(e){
-  if(isDragMain||!currentView.length)return;
+  if(isDragMain)return;
+  showTooltipAt(e.clientX,e.clientY);
+}
+function showTooltipAt(clientX,clientY){
+  if(!currentView.length)return;
   const canvas=document.getElementById('mainC');
   const rect=canvas.getBoundingClientRect();
-  const idx=getMainIdx(e.clientX-rect.left);
+  const idx=getMainIdx(clientX-rect.left);
   if(idx<0||idx>=currentView.length)return;
   const s=currentView[idx];const C=pal();
   const TT_BUILDERS={
@@ -2849,8 +2853,8 @@ function showTooltip(e){
   const tip=document.getElementById('tooltip');
   tip.style.display='block';
   const tw=tip.offsetWidth||160,th=tip.offsetHeight||180;
-  let left=e.clientX+18,top=e.clientY-th/2;
-  if(left+tw>window.innerWidth-12)left=e.clientX-tw-12;
+  let left=clientX+18,top=clientY-th/2;
+  if(left+tw>window.innerWidth-12)left=clientX-tw-12;
   if(top<8)top=8;if(top+th>window.innerHeight-8)top=window.innerHeight-th-8;
   tip.style.left=left+'px';tip.style.top=top+'px';
 }
@@ -2885,21 +2889,28 @@ function setupMainEvents(canvas){
 
   // Touch: tap=pin stroke, drag=select
   canvas.addEventListener('touchstart',e=>{
-    hideTooltip();isDragMain=true;
+    isDragMain=true;_touchMoved=false;
     _clickStartX=e.touches[0].clientX-canvas.getBoundingClientRect().left;
     _clickStartTime=Date.now();
     selS=selE=getMainIdx(_clickStartX);schedRender();
+    showTooltipAt(e.touches[0].clientX,e.touches[0].clientY);
   },{passive:true});
-  canvas.addEventListener('touchmove',e=>{if(isDragMain){selE=getMainIdx(e.touches[0].clientX-canvas.getBoundingClientRect().left);schedRender();}},{passive:true});
+  canvas.addEventListener('touchmove',e=>{
+    const _tx=e.touches[0].clientX-canvas.getBoundingClientRect().left;
+    if(Math.abs(_tx-_clickStartX)>10)_touchMoved=true;
+    if(_touchMoved){hideTooltip();selE=getMainIdx(_tx);schedRender();}
+    else{showTooltipAt(e.touches[0].clientX,e.touches[0].clientY);}
+  },{passive:true});
   canvas.addEventListener('touchend',e=>{
     isDragMain=false;
     const _tcx=e.changedTouches[0].clientX-canvas.getBoundingClientRect().left;
-    if(Math.abs(_tcx-_clickStartX)<10&&Date.now()-_clickStartTime<400){
+    if(!_touchMoved&&Math.abs(_tcx-_clickStartX)<10&&Date.now()-_clickStartTime<400){
       const _absIdx=viewS+getMainIdx(_tcx);
       _pinnedStrokeIdx=(_pinnedStrokeIdx===_absIdx)?-1:_absIdx;
       selS=-1;selE=-1;
       updatePinHighlight();schedRender();updateMapPin();
-    }else{updateSel(false);}
+      if(_pinnedStrokeIdx>=0){showTooltipAt(e.changedTouches[0].clientX,e.changedTouches[0].clientY);}else{hideTooltip();}
+    }else{hideTooltip();updateSel(false);}
   });
   canvas.addEventListener('dblclick',()=>resetZoom());
   canvas.addEventListener('mouseleave',hideTooltip);
