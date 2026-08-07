@@ -2909,7 +2909,7 @@ function setupMainEvents(canvas){
       _pinnedStrokeIdx=(_pinnedStrokeIdx===_absIdx)?-1:_absIdx;
       selS=-1;selE=-1;
       updatePinHighlight();schedRender();updateMapPin();
-      if(_pinnedStrokeIdx>=0){showTooltipAt(e.changedTouches[0].clientX,e.changedTouches[0].clientY);}else{hideTooltip();}
+      showTooltipAt(e.changedTouches[0].clientX,e.changedTouches[0].clientY);
     }else{hideTooltip();updateSel(false);}
   });
   canvas.addEventListener('dblclick',()=>resetZoom());
