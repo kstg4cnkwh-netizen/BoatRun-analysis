@@ -2980,7 +2980,7 @@ function updateStatsStrip(){
   function sp(l,v,c){return`<div class="sp-stat"><div class="l">${l}</div><div class="v" style="color:${c||'var(--text)'}">${v}</div></div>`;}
   let html='';
   if(curveGroups.length<8){
-    html+='<button id="addcurvebtn" onclick="pinSelection()">＋ Add to curves</button>';
+    html+='<button id="addcurvebtn">＋ Add to curves</button>';
   }
     if(strokes.length){
     const dur=strokes[strokes.length-1].elapsed-strokes[0].elapsed;
@@ -2995,6 +2995,11 @@ function updateStatsStrip(){
   }
   html+='<button id="selclear" onclick="clearSelection()">✕ Clear</button>';
   document.getElementById('stripinner').innerHTML=html;
+  const _acb=document.getElementById('addcurvebtn');
+  if(_acb){
+    _acb.addEventListener('touchend',e=>{e.preventDefault();pinSelection();},{passive:false});
+    _acb.addEventListener('click',pinSelection);
+  }
 }
 
 // ══════════════════════════════════════════════════════════════════════════
