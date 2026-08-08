@@ -16,6 +16,7 @@
     --mc-dps:#66BB6A; --mc-rloss:#AB47BC; --mc-slope:#9E9D24;
     --mc-impulse:#00897B; --mc-schar:#D81B60; --mc-ratio:#5C6BC0;
     --mc-oar:#26C6DA; --mc-cdelta:#546E7A; --mc-cdur:#FFB300; --mc-recoveryaccel:#D84315; --mc-driveaccel:#43A047;
+    --mc-catchaccel:#7E57C2; --mc-catchslopeneg:#C0CA33;
     --text: #dce8fa; --muted: #46597a; --faint: #0d1e38;
     --grid-ln: rgba(17,40,72,1); --grid-lb: #1e3d6a; --frame-ln: #173358;
     --sel-fill: rgba(41,184,255,.06); --sel-stk: rgba(41,184,255,.32);
@@ -31,6 +32,7 @@
     --mc-dps:#66BB6A; --mc-rloss:#AB47BC; --mc-slope:#9E9D24;
     --mc-impulse:#00897B; --mc-schar:#D81B60; --mc-ratio:#5C6BC0;
     --mc-oar:#26C6DA; --mc-cdelta:#546E7A; --mc-cdur:#FFB300; --mc-recoveryaccel:#D84315; --mc-driveaccel:#43A047;
+    --mc-catchaccel:#7E57C2; --mc-catchslopeneg:#C0CA33;
     --text: #0e1624; --muted: #40506e; --faint: #6a88b7;
     --grid-ln: #e2ecf7; --grid-lb: #7080a0; --frame-ln: #bccadd;
     --sel-fill: rgba(0,116,200,.05); --sel-stk: rgba(0,116,200,.36);
@@ -47,19 +49,19 @@
   #hdr .meta { color: rgba(255,255,255,.92); font-size: 15px; line-height: 1.5; font-weight: 500; }
   #hdr .sp { flex: 1; }
   .hbtn { background: transparent; border: 1px solid var(--border); color: var(--muted); padding: 5px 13px; border-radius: 7px; font-family: -apple-system, BlinkMacSystemFont, Helvetica Neue, sans-serif; font-size: 11px; cursor: pointer; white-space: nowrap; transition: border-color .15s, color .15s, background .15s; }
-  @media (hover:hover){.hbtn:hover { border-color: var(--b); color: var(--b); background: var(--sel-fill); }}
+  .hbtn:hover { border-color: var(--b); color: var(--b); background: var(--sel-fill); }
   .hbtn.linked { border-color: rgba(41,184,255,.4); color: var(--g); }
 
   /* ── Drop zone ── */
   #dz { display: flex; flex-direction: column; align-items: center; justify-content: center; min-height: calc(100vh - 57px); gap: 10px; border: 2px dashed var(--border); margin: 16px; border-radius: 14px; background: var(--s1); cursor: pointer; text-align: center; padding: 40px 20px; transition: border-color .2s, background .2s; }
-  @media (hover:hover){#dz:hover, #dz.over { border-color: var(--b); background: var(--sel-fill); }}
+  #dz:hover, #dz.over { border-color: var(--b); background: var(--sel-fill); }
   #dz .ico { font-size: 36px; }
   #dz h2 { font-family: -apple-system, BlinkMacSystemFont, Helvetica Neue, sans-serif; font-size: 14px; font-weight: 600; }
   #dz p { color: var(--muted); font-size: 11px; line-height: 1.7; }
   .dzbtn { margin-top: 6px; padding: 8px 22px; font-family: -apple-system, BlinkMacSystemFont, Helvetica Neue, sans-serif; font-weight: 700; font-size: 12px; cursor: pointer; border-radius: 8px; border: none; }
   .dzbtn-pri { background: var(--g); color: #000; }
   .dzbtn-sec { background: transparent; border: 1px solid var(--border); color: var(--muted); font-family: -apple-system, BlinkMacSystemFont, Helvetica Neue, sans-serif; font-size: 11px; display: flex; align-items: center; justify-content: center; gap: 7px; }
-  @media (hover:hover){.dzbtn-sec:hover { border-color: var(--b); color: var(--b); }}
+  .dzbtn-sec:hover { border-color: var(--b); color: var(--b); }
   .dzbtn-sec img { width: 16px; height: 16px; display: block; object-fit: contain; }
 
   #app { display: none; padding-bottom: 40px; }
@@ -94,14 +96,16 @@
   .c-cdur{border-top:3px solid var(--mc-cdur)}.c-cdur .val{color:var(--mc-cdur)}
   .c-recoveryaccel{border-top:3px solid var(--mc-recoveryaccel)}.c-recoveryaccel .val{color:var(--mc-recoveryaccel)}
   .c-driveaccel{border-top:3px solid var(--mc-driveaccel)}.c-driveaccel .val{color:var(--mc-driveaccel)}
+  .c-caccel{border-top:3px solid var(--mc-catchaccel)}.c-caccel .val{color:var(--mc-catchaccel)}
+  .c-slopeneg{border-top:3px solid var(--mc-catchslopeneg)}.c-slopeneg .val{color:var(--mc-catchslopeneg)}
 .sumgrp{margin-bottom:6px;}
 .sumgrp-hd{font-size:9px;font-weight:600;letter-spacing:.08em;color:var(--muted);text-transform:uppercase;margin-bottom:6px;display:flex;align-items:center;gap:8px;}
 .sumgrp-cards{display:grid;grid-template-columns:repeat(auto-fill,minmax(92px,1fr));gap:4px;}
 .sumnav{display:flex;align-items:center;gap:6px;margin-left:auto;text-transform:none;letter-spacing:0;}
 .sumnav button{background:var(--s2);border:1px solid var(--border);color:var(--muted);width:18px;height:18px;border-radius:5px;font-size:11px;line-height:1;cursor:pointer;padding:0;}
-@media (hover:hover){.sumnav button:hover{border-color:var(--b);color:var(--b);}}
+.sumnav button:hover{border-color:var(--b);color:var(--b);}
 .sumnav button:disabled{opacity:.3;cursor:default;}
-@media (hover:hover){.sumnav button:disabled:hover{border-color:var(--border);color:var(--muted);}}
+.sumnav button:disabled:hover{border-color:var(--border);color:var(--muted);}
 .sumnav-lbl{font-size:9px;color:var(--text);font-weight:600;}
   .card.clickable{cursor:pointer;}
   .card.dim{opacity:.25;}
@@ -113,13 +117,13 @@
   .sec-hd h2 { font-family: -apple-system, BlinkMacSystemFont, Helvetica Neue, sans-serif; font-size: 9px; font-weight: 600; color: var(--muted); text-transform: uppercase; letter-spacing: 1.3px; }
   .legend { display: flex; gap: 8px; flex-wrap: wrap; }
   .leg { display: flex; align-items: center; gap: 4px; font-size: 10px; color: var(--muted); cursor: pointer; padding: 2px 6px; border-radius: 5px; border: 1px solid transparent; transition: border-color .15s; }
-  @media (hover:hover){.leg:hover { border-color: var(--border); }}
+  .leg:hover { border-color: var(--border); }
   .leg.off { opacity: .25; }
   .dot { width: 7px; height: 7px; border-radius: 50%; }
   select { background: var(--s2); border: 1px solid var(--border); color: var(--text); padding: 4px 8px; border-radius: 6px; font-family: -apple-system, BlinkMacSystemFont, Helvetica Neue, sans-serif; font-size: 10px; cursor: pointer; outline: none; transition: border-color .15s; }
   select:focus { border-color: var(--g); }
   .zoom-btn { background: var(--s2); border: 1px solid var(--border); color: var(--muted); width: 24px; height: 24px; border-radius: 6px; font-size: 14px; line-height: 1; cursor: pointer; display: flex; align-items: center; justify-content: center; padding: 0; transition: border-color .15s, color .15s; }
-  @media (hover:hover){.zoom-btn:hover { border-color: var(--g); color: var(--g); }}
+  .zoom-btn:hover { border-color: var(--g); color: var(--g); }
   .cbox { background: var(--s1); border: 1px solid var(--border); border-radius: 12px; padding: 12px 12px 5px; position: relative; box-shadow: var(--sh); }
   .cbox canvas { display: block; width: 100% !important; touch-action: none; cursor: crosshair; -webkit-touch-callout: none; -webkit-user-select: none; user-select: none; }
   #vidLineC { position: absolute; top: 12px; left: 12px; pointer-events: none; }
@@ -127,9 +131,9 @@
 
   /* ── Selection controls (rendered inside stats strip) ── */
   #addcurvebtn { background: var(--b); color: #000; border: none; padding: 5px 13px; border-radius: 6px; font-family: -apple-system, BlinkMacSystemFont, Helvetica Neue, sans-serif; font-size: 10px; font-weight: 700; cursor: pointer; transition: opacity .15s; }
-  @media (hover:hover){#addcurvebtn:hover { opacity: .85; }}
+  #addcurvebtn:hover { opacity: .85; }
   #selclear { margin-left: auto; font-size: 10px; color: var(--muted); background: none; border: 1px solid var(--border); padding: 4px 10px; border-radius: 6px; cursor: pointer; font-family: -apple-system, BlinkMacSystemFont, Helvetica Neue, sans-serif; transition: color .15s, border-color .15s; }
-  @media (hover:hover){#selclear:hover { color: var(--r); border-color: var(--r); }}
+  #selclear:hover { color: var(--r); border-color: var(--r); }
 
   /* ── Overview ── */
   .ovbox { background: var(--s1); border: 1px solid var(--border); border-radius: 10px; padding: 5px 8px 2px; box-shadow: var(--sh); }
@@ -148,17 +152,17 @@
   /* ── Curve section ── */
   #curvesec { display: none; }
   .grp-chip { display: inline-flex; align-items: center; gap: 5px; padding: 4px 10px; border-radius: 12px; font-size: 10px; font-weight: 700; cursor: pointer; border: none; transition: opacity .15s; }
-  @media (hover:hover){.grp-chip:hover { opacity: .75; }}
+  .grp-chip:hover { opacity: .75; }
   #clearcurvebtn { background: none; border: 1px solid var(--border); color: var(--muted); padding: 4px 10px; border-radius: 6px; font-family: -apple-system, BlinkMacSystemFont, Helvetica Neue, sans-serif; font-size: 10px; cursor: pointer; margin-left: auto; transition: color .15s, border-color .15s; }
-  @media (hover:hover){#clearcurvebtn:hover { color: var(--r); border-color: var(--r); }}
+  #clearcurvebtn:hover { color: var(--r); border-color: var(--r); }
 
   /* ── Session tabs (multi-file) ── */
   #sesstabs { display: none; gap: 6px; flex-wrap: wrap; padding: 8px 14px; background: var(--s2); border-bottom: 1px solid var(--border); }
   .sess-tab { display: inline-flex; align-items: center; gap: 6px; padding: 5px 11px; border-radius: 7px; font-size: 10px; font-weight: 600; cursor: pointer; border: 1px solid var(--border); background: var(--s1); color: var(--muted); font-family: -apple-system, BlinkMacSystemFont, Helvetica Neue, sans-serif; transition: border-color .15s, color .15s; }
-  @media (hover:hover){.sess-tab:hover { border-color: var(--b); }}
+  .sess-tab:hover { border-color: var(--b); }
   .sess-tab.on { border-color: var(--b); color: var(--text); }
   .sess-x { opacity: .6; font-weight: 700; }
-  @media (hover:hover){.sess-x:hover { opacity: 1; color: #e74c3c; }}
+  .sess-x:hover { opacity: 1; color: #e74c3c; }
   .curve-layout { display: flex; gap: 12px; align-items: flex-start; flex-wrap: wrap; }
   .curve-col { flex: 3; min-width: 260px; }
   .curve-stats-col { flex: 2; min-width: 200px; overflow: auto; }
@@ -172,7 +176,7 @@
   thead th { position: sticky; top: 0; background: var(--s2); color: var(--muted); padding: 7px 10px; border-bottom: 1px solid var(--border); text-align: right; font-size: 8px; text-transform: uppercase; letter-spacing: .7px; font-weight: 600; }
   thead th:first-child { text-align: left; }
   tbody tr { border-bottom: 1px solid var(--dim); transition: background .1s; scroll-margin-top: 30px; }
-  @media (hover:hover){tbody tr:hover td { background: var(--s2); }}
+  tbody tr:hover td { background: var(--s2); }
   tbody tr.hl td { background: rgba(41,184,255,.08) !important; }
   tbody td { padding: 6px 10px; color: var(--muted); text-align: right; }
   tbody td:first-child { color: var(--text); text-align: left; }
@@ -204,7 +208,7 @@
   .leaflet-popup-tip { background: #0b1f38 !important; }
   .leaflet-popup-close-button { color: #46597a !important; }
   #mapbox .leaflet-bar a { background: #112848; color: #dce8fa; border-color: #173358; }
-  @media (hover:hover){#mapbox .leaflet-bar a:hover { background: #1e2d45; }}
+  #mapbox .leaflet-bar a:hover { background: #1e2d45; }
 
   /* ── Stroke table section ── */
   #tbsec .sec-hd { margin-bottom: 6px; }
@@ -241,14 +245,14 @@
 .sz-list{width:100%;max-width:480px;}
 .sz-lhd{font-size:.75rem;font-weight:600;letter-spacing:.1em;color:var(--muted);text-transform:uppercase;margin-bottom:2px;display:flex;align-items:center;justify-content:space-between;}
 .sz-signout{font-size:.75rem;color:var(--b);cursor:pointer;font-weight:400;text-transform:none;letter-spacing:0;}
-@media (hover:hover){.sz-signout:hover{text-decoration:underline;}}
+.sz-signout:hover{text-decoration:underline;}
 .sz-file-row{display:flex;align-items:center;gap:6px;margin-bottom:6px;}
 .sz-file-btn{flex:1;text-align:left;padding:9px 13px;background:var(--s2);border:1px solid var(--border);border-radius:8px;color:var(--text);font-family:-apple-system, BlinkMacSystemFont, Helvetica Neue, sans-serif;font-size:.85rem;cursor:pointer;line-height:1.5;transition:border-color .15s;}
-@media (hover:hover){.sz-file-btn:hover{border-color:var(--b);}}
+.sz-file-btn:hover{border-color:var(--b);}
 .sz-del{display:flex;align-items:center;justify-content:center;padding:9px 10px;background:rgba(192,57,43,.15);border:1px solid rgba(192,57,43,.4);border-radius:8px;color:#e74c3c;cursor:pointer;font-size:.85rem;flex-shrink:0;}
 .sz-del img{width:16px;height:16px;display:block;object-fit:contain;}
 .asc{background:var(--s2);border-radius:8px;border-left:3px solid var(--b);border-top:1px solid var(--border);border-right:1px solid var(--border);border-bottom:1px solid var(--border);padding:11px 13px;cursor:pointer;flex:1;text-align:left;transition:border-color .15s;}
-@media (hover:hover){.asc:hover{border-top-color:var(--b);border-right-color:var(--b);border-bottom-color:var(--b);}}
+.asc:hover{border-top-color:var(--b);border-right-color:var(--b);border-bottom-color:var(--b);}
 .asc-date{font-size:9px;color:var(--muted);margin-bottom:5px;letter-spacing:.04em;display:flex;align-items:center;gap:4px;flex-wrap:wrap;}
 .asc-date .asc-badge{color:var(--b);font-weight:700;}
 .asc-stats{display:flex;gap:12px;flex-wrap:wrap;}
@@ -261,24 +265,24 @@
 .sumgrp-cards{display:grid;grid-template-columns:repeat(auto-fill,minmax(92px,1fr));gap:4px;}
 .sumnav{display:flex;align-items:center;gap:6px;margin-left:auto;text-transform:none;letter-spacing:0;}
 .sumnav button{background:var(--s2);border:1px solid var(--border);color:var(--muted);width:18px;height:18px;border-radius:5px;font-size:11px;line-height:1;cursor:pointer;padding:0;}
-@media (hover:hover){.sumnav button:hover{border-color:var(--b);color:var(--b);}}
+.sumnav button:hover{border-color:var(--b);color:var(--b);}
 .sumnav button:disabled{opacity:.3;cursor:default;}
-@media (hover:hover){.sumnav button:disabled:hover{border-color:var(--border);color:var(--muted);}}
+.sumnav button:disabled:hover{border-color:var(--border);color:var(--muted);}
 .sumnav-lbl{font-size:9px;color:var(--text);font-weight:600;}
 .hmenu-wrap{position:relative;display:inline-block;}
 .hmenu{position:fixed;top:auto;right:auto;background:var(--s2);border:1px solid var(--border);border-radius:10px;padding:6px;display:none;flex-direction:column;gap:4px;min-width:175px;max-width:calc(100vw - 24px);z-index:50;box-shadow:0 8px 24px rgba(0,0,0,.3);}
 .hmenu.open{display:flex;}
 .hmenu .hbtn{display:flex;align-items:center;gap:8px;width:100%;text-align:left;color:var(--text);background:transparent;}
-@media (hover:hover){.hmenu .hbtn:hover{border-color:var(--b);color:var(--b);background:var(--sel-fill);}}
+.hmenu .hbtn:hover{border-color:var(--b);color:var(--b);background:var(--sel-fill);}
 .hicon-btn{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;padding:5px 11px 4px;border-radius:12px;font-size:9px;font-weight:600;letter-spacing:.02em;text-transform:uppercase;}
 .hicon-img{width:20px;height:20px;display:block;object-fit:contain;}
 .hicon-txt{line-height:1;white-space:nowrap;}
 .hbtn.hicon-btn{background:rgba(255,255,255,.14);border:none;color:#fff;}
-@media (hover:hover){.hbtn.hicon-btn:hover{background:rgba(255,255,255,.26);border-color:transparent;color:#fff;}}
+.hbtn.hicon-btn:hover{background:rgba(255,255,255,.26);border-color:transparent;color:#fff;}
 .hdr-tabs{display:flex;align-items:center;gap:8px;}
 body.light .hdr-tabs{background:#e3e3e6;border-radius:22px;padding:6px;box-shadow:0 1px 3px rgba(0,0,0,.12);}
 body.light .hdr-tabs .hbtn.hicon-btn{background:#fff;color:#333;box-shadow:0 1px 2px rgba(0,0,0,.1);}
-@media (hover:hover){body.light .hdr-tabs .hbtn.hicon-btn:hover{background:#fff;color:var(--b);}}
+body.light .hdr-tabs .hbtn.hicon-btn:hover{background:#fff;color:var(--b);}
 body.light .hdr-tabs .hmenu{background:#fff;}
 body.light .hdrname{color:#fff;}
 .hmenu-icon{width:15px;height:15px;display:block;object-fit:contain;flex-shrink:0;}
@@ -342,10 +346,10 @@ body.light .hdrname{color:#fff;}
   .brpill-col{flex-direction:column;width:100%;max-width:340px;margin:6px auto 0;}
 
   .brpill-row .dzbtn{flex:1 1 0;min-width:130px;margin-top:0;display:flex;align-items:center;justify-content:center;gap:7px;border:none;border-radius:16px;background:var(--seg);color:var(--seg-txt);padding:11px 10px;font-size:11px;font-weight:700;letter-spacing:.04em;text-transform:uppercase;cursor:pointer;box-shadow:0 3px 6px rgba(0,0,0,.20),inset 0 1px 0 rgba(255,255,255,.25);}
-  @media (hover:hover){.brpill-row .dzbtn:hover{background:var(--seg);color:var(--acc);}}
+  .brpill-row .dzbtn:hover{background:var(--seg);color:var(--acc);}
   .brpill-row .dzbtn:active{opacity:.65;}
   .brpill-row .dzbtn-pri{background:var(--acc-g);color:#fff;}
-  @media (hover:hover){.brpill-row .dzbtn-pri:hover{background:var(--acc-g);color:#fff;}}
+  .brpill-row .dzbtn-pri:hover{background:var(--acc-g);color:#fff;}
   .brpill-row .dzbtn img{width:18px;height:18px;}
   .brpill-col .dzbtn{width:100%;flex:none;}
 
@@ -366,15 +370,15 @@ body.light .hdrname{color:#fff;}
 
   .sz-file-row{gap:8px;margin-bottom:8px;}
   .asc{border-radius:14px;border:none;border-left:4px solid var(--acc);box-shadow:0 2px 5px rgba(0,0,0,.18);padding:12px 14px;}
-  @media (hover:hover){.asc:hover{border-left-color:var(--acc);box-shadow:0 4px 12px rgba(0,0,0,.28);}}
+  .asc:hover{border-left-color:var(--acc);box-shadow:0 4px 12px rgba(0,0,0,.28);}
   .asc-date .asc-badge{color:var(--acc);}
   .sz-signout{color:var(--acc);}
 
   .card{border-width:0;border-top-width:3px;border-radius:14px;box-shadow:0 2px 5px rgba(0,0,0,.20);}
   .sumgrp-cards{gap:6px;}
   .sumnav button{border:none;background:var(--seg);color:var(--seg-txt);width:22px;height:22px;border-radius:11px;box-shadow:0 1px 3px rgba(0,0,0,.25);}
-  @media (hover:hover){.sumnav button:hover{border:none;color:var(--acc);}}
-  @media (hover:hover){.sumnav button:disabled:hover{border:none;color:var(--seg-txt);}}
+  .sumnav button:hover{border:none;color:var(--acc);}
+  .sumnav button:disabled:hover{border:none;color:var(--seg-txt);}
 
   .hbtn{border-radius:14px;}
   .sess-tab{border:none;border-radius:16px;background:var(--pill);box-shadow:0 2px 5px rgba(0,0,0,.20);padding:7px 13px;}
@@ -385,9 +389,9 @@ body.light .hdrname{color:#fff;}
   #dz{border-radius:22px;}
   #addcurvebtn{background:var(--acc);color:#fff;border-radius:14px;padding:7px 15px;box-shadow:0 2px 5px rgba(0,0,0,.22);}
   #selclear,#clearcurvebtn{border:none;border-radius:14px;background:var(--pill);color:var(--muted);padding:6px 13px;box-shadow:0 2px 5px rgba(0,0,0,.20);}
-  @media (hover:hover){#selclear:hover,#clearcurvebtn:hover{border:none;color:var(--acc-r);}}
+  #selclear:hover,#clearcurvebtn:hover{border:none;color:var(--acc-r);}
   .zoom-btn{border:none;border-radius:12px;background:var(--seg);color:var(--seg-txt);box-shadow:0 1px 3px rgba(0,0,0,.25);}
-  @media (hover:hover){.zoom-btn:hover{border:none;color:var(--acc);}}
+  .zoom-btn:hover{border:none;color:var(--acc);}
   select{border:none;border-radius:12px;background:var(--seg);color:var(--seg-txt);padding:6px 10px;box-shadow:0 1px 3px rgba(0,0,0,.22);}
   .vid-clip-tab,.vid-mchip,.vid-read,.vid-num{border:none;border-radius:14px;box-shadow:0 1px 3px rgba(0,0,0,.22);}
   .vid-clip-tab.on,.vid-mchip.on{background:var(--acc);color:#fff;}
@@ -404,37 +408,37 @@ body.light .hdrname{color:#fff;}
   .segwrap{display:inline-flex;gap:4px;background:rgba(0,0,0,.16);border-radius:16px;padding:3px;}
   body.light .segwrap{background:rgba(0,0,0,.05);}
   .segbtn{border:none;border-radius:13px;background:transparent;color:var(--muted);padding:6px 12px;font-family:-apple-system, BlinkMacSystemFont, Helvetica Neue, sans-serif;font-size:10px;font-weight:700;letter-spacing:.04em;text-transform:uppercase;cursor:pointer;transition:background .15s,color .15s;}
-  @media (hover:hover){.segbtn:hover{color:var(--acc);}}
+  .segbtn:hover{color:var(--acc);}
   .segbtn.on{background:var(--acc);color:#fff;box-shadow:0 2px 6px rgba(10,132,255,.45);}
   .hrzin{width:54px;padding:6px 4px;border-radius:13px;border:2px solid;background:var(--seg);font-family:-apple-system, BlinkMacSystemFont, Helvetica Neue, sans-serif;font-size:10px;font-weight:700;text-align:center;-webkit-appearance:none;appearance:none;box-shadow:0 1px 3px rgba(0,0,0,.22);}
 
   /* Header pills */
   .hdr-tabs{background:rgba(255,255,255,.10);border-radius:22px;padding:6px;box-shadow:0 1px 3px rgba(0,0,0,.30);flex-wrap:wrap;}
   .hbtn.hicon-btn{border-radius:16px;box-shadow:0 2px 5px rgba(0,0,0,.22),inset 0 1px 0 rgba(255,255,255,.20);}
-  @media (hover:hover){.hbtn.hicon-btn:hover{background:rgba(255,255,255,.30);color:#fff;}}
+  .hbtn.hicon-btn:hover{background:rgba(255,255,255,.30);color:#fff;}
   body.light .hdr-tabs .hbtn.hicon-btn{border-radius:16px;box-shadow:0 3px 6px rgba(0,0,0,.18),inset 0 1px 0 rgba(255,255,255,.60);}
-  @media (hover:hover){body.light .hdr-tabs .hbtn.hicon-btn:hover{color:var(--acc);}}
+  body.light .hdr-tabs .hbtn.hicon-btn:hover{color:var(--acc);}
 
   /* Files sub-menu */
   .hmenu{background:var(--pill);border:none;border-radius:20px;padding:8px;gap:6px;min-width:215px;box-shadow:0 10px 30px rgba(0,0,0,.35);}
   .hmenu .hbtn{border:none;border-left:4px solid var(--acc);border-radius:16px;background:var(--seg);color:var(--seg-txt);padding:11px 14px;font-size:11px;font-weight:700;letter-spacing:.03em;text-transform:uppercase;box-shadow:0 2px 5px rgba(0,0,0,.20),inset 0 1px 0 rgba(255,255,255,.25);}
-  @media (hover:hover){.hmenu .hbtn:hover{background:var(--seg);border-left-color:var(--acc);color:var(--acc);}}
+  .hmenu .hbtn:hover{background:var(--seg);border-left-color:var(--acc);color:var(--acc);}
   .hmenu #resetbtn{border-left-color:var(--acc);}
   .hmenu #addcompbtn{border-left-color:var(--acc-p);}
-  @media (hover:hover){.hmenu #addcompbtn:hover{border-left-color:var(--acc-p);color:var(--acc-p);}}
+  .hmenu #addcompbtn:hover{border-left-color:var(--acc-p);color:var(--acc-p);}
   .hmenu #tcxbtn{border-left-color:var(--acc-o);}
-  @media (hover:hover){.hmenu #tcxbtn:hover{border-left-color:var(--acc-o);color:var(--acc-o);}}
+  .hmenu #tcxbtn:hover{border-left-color:var(--acc-o);color:var(--acc-o);}
   .hmenu #fitbtn{border-left-color:var(--acc-g);}
-  @media (hover:hover){.hmenu #fitbtn:hover{border-left-color:var(--acc-g);color:var(--acc-g);}}
+  .hmenu #fitbtn:hover{border-left-color:var(--acc-g);color:var(--acc-g);}
   .hmenu #jsonbtn{border-left-color:var(--acc-y);}
-  @media (hover:hover){.hmenu #jsonbtn:hover{border-left-color:var(--acc-y);color:var(--acc-y);}}
+  .hmenu #jsonbtn:hover{border-left-color:var(--acc-y);color:var(--acc-y);}
 
   /* Section headers / buttons */
   .sec-hd h2{font-size:10px;letter-spacing:.14em;color:var(--acc);font-weight:700;}
   .sec-hd .hbtn{border:none;border-radius:14px;background:var(--pill);color:var(--muted);padding:7px 13px;font-size:10px;font-weight:700;letter-spacing:.04em;text-transform:uppercase;box-shadow:0 2px 5px rgba(0,0,0,.20);}
-  @media (hover:hover){.sec-hd .hbtn:hover{border:none;background:var(--acc);color:#fff;}}
+  .sec-hd .hbtn:hover{border:none;background:var(--acc);color:#fff;}
   .leg{border:none;border-radius:14px;background:var(--pill);padding:5px 11px;font-weight:600;box-shadow:0 1px 3px rgba(0,0,0,.18);}
-  @media (hover:hover){.leg:hover{border:none;color:var(--text);}}
+  .leg:hover{border:none;color:var(--text);}
 
   /* Dropdowns / sliders */
   select{-webkit-appearance:none;appearance:none;font-weight:700;letter-spacing:.03em;padding:7px 26px 7px 12px;background-image:linear-gradient(45deg,transparent 50%,var(--acc) 50%),linear-gradient(135deg,var(--acc) 50%,transparent 50%);background-position:calc(100% - 14px) 52%,calc(100% - 9px) 52%;background-size:5px 5px,5px 5px;background-repeat:no-repeat;}
@@ -455,7 +459,7 @@ body.light .hdrname{color:#fff;}
   thead th{background:var(--pill);color:var(--muted);border-bottom:none;padding:9px 11px;font-size:8px;letter-spacing:.10em;}
   tbody tr{border-bottom:1px solid rgba(127,127,127,.12);}
   tbody td{padding:8px 11px;}
-  @media (hover:hover){tbody tr:hover td{background:var(--sel-fill);}}
+  tbody tr:hover td{background:var(--sel-fill);}
   tbody tr.hl td{background:rgba(10,132,255,.16)!important;}
   tbody tr.hl.stroke-pin td,tbody tr.stroke-pin td{background:#ffd60a!important;color:#000!important;}
   tbody tr.best td{color:var(--acc-g);font-weight:700;}
@@ -1014,6 +1018,7 @@ function pal() {
     mc_dps:v('--mc-dps'), mc_rloss:v('--mc-rloss'), mc_slope:v('--mc-slope'),
     mc_impulse:v('--mc-impulse'), mc_schar:v('--mc-schar'), mc_ratio:v('--mc-ratio'),
     mc_oar:v('--mc-oar'), mc_cdelta:v('--mc-cdelta'), mc_cdur:v('--mc-cdur'), mc_recoveryaccel:v('--mc-recoveryaccel'), mc_driveaccel:v('--mc-driveaccel'),
+    mc_catchaccel:v('--mc-catchaccel'), mc_catchslopeneg:v('--mc-catchslopeneg'),
     gridLn: v('--grid-ln'), gridLb: v('--grid-lb'), frameLn: v('--frame-ln'),
     selFill: v('--sel-fill'), selStk: v('--sel-stk'),
     text: v('--text'), muted: v('--muted'), s1: v('--s1'), s2: v('--s2'),
@@ -1139,9 +1144,11 @@ const METRIC_DEFS = [
   {k:'pace',   l:'Pace',        c:'var(--mc-pace)', cat:'cond',  filter:s=>s.pace>50&&s.pace<500,        val:s=>s.pace,        fmtAvg:v=>fmtPaceU(v),      fmtBest:v=>fmtPaceU(v), showBest:true,  bestIsMin:true, tip:'Boat speed, shown in your selected unit (pace per 500m/1km/mile, or km/h/mph). GPS-derived — only valid for comparing the same stretch, direction and tide.'},
   {k:'rate',   l:'Rate',        c:'var(--mc-rate)', cat:'indep', filter:s=>s.rate>5&&s.rate<50,          val:s=>s.rate,        fmtAvg:v=>f1(v)+' spm',     fmtBest:null, tip:'Average stroke rate, in strokes per minute (SPM).'},
   {k:'dps',    l:'DPS',         c:'var(--mc-dps)', cat:'cond',  filter:s=>s.dps>1&&s.dps<25,            val:s=>s.dps,         fmtAvg:v=>fmtDPSU(v)+dpsULabelU(), fmtBest:null, tip:'Distance per stroke — average boat travel per stroke cycle. GPS-derived — affected by current and tide.'},
-  {k:'cdur',   l:'Catch Dur',   c:'var(--mc-cdur)',  cat:'boat',  filter:s=>!isNaN(s.catchDuration)&&s.catchDuration>0&&s.catchDuration<1500, val:s=>s.catchDuration, fmtAvg:v=>f0(v)+' ms', fmtBest:null, tip:'Time from the point deceleration at the catch reaches 30% of its peak depth, until acceleration crosses back through zero. Measures the width of the check, not time-to-peak-force. Accelerometer-derived. Not comparable across boat classes \u2014 hull inertia differs, same as Catch Slope.'},
+  {k:'slopeneg', l:'Catch Slope -', c:'var(--mc-catchslopeneg)', cat:'boat', filter:s=>!isNaN(s.catchSlopeNeg)&&s.catchSlopeNeg>0&&s.catchSlopeNeg<400, val:s=>s.catchSlopeNeg, fmtAvg:v=>f0(v), fmtBest:null, tip:'Steepest rate of acceleration FALL going into the catch, as the blade enters and the hull checks. The companion to Catch Slope +, taken off the same jerk signal. Higher means a more abrupt check. IMU-derived - scale varies with boat class and mass.'},
+  {k:'caccel', l:'Catch Accel', c:'var(--mc-catchaccel)', cat:'boat', filter:s=>!isNaN(s.catchAccel)&&s.catchAccel<0&&s.catchAccel>-20, val:s=>s.catchAccel, fmtAvg:v=>f1(v)+' m/s²', fmtBest:null, tip:'Peak negative (backward) acceleration at the catch - the depth of the check. Read off the same stroke curve the graph plots. Closer to zero means a lighter check. IMU-derived - not comparable across boat classes.'},
+  {k:'slope',  l:'Catch Slope +', c:'var(--mc-slope)', cat:'boat',  filter:s=>s.slope>0&&s.slope<300,       val:s=>s.slope,       fmtAvg:v=>f0(v),            fmtBest:null, tip:'Rate of acceleration rise out of the catch as the drive load comes on. Higher means a sharper, more aggressive catch. IMU-derived — scale varies with boat class and mass.'},
+  {k:'cdur',   l:'Catch Dur',   c:'var(--mc-cdur)',  cat:'boat',  filter:s=>!isNaN(s.catchDuration)&&s.catchDuration>0&&s.catchDuration<1500, val:s=>s.catchDuration, fmtAvg:v=>f0(v)+' ms', fmtBest:null, tip:'Time from the point deceleration at the catch reaches 30% of its peak depth, until acceleration crosses back through zero. Measures the width of the check, not time-to-peak-force. Accelerometer-derived. Not comparable across boat classes \u2014 hull inertia differs, same as the catch slopes.'},
   {k:'drivetime', l:'Drive Time', c:'var(--mc-oar)',  cat:'boat',  filter:s=>!isNaN(s.driveTimeMs)&&s.driveTimeMs>50&&s.driveTimeMs<1500, val:s=>s.driveTimeMs, fmtAvg:v=>f0(v)+' ms', fmtBest:null, tip:'Time from peak drive acceleration to blade exit — the back half of the drive. Accelerometer-derived, so it covers every stroke regardless of GPS. Catch Dur and Drive Time overlap around the peak, so the true total drive time is less than their sum but more than Drive Time alone.'},
-  {k:'slope',  l:'Catch Slope', c:'var(--mc-slope)', cat:'boat',  filter:s=>s.slope>0&&s.slope<300,       val:s=>s.slope,       fmtAvg:v=>f0(v),            fmtBest:null, tip:'Rate of acceleration rise at the catch. Higher means a sharper, more aggressive catch. IMU-derived — scale varies with boat class and mass.'},
   {k:'impulse',l:'Impulse',     c:'var(--mc-impulse)', cat:'boat',  filter:s=>s.impulse>0&&s.impulse<1000,  val:s=>s.impulse,     fmtAvg:v=>Math.round(v).toString(),fmtBest:null, tip:'Total positive acceleration during the drive, integrated as a change in velocity (Δv). Higher means more drive power applied to the hull — not a peak value. IMU-derived — scale varies with boat class and mass.'},
   {k:'driveaccel', l:'Drive Accel', c:'var(--mc-driveaccel)', cat:'boat', filter:s=>!isNaN(s.driveAccel)&&s.driveAccel>0&&s.driveAccel<20, val:s=>s.driveAccel, fmtAvg:v=>f1(v)+' m/s²', fmtBest:null, tip:'Peak forward acceleration during the drive, catch to finish. IMU-derived — scale varies with boat class and mass.'},
   {k:'recoveryaccel', l:'Recovery Accel', c:'var(--mc-recoveryaccel)', cat:'boat', filter:s=>!isNaN(s.recoveryAccel)&&s.recoveryAccel>0&&s.recoveryAccel<20, val:s=>s.recoveryAccel, fmtAvg:v=>f1(v)+' m/s²', fmtBest:null, tip:'Peak forward acceleration during the recovery, taken after the small drag-dip that follows the finish. IMU-derived — scale varies with boat class and mass.'},
@@ -1157,7 +1164,10 @@ function applyTileOrder(ord){
     try{order=JSON.parse(localStorage.getItem('br_tile_order')||'null');}catch{order=null;}
   }
   if(!Array.isArray(order)||!order.length)return;
-  const idx=k=>{const i=order.indexOf(k);return i<0?999:i;};
+  const ORDER_ANCHOR={slopeneg:['slope',-0.3],caccel:['slope',-0.2],cdur:['slope',0.1]};
+  const idx=k=>{const i=order.indexOf(k);if(i>=0)return i;
+    const a=ORDER_ANCHOR[k];if(a){const j=order.indexOf(a[0]);if(j>=0)return j+a[1];}
+    return 999;};
   METRIC_DEFS.sort((a,b)=>idx(a.k)-idx(b.k));
 }
 applyTileOrder();
@@ -1189,9 +1199,9 @@ let curveRowHl=new Set(); // row labels highlighted yellow in the curve comparis
 let currentView=[];
 let viewS=0,viewE=0;
 let selS=-1,selE=-1;
-let vis={pace:true,rate:true,slope:false,dps:false,impulse:false,rloss:false,schar:false,ratio:false,angle:false,cdelta:false,cdur:false,drivetime:false,driveaccel:false,recoveryaccel:false,hr:false};
+let vis={pace:true,rate:true,slope:false,slopeneg:false,caccel:false,dps:false,impulse:false,rloss:false,schar:false,ratio:false,angle:false,cdelta:false,cdur:false,drivetime:false,driveaccel:false,recoveryaccel:false,hr:false};
 try{const sv=JSON.parse(localStorage.getItem('br_tile_vis')||'null');if(sv&&typeof sv==='object')Object.assign(vis,sv);}catch{}
-let hid={pace:false,rate:false,slope:false,dps:false,impulse:false,rloss:false,schar:false,ratio:false,angle:false,cdelta:false,cdur:false,drivetime:false,driveaccel:false,recoveryaccel:false,hr:false};
+let hid={pace:false,rate:false,slope:false,slopeneg:false,caccel:false,dps:false,impulse:false,rloss:false,schar:false,ratio:false,angle:false,cdelta:false,cdur:false,drivetime:false,driveaccel:false,recoveryaccel:false,hr:false};
 try{const sh=JSON.parse(localStorage.getItem('br_tile_hidden')||'null');if(sh&&typeof sh==='object')Object.assign(hid,sh);}catch{}
 hid.pace=false; hid.rate=false;
 vis=new Proxy(vis,{get(t,k){return hid[k]?false:t[k];},set(t,k,v){t[k]=v;return true;}});
@@ -1252,7 +1262,7 @@ let isDragMain=false,isDragOv=false;
 let ovAbsSelS=-1,ovAbsSelE=-1;
 let leafletMap=null, mapBaseLine=null, mapGroupLines=[];
 let _pinnedStrokeIdx=-1, _mapPinMarker=null;
-let _clickStartX=-1,_clickStartTime=0,_touchMoved=false;
+let _clickStartX=-1,_clickStartTime=0;
 let SESSIONS=[]; // [{label,d}] — all loaded workout files
 let activeSessionIdx=-1;
 let _addMode=false; // true while "+ Add file" flow is choosing a file
@@ -1358,6 +1368,7 @@ function sessionToAnalyserFmt(s) {
     rloss:!isNaN(num(r.runLossPct))?num(r.runLossPct):(num(r.runLossM)>=0&&num(r.dps)>0?num(r.runLossM)/num(r.dps)*100:NaN), runeff:num(r.runEfficiency), impulse:num(r.driveImpulse)*100,
     ratio:num(r.strokeRatio), oarAngle:num(r.oarAngle), checkDelta:num(r.velEff),
     catchDuration:num(r.catchDuration), driveTimeMs:num(r.driveTimeMs), recoveryAccel:num(r.recoveryAccel), driveAccel:num(r.driveAccel),
+    catchAccel:num(r.catchAccel), catchSlopeNeg:num(r.catchSlopeNeg),
     curve: r.curve||null, curveDriveFrac: r.curveDriveFrac||null,
   }));
   const hr = (s.hrTrace||[]).map(h=>({ ts:new Date(h.t).toISOString(), bpm:h.hr }));
@@ -1507,6 +1518,7 @@ function garminToAnalyserFmt(records, filename) {
       rloss:NaN, runeff:NaN, impulse:NaN,
       ratio:NaN, oarAngle:NaN, checkDelta:NaN,
       catchDuration:NaN, driveTimeMs:NaN, recoveryAccel:NaN, driveAccel:NaN,
+      catchAccel:NaN, catchSlopeNeg:NaN,
       curve:null, curveDriveFrac:null,
     };
   });
@@ -2367,7 +2379,9 @@ function buildCards(sum) {
     cdelta:()=>vals.cdelta?`<div class="card clickable${!vis.cdelta?' dim':''}" id="card-cdelta" data-vis="cdelta" style="border-top:2px solid var(--mc-cdelta)" title="${tipOf('cdelta')}"><div class="lbl">Vel Efficiency</div><div class="val" style="color:var(--mc-cdelta)">${f1(vals.cdelta.mean)}%</div><div class="sub">vs steady hull</div></div>`:'',
     rloss:()=>vals.rloss?card('c-rloss','Recovery Loss',fmtRunLossU(vals.rloss.mean),'avg/stroke','rloss',tipOf('rloss')):'',
     impulse:()=>vals.impulse?card('c-impulse','Impulse',Math.round(vals.impulse.mean),'peak '+Math.round(vals.impulse.max),'impulse',tipOf('impulse')):'',
-    slope:()=>vals.slope?card('c-slope','Catch Slope',f0(vals.slope.mean),'peak '+f1(vals.slope.max),'slope',tipOf('slope')):'',
+    slope:()=>vals.slope?card('c-slope','Catch Slope +',f0(vals.slope.mean),'peak '+f1(vals.slope.max),'slope',tipOf('slope')):'',
+    slopeneg:()=>vals.slopeneg?card('c-slopeneg','Catch Slope -',f0(vals.slopeneg.mean),'peak '+f1(vals.slopeneg.max),'slopeneg',tipOf('slopeneg')):'',
+    caccel:()=>vals.caccel?card('c-caccel','Catch Accel',f1(vals.caccel.mean)+' m/s²','deepest '+f1(vals.caccel.min),'caccel',tipOf('caccel')):'',
     ratio:()=>vals.ratio?card('c-ratio','Ratio',f2(vals.ratio.mean),'rec÷drive','ratio',tipOf('ratio')):'',
     schar:()=>vals.schar?card('c-schar','Stroke Char',f0(vals.schar.mean)+'%','','schar',tipOf('schar')):'',
     cdur:()=>vals.cdur?`<div class="card clickable${!vis.cdur?' dim':''}" id="card-cdur" data-vis="cdur" style="border-top:2px solid var(--mc-cdur)" title="${tipOf('cdur')}"><div class="lbl">Catch Dur</div><div class="val" style="color:var(--mc-cdur)">${f0(vals.cdur.mean)} ms</div><div class="sub">avg/stroke</div></div>`:'',
@@ -2499,7 +2513,7 @@ window.panSlide=function(val){
 function emaSmooth(view,alpha){
   if(alpha>=1)return view;
   const out=view.map(s=>Object.assign({},s));
-  const fields=['pace','rate','slope','dps','impulse','rloss','schar','ratio','checkDelta','catchDuration','driveAccel','recoveryAccel','driveTimeMs'];
+  const fields=['pace','rate','slope','catchSlopeNeg','catchAccel','dps','impulse','rloss','schar','ratio','checkDelta','catchDuration','driveAccel','recoveryAccel','driveTimeMs'];
   for(const f of fields){let ema=NaN;for(let i=0;i<out.length;i++){const v=out[i][f];if(isNaN(v)||v==null){ema=NaN;continue;}ema=isNaN(ema)?v:alpha*v+(1-alpha)*ema;out[i][f]=ema;}}
   return out;
 }
@@ -2618,11 +2632,13 @@ function drawMain(){
   const xRng=xMax-xMin||1;
   const toX=v=>PL+(v-xMin)/xRng*pw;
 
-  const pv=[],rv=[],jv=[],dv=[],iv=[],rlv=[],scv=[],ratv=[],cdv=[],cdurv=[],dtv=[],daccv=[],raccv=[],hrv=[];
+  const pv=[],rv=[],jv=[],jnv=[],cav=[],dv=[],iv=[],rlv=[],scv=[],ratv=[],cdv=[],cdurv=[],dtv=[],daccv=[],raccv=[],hrv=[];
   for(let i=0;i<N;i++){const s=sv[i];
     if(vis.pace&&s.pace>50&&s.pace<500)pv.push(s.pace);
     if(vis.rate&&s.rate>5&&s.rate<50)rv.push(s.rate);
     if(vis.slope&&s.slope>0&&s.slope<300)jv.push(s.slope);
+    if(vis.slopeneg&&s.catchSlopeNeg>0&&s.catchSlopeNeg<400)jnv.push(s.catchSlopeNeg);
+    if(vis.caccel&&s.catchAccel<0&&s.catchAccel>-20)cav.push(s.catchAccel);
     if(vis.dps&&s.dps>1&&s.dps<25)dv.push(s.dps);
     if(vis.impulse&&s.impulse>0&&s.impulse<1000)iv.push(s.impulse);
     if(vis.rloss&&s.rloss>=0&&s.rloss<100)rlv.push(s.rloss);
@@ -2642,6 +2658,7 @@ function drawMain(){
   let yRMin=0,yRMax=30;
   if(rv.length){const[lo,hi]=pctBounds(rv,0.03,0.97,0.10);yRMin=0;yRMax=Math.min(50,hi);}
   if(jv.length){const[,jhi]=pctBounds(jv,0.03,0.97,0.10);if(jhi>yRMax)yRMax=jhi;}
+  if(jnv.length){const[,jnhi]=pctBounds(jnv,0.03,0.97,0.10);if(jnhi>yRMax)yRMax=jnhi;}
   const toYR=v=>PT+ph-(v-yRMin)/(yRMax-yRMin||1)*ph;
   let yDMin=0,yDMax=14;
   if(dv.length){const[lo,hi]=pctBounds(dv,0.03,0.97,0.08);yDMin=0;yDMax=Math.min(25,hi);}
@@ -2651,8 +2668,10 @@ function drawMain(){
   const toYImp=v=>PT+ph-(v-yImpMin)/(yImpMax-yImpMin||1)*ph;
   const yRLMax=rlv.length?Math.min(Math.max(pctBounds(rlv,0.03,0.97,0.10)[1],0.5),50):2;
   const toYRL=v=>PT+ph-(v/yRLMax)*ph;
-  const accAll=[...daccv,...raccv];const yAccMax=accAll.length?Math.min(Math.max(pctBounds(accAll,0.03,0.97,0.10)[1],0.5),20):6;
-  const toYAcc=v=>PT+ph-(v/yAccMax)*ph;
+  const accAll=[...daccv,...raccv,...cav];const yAccMax=accAll.length?Math.min(Math.max(pctBounds(accAll,0.03,0.97,0.10)[1],0.5),20):6;
+  // Catch Accel is negative, so the shared accel axis drops below zero only when it is shown
+  const yAccMin=cav.length?Math.max(-20,Math.min(0,pctBounds(cav,0.03,0.97,0.10)[0])):0;
+  const toYAcc=v=>PT+ph-((v-yAccMin)/(yAccMax-yAccMin||1))*ph;
   const toYSC=v=>PT+ph-(v/100)*ph;
   let yRatMin=1.0,yRatMax=4.0;
   if(ratv.length){const[lo,hi]=pctBounds(ratv,0.05,0.95,0.10);yRatMin=1;yRatMax=Math.min(5.0,hi);}
@@ -2673,7 +2692,7 @@ function drawMain(){
   // Grid
   for(let g=yPMax;g>=yPMin-0.01;g-=30){const y=toYP(g);ctx.beginPath();ctx.moveTo(PL,y);ctx.lineTo(PL+pw,y);ctx.strokeStyle=C.gridLn;ctx.lineWidth=1;ctx.stroke();ctx.fillStyle=C.gridLb;ctx.textAlign='right';ctx.fillText(fmtPaceU(g),PL-4,y+3);}
   niceSteps(xMin,xMax,6).forEach(g=>{const x=toX(g);ctx.beginPath();ctx.moveTo(x,PT);ctx.lineTo(x,PT+ph);ctx.strokeStyle=C.gridLn;ctx.lineWidth=1;ctx.stroke();ctx.fillStyle=C.gridLb;ctx.textAlign='center';ctx.fillText(g.toFixed(0),x,PT+ph+13);});
-  if(vis.rate||vis.slope){niceSteps(yRMin,yRMax,5).forEach(g=>{ctx.fillStyle=C.gridLb;ctx.textAlign='left';ctx.fillText(g.toFixed(0),PL+pw+4,toYR(g)+3);});}
+  if(vis.rate||vis.slope||vis.slopeneg){niceSteps(yRMin,yRMax,5).forEach(g=>{ctx.fillStyle=C.gridLb;ctx.textAlign='left';ctx.fillText(g.toFixed(0),PL+pw+4,toYR(g)+3);});}
 
   // Pinned curve group bands (drawn first, behind data)
   const allXs=new Float32Array(ST.length);
@@ -2719,6 +2738,8 @@ function drawMain(){
   if(vis.drivetime&&dtv.length){ctx.fillStyle=C.mc_oar;for(let i=0;i<N;i++){const v=sv[i].driveTimeMs;if(isNaN(v)||v<=50||v>=1500)continue;ctx.beginPath();ctx.arc(toX(xs[i]),toYCDur(v),2.2,0,6.283);ctx.fill();}}
   if(vis.driveaccel&&daccv.length){ctx.fillStyle=C.mc_driveaccel;for(let i=0;i<N;i++){const v=sv[i].driveAccel;if(isNaN(v)||v<=0||v>=20)continue;ctx.beginPath();ctx.arc(toX(xs[i]),toYAcc(v),2.2,0,6.283);ctx.fill();}}
   if(vis.recoveryaccel&&raccv.length){ctx.fillStyle=C.mc_recoveryaccel;for(let i=0;i<N;i++){const v=sv[i].recoveryAccel;if(isNaN(v)||v<=0||v>=20)continue;ctx.beginPath();ctx.arc(toX(xs[i]),toYAcc(v),2.2,0,6.283);ctx.fill();}}
+  if(vis.caccel&&cav.length){ctx.fillStyle=C.mc_catchaccel;for(let i=0;i<N;i++){const v=sv[i].catchAccel;if(isNaN(v)||v>=0||v<=-20)continue;ctx.beginPath();ctx.arc(toX(xs[i]),toYAcc(v),2.2,0,6.283);ctx.fill();}}
+  if(vis.slopeneg&&jnv.length){const jnMax=arrMax(jnv);ctx.fillStyle=C.mc_catchslopeneg;for(let i=0;i<N;i++){const v=sv[i].catchSlopeNeg;if(isNaN(v)||v<=0||v>400)continue;const rad=clamp(1.5+(v/jnMax)*3.5,1.5,5);ctx.beginPath();ctx.arc(toX(xs[i]),toYR(v),rad,0,6.283);ctx.fill();}}
   if(vis.hr&&hrv.length){let px=null,py=null;ctx.lineWidth=2.5;for(let i=0;i<N;i++){const b=nearestHRAt(view[i].ms);if(b==null||b<40||b>220){px=null;continue;}const x=toX(xs[i]),y=toYHR(b);if(px!=null){ctx.beginPath();ctx.moveTo(px,py);ctx.lineTo(x,y);ctx.strokeStyle=hrZoneColor(b);ctx.stroke();}px=x;py=y;}}
 
   drawLapLines(ctx,computeLapBoundaryXValues(),toX,xMin,xRng,PT,ph,true);
@@ -2818,14 +2839,10 @@ function drawOv(){
 // ══════════════════════════════════════════════════════════════════════════
 function ttRow(lbl,val,col){if(!val||val===EM)return'';return`<div class="tt-row"><span class="tt-lbl">${lbl}</span><span class="tt-val"${col?` style="color:${col}"`:''}>${val}</span></div>`;}
 function showTooltip(e){
-  if(isDragMain)return;
-  showTooltipAt(e.clientX,e.clientY);
-}
-function showTooltipAt(clientX,clientY){
-  if(!currentView.length)return;
+  if(isDragMain||!currentView.length)return;
   const canvas=document.getElementById('mainC');
   const rect=canvas.getBoundingClientRect();
-  const idx=getMainIdx(clientX-rect.left);
+  const idx=getMainIdx(e.clientX-rect.left);
   if(idx<0||idx>=currentView.length)return;
   const s=currentView[idx];const C=pal();
   const TT_BUILDERS={
@@ -2834,10 +2851,12 @@ function showTooltipAt(clientX,clientY){
     dps:()=>ttRow('DPS',isNaN(s.dps)||s.dps<1?EM:fmtDPSU(s.dps)+dpsULabelU(),C.mc_dps),
     cdelta:()=>ttRow('Vel Efficiency',(!isNaN(s.checkDelta)&&s.checkDelta>=50)?f1(s.checkDelta)+'%':EM,C.mc_cdelta),
     driveaccel:()=>ttRow('Drive Accel',isNaN(s.driveAccel)||s.driveAccel<=0?EM:f1(s.driveAccel)+' m/s²',C.mc_driveaccel),
+    caccel:()=>ttRow('Catch Accel',isNaN(s.catchAccel)||s.catchAccel>=0?EM:f1(s.catchAccel)+' m/s²',C.mc_catchaccel),
+    slopeneg:()=>ttRow('Catch slope -',isNaN(s.catchSlopeNeg)||s.catchSlopeNeg<=0?EM:f0(s.catchSlopeNeg),C.mc_catchslopeneg),
     recoveryaccel:()=>ttRow('Recovery Accel',isNaN(s.recoveryAccel)||s.recoveryAccel<=0?EM:f1(s.recoveryAccel)+' m/s²',C.mc_recoveryaccel),
     rloss:()=>ttRow('Recovery Loss',isNaN(s.rloss)||s.rloss<0?EM:fmtRunLossU(s.rloss),C.mc_rloss),
     impulse:()=>ttRow('Impulse',isNaN(s.impulse)||s.impulse<=0?EM:Math.round(s.impulse).toString(),C.mc_impulse),
-    slope:()=>ttRow('Catch slope',isNaN(s.slope)||s.slope<=0?EM:f0(s.slope),C.mc_slope),
+    slope:()=>ttRow('Catch slope +',isNaN(s.slope)||s.slope<=0?EM:f0(s.slope),C.mc_slope),
     ratio:()=>ttRow('Stroke Ratio',(s.ratio==null||isNaN(s.ratio)||s.ratio<0.5||s.ratio>5)?EM:s.ratio.toFixed(2),C.mc_ratio),
     schar:()=>ttRow('Stroke Char',isNaN(s.schar)?EM:f0(s.schar)+'%',C.mc_schar),
     cdur:()=>ttRow('Catch Dur',(!isNaN(s.catchDuration)&&s.catchDuration>10)?f0(s.catchDuration)+' ms':EM,C.mc_cdur),
@@ -2853,8 +2872,8 @@ function showTooltipAt(clientX,clientY){
   const tip=document.getElementById('tooltip');
   tip.style.display='block';
   const tw=tip.offsetWidth||160,th=tip.offsetHeight||180;
-  let left=clientX+18,top=clientY-th/2;
-  if(left+tw>window.innerWidth-12)left=clientX-tw-12;
+  let left=e.clientX+18,top=e.clientY-th/2;
+  if(left+tw>window.innerWidth-12)left=e.clientX-tw-12;
   if(top<8)top=8;if(top+th>window.innerHeight-8)top=window.innerHeight-th-8;
   tip.style.left=left+'px';tip.style.top=top+'px';
 }
@@ -2889,28 +2908,21 @@ function setupMainEvents(canvas){
 
   // Touch: tap=pin stroke, drag=select
   canvas.addEventListener('touchstart',e=>{
-    isDragMain=true;_touchMoved=false;
+    hideTooltip();isDragMain=true;
     _clickStartX=e.touches[0].clientX-canvas.getBoundingClientRect().left;
     _clickStartTime=Date.now();
     selS=selE=getMainIdx(_clickStartX);schedRender();
-    showTooltipAt(e.touches[0].clientX,e.touches[0].clientY);
   },{passive:true});
-  canvas.addEventListener('touchmove',e=>{
-    const _tx=e.touches[0].clientX-canvas.getBoundingClientRect().left;
-    if(Date.now()-_clickStartTime>120&&Math.abs(_tx-_clickStartX)>25)_touchMoved=true;
-    if(_touchMoved){hideTooltip();selE=getMainIdx(_tx);schedRender();}
-    else{showTooltipAt(e.touches[0].clientX,e.touches[0].clientY);}
-  },{passive:true});
+  canvas.addEventListener('touchmove',e=>{if(isDragMain){selE=getMainIdx(e.touches[0].clientX-canvas.getBoundingClientRect().left);schedRender();}},{passive:true});
   canvas.addEventListener('touchend',e=>{
     isDragMain=false;
     const _tcx=e.changedTouches[0].clientX-canvas.getBoundingClientRect().left;
-    if(!_touchMoved&&Math.abs(_tcx-_clickStartX)<25&&Date.now()-_clickStartTime<400){
+    if(Math.abs(_tcx-_clickStartX)<10&&Date.now()-_clickStartTime<400){
       const _absIdx=viewS+getMainIdx(_tcx);
       _pinnedStrokeIdx=(_pinnedStrokeIdx===_absIdx)?-1:_absIdx;
       selS=-1;selE=-1;
       updatePinHighlight();schedRender();updateMapPin();
-      showTooltipAt(e.changedTouches[0].clientX,e.changedTouches[0].clientY);
-    }else{hideTooltip();updateSel(false);}
+    }else{updateSel(false);}
   });
   canvas.addEventListener('dblclick',()=>resetZoom());
   canvas.addEventListener('mouseleave',hideTooltip);
@@ -2980,7 +2992,7 @@ function updateStatsStrip(){
   function sp(l,v,c){return`<div class="sp-stat"><div class="l">${l}</div><div class="v" style="color:${c||'var(--text)'}">${v}</div></div>`;}
   let html='';
   if(curveGroups.length<8){
-    html+='<button id="addcurvebtn">＋ Add to curves</button>';
+    html+='<button id="addcurvebtn" onclick="pinSelection()">＋ Add to curves</button>';
   }
     if(strokes.length){
     const dur=strokes[strokes.length-1].elapsed-strokes[0].elapsed;
@@ -2995,11 +3007,6 @@ function updateStatsStrip(){
   }
   html+='<button id="selclear" onclick="clearSelection()">✕ Clear</button>';
   document.getElementById('stripinner').innerHTML=html;
-  const _acb=document.getElementById('addcurvebtn');
-  if(_acb){
-    _acb.addEventListener('touchend',e=>{e.preventDefault();pinSelection();},{passive:false});
-    _acb.addEventListener('click',pinSelection);
-  }
 }
 
 // ══════════════════════════════════════════════════════════════════════════
@@ -3652,7 +3659,9 @@ const TBL_COLS={
   cdelta:{h:'Vel Eff %', cell:s=>`<td style="color:var(--mc-cdelta)">${(!isNaN(s.checkDelta)&&s.checkDelta>=50)?f1(s.checkDelta):EM}</td>`},
   rloss:{h:'Recovery Loss %', cell:s=>`<td style="color:var(--mc-rloss)">${isNaN(s.rloss)||s.rloss<0?EM:fmtRunLossU(s.rloss)}</td>`},
   impulse:{h:'Impulse', cell:s=>`<td style="color:var(--mc-impulse)">${isNaN(s.impulse)||s.impulse<=0?EM:Math.round(s.impulse)}</td>`},
-  slope:{h:'Catch slope', cell:s=>`<td style="color:var(--mc-slope)">${isNaN(s.slope)||s.slope<=0?EM:f1(s.slope)}</td>`},
+  slope:{h:'Catch slope +', cell:s=>`<td style="color:var(--mc-slope)">${isNaN(s.slope)||s.slope<=0?EM:f1(s.slope)}</td>`},
+  slopeneg:{h:'Catch slope -', cell:s=>`<td style="color:var(--mc-catchslopeneg)">${isNaN(s.catchSlopeNeg)||s.catchSlopeNeg<=0?EM:f1(s.catchSlopeNeg)}</td>`},
+  caccel:{h:'Catch Accel', cell:s=>`<td style="color:var(--mc-catchaccel)">${isNaN(s.catchAccel)||s.catchAccel>=0?EM:f1(s.catchAccel)}</td>`},
   ratio:{h:'Ratio', cell:s=>`<td style="color:var(--mc-ratio)">${(s.ratio==null||isNaN(s.ratio)||s.ratio<0.5||s.ratio>5)?EM:s.ratio.toFixed(2)}</td>`},
   schar:{h:'Stroke Char%', cell:s=>`<td style="color:var(--mc-schar)">${isNaN(s.schar)||s.schar<=0?EM:f0(s.schar)+'%'}</td>`},
   cdur:{h:'Catch Dur ms', cell:s=>`<td style="color:var(--mc-cdur)">${(!isNaN(s.catchDuration)&&s.catchDuration>10)?f0(s.catchDuration):EM}</td>`},
@@ -4649,7 +4658,9 @@ const VID_METRICS = {
   rate:         {l:'Rate',       fmt:s=>({v:f1(s.rate),u:'spm'})},
   pace:         {l:'Pace',       fmt:s=>({v:fmtPaceU(s.pace),u:paceULabel()})},
   dps:          {l:'DPS',        fmt:s=>({v:fmtDPSU(s.dps),u:dpsULabelU()})},
-  slope:        {l:'Catch Slope',fmt:s=>({v:f0(s.slope),u:''})},
+  slope:        {l:'Catch Slope +',fmt:s=>({v:f0(s.slope),u:''})},
+  slopeneg:     {l:'Catch Slope -',fmt:s=>({v:f0(s.catchSlopeNeg),u:''})},
+  caccel:       {l:'Catch Accel', fmt:s=>({v:f1(s.catchAccel),u:'m/s²'})},
   impulse:      {l:'Impulse',    fmt:s=>({v:f0(s.impulse),u:''})},
   rloss:        {l:'Recovery Loss', fmt:s=>({v:fmtRunLossU(s.rloss),u:''})},
   schar:        {l:'Char',       fmt:s=>({v:f0(s.schar),u:'%'})},
@@ -4663,7 +4674,7 @@ const VID_METRICS = {
   stroke:       {l:'Stroke #',   fmt:(s,i)=>({v:String(i+1),u:''})},
   time:         {l:'Session',    fmt:(s,i,t)=>({v:fmtTime(t),u:''})},
 };
-const VID_METRIC_ORDER = ['rate','pace','dps','slope','impulse','driveaccel','recoveryaccel','rloss','schar','ratio','checkDelta','catchDuration','driveTimeMs','dist','stroke','time'];
+const VID_METRIC_ORDER = ['rate','pace','dps','slopeneg','caccel','slope','catchDuration','impulse','driveaccel','recoveryaccel','rloss','schar','ratio','checkDelta','driveTimeMs','dist','stroke','time'];
 const VID_KEY_TO_TILE = {checkDelta:'cdelta',catchDuration:'cdur',driveTimeMs:'drivetime'};
 function vidKeyHidden(vidKey){
   const tileKey = VID_KEY_TO_TILE[vidKey] || vidKey;
