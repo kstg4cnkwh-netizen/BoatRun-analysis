@@ -100,6 +100,10 @@ img.inline{display:inline;margin:0 3px;vertical-align:-.32em;height:1.45em;width
 .fl{float:left;margin:6px 24px 14px 0;}
 .shots{display:flex;flex-wrap:wrap;gap:14px;align-items:flex-start;margin:12px 0 18px;clear:both;}
 .shots img{margin:0;flex:0 1 auto;}
+.shots.three img{flex:1 1 0;min-width:0;max-width:none;}
+.sidebyside{display:flex;gap:24px;align-items:flex-start;margin:6px 0 16px;clear:both;}
+.sidebyside .tblwrap{flex:1 1 auto;min-width:0;margin:0;clear:none;}
+.sidebyside .sbs-img{flex:0 0 auto;margin:0;}
 .clear{clear:both;}
 
 /* placeholder shown until a screenshot file exists */
@@ -128,6 +132,8 @@ img.inline{display:inline;margin:0 3px;vertical-align:-.32em;height:1.45em;width
   .w-xs,.w-sm,.w-md,.w-lg{max-width:100%;}
   .shots{display:block;}
   .shots img,.shots .shot-ph{margin:12px 0 16px;}
+  .sidebyside{display:block;}
+  .sidebyside .sbs-img{margin:12px 0 16px;max-width:100%;}
   ul,ol{padding-left:26px;}
 }
 </style>
@@ -197,7 +203,7 @@ img.inline{display:inline;margin:0 3px;vertical-align:-.32em;height:1.45em;width
 
 <h2 class="clear">Step 3 - Mount the phone</h2>
 <p>Flat in the boat, screen up, in portrait or landscape mode. See <a href="#s2">Mounting the phone</a> for the detail.</p>
-<img class="w-md" src="screenshots/qs-mount.png" alt="Phone mounted flat in the boat, screen up" loading="lazy"/>
+<img src="screenshots/qs-mount.png" alt="Phone mounted flat in the boat, screen up" loading="lazy"/>
 
 <h2>Step 4 - Connect Heart Rate</h2>
 <p>Press the purple CONNECT HR button to connect a Bluetooth HRM. Once connected, the app will remember the device for fast connection in the future. The heart rate will be displayed in the purple button. Heart rate can also be connected at any time from the settings menu.</p>
@@ -453,7 +459,7 @@ img.inline{display:inline;margin:0 3px;vertical-align:-.32em;height:1.45em;width
 <ul>
 <li><strong>Drive Accel</strong>, top left - the highest point of the curve, peak acceleration during the drive</li>
 <li><strong>Recovery Accel</strong>, top right - peak acceleration during the recovery</li>
-<li><strong>Catch Accel</strong>, bottom centre - the lowest point of the curve, peak deceleration at the catch. This one reads as a negative number</li>
+<li><strong>Catch Accel</strong>, a third of the way in from the left, bottom of the curve - the lowest point of the curve, peak deceleration at the catch. This one reads as a negative number</li>
 </ul>
 <p>Four tiles underneath. Tap on each one to bring up a selection of available metrics.</p>
 <img class="w-lg" src="screenshots/curve-tab.png" alt="CURVE tab showing the stroke acceleration curve" loading="lazy"/>
@@ -496,7 +502,7 @@ img.inline{display:inline;margin:0 3px;vertical-align:-.32em;height:1.45em;width
 <p>Grid options - landscape: 3×3, 3×2, 2×2, 2×1, 1. Portrait: 2×4, 2×3, 2×2, 1×2, 1.</p>
 
 <h2>Assignable metrics</h2>
-<img class="fr w-sm" src="screenshots/layouts.png" alt="Layouts screen with grid selection" loading="lazy"/>
+<div class="sidebyside">
 <div class="tblwrap">
 <table>
 <tr><th>Tile</th><th>Tier</th></tr>
@@ -520,6 +526,8 @@ img.inline{display:inline;margin:0 3px;vertical-align:-.32em;height:1.45em;width
 <tr><td>Workout</td><td>Pro</td></tr>
 <tr><td>- (blank)</td><td>-</td></tr>
 </table>
+</div>
+<img class="w-sm sbs-img" src="screenshots/layouts.png" alt="Layouts screen with grid selection" loading="lazy"/>
 </div>
 
 <p class="clear">Tapping on a SELECTABLE TILE brings up a sub-menu of available options. Each slot remembers its own setting between sessions.</p>
@@ -545,7 +553,7 @@ img.inline{display:inline;margin:0 3px;vertical-align:-.32em;height:1.45em;width
 <li><strong>Rest</strong> - time or distance</li>
 </ul>
 <p>Select two or more adjacent steps and tap <strong>REPEATS</strong> to group them, then set the repeat count and whether to skip the final rest.</p>
-<div class="shots">
+<div class="shots three">
   <img class="w-sm" src="screenshots/workout-steps.png" alt="Workout step list with steps selected" loading="lazy"/>
   <img class="w-sm" src="screenshots/workout-repeats.png" alt="How many repeats prompt" loading="lazy"/>
   <img class="w-sm" src="screenshots/workout-grouped.png" alt="Grouped repeat block with skip last rest" loading="lazy"/>
@@ -673,7 +681,7 @@ img.inline{display:inline;margin:0 3px;vertical-align:-.32em;height:1.45em;width
 <p>Summary cards, colour-coded by what affects them - green independent, blue boat-dependent, red condition-dependent. Then lap tables, workout interval breakdown if there was one, and charts for every metric.</p>
 <p><strong>RENAME</strong> gives the session a name, which also updates the Drive copy if it's synced.</p>
 <p><strong>Analyser ↗</strong> hands the session straight to the Analyser in a browser.</p>
-<div class="shots">
+<div class="shots three">
   <img class="w-sm" src="screenshots/log-list.png" alt="Session log list" loading="lazy"/>
   <img class="w-sm" src="screenshots/log-detail.png" alt="Session detail summary cards" loading="lazy"/>
   <img class="w-sm" src="screenshots/log-charts.png" alt="Session detail charts and export buttons" loading="lazy"/>
@@ -896,7 +904,7 @@ img.inline{display:inline;margin:0 3px;vertical-align:-.32em;height:1.45em;width
 <p><strong>Use:</strong> a high value means the check arrives abruptly. Paired with a shallow Catch Accel that is a sharp, well-placed entry. Paired with a deep Catch Accel it is the boat being stopped rather than caught.</p>
 
 <h3>🔵 Catch Accel</h3>
-<p>The peak backward acceleration at the catch, in m/s² - how deep the check goes. Always a negative number. This is the figure displayed at the bottom centre of the stroke curve.</p>
+<p>The peak backward acceleration at the catch, in m/s² - how deep the check goes. Always a negative number. This is the figure displayed a third of the way in from the left, at the bottom of the stroke curve.</p>
 <p><strong>Use:</strong> closer to zero is a lighter check and less speed thrown away at the front end. Watch it against Recovery Loss, as both describe boat speed being lost rather than gained. Read off the plotted curve, so the number always matches the trough you can see. Do not compare it across boat classes.</p>
 
 <h3>🔵 Positive Catch Slope</h3>
