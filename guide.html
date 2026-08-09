@@ -410,7 +410,7 @@ img.inline{display:inline;margin:0 3px;vertical-align:-.32em;height:1.45em;width
 <tr><th></th><th>Basic</th><th>Pro</th></tr>
 <tr><td>Recording length</td><td>5 min</td><td>Unlimited</td></tr>
 <tr><td>Pace, Rate, DPS, HR</td><td>✓</td><td>✓</td></tr>
-<tr><td>Catch Slope + / -, Catch Accel, Catch Dur, Drive Time</td><td>-</td><td>✓</td></tr>
+<tr><td>Pos / Neg Catch Slope, Catch Accel, Catch Dur, Drive Time</td><td>-</td><td>✓</td></tr>
 <tr><td>Impulse, Drive Accel, Recovery Accel</td><td>-</td><td>✓</td></tr>
 <tr><td>Recovery Loss, Vel Efficiency</td><td>-</td><td>✓</td></tr>
 <tr><td>Stroke Char, Stroke Ratio</td><td>-</td><td>✓</td></tr>
@@ -505,9 +505,9 @@ img.inline{display:inline;margin:0 3px;vertical-align:-.32em;height:1.45em;width
 <tr><td>Dist / Stroke</td><td>Basic</td></tr>
 <tr><td>Heart Rate</td><td>Basic</td></tr>
 <tr><td>Selectable</td><td>Basic</td></tr>
-<tr><td>Catch Slope -</td><td>Pro</td></tr>
+<tr><td>Negative Catch Slope</td><td>Pro</td></tr>
 <tr><td>Catch Accel</td><td>Pro</td></tr>
-<tr><td>Catch Slope +</td><td>Pro</td></tr>
+<tr><td>Positive Catch Slope</td><td>Pro</td></tr>
 <tr><td>Catch Dur</td><td>Pro</td></tr>
 <tr><td>Drive Time</td><td>Pro</td></tr>
 <tr><td>Impulse</td><td>Pro</td></tr>
@@ -748,7 +748,7 @@ img.inline{display:inline;margin:0 3px;vertical-align:-.32em;height:1.45em;width
 <p>Sets pace unit (/500m, /1km, km/h, /mile, mph), distance (km or miles) and DPS sub-unit (m, ft, in). Applies instantly everywhere - cards, charts, tables. This is synced across your app and logins via your Google Drive.</p>
 
 <h2>Summary cards</h2>
-<p>Across the top: Distance, Duration, Pace, Rate, DPS, Catch Slope -, Catch Accel, Catch Slope +, Catch Dur, Drive Time, Impulse, Drive Accel, Recovery Accel, Recovery Loss, Ratio, Stroke Char, Vel Efficiency, Avg HR.</p>
+<p>Across the top: Distance, Duration, Pace, Rate, DPS, Negative Catch Slope, Catch Accel, Positive Catch Slope, Catch Dur, Drive Time, Impulse, Drive Accel, Recovery Accel, Recovery Loss, Ratio, Stroke Char, Vel Efficiency, Avg HR.</p>
 <p>Each card is colour-coded by category and <strong>clicking a card toggles that metric on or off in the main chart</strong>. That's the primary way you control what's plotted.</p>
 <p><strong>Tiles</strong> in the toolbar lets you reorder the cards and hide ones you never use. Pace and Rate are always on.</p>
 <img class="w-md" src="screenshots/analyser-tiles.png" alt="Tiles panel for reordering summary cards" loading="lazy"/>
@@ -875,7 +875,7 @@ img.inline{display:inline;margin:0 3px;vertical-align:-.32em;height:1.45em;width
 <li>50–60% - mid-drive</li>
 <li>65%+ - back-loaded (or soft/late catch)</li>
 </ul>
-<p><strong>Use:</strong> rising Char through a session means the catch is going under fatigue. Pair it with Catch Slope + as high slope with low Char is clean front-end loading.</p>
+<p><strong>Use:</strong> rising Char through a session means the catch is going under fatigue. Pair it with Positive Catch Slope as high slope with low Char is clean front-end loading.</p>
 
 <h3>🟢 Recovery Loss</h3>
 <p>Speed lost to deceleration during the recovery, normalised per second of recovery so the number is comparable across stroke rates. Accelerometer-derived, condition-independent. Lower is better.</p>
@@ -884,23 +884,23 @@ img.inline{display:inline;margin:0 3px;vertical-align:-.32em;height:1.45em;width
 <h3>🔵 The catch group</h3>
 <p>Four metrics describe the same feature of the stroke curve: the check, the trough the hull drops into as the blades go in. Read together they tell you how you entered it, how deep it got, how you came out of it and how long the whole thing lasted.</p>
 <ol>
-<li><strong>Catch Slope -</strong> the gradient going down into the check</li>
+<li><strong>Negative Catch Slope</strong> the gradient going down into the check</li>
 <li><strong>Catch Accel</strong> the depth of the trough</li>
-<li><strong>Catch Slope +</strong> the gradient coming back out of it</li>
+<li><strong>Positive Catch Slope</strong> the gradient coming back out of it</li>
 <li><strong>Catch Dur</strong> the width of the trough</li>
 </ol>
-<p>Both slopes are reported as positive numbers because they are magnitudes. A larger Catch Slope - means a steeper fall, not a shallower one. Catch Accel is the one that reads negative.</p>
+<p>Both slopes are reported as positive numbers because they are magnitudes. A larger Negative Catch Slope means a steeper fall, not a shallower one. Catch Accel is the one that reads negative.</p>
 
-<h3>🔵 Catch Slope -</h3>
-<p>The steepest rate at which acceleration falls going into the catch, as the blades enter and the hull checks. Measured in m/s³.</p>
+<h3>🔵 Negative Catch Slope</h3>
+<p>The steepest rate at which acceleration falls going into the catch, as the blades enter and the hull checks. Short label: Neg Slope. Measured in m/s³.</p>
 <p><strong>Use:</strong> a high value means the check arrives abruptly. Paired with a shallow Catch Accel that is a sharp, well-placed entry. Paired with a deep Catch Accel it is the boat being stopped rather than caught.</p>
 
 <h3>🔵 Catch Accel</h3>
 <p>The peak backward acceleration at the catch, in m/s² - how deep the check goes. Always a negative number. This is the figure displayed at the bottom centre of the stroke curve.</p>
 <p><strong>Use:</strong> closer to zero is a lighter check and less speed thrown away at the front end. Watch it against Recovery Loss, as both describe boat speed being lost rather than gained. Read off the plotted curve, so the number always matches the trough you can see. Do not compare it across boat classes.</p>
 
-<h3>🔵 Catch Slope +</h3>
-<p>How fast acceleration rises out of the catch as the drive load comes on. Higher means a sharper, more aggressive catch. Measured in m/s³.</p>
+<h3>🔵 Positive Catch Slope</h3>
+<p>How fast acceleration rises out of the catch as the drive load comes on. Higher means a sharper, more aggressive catch. Short label: Pos Slope. Measured in m/s³.</p>
 <p>Shown as a rolling average with the session peak alongside.</p>
 <p><strong>Use:</strong> rising slope as rate increases means you're adapting well. Falling slope means the catch is being sacrificed for cadence. A big gap between average and peak means you can produce a good catch but not repeat it.</p>
 
@@ -909,7 +909,7 @@ img.inline{display:inline;margin:0 3px;vertical-align:-.32em;height:1.45em;width
 <p><strong>Use:</strong> shorter can mean a sharper build to peak force, a quicker, more connected catch and not rowing the oar in. It is not a measure of length or full drive time.</p>
 
 <h3>🔵 Catch Consistency</h3>
-<p>Standard deviation of recent Catch Slope + values. Lower is more repeatable.</p>
+<p>Standard deviation of recent Positive Catch Slope values. Lower is more repeatable.</p>
 <p><strong>Use:</strong> consistency degrading late in a session is an early fatigue signal - it usually shows before pace drops.</p>
 
 <h3>🔵 Drive Time</h3>
@@ -947,7 +947,7 @@ img.inline{display:inline;margin:0 3px;vertical-align:-.32em;height:1.45em;width
 
 <h2>GPS metrics measure over the ground, not through the water</h2>
 <p>Pace and DPS measure motion relative to the ground. On a tidal river a 0.3 m/s following current improves your displayed pace by roughly 10 seconds per 500m at a 2:00 baseline. DPS is inflated downstream and deflated upstream for exactly the same reason.</p>
-<p>The accelerometer metrics - rate, ratio, Stroke Char, Catch Slope + and -, Catch Accel, Catch Dur, Drive Time, Impulse, Drive Accel, Recovery Accel, Recovery Loss - are unaffected by current. <strong>These are your reliable technique metrics on tidal water.</strong></p>
+<p>The accelerometer metrics - rate, ratio, Stroke Char, Positive and Negative Catch Slope, Catch Accel, Catch Dur, Drive Time, Impulse, Drive Accel, Recovery Accel, Recovery Loss - are unaffected by current. <strong>These are your reliable technique metrics on tidal water.</strong></p>
 
 <h2>The mount matters more than anything else</h2>
 <p>Every accelerometer metric assumes the phone is rigidly attached to the hull. Any independent movement corrupts all of them. A mount that rocks near stroke frequency is particularly bad - it corrupts stroke ratio and Stroke Char specifically, and it does so plausibly enough that you might believe the numbers.</p>
