@@ -382,6 +382,15 @@ img.inline{display:inline;margin:0 3px;vertical-align:-.32em;height:1.45em;width
 <li><strong>Per-session Drive delete</strong> - Analyser only. See below.</li>
 </ul>
 
+<h2>Running out of space on the phone</h2>
+<p>Your phone's storage is finite, and BoatRun will not let it block a session from saving. If the app can't fit a finished session, it works through these steps automatically, in order:</p>
+<ol>
+<li>Strips the raw GPS/IMU trace data from stored sessions - the CSV/JSON export and every displayed metric are unaffected, this only removes the debug-level trace.</li>
+<li>If that isn't enough, removes synced sessions from the phone, <strong>oldest to newest</strong>, one at a time, stopping as soon as there's room. A session is only removed here once its Drive copy is confirmed, so nothing is lost - it works exactly like the manual LOG delete below, just automatic.</li>
+<li>If every session on the phone has synced and there's still no room, the current session is kept safe in an autosave slot instead of being lost, and you're prompted to sync and delete old sessions before finishing again.</li>
+</ol>
+<p><strong>Unsynced sessions are never removed automatically.</strong> If a session hasn't backed up to Drive yet, it stays on the phone no matter how full storage gets - that copy is the only one that exists. Connect Drive and keep it syncing so this process always has something safe to clear.</p>
+
 <h2>Deleting on the phone does not delete from Drive once synced</h2>
 <img class="fr w-sm" src="screenshots/data-restore-log.png" alt="Session log showing Restore from Drive and Synced badges" loading="lazy"/>
 <p>This one catches everyone.</p>
