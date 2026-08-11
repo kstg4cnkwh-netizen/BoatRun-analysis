@@ -936,12 +936,21 @@ const AnalyserDrive = {
     }
   },
 };
+function _normRecords(obj) {
+  if (!obj) return { water: {}, erg: {} };
+  if (obj.water || obj.erg) return { water: obj.water || {}, erg: obj.erg || {} };
+  return { water: obj, erg: {} };
+}
 function mergeRecords(a, b) {
-  const out = { ...a };
-  Object.keys(b || {}).forEach(d => {
-    if (!out[d] || (b[d].timeMs != null && b[d].timeMs < out[d].timeMs)) out[d] = b[d];
-  });
-  return out;
+  const A = _normRecords(a), B = _normRecords(b);
+  function mergeMode(am, bm) {
+    const out = { ...am };
+    Object.keys(bm || {}).forEach(d => {
+      if (!out[d] || (bm[d].timeMs != null && bm[d].timeMs < out[d].timeMs)) out[d] = bm[d];
+    });
+    return out;
+  }
+  return { water: mergeMode(A.water, B.water), erg: mergeMode(A.erg, B.erg) };
 }
 let _recordsPushTimer = null;
 function schedulePushRecordsToPrefs() {
@@ -1279,7 +1288,7 @@ let _clickStartX=-1,_clickStartTime=0;
 let SESSIONS=[]; // [{label,d}] — all loaded workout files
 let activeSessionIdx=-1;
 let _addMode=false; // true while "+ Add file" flow is choosing a file
-let RECORDS_DB={}; try{RECORDS_DB=JSON.parse(localStorage.getItem('br_records')||'{}');}catch{}
+let RECORDS_DB={water:{},erg:{}}; try{RECORDS_DB=_normRecords(JSON.parse(localStorage.getItem('br_records')||'{}'));}catch{}
 
 // ══════════════════════════════════════════════════════════════════════════
 // PARSE CSV
@@ -1615,7 +1624,7 @@ function addSessionFromData(d, label, replace, fileId, squadCode) {
   if (replace) { SESSIONS=[]; curveGroups=[]; activeSessionIdx=-1; }
   const idx=SESSIONS.length;
   SESSIONS.push({label, d, fileId: fileId||null, squadCode: squadCode || d.squadCode || null});
-  updateRecords(d.gpsTrace, label, d.sum&&d.sum.start_time, fileId);
+  updateRecords(d.gpsTrace, label, d.sum&&d.sum.start_time, fileId, (d.sum&&d.sum.session_mode==='erg')?'erg':'water');
   switchSession(idx);
 }
 function bestEffortForDistance(pts, targetDist) {
@@ -1642,13 +1651,14 @@ function computeBestEfforts(gpsTrace) {
   targets.forEach(d=>{ const ms=bestEffortForDistance(pts,d); if(ms!=null) out[d]=ms; });
   return out;
 }
-function updateRecords(gpsTrace, label, dateISO, fileId) {
+function updateRecords(gpsTrace, label, dateISO, fileId, mode) {
+  const m = mode==='erg' ? 'erg' : 'water';
   const efforts=computeBestEfforts(gpsTrace);
   let changed=false;
   Object.keys(efforts).forEach(d=>{
-    const cur=RECORDS_DB[d];
+    const cur=RECORDS_DB[m][d];
     if (!cur || efforts[d]<cur.timeMs) {
-      RECORDS_DB[d]={timeMs:efforts[d], date:dateISO||null, label:label||'', fileId:fileId||null};
+      RECORDS_DB[m][d]={timeMs:efforts[d], date:dateISO||null, label:label||'', fileId:fileId||null};
       changed=true;
     }
   });
@@ -1677,20 +1687,24 @@ function renderRecords() {
   const el=document.getElementById('sz-records');
   if (!el) return;
   const targets=[500,1000,2000,5000,10000];
-  let html='<div class="brpill"><div class="sumgrp"><div class="sumgrp-hd">Personal Bests</div><div class="sumgrp-cards">';
-  targets.forEach(d=>{
-    const r=RECORDS_DB[d];
-    const lbl=d>=1000?(d/1000)+'km':d+'m';
-    const val=r?fmtRecordTime(r.timeMs):'—';
-    const dateStr=r?fmtRecordDate(r.date):'';
-    html+='<div class="card cb" style="cursor:'+(r&&r.fileId?'pointer':'default')+';" onclick="'+(r&&r.fileId?'window.loadRecordSession(\''+d+'\')':'')+'"><div class="lbl">'+lbl+'</div><div class="val">'+val+'</div><div class="sub">'+dateStr+'</div></div>';
-  });
-  html+='</div></div></div>';
-  el.innerHTML=html;
+  function grpHTML(title,mode){
+    let h='<div class="sumgrp"><div class="sumgrp-hd">'+title+'</div><div class="sumgrp-cards">';
+    targets.forEach(d=>{
+      const r=RECORDS_DB[mode][d];
+      const lbl=d>=1000?(d/1000)+'km':d+'m';
+      const val=r?fmtRecordTime(r.timeMs):'—';
+      const dateStr=r?fmtRecordDate(r.date):'';
+      h+='<div class="card cb" style="cursor:'+(r&&r.fileId?'pointer':'default')+';" onclick="'+(r&&r.fileId?'window.loadRecordSession(\''+d+'\',\''+mode+'\')':'')+'"><div class="lbl">'+lbl+'</div><div class="val">'+val+'</div><div class="sub">'+dateStr+'</div></div>';
+    });
+    h+='</div></div>';
+    return h;
+  }
+  el.innerHTML='<div class="brpill">'+grpHTML('On-Water Personal Bests','water')+grpHTML('Erg Personal Bests','erg')+'</div>';
 }
 
-window.loadRecordSession=async function(dist){
-  const r=RECORDS_DB[dist];
+window.loadRecordSession=async function(dist, mode){
+  const m = mode==='erg' ? 'erg' : 'water';
+  const r=RECORDS_DB[m][dist];
   if (!r||!r.fileId) return;
   try{
     const session=await AnalyserDrive.fetchSession(r.fileId);
@@ -3123,6 +3137,7 @@ function removeCurveGroup(idx){
   curveGroups.forEach((g,i)=>{g.label='G'+(i+1);});
   buildCurveSection();
   updateMapGroups();
+  applyGroupHighlights();
   schedRender();
 }
 window.removeCurveGroup=removeCurveGroup;
@@ -4016,10 +4031,10 @@ async function showStartup(){
   document.getElementById('sz-openfile').onclick=()=>document.getElementById('fin').click();
   document.getElementById('sz-resetrecords').onclick=()=>{
     if(!confirm('Reset all Personal Bests? Re-scan to restore.'))return;
-    RECORDS_DB={};
-    try{localStorage.setItem('br_records','{}');}catch{}
+    RECORDS_DB={water:{},erg:{}};
+    try{localStorage.setItem('br_records',JSON.stringify(RECORDS_DB));}catch{}
     renderRecords();
-    if(AnalyserDrive.isSignedIn())AnalyserDrive.pushPrefs({records:{}}).catch(()=>{});
+    if(AnalyserDrive.isSignedIn())AnalyserDrive.pushPrefs({records:RECORDS_DB}).catch(()=>{});
     toast('Personal Bests reset');
   };
   try{
@@ -4063,7 +4078,7 @@ async function showStartup(){
           const session=await AnalyserDrive.fetchSession(f.id);
           applySessionUnits(session);
           const conv=sessionToAnalyserFmt(session);
-          updateRecords(conv.gpsTrace, f.name||conv.name||'Session', conv.sum&&conv.sum.start_time, f.id);
+          updateRecords(conv.gpsTrace, f.name||conv.name||'Session', conv.sum&&conv.sum.start_time, f.id, (conv.sum&&conv.sum.session_mode==='erg')?'erg':'water');
         }catch(err){}
       }
       btn.innerHTML='<img src="icons/Scan.svg"><span>Scan All for Records</span>';
@@ -4708,14 +4723,14 @@ function _sumGroupHTML(title,groupKey,list,monthOff,weekOff){
   html+='<div class="sumgrp"><div class="sumgrp-hd">Weekly'+weekNav+'</div>'+grp('cp',T.week)+'</div></div>';
   return html;
 }
-function _sumRecordsCardsHTML(){
+function _sumRecordsCardsHTML(mode){
   const targets=[500,1000,2000,5000,10000];
   return targets.map(d=>{
-    const r=RECORDS_DB[d];
+    const r=RECORDS_DB[mode][d];
     const lbl=d>=1000?(d/1000)+'km':d+'m';
     const val=r?fmtRecordTime(r.timeMs):'—';
     const dateStr=r?fmtRecordDate(r.date):'';
-    return '<div class="card cb" style="cursor:'+(r&&r.fileId?'pointer':'default')+';" onclick="'+(r&&r.fileId?'window.loadRecordSession(\''+d+'\');document.getElementById(\'_summary_modal\')?.remove();':'')+'"><div class="lbl">'+lbl+'</div><div class="val">'+val+'</div><div class="sub">'+dateStr+'</div></div>';
+    return '<div class="card cb" style="cursor:'+(r&&r.fileId?'pointer':'default')+';" onclick="'+(r&&r.fileId?'window.loadRecordSession(\''+d+'\',\''+mode+'\');document.getElementById(\'_summary_modal\')?.remove();':'')+'"><div class="lbl">'+lbl+'</div><div class="val">'+val+'</div><div class="sub">'+dateStr+'</div></div>';
   }).join('');
 }
 let _sumOffsets={onwater:{m:0,w:0},erg:{m:0,w:0},combined:{m:0,w:0}};
@@ -4746,7 +4761,7 @@ async function showSummaryModal(){
     html+=_sumGroupHTML('On-Water','onwater',onwater,_sumOffsets.onwater.m,_sumOffsets.onwater.w);
     html+=_sumGroupHTML('Erg','erg',erg,_sumOffsets.erg.m,_sumOffsets.erg.w);
     html+=_sumGroupHTML('Combined','combined',files,_sumOffsets.combined.m,_sumOffsets.combined.w);
-    html+='<div class="brpill"><div class="sumgrp"><div class="sumgrp-hd">Personal Bests</div><div class="sumgrp-cards">'+_sumRecordsCardsHTML()+'</div></div></div>';
+    html+='<div class="brpill"><div class="sumgrp"><div class="sumgrp-hd">On-Water Personal Bests</div><div class="sumgrp-cards">'+_sumRecordsCardsHTML('water')+'</div></div><div class="sumgrp"><div class="sumgrp-hd">Erg Personal Bests</div><div class="sumgrp-cards">'+_sumRecordsCardsHTML('erg')+'</div></div></div>';
     body.innerHTML=html;
     body.querySelectorAll('button[data-nav]').forEach(btn=>{
       btn.onclick=()=>{
