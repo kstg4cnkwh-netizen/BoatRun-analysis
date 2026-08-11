@@ -2493,7 +2493,7 @@ function schedRender() {
 }
 
 // ── Zoom helpers ────────────────────────────────────────────────────────────
-function resetZoom(){viewS=0;viewE=ST.length-1;selS=-1;selE=-1;schedRender();}
+function resetZoom(){viewS=0;viewE=ST.length-1;selS=-1;selE=-1;hlRows([]);schedRender();}
 
 function scrollZoom(canvas, deltaY, cx) {
   const n=ST.length;
@@ -3000,7 +3000,7 @@ function setupMainEvents(canvas){
       const _absIdx=viewS+getMainIdx(_tcx);
       _pinnedStrokeIdx=(_pinnedStrokeIdx===_absIdx)?-1:_absIdx;
       selS=-1;selE=-1;
-      updatePinHighlight();schedRender();updateMapPin();
+      hlRows([]);updatePinHighlight();schedRender();updateMapPin();
     }else{updateSel(false);}
   });
   canvas.addEventListener('dblclick',()=>resetZoom());
@@ -3025,7 +3025,7 @@ document.addEventListener('mouseup',e=>{
       const _absIdx=viewS+getMainIdx(_mcx);
       _pinnedStrokeIdx=(_pinnedStrokeIdx===_absIdx)?-1:_absIdx;
       selS=-1;selE=-1;
-      updatePinHighlight();schedRender();updateMapPin();
+      hlRows([]);updatePinHighlight();schedRender();updateMapPin();
     }else{updateSel(false);}
   }
 });
@@ -3111,6 +3111,7 @@ function pinSelection(){
     hrT:_hrSorted.map(x=>x.t), hrBpm:_hrSorted.map(x=>x.b),
   });
   selS=-1;selE=-1;
+  hlRows([]);
   buildCurveSection();
   updateStatsStrip();
   schedRender();
