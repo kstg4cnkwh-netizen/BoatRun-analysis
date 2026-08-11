@@ -491,11 +491,12 @@ body.light .hdrname{color:#fff;}
     </div>
   </div>
   <button class="hbtn hicon-btn" id="openbtn"><img class="hicon-img" src="icons/Open.svg"><span class="hicon-txt">Open</span></button>
-  <button class="hbtn hicon-btn" id="hdrThemeBtn"><img class="hicon-img" id="hdrThemeIcon" src="icons/Dark.svg"><span class="hicon-txt" id="hdrThemeLabel">Dark Mode</span></button>
   <button class="hbtn hicon-btn" id="infobtn" title="What the metrics mean"><img class="hicon-img" src="icons/Metrics.svg"><span class="hicon-txt">Metrics</span></button>
   <button class="hbtn hicon-btn" id="reorderbtn" title="Reorder and show/hide tiles"><img class="hicon-img" src="icons/Tiles.svg"><span class="hicon-txt">Tiles</span></button>
+  <button class="hbtn hicon-btn" id="summarybtn" title="Summary and personal bests"><img class="hicon-img" src="icons/Win.svg"><span class="hicon-txt">Summary</span></button>
   <button class="hbtn hicon-btn" id="aboutbtn" title="How to use BoatRun, and send feedback"><img class="hicon-img" src="icons/About.svg"><span class="hicon-txt">About</span></button>
   <button class="hbtn hicon-btn" id="gdrivebtn" title="Google Drive sign-in status — click to sign in or re-sign in"><span id="gdrivedot" style="display:inline-block;width:8px;height:8px;border-radius:50%;background:#c0392b;margin-right:5px;"></span><span class="hicon-txt" id="gdrivelabel">Drive: Signed out</span></button>
+  <button class="hbtn hicon-btn" id="hdrThemeBtn"><img class="hicon-img" id="hdrThemeIcon" src="icons/Dark.svg"><span class="hicon-txt" id="hdrThemeLabel">Dark Mode</span></button>
   <button class="hbtn hicon-btn" id="planbtn" title="Basic / Pro plan"><img class="hicon-img" src="icons/Lock.svg"><span class="hicon-txt">Plan</span></button>
   </div>
 </div>
@@ -3999,8 +4000,6 @@ async function showStartup(){
       <button class="dzbtn dzbtn-sec" id="sz-squad"><img src="icons/Import.svg"><span>From Squad</span></button>
       <button class="dzbtn dzbtn-sec" id="sz-openfile"><img src="icons/Open.svg"><span>Open file</span></button>
     </div>
-    <div id="sz-summary"></div>
-    <div id="sz-records"></div>
     <div class="brpill-row">
       <button class="dzbtn dzbtn-sec" id="sz-rescan"><img src="icons/Scan.svg"><span>Scan All for Records</span></button>
       <button class="dzbtn dzbtn-sec" id="sz-resetrecords"><img src="icons/Reset.svg"><span>Reset Records</span></button>
@@ -4648,6 +4647,121 @@ function showReorderModal(){
   overlay.onclick=e=>{if(e.target===overlay)overlay.remove();};
   document.body.appendChild(overlay);
 }
+function _sumParseFn(name){
+  const dist=name.match(/_(\d+)m_/);
+  const dur=name.match(/_(\d{2})h(\d{2})m(\d{2})s/);
+  const str=name.match(/_(\d+)str/);
+  const erg=/_ERG(?:_|\.)/.test(name);
+  const ts=name.match(/RowSess_(\d{4})-(\d{2})-(\d{2})_(\d{2})(\d{2})/);
+  return {
+    distM: dist?parseInt(dist[1]):null,
+    durS: dur?+dur[1]*3600+ +dur[2]*60+ +dur[3]:null,
+    strokes: str?parseInt(str[1]):null,
+    erg: erg,
+    approxTs: ts?new Date(+ts[1],+ts[2]-1,+ts[3],+ts[4],+ts[5]).getTime():0
+  };
+}
+function _sumMonthRange(off){
+  const d=new Date(); d.setDate(1); d.setHours(0,0,0,0); d.setMonth(d.getMonth()-off);
+  const start=new Date(d.getFullYear(),d.getMonth(),1).getTime();
+  const end=new Date(d.getFullYear(),d.getMonth()+1,1).getTime();
+  const label=d.toLocaleDateString('en-AU',{month:'long',year:'numeric'});
+  return {start,end,label};
+}
+function _sumWeekRange(off){
+  const now=new Date();
+  const dow=(now.getDay()+6)%7;
+  const mon=new Date(now); mon.setHours(0,0,0,0); mon.setDate(mon.getDate()-dow-off*7);
+  const start=mon.getTime();
+  const end=start+7*86400000;
+  const endD=new Date(end-86400000);
+  const label=mon.toLocaleDateString('en-AU',{day:'numeric',month:'short'})+' \u2013 '+endD.toLocaleDateString('en-AU',{day:'numeric',month:'short',year:'numeric'});
+  return {start,end,label};
+}
+function _sumCalc(list,monthRange,weekRange){
+  const T={all:{dist:0,dur:0,n:0},month:{dist:0,dur:0,n:0},week:{dist:0,dur:0,n:0}};
+  let longestDist=0,totalStrokes=0;
+  list.forEach(f=>{
+    const p=_sumParseFn(f.name);
+    const ts=p.approxTs||new Date(f.createdTime).getTime()||0;
+    const d=p.distM||0,t=p.durS||0,s=p.strokes||0;
+    T.all.dist+=d;T.all.dur+=t;T.all.n++;
+    totalStrokes+=s;
+    if(d>longestDist)longestDist=d;
+    if(ts>=monthRange.start&&ts<monthRange.end){T.month.dist+=d;T.month.dur+=t;T.month.n++;}
+    if(ts>=weekRange.start&&ts<weekRange.end){T.week.dist+=d;T.week.dur+=t;T.week.n++;}
+  });
+  return {T,longestDist,totalStrokes};
+}
+function _sumGroupHTML(title,groupKey,list,monthOff,weekOff){
+  const monthRange=_sumMonthRange(monthOff), weekRange=_sumWeekRange(weekOff);
+  const {T,longestDist,totalStrokes}=_sumCalc(list,monthRange,weekRange);
+  const pace=t=>t.dist&&t.dur?fmtPace(t.dur/t.dist*500):EM;
+  const mk=(cls,lbl,val)=>'<div class="card '+cls+'"><div class="lbl">'+lbl+'</div><div class="val">'+val+'</div></div>';
+  const grp=(cls,t)=>'<div class="sumgrp-cards">'+mk(cls,'Sessions',t.n)+mk(cls,'Distance',(t.dist/1000).toFixed(1)+'km')+mk(cls,'Time',fmtTime(t.dur))+mk(cls,'Avg Pace',pace(t))+'</div>';
+  const monthNav='<span class="sumnav"><button data-grp="'+groupKey+'" data-nav="month-prev">\u2039</button><span class="sumnav-lbl">'+monthRange.label+'</span><button data-grp="'+groupKey+'" data-nav="month-next"'+(monthOff<=0?' disabled':'')+'>\u203a</button></span>';
+  const weekNav='<span class="sumnav"><button data-grp="'+groupKey+'" data-nav="week-prev">\u2039</button><span class="sumnav-lbl">'+weekRange.label+'</span><button data-grp="'+groupKey+'" data-nav="week-next"'+(weekOff<=0?' disabled':'')+'>\u203a</button></span>';
+  let html='<div class="brpill"><div class="sz-lhd">'+title+'</div>';
+  html+='<div class="sumgrp-cards" style="margin-bottom:16px;">'+mk('co','Longest',(longestDist/1000).toFixed(1)+'km')+mk('cd','Total Strokes',totalStrokes.toLocaleString())+'</div>';
+  html+='<div class="sumgrp"><div class="sumgrp-hd">Total</div>'+grp('cb',T.all)+'</div>';
+  html+='<div class="sumgrp"><div class="sumgrp-hd">Monthly'+monthNav+'</div>'+grp('c-amber',T.month)+'</div>';
+  html+='<div class="sumgrp"><div class="sumgrp-hd">Weekly'+weekNav+'</div>'+grp('cp',T.week)+'</div></div>';
+  return html;
+}
+function _sumRecordsCardsHTML(){
+  const targets=[500,1000,2000,5000,10000];
+  return targets.map(d=>{
+    const r=RECORDS_DB[d];
+    const lbl=d>=1000?(d/1000)+'km':d+'m';
+    const val=r?fmtRecordTime(r.timeMs):'—';
+    const dateStr=r?fmtRecordDate(r.date):'';
+    return '<div class="card cb" style="cursor:'+(r&&r.fileId?'pointer':'default')+';" onclick="'+(r&&r.fileId?'window.loadRecordSession(\''+d+'\');document.getElementById(\'_summary_modal\')?.remove();':'')+'"><div class="lbl">'+lbl+'</div><div class="val">'+val+'</div><div class="sub">'+dateStr+'</div></div>';
+  }).join('');
+}
+let _sumOffsets={onwater:{m:0,w:0},erg:{m:0,w:0},combined:{m:0,w:0}};
+async function showSummaryModal(){
+  document.getElementById('_summary_modal')?.remove();
+  const overlay=document.createElement('div');
+  overlay.id='_summary_modal';
+  overlay.style.cssText='position:fixed;inset:0;background:rgba(0,0,0,.72);display:flex;align-items:center;justify-content:center;z-index:9999;padding:16px;';
+  const panel=document.createElement('div');
+  panel.style.cssText='background:var(--s1);border:1px solid var(--border);border-radius:10px;max-width:460px;width:100%;max-height:86vh;overflow-y:auto;padding:14px 16px;';
+  panel.innerHTML='<div style="display:flex;align-items:center;gap:10px;margin-bottom:12px;"><div style="font-size:13px;font-weight:600;color:var(--text);">Summary</div><button id="_sum_close" style="margin-left:auto;background:var(--s3);border:1px solid var(--border);color:var(--muted);border-radius:6px;padding:4px 10px;font-size:11px;cursor:pointer;">Close</button></div><div id="_sum_body" class="sz-loading">Loading\u2026</div>';
+  overlay.appendChild(panel);
+  overlay.onclick=e=>{if(e.target===overlay)overlay.remove();};
+  document.body.appendChild(overlay);
+  document.getElementById('_sum_close').onclick=()=>overlay.remove();
+  const body=document.getElementById('_sum_body');
+  if(!AnalyserDrive.isSignedIn()){
+    body.innerHTML='<div class="sz-loading">Sign in to Google Drive to see your summary.</div>';
+    return;
+  }
+  let files;
+  try{ files=await AnalyserDrive.list(); }catch(err){ body.innerHTML='<div class="sz-loading">Could not load sessions.</div>'; return; }
+  if(!files.length){ body.innerHTML='<div class="sz-loading">No sessions on Drive</div>'; return; }
+  function render(){
+    const onwater=files.filter(f=>!_sumParseFn(f.name).erg);
+    const erg=files.filter(f=>_sumParseFn(f.name).erg);
+    let html='';
+    html+=_sumGroupHTML('On-Water','onwater',onwater,_sumOffsets.onwater.m,_sumOffsets.onwater.w);
+    html+=_sumGroupHTML('Erg','erg',erg,_sumOffsets.erg.m,_sumOffsets.erg.w);
+    html+=_sumGroupHTML('Combined','combined',files,_sumOffsets.combined.m,_sumOffsets.combined.w);
+    html+='<div class="brpill"><div class="sumgrp"><div class="sumgrp-hd">Personal Bests</div><div class="sumgrp-cards">'+_sumRecordsCardsHTML()+'</div></div></div>';
+    body.innerHTML=html;
+    body.querySelectorAll('button[data-nav]').forEach(btn=>{
+      btn.onclick=()=>{
+        const g=btn.dataset.grp, nav=btn.dataset.nav;
+        const off=_sumOffsets[g];
+        if(nav==='month-prev')off.m++;
+        else if(nav==='month-next'){ if(off.m>0)off.m--; }
+        else if(nav==='week-prev')off.w++;
+        else if(nav==='week-next'){ if(off.w>0)off.w--; }
+        render();
+      };
+    });
+  }
+  render();
+}
 function showAboutModal(){
   const overlay=document.createElement('div');
   overlay.id='_about_modal';
@@ -4720,6 +4834,7 @@ document.getElementById('jsonbtn').onclick=exportJSON;
 document.getElementById('openbtn').onclick=()=>{const s=document.getElementById('startup');if(s.innerHTML&&s.style.display!=='none'){s.style.display='none';s.innerHTML='';}else{showStartup();}};
 document.getElementById('infobtn').onclick=showInfoModal;
 document.getElementById('reorderbtn').onclick=showReorderModal;
+document.getElementById('summarybtn').onclick=showSummaryModal;
 document.getElementById('aboutbtn').onclick=showAboutModal;
 document.getElementById('planbtn').onclick=()=>showPlanModal();
 document.getElementById('gdrivebtn').onclick=()=>{ if (AnalyserDrive.isSignedIn()) { toast('Already signed in to Google Drive'); return; } AnalyserDrive.signIn(); };
