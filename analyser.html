@@ -1206,9 +1206,9 @@ let curveRowHl=new Set(); // row labels highlighted yellow in the curve comparis
 let currentView=[];
 let viewS=0,viewE=0;
 let selS=-1,selE=-1;
-let vis={pace:true,rate:true,slope:false,slopeneg:false,caccel:false,dps:false,impulse:false,rloss:false,schar:false,ratio:false,angle:false,cdelta:false,cdur:false,drivetime:false,driveaccel:false,recoveryaccel:false,hr:false};
+let vis={pace:true,rate:true,slope:false,slopeneg:false,caccel:false,dps:false,impulse:false,rloss:false,schar:false,ratio:false,angle:false,cdelta:false,cdur:false,drivetime:false,driveaccel:false,recoveryaccel:false,hr:false,peakforce:false,drivelength:false};
 try{const sv=JSON.parse(localStorage.getItem('br_tile_vis')||'null');if(sv&&typeof sv==='object')Object.assign(vis,sv);}catch{}
-let hid={pace:false,rate:false,slope:false,slopeneg:false,caccel:false,dps:false,impulse:false,rloss:false,schar:false,ratio:false,angle:false,cdelta:false,cdur:false,drivetime:false,driveaccel:false,recoveryaccel:false,hr:false};
+let hid={pace:false,rate:false,slope:false,slopeneg:false,caccel:false,dps:false,impulse:false,rloss:false,schar:false,ratio:false,angle:false,cdelta:false,cdur:false,drivetime:false,driveaccel:false,recoveryaccel:false,hr:false,peakforce:false,drivelength:false};
 try{const sh=JSON.parse(localStorage.getItem('br_tile_hidden')||'null');if(sh&&typeof sh==='object')Object.assign(hid,sh);}catch{}
 hid.pace=false; hid.rate=false;
 vis=new Proxy(vis,{get(t,k){return hid[k]?false:t[k];},set(t,k,v){t[k]=v;return true;}});
@@ -2536,7 +2536,7 @@ window.panSlide=function(val){
 function emaSmooth(view,alpha){
   if(alpha>=1)return view;
   const out=view.map(s=>Object.assign({},s));
-  const fields=['pace','rate','slope','catchSlopeNeg','catchAccel','dps','impulse','rloss','schar','ratio','checkDelta','catchDuration','driveAccel','recoveryAccel','driveTimeMs'];
+  const fields=['pace','rate','slope','catchSlopeNeg','catchAccel','dps','impulse','rloss','schar','ratio','checkDelta','catchDuration','driveAccel','recoveryAccel','driveTimeMs','peakforceN','drivelength'];
   for(const f of fields){let ema=NaN;for(let i=0;i<out.length;i++){const v=out[i][f];if(isNaN(v)||v==null){ema=NaN;continue;}ema=isNaN(ema)?v:alpha*v+(1-alpha)*ema;out[i][f]=ema;}}
   return out;
 }
@@ -2655,7 +2655,7 @@ function drawMain(){
   const xRng=xMax-xMin||1;
   const toX=v=>PL+(v-xMin)/xRng*pw;
 
-  const pv=[],rv=[],jv=[],jnv=[],cav=[],dv=[],iv=[],rlv=[],scv=[],ratv=[],cdv=[],cdurv=[],dtv=[],daccv=[],raccv=[],hrv=[];
+  const pv=[],rv=[],jv=[],jnv=[],cav=[],dv=[],iv=[],rlv=[],scv=[],ratv=[],cdv=[],cdurv=[],dtv=[],daccv=[],raccv=[],hrv=[],pfv=[],slv=[];
   for(let i=0;i<N;i++){const s=sv[i];
     if(vis.pace&&s.pace>50&&s.pace<500)pv.push(s.pace);
     if(vis.rate&&s.rate>5&&s.rate<50)rv.push(s.rate);
@@ -2673,6 +2673,8 @@ function drawMain(){
     if(vis.driveaccel&&!isNaN(s.driveAccel)&&s.driveAccel>0&&s.driveAccel<20)daccv.push(s.driveAccel);
     if(vis.recoveryaccel&&!isNaN(s.recoveryAccel)&&s.recoveryAccel>0&&s.recoveryAccel<20)raccv.push(s.recoveryAccel);
     if(vis.hr){const b=nearestHRAt(view[i].ms);if(b!=null&&b>40&&b<220)hrv.push(b);}
+    if(vis.peakforce&&!isNaN(s.peakforceN)&&s.peakforceN>0&&s.peakforceN<3000)pfv.push(s.peakforceN);
+    if(vis.drivelength&&!isNaN(s.drivelength)&&s.drivelength>0&&s.drivelength<3)slv.push(s.drivelength);
 }
 
   let yPMin=90,yPMax=300;
@@ -2709,6 +2711,12 @@ function drawMain(){
   let yHRMin=60,yHRMax=200;
   if(hrv.length){const[lo,hi]=pctBounds(hrv,0.03,0.97,0.08);yHRMin=Math.max(40,lo);yHRMax=Math.min(220,hi);}
   const toYHR=v=>PT+ph-(v-yHRMin)/(yHRMax-yHRMin||1)*ph;
+  let yPFMin=0,yPFMax=800;
+  if(pfv.length){const[lo,hi]=pctBounds(pfv,0.03,0.97,0.10);yPFMin=0;yPFMax=Math.min(1500,hi);}
+  const toYPF=v=>PT+ph-(v-yPFMin)/(yPFMax-yPFMin||1)*ph;
+  let ySLMin=0,ySLMax=2.0;
+  if(slv.length){const[lo,hi]=pctBounds(slv,0.03,0.97,0.10);ySLMin=0;ySLMax=Math.min(3,hi);}
+  const toYSL=v=>PT+ph-(v-ySLMin)/(ySLMax-ySLMin||1)*ph;
   drawLapBands(ctx,computeLapSegments(),toX,xMin,xMin+xRng,PT,ph);
   ctx.font='9px -apple-system, BlinkMacSystemFont, Helvetica Neue, sans-serif';
 
@@ -2764,6 +2772,8 @@ function drawMain(){
   if(vis.caccel&&cav.length){ctx.fillStyle=C.mc_catchaccel;for(let i=0;i<N;i++){const v=sv[i].catchAccel;if(isNaN(v)||v>=0||v<=-20)continue;ctx.beginPath();ctx.arc(toX(xs[i]),toYAcc(v),2.2,0,6.283);ctx.fill();}}
   if(vis.slopeneg&&jnv.length){const jnMax=arrMax(jnv);ctx.fillStyle=C.mc_catchslopeneg;for(let i=0;i<N;i++){const v=sv[i].catchSlopeNeg;if(isNaN(v)||v<=0||v>400)continue;const rad=clamp(1.5+(v/jnMax)*3.5,1.5,5);ctx.beginPath();ctx.arc(toX(xs[i]),toYR(v),rad,0,6.283);ctx.fill();}}
   if(vis.hr&&hrv.length){let px=null,py=null;ctx.lineWidth=2.5;for(let i=0;i<N;i++){const b=nearestHRAt(view[i].ms);if(b==null||b<40||b>220){px=null;continue;}const x=toX(xs[i]),y=toYHR(b);if(px!=null){ctx.beginPath();ctx.moveTo(px,py);ctx.lineTo(x,y);ctx.strokeStyle=hrZoneColor(b);ctx.stroke();}px=x;py=y;}}
+  if(vis.peakforce&&pfv.length){ctx.fillStyle=C.mc_impulse;for(let i=0;i<N;i++){const v=sv[i].peakforceN;if(isNaN(v)||v<=0||v>=3000)continue;ctx.beginPath();ctx.arc(toX(xs[i]),toYPF(v),2.5,0,6.283);ctx.fill();}}
+  if(vis.drivelength&&slv.length){ctx.fillStyle=C.mc_oar;for(let i=0;i<N;i++){const v=sv[i].drivelength;if(isNaN(v)||v<=0||v>=3)continue;ctx.beginPath();ctx.arc(toX(xs[i]),toYSL(v),2.5,0,6.283);ctx.fill();}}
 
   drawLapLines(ctx,computeLapBoundaryXValues(),toX,xMin,xRng,PT,ph,true);
   ctx.strokeStyle=C.frameLn;ctx.lineWidth=1;ctx.strokeRect(PL,PT,pw,ph);
