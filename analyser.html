@@ -491,13 +491,13 @@ body.light .hdrname{color:#fff;}
     </div>
   </div>
   <button class="hbtn hicon-btn" id="openbtn"><img class="hicon-img" src="icons/Open.svg"><span class="hicon-txt">Open</span></button>
-  <button class="hbtn hicon-btn" id="infobtn" title="What the metrics mean"><img class="hicon-img" src="icons/Metrics.svg"><span class="hicon-txt">Metrics</span></button>
-  <button class="hbtn hicon-btn" id="reorderbtn" title="Reorder and show/hide tiles"><img class="hicon-img" src="icons/Tiles.svg"><span class="hicon-txt">Tiles</span></button>
   <button class="hbtn hicon-btn" id="summarybtn" title="Summary and personal bests"><img class="hicon-img" src="icons/Win.svg"><span class="hicon-txt">Summary</span></button>
-  <button class="hbtn hicon-btn" id="aboutbtn" title="How to use BoatRun, and send feedback"><img class="hicon-img" src="icons/About.svg"><span class="hicon-txt">About</span></button>
   <button class="hbtn hicon-btn" id="gdrivebtn" title="Google Drive sign-in status — click to sign in or re-sign in"><span id="gdrivedot" style="display:inline-block;width:8px;height:8px;border-radius:50%;background:#c0392b;margin-right:5px;"></span><span class="hicon-txt" id="gdrivelabel">Drive: Signed out</span></button>
+  <button class="hbtn hicon-btn" id="reorderbtn" title="Reorder and show/hide tiles"><img class="hicon-img" src="icons/Tiles.svg"><span class="hicon-txt">Tiles</span></button>
+  <button class="hbtn hicon-btn" id="infobtn" title="What the metrics mean"><img class="hicon-img" src="icons/Metrics.svg"><span class="hicon-txt">Metrics</span></button>
   <button class="hbtn hicon-btn" id="hdrThemeBtn"><img class="hicon-img" id="hdrThemeIcon" src="icons/Dark.svg"><span class="hicon-txt" id="hdrThemeLabel">Dark Mode</span></button>
   <button class="hbtn hicon-btn" id="planbtn" title="Basic / Pro plan"><img class="hicon-img" src="icons/Lock.svg"><span class="hicon-txt">Plan</span></button>
+  <button class="hbtn hicon-btn" id="aboutbtn" title="How to use BoatRun, and send feedback"><img class="hicon-img" src="icons/About.svg"><span class="hicon-txt">About</span></button>
   </div>
 </div>
 
@@ -1621,6 +1621,14 @@ function loadFiles(fileList, replace) {
 }
 
 function addSessionFromData(d, label, replace, fileId, squadCode) {
+  if (!replace && SESSIONS.length) {
+    const curErg = !!(SESSIONS[0].d.sum && SESSIONS[0].d.sum.session_mode === 'erg');
+    const newErg = !!(d.sum && d.sum.session_mode === 'erg');
+    if (curErg !== newErg) {
+      toast('Can only compare sessions of the same type — on-water or erg.');
+      return;
+    }
+  }
   if (replace) { SESSIONS=[]; curveGroups=[]; activeSessionIdx=-1; }
   const idx=SESSIONS.length;
   SESSIONS.push({label, d, fileId: fileId||null, squadCode: squadCode || d.squadCode || null});
@@ -1965,12 +1973,14 @@ async function showAddComparePicker() {
                     const str = name.match(/_(\d+)str/);
                     const ts = name.match(/RowSess_(\d{4})-(\d{2})-(\d{2})_(\d{2})(\d{2})/);
                     const fav = /_FAV1/.test(name);
+                    const erg = /_ERG(?:_|\.)/.test(name);
                     return {
                         distM: dist ? parseInt(dist[1]) : null,
                         durS: dur ? +dur[1]*3600 + +dur[2]*60 + +dur[3] : null,
                         name: nm ? nm[1].replace(/-/g,' ') : null,
                         strokes: str ? parseInt(str[1]) : null,
                         favourite: fav,
+                        erg: erg,
                         approxTs: ts ? new Date(+ts[1],+ts[2]-1,+ts[3],+ts[4],+ts[5]).getTime() : 0
                     };
                 }
@@ -2006,6 +2016,7 @@ async function showAddComparePicker() {
                     const q = daSearchQuery;
                     let shown = files.filter(f => {
                         const p = parseDA(f.name);
+                        if (p.erg !== isErgSession()) return false;
                         if (daFavOnly && !p.favourite) return false;
                         if (!q) return true;
                         const hay = [p.name, f.name].filter(Boolean).join(' ').toLowerCase();
