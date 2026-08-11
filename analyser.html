@@ -946,7 +946,7 @@ function schedulePushRecordsToPrefs() {
 }
 function pushUnitsToPrefs() {
   if (!AnalyserDrive.isSignedIn()) return;
-  AnalyserDrive.pushPrefs({ units: { boatClass: unitSettings.boatClass, paceUnit: unitSettings.paceUnit, distUnit: unitSettings.distUnit, dpsUnit: unitSettings.dpsUnit } }).catch(() => {});
+  AnalyserDrive.pushPrefs({ units: { boatClass: unitSettings.boatClass, paceUnit: unitSettings.paceUnit, distUnit: unitSettings.distUnit, dpsUnit: unitSettings.dpsUnit, ergUnit: unitSettings.ergUnit } }).catch(() => {});
 }
 function pushHRZoneBoundsToPrefs() {
   if (!AnalyserDrive.isSignedIn()) return;
@@ -1052,7 +1052,7 @@ function f0(v){return isNaN(v)?EM:String(Math.round(v));}
 function niceSteps(min,max,n){const r=max-min||1,raw=r/n,mag=Math.pow(10,Math.floor(Math.log10(raw)));let step=mag;for(const f of[1,2,2.5,5,10]){if(mag*f>=raw){step=mag*f;break;}}const out=[],start=Math.ceil(min/step)*step;for(let v=start;v<=max+step*.001;v+=step)out.push(parseFloat(v.toPrecision(8)));return out;}
 
 // ── Unit settings — loaded from session JSON, overridable by user ─────────────
-const _unitDefaults = { boatClass:'scull', paceUnit:'pace500', distUnit:'km', dpsUnit:'m' };
+const _unitDefaults = { boatClass:'scull', paceUnit:'pace500', distUnit:'km', dpsUnit:'m', ergUnit:'pace' };
 let unitSettings = { ..._unitDefaults };
 let _rawOarAngles = [];     // original IMU angles from JSON, never modified
 let _recordedOutboard = 2.0; // outboard used when recording, set from session.settings
@@ -1071,6 +1071,7 @@ function applySessionUnits(rawSession) {
     try { localStorage.setItem('br_hr_zones', JSON.stringify(hrZones)); } catch { toast('HR zones not saved — storage error'); }
   }
 }
+function isErgSession() { return !!(_lastSum && _lastSum.session_mode === 'erg'); }
 function fmtPaceU(s500) {
   if (!s500 || isNaN(s500) || s500 < 50 || s500 > 700) return EM;
   switch (unitSettings.paceUnit) {
@@ -1157,6 +1158,9 @@ const METRIC_DEFS = [
   {k:'schar',  l:'Stroke Char', c:'var(--mc-schar)', cat:'indep', filter:s=>!isNaN(s.schar)&&s.schar>0&&s.schar<=100, val:s=>s.schar,       fmtAvg:v=>f0(v)+'%',        fmtBest:null, tip:'Where peak power (acceleration) occurs during the drive, as % of drive duration. Lower % = front-loaded (peak lands early), higher % = back-loaded (peak lands late). Neither is inherently better — it\'s a technique style that varies by boat type and rower.'},
   {k:'cdelta', l:'Vel Efficiency', c:'var(--mc-cdelta)',  cat:'boat',  filter:s=>!isNaN(s.checkDelta)&&s.checkDelta>=50&&s.checkDelta<=100, val:s=>s.checkDelta, fmtAvg:v=>f1(v)+'%', fmtBest:null, tip:'Hydrodynamic efficiency of the boat\'s speed profile within one stroke — 100% = perfectly steady hull, typical sculling 93–97%. Drag power rises with the cube of speed, so speed swings waste energy versus a constant speed. Higher is better. GPS-anchored IMU metric.'},
   {k:'hr',     l:'Avg HR',      c:'var(--mc-hr)',   cat:'indep', filter:s=>{const b=nearestHRAt(s.ms);return b!=null&&b>40&&b<220;}, val:s=>nearestHRAt(s.ms), fmtAvg:v=>f0(v)+' bpm', fmtBest:null, tip:'Session average heart rate \u2014 mean of all valid HR samples (40\u2013220 bpm). Matches HR Avg in the app log.'},
+  {k:'watts',  l:'Power',       c:'var(--mc-pace)', cat:'cond',  filter:s=>!isNaN(s.watts)&&s.watts>0&&s.watts<2000, val:s=>s.watts, fmtAvg:v=>f0(v)+' W', fmtBest:v=>f0(v)+' W', showBest:true, bestIsMin:false, tip:'Power output as measured by the PM5. Ergometer only.'},
+  {k:'peakforce', l:'Peak Force', c:'var(--mc-impulse)', cat:'boat', filter:s=>!isNaN(s.peakforceN)&&s.peakforceN>0&&s.peakforceN<3000, val:s=>s.peakforceN, fmtAvg:v=>f0(v)+' N', fmtBest:null, tip:'Peak handle force during the drive, as measured by the PM5. Ergometer only.'},
+  {k:'drivelength', l:'Stroke Length', c:'var(--mc-oar)', cat:'boat', filter:s=>!isNaN(s.drivelength)&&s.drivelength>0&&s.drivelength<3, val:s=>s.drivelength, fmtAvg:v=>f2(v)+' m', fmtBest:null, tip:'Handle travel distance during the drive, as measured by the PM5. Ergometer only.'},
 ];
 function applyTileOrder(ord){
   let order=ord;
@@ -1358,6 +1362,7 @@ function sessionToAnalyserFmt(s) {
     avg_catch_consistency_stdev: s.avgConsistency, avg_oar_angle_deg: s.avgOarAngle,
     avg_vel_eff_pct: s.avgVelEff, detected_axis: s.detectedAxis,
     cal_noise_floor_ms2: s.calNoiseFloor, cal_slope_thresh_ms3: s.calThresh,
+    session_mode: s.sessionMode || 'water', erg: s.erg || null,
   };
   const num = v => (v!=null&&!isNaN(+v)) ? +v : NaN;
   const t0 = s.startTime;
@@ -1370,6 +1375,7 @@ function sessionToAnalyserFmt(s) {
     catchDuration:num(r.catchDuration), driveTimeMs:num(r.driveTimeMs), recoveryAccel:num(r.recoveryAccel), driveAccel:num(r.driveAccel),
     catchAccel:num(r.catchAccel), catchSlopeNeg:num(r.catchSlopeNeg),
     curve: r.curve||null, curveDriveFrac: r.curveDriveFrac||null,
+    watts:num(r.powerW), drivelength:num(r.driveLength), peakforceN:num(r.peakForceN),
   }));
   const hr = (s.hrTrace||[]).map(h=>({ ts:new Date(h.t).toISOString(), bpm:h.hr }));
   const wlm=s.workoutLapMetrics||[];
@@ -2373,7 +2379,16 @@ function buildCards(sum) {
   const card=(cls,lbl,val,sub,k,tip)=>`<div class="card ${cls}${k?' clickable':''}${k&&!vis[k]?' dim':''}"${k?` id="card-${k}" data-vis="${k}"`:''}${tip?` title="${tip}"`:''}>` +
     `<div class="lbl">${lbl}</div><div class="val">${val}</div><div class="sub">${sub}</div></div>`;
   const CARD_BUILDERS={
-    pace:()=>vals.pace?card('c-pace','Pace',fmtPaceU(avgPace>0?avgPace:vals.pace.mean),movPace>0?'mov '+fmtPaceU(movPace):paceULabel(),'pace',tipOf('pace')):'',
+    pace:()=>{
+      if(isErgSession()&&unitSettings.ergUnit==='watts'){
+        return vals.watts?card('c-pace','Power',f0(vals.watts.mean)+' W','peak '+f0(vals.watts.max)+' W','pace',tipOf('watts')):'';
+      }
+      if(isErgSession()&&unitSettings.ergUnit==='cal'){
+        const cal=(sum.erg&&sum.erg.calories!=null)?sum.erg.calories:null;
+        return cal!=null?card('c-pace','Calories',Math.round(cal),'total kcal','pace',tipOf('watts')):'';
+      }
+      return vals.pace?card('c-pace','Pace',fmtPaceU(avgPace>0?avgPace:vals.pace.mean),movPace>0?'mov '+fmtPaceU(movPace):paceULabel(),'pace',tipOf('pace')):'';
+    },
     rate:()=>vals.rate?card('c-rate','Rate',f1(vals.rate.mean),'spm · max '+f0(vals.rate.max),'rate',tipOf('rate')):'',
     dps:()=>vals.dps?card('c-dps','DPS',fmtDPSU(vals.dps.mean),dpsULabelU()+'/stroke','dps',tipOf('dps')):'',
     cdelta:()=>vals.cdelta?`<div class="card clickable${!vis.cdelta?' dim':''}" id="card-cdelta" data-vis="cdelta" style="border-top:2px solid var(--mc-cdelta)" title="${tipOf('cdelta')}"><div class="lbl">Vel Efficiency</div><div class="val" style="color:var(--mc-cdelta)">${f1(vals.cdelta.mean)}%</div><div class="sub">vs steady hull</div></div>`:'',
@@ -2388,6 +2403,8 @@ function buildCards(sum) {
     driveaccel:()=>vals.driveaccel?card('c-driveaccel','Drive Accel',f1(vals.driveaccel.mean)+' m/s²','avg/stroke','driveaccel',tipOf('driveaccel')):'',
     recoveryaccel:()=>vals.recoveryaccel?card('c-recoveryaccel','Recovery Accel',f1(vals.recoveryaccel.mean)+' m/s²','avg/stroke','recoveryaccel',tipOf('recoveryaccel')):'',
     hr:()=>vals.hr?card('c-hr','Avg HR',f0(vals.hr.mean),'max '+f0(vals.hr.max)+' bpm','hr',tipOf('hr')):'',
+    peakforce:()=>vals.peakforce?card('c-peakforce','Peak Force',f0(vals.peakforce.mean)+' N','max '+f0(vals.peakforce.max)+' N','peakforce',tipOf('peakforce')):'',
+    drivelength:()=>vals.drivelength?card('c-drivelength','Stroke Length',f2(vals.drivelength.mean)+' m','','drivelength',tipOf('drivelength')):'',
   };
   let html=
     card('cw','Distance',distDisp,distLbl,null,'Total distance travelled (GPS), in km or mi based on units setting.')+
@@ -3772,6 +3789,14 @@ function buildUnitsBar() {
       `<button class="segbtn${unitSettings[key]===v?' on':''}" onclick="setUnitsAndRebuild('${key}','${v}')">${l}</button>`
     ).join('') + '</span>';
   }
+  if (isErgSession()) {
+    const drag=(_lastSum&&_lastSum.erg&&_lastSum.erg.dragFactor!=null)?_lastSum.erg.dragFactor:null;
+    bar.innerHTML =
+      `<span class="seglbl">Units</span>${seg('ergUnit',[['pace','Pace'],['watts','Watts'],['cal','Calories']])}` +
+      `<span class="seglbl">Drag Factor</span><span class="segwrap"><span class="segbtn" style="pointer-events:none;">${drag!=null?drag:'—'}</span></span>` +
+      (HR.length>10?`<span class="seglbl">HR zones</span><span class="segwrap">`+hrZones.map((v,i)=>`<input class="hrzin" type="number" value="${v}" min="40" max="230" title="Z${i+1} upper limit (bpm)" onchange="setHRZone(${i},this.value)" style="border-color:${HR_ZONE_COLORS[i]};color:${HR_ZONE_COLORS[i]};">`).join('')+`</span>`:'');
+    return;
+  }
   bar.innerHTML =
     `<span class="seglbl">Pace</span>${seg('paceUnit',[['pace500','/500m'],['pace1000','/1km'],['kph','km/h'],['pacemile','/mi'],['mph','mph']])}` +
     `<span class="seglbl">Dist</span>${seg('distUnit',[['km','km'],['mi','mi']])}` +
@@ -3806,8 +3831,8 @@ function mountData(d,label){
   document.getElementById('tblwrap').style.display='block';
   document.getElementById('tbltogglebtn').textContent='Hide ▴';
   document.getElementById('map-stroke-row').classList.add('on');
-  buildUnitsBar();
   buildMeta(label,d.sum);
+  buildUnitsBar();
   buildCards(d.sum);
   buildLaps();
   assignLapNumbers();
