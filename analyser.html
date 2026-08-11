@@ -163,9 +163,6 @@
   .sess-tab.on { border-color: var(--b); color: var(--text); }
   .sess-x { opacity: .6; font-weight: 700; }
   .sess-x:hover { opacity: 1; color: #e74c3c; }
-  .laptypebtn { display: inline-flex; align-items: center; padding: 4px 10px; border-radius: 7px; font-size: 9.5px; font-weight: 700; letter-spacing: .5px; text-transform: uppercase; cursor: pointer; border: 1px solid var(--border); background: var(--s2); color: var(--muted); font-family: -apple-system, BlinkMacSystemFont, Helvetica Neue, sans-serif; margin: 0 4px 4px 0; transition: border-color .15s, color .15s, background .15s; }
-  .laptypebtn:hover { border-color: var(--b); }
-  .laptypebtn.on { border-color: var(--btc); color: #fff; background: var(--btc); }
   .curve-layout { display: flex; gap: 12px; align-items: flex-start; flex-wrap: wrap; }
   .curve-col { flex: 3; min-width: 260px; }
   .curve-stats-col { flex: 2; min-width: 200px; overflow: auto; }
@@ -589,7 +586,6 @@ body.light .hdrname{color:#fff;}
     <div class="map-col">
       <div id="lapsec" style="display:none;">
         <div class="sec-hd" style="padding:0 0 4px;"><h2>Laps</h2></div>
-        <div id="laptypebar" style="margin-bottom:6px;"></div>
         <div class="twrap" style="max-height:160px;margin-bottom:8px;"><table id="laptbl"><thead></thead><tbody></tbody></table></div>
       </div>
       <div id="mapsec" style="display:none;">
@@ -1210,9 +1206,6 @@ let curveRowHl=new Set(); // row labels highlighted yellow in the curve comparis
 let currentView=[];
 let viewS=0,viewE=0;
 let selS=-1,selE=-1;
-let activeLapTypes=new Set(); // lap types currently toggled on in the laps type filter
-let typeSelStrokes=null;      // strokes matched by activeLapTypes, or null when inactive
-let currentLapList=[];        // showLaps snapshot from the last buildLaps() call
 let vis={pace:true,rate:true,slope:false,slopeneg:false,caccel:false,dps:false,impulse:false,rloss:false,schar:false,ratio:false,angle:false,cdelta:false,cdur:false,drivetime:false,driveaccel:false,recoveryaccel:false,hr:false,peakforce:false,drivelength:false};
 try{const sv=JSON.parse(localStorage.getItem('br_tile_vis')||'null');if(sv&&typeof sv==='object')Object.assign(vis,sv);}catch{}
 let hid={pace:false,rate:false,slope:false,slopeneg:false,caccel:false,dps:false,impulse:false,rloss:false,schar:false,ratio:false,angle:false,cdelta:false,cdur:false,drivetime:false,driveaccel:false,recoveryaccel:false,hr:false,peakforce:false,drivelength:false};
@@ -1744,55 +1737,13 @@ async function loadFromDrive() {
     });
   } catch(err) { toast('Drive error: '+err.message); }
 }
-function promptSquadCode(){
-    return new Promise(resolve=>{
-        document.getElementById('_squad_code_entry')?.remove();
-        let stored = '';
-        try { stored = localStorage.getItem('_squad_code') || ''; } catch {}
-        const overlay = document.createElement('div');
-        overlay.id = '_squad_code_entry';
-        overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,.72);display:flex;align-items:center;justify-content:center;z-index:9999;';
-        const panel = document.createElement('div');
-        panel.style.cssText = 'background:var(--s1);border:1px solid var(--border);border-radius:10px;padding:18px;max-width:340px;width:88%;color:var(--text);font-family:-apple-system, BlinkMacSystemFont, Helvetica Neue, sans-serif;';
-        panel.innerHTML = '<div style="font-size:1rem;font-weight:700;margin-bottom:12px;color:var(--b);">Open from Squad</div>'
-            + '<input id="sqc-input" type="text" maxlength="7" autocomplete="off" autocapitalize="characters" spellcheck="false" placeholder="Squad code" style="display:block;width:100%;box-sizing:border-box;padding:10px 12px;margin-bottom:10px;background:var(--s2);border:1px solid var(--border);border-radius:6px;color:var(--text);font-size:.95rem;text-transform:uppercase;letter-spacing:2px;text-align:center;font-weight:700;font-family:inherit;">'
-            + '<div id="sqc-hash" style="text-align:center;letter-spacing:6px;color:var(--muted);font-size:1rem;font-family:monospace;margin-bottom:14px;">#######</div>'
-            + '<div style="display:flex;gap:8px;">'
-            + '<button id="sqc-cancel" style="flex:1;padding:9px 0;background:var(--s2);border:1px solid var(--border);border-radius:6px;color:var(--text);cursor:pointer;font-size:.85rem;font-family:inherit;">Cancel</button>'
-            + '<button id="sqc-ok" style="flex:1;padding:9px 0;background:var(--b);border:1px solid var(--b);border-radius:6px;color:#fff;cursor:pointer;font-size:.85rem;font-family:inherit;opacity:.5;" disabled>Open</button>'
-            + '</div>';
-        overlay.appendChild(panel);
-        document.body.appendChild(overlay);
-        const input = document.getElementById('sqc-input');
-        const hashRow = document.getElementById('sqc-hash');
-        const okBtn = document.getElementById('sqc-ok');
-        function refresh(){
-            let v = input.value.toUpperCase().replace(/[^A-Z0-9]/g,'').slice(0,7);
-            input.value = v;
-            let slots = v.split('');
-            while (slots.length < 7) slots.push('#');
-            hashRow.textContent = slots.join(' ');
-            const ready = v.length === 7;
-            okBtn.disabled = !ready;
-            okBtn.style.opacity = ready ? '1' : '.5';
-        }
-        input.value = stored;
-        refresh();
-        input.addEventListener('input', refresh);
-        setTimeout(()=>input.focus(), 50);
-        function finish(code){ overlay.remove(); resolve(code); }
-        document.getElementById('sqc-cancel').onclick = () => finish(null);
-        okBtn.onclick = () => { if (input.value.length === 7) finish(input.value); };
-        input.addEventListener('keydown', e => {
-            if (e.key === 'Enter' && input.value.length === 7) finish(input.value);
-            if (e.key === 'Escape') finish(null);
-        });
-        overlay.onclick = e => { if (e.target === overlay) finish(null); };
-    });
-}
 async function loadFromSquad() {
-    const code = await promptSquadCode();
-    if (!code || code.length !== 7) return;
+    let stored = '';
+    try { stored = localStorage.getItem('_squad_code') || ''; } catch {}
+    const raw = prompt('Squad code:', stored);
+    if (!raw) return;
+    const code = raw.trim().toUpperCase();
+    if (code.length !== 7) { toast('Squad codes are exactly 7 characters'); return; }
     try { localStorage.setItem('_squad_code', code); } catch {}
     toast('Fetching sessions…');
     try {
@@ -1876,8 +1827,12 @@ async function showAddComparePicker() {
             return;
         }
         if (srcId === 'squad') {
-            const code = await promptSquadCode();
-            if (!code || code.length !== 7) { content.innerHTML = '<div class="sz-loading">No code entered.</div>'; return; }
+            let stored = '';
+            try { stored = localStorage.getItem('_squad_code') || ''; } catch {}
+            const raw = prompt('Squad code:', stored);
+            if (!raw) { content.innerHTML = '<div class="sz-loading">No code entered.</div>'; return; }
+            const code = raw.trim().toUpperCase();
+            if (code.length !== 7) { content.innerHTML = '<div class="sz-loading">Squad codes are exactly 7 characters.</div>'; return; }
             try { localStorage.setItem('_squad_code', code); } catch {}
             content.innerHTML = '<div class="sz-loading">Fetching sessions\u2026</div>';
             try {
@@ -2104,22 +2059,22 @@ function showSquadPicker(code, metas, desc) {
     overlay.id = '_squad_picker';
     overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,.72);display:flex;align-items:center;justify-content:center;z-index:9999;';
     const panel = document.createElement('div');
-    panel.style.cssText = 'background:var(--s1);border:1px solid var(--border);border-radius:10px;width:min(92vw,420px);max-height:80vh;display:flex;flex-direction:column;overflow:hidden;';
+    panel.style.cssText = 'background:#1e2328;border-radius:10px;width:min(92vw,420px);max-height:80vh;display:flex;flex-direction:column;overflow:hidden;';
     const hdr = document.createElement('div');
-    hdr.style.cssText = 'display:flex;align-items:center;padding:14px 16px;border-bottom:1px solid var(--border);flex-shrink:0;';
+    hdr.style.cssText = 'display:flex;align-items:center;padding:14px 16px;border-bottom:1px solid #2c3340;flex-shrink:0;';
     const title = document.createElement('span');
-    title.style.cssText = 'color:var(--text);font-size:13px;font-weight:700;';
+    title.style.cssText = 'color:#fff;font-size:13px;font-weight:700;';
     title.textContent = 'Squad ' + code + ' — Coach Sessions';
     const close = document.createElement('button');
     close.textContent = '✕';
-    close.style.cssText = 'margin-left:auto;background:none;border:1px solid var(--border);color:var(--muted);border-radius:6px;padding:4px 10px;font-size:11px;cursor:pointer;';
+    close.style.cssText = 'margin-left:auto;background:none;border:1px solid #3d4755;color:#aaa;border-radius:6px;padding:4px 10px;font-size:11px;cursor:pointer;';
     close.onclick = () => overlay.remove();
     hdr.appendChild(title);
     hdr.appendChild(close);
     panel.appendChild(hdr);
     if (desc) {
         const sub = document.createElement('div');
-        sub.style.cssText = 'padding:8px 16px 0;color:var(--b);font-size:12px;font-weight:700;flex-shrink:0;';
+        sub.style.cssText = 'padding:8px 16px 0;color:#7ec8e3;font-size:12px;font-weight:700;flex-shrink:0;';
         sub.textContent = desc;
         panel.appendChild(sub);
     }
@@ -2132,9 +2087,9 @@ function showSquadPicker(code, metas, desc) {
         const row = document.createElement('div');
         row.style.cssText = 'display:flex;align-items:center;gap:6px;';
         const btn = document.createElement('button');
-        btn.style.cssText = 'background:var(--s2);border:1px solid var(--border);border-radius:6px;padding:10px 12px;text-align:left;cursor:pointer;color:var(--text);font-size:12px;line-height:1.6;flex:1;min-width:0;font-family:inherit;';
-        btn.innerHTML = '<span style="color:var(--b);font-weight:700">' + (m.rower || 'Rower') + '</span>  ' + dateStr +
-            '<br><span style="color:var(--muted)">' + (m.dist ? m.dist + 'm' : '—') + (m.dur ? '  ' + Math.floor(m.dur / 60) + ' min' : '') + (m.name ? '  · ' + m.name : '') + '</span>';
+        btn.style.cssText = 'background:#2c3340;border:1px solid #3d4755;border-radius:6px;padding:10px 12px;text-align:left;cursor:pointer;color:#e0e6ef;font-size:12px;line-height:1.6;flex:1;min-width:0;font-family:inherit;';
+        btn.innerHTML = '<span style="color:#7ec8e3;font-weight:700">' + (m.rower || 'Rower') + '</span>  ' + dateStr +
+            '<br><span style="color:#aaa">' + (m.dist ? m.dist + 'm' : '—') + (m.dur ? '  ' + Math.floor(m.dur / 60) + ' min' : '') + (m.name ? '  · ' + m.name : '') + '</span>';
         btn.onclick = async () => {
             overlay.remove();
             toast('Loading…');
@@ -3045,8 +3000,6 @@ function updateSel(doScroll=true){
 
 function clearSelection(){
   selS=-1;selE=-1;ovAbsSelS=-1;ovAbsSelE=-1;
-  activeLapTypes=new Set();typeSelStrokes=null;
-  document.querySelectorAll('.laptypebtn').forEach(b=>b.classList.remove('on'));
   hlRows([]);schedRender();
 }
 
@@ -3058,29 +3011,22 @@ function updateStatsStrip(){
   if(!ST.length){strip.style.display='none';return;}
   strip.style.display='block';
 
-  const typeSel=(typeSelStrokes&&typeSelStrokes.length)?typeSelStrokes:null;
-  const hasSel=typeSel||(selS>=0&&selE>=0&&selS!==selE);
+  const hasSel=selS>=0&&selE>=0&&selS!==selE;
   if(!hasSel){
     document.getElementById('stripcontext').textContent='No selection';
     document.getElementById('stripinner').innerHTML='';
     return;
   }
 
-  let strokes;
-  if(typeSel){
-    strokes=typeSel;
-    document.getElementById('stripcontext').textContent=[...activeLapTypes].join(' + ')+' · '+strokes.length+' strokes';
-  } else {
-    const vlen=viewE-viewS+1;
-    const s2=clamp(Math.min(selS,selE),0,vlen-1),e2=clamp(Math.max(selS,selE),0,vlen-1);
-    strokes=ST.slice(viewS+s2,viewS+e2+1);
-    const hasCurves=strokes.some(s=>s.curve&&s.curve.length===CURVE_POINTS);
-    document.getElementById('stripcontext').textContent='Selection · '+strokes.length+' strokes'+(hasCurves?' · has curves':'');
-  }
+  const vlen=viewE-viewS+1;
+  const s2=clamp(Math.min(selS,selE),0,vlen-1),e2=clamp(Math.max(selS,selE),0,vlen-1);
+  const strokes=ST.slice(viewS+s2,viewS+e2+1);
+  const hasCurves=strokes.some(s=>s.curve&&s.curve.length===CURVE_POINTS);
+  document.getElementById('stripcontext').textContent='Selection · '+strokes.length+' strokes'+(hasCurves?' · has curves':'');
 
   function sp(l,v,c){return`<div class="sp-stat"><div class="l">${l}</div><div class="v" style="color:${c||'var(--text)'}">${v}</div></div>`;}
   let html='';
-  if(!typeSel&&curveGroups.length<8){
+  if(curveGroups.length<8){
     html+='<button id="addcurvebtn" onclick="pinSelection()">＋ Add to curves</button>';
   }
     if(strokes.length){
@@ -3088,7 +3034,7 @@ function updateStatsStrip(){
     html+=sp('Time',fmtTime(dur));
   }
   for(const m of METRIC_DEFS){
-    if(hid[m.k]||(isErgSession()&&!ERG_TILE_KEYS.includes(m.k)))continue;
+    if(hid[m.k])continue;
     const arr=strokes.filter(m.filter).map(m.val);
     if(!arr.length)continue;
     html+=sp('Avg '+m.l,m.fmtAvg(arrMean(arr)),m.c);
@@ -3434,7 +3380,7 @@ function buildCurveStats(){
     {l:'Time',fn:g=>{const a=g.strokes;return a.length?fmtTime(a[a.length-1].elapsed-a[0].elapsed):EM;}},
   ];
   for(const m of METRIC_DEFS){
-    if(hid[m.k]||(isErgSession()&&!ERG_TILE_KEYS.includes(m.k)))continue;
+    if(hid[m.k])continue;
     if(m.k==='hr'){
       rows.push({l:'Avg '+m.l, c:m.c, fn:g=>{
         const arr=g.strokes.map(s=>nearestHRIn(g.hrT,g.hrBpm,s.ms)).filter(b=>b!=null&&b>40&&b<220);
@@ -3710,23 +3656,11 @@ function lapTypeChip(type){
 }
 function buildLaps(){
   const showLaps=LAPS.filter(l=>'stroke_rate_spm' in l);
-  currentLapList=showLaps;
-  activeLapTypes=new Set();
-  typeSelStrokes=null;
-  document.getElementById('lapsec').style.display=showLaps.length?'block':'none';
-  document.querySelector('#laptbl tbody').innerHTML='';
-  document.getElementById('laptypebar').innerHTML='';
   if(!showLaps.length)return;
+  document.getElementById('lapsec').style.display='block';
   document.getElementById('map-stroke-row').classList.add('on');
   const hasHR='avg_hr_bpm' in showLaps[0],hasCal='calories' in showLaps[0];
   const hasType=showLaps.some(l=>l.type);
-  const availTypes=isErgSession()?['work','rest']:['warmup','work','rest','cooldown'];
-  const barTypes=availTypes.filter(t=>showLaps.some(l=>l.type===t));
-  const typeColor=t=>({work:'var(--g)',rest:'var(--o)',warmup:'var(--b)',cooldown:'var(--p)'}[t]||'var(--muted)');
-  document.getElementById('laptypebar').innerHTML=(hasType&&barTypes.length)?
-    '<span style="font-size:10px;color:var(--muted);margin-right:6px;">Select:</span>'+
-    barTypes.map(t=>`<button class="laptypebtn" data-type="${t}" style="--btc:${typeColor(t)}" onclick="toggleLapType('${t}')">${t}</button>`).join('')
-    :'';
   document.querySelector('#laptbl thead').innerHTML=`<tr>${hasType?'<th style="text-align:left;">Type</th>':''}<th>Lap</th><th>Dist</th><th>Time</th><th>Pace</th><th>Rate</th>${hasHR?'<th>HR avg</th><th>HR max</th>':''}${hasCal?'<th>Cal</th>':''}</tr>`;
   document.querySelector('#laptbl tbody').innerHTML=showLaps.map((l,i)=>`<tr data-lap="${i+1}" style="cursor:pointer">
     ${hasType?`<td>${lapTypeChip(l.type)}</td>`:''}
@@ -3743,35 +3677,12 @@ function buildLaps(){
       const lapN=+row.dataset.lap;
       const idxs=ST.map((s,i)=>s.lapNum===lapN?i:-1).filter(i=>i>=0);
       if(!idxs.length)return;
-      activeLapTypes=new Set();
-      typeSelStrokes=null;
-      document.querySelectorAll('.laptypebtn').forEach(b=>b.classList.remove('on'));
       selS=idxs[0]-viewS;selE=idxs[idxs.length-1]-viewS;
       schedRender();
       updateSel(true);
     });
   });
 }
-function toggleLapType(type){
-  if(activeLapTypes.has(type))activeLapTypes.delete(type);else activeLapTypes.add(type);
-  selS=-1;selE=-1;
-  document.querySelectorAll('.laptypebtn').forEach(b=>b.classList.toggle('on',activeLapTypes.has(b.dataset.type)));
-  if(!activeLapTypes.size){
-    typeSelStrokes=null;
-    hlRows([]);
-    schedRender();
-    return;
-  }
-  const idxs=[];
-  ST.forEach((s,i)=>{
-    const l=s.lapNum?currentLapList[s.lapNum-1]:null;
-    if(l&&activeLapTypes.has(l.type))idxs.push(i);
-  });
-  typeSelStrokes=idxs.map(i=>ST[i]);
-  hlRows(idxs,true);
-  schedRender();
-}
-window.toggleLapType=toggleLapType;
 
 // ══════════════════════════════════════════════════════════════════════════
 // STROKE TABLE
@@ -3957,7 +3868,6 @@ function resetApp(){
   ST=[];HR=[];HR_T=[];HR_BPM=[];LAPS=[];GPSTRACE=[];curveGroups=[];
   SESSIONS=[];activeSessionIdx=-1;_addMode=false;
   selS=-1;selE=-1;ovAbsSelS=-1;ovAbsSelE=-1;
-  activeLapTypes=new Set();typeSelStrokes=null;
   unitSettings={..._unitDefaults};
   _rawOarAngles=[];
   _recordedOutboard=2.0;
