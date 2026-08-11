@@ -3072,7 +3072,7 @@ function updateStatsStrip(){
     html+=sp('Time',fmtTime(dur));
   }
   for(const m of METRIC_DEFS){
-    if(hid[m.k])continue;
+    if(hid[m.k]||(isErgSession()&&!ERG_TILE_KEYS.includes(m.k)))continue;
     const arr=strokes.filter(m.filter).map(m.val);
     if(!arr.length)continue;
     html+=sp('Avg '+m.l,m.fmtAvg(arrMean(arr)),m.c);
@@ -3418,7 +3418,7 @@ function buildCurveStats(){
     {l:'Time',fn:g=>{const a=g.strokes;return a.length?fmtTime(a[a.length-1].elapsed-a[0].elapsed):EM;}},
   ];
   for(const m of METRIC_DEFS){
-    if(hid[m.k])continue;
+    if(hid[m.k]||(isErgSession()&&!ERG_TILE_KEYS.includes(m.k)))continue;
     if(m.k==='hr'){
       rows.push({l:'Avg '+m.l, c:m.c, fn:g=>{
         const arr=g.strokes.map(s=>nearestHRIn(g.hrT,g.hrBpm,s.ms)).filter(b=>b!=null&&b>40&&b<220);
