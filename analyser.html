@@ -163,6 +163,9 @@
   .sess-tab.on { border-color: var(--b); color: var(--text); }
   .sess-x { opacity: .6; font-weight: 700; }
   .sess-x:hover { opacity: 1; color: #e74c3c; }
+  .laptypebtn { display: inline-flex; align-items: center; padding: 4px 10px; border-radius: 7px; font-size: 9.5px; font-weight: 700; letter-spacing: .5px; text-transform: uppercase; cursor: pointer; border: 1px solid var(--border); background: var(--s2); color: var(--muted); font-family: -apple-system, BlinkMacSystemFont, Helvetica Neue, sans-serif; margin: 0 4px 4px 0; transition: border-color .15s, color .15s, background .15s; }
+  .laptypebtn:hover { border-color: var(--b); }
+  .laptypebtn.on { border-color: var(--btc); color: #fff; background: var(--btc); }
   .curve-layout { display: flex; gap: 12px; align-items: flex-start; flex-wrap: wrap; }
   .curve-col { flex: 3; min-width: 260px; }
   .curve-stats-col { flex: 2; min-width: 200px; overflow: auto; }
@@ -586,6 +589,7 @@ body.light .hdrname{color:#fff;}
     <div class="map-col">
       <div id="lapsec" style="display:none;">
         <div class="sec-hd" style="padding:0 0 4px;"><h2>Laps</h2></div>
+        <div id="laptypebar" style="margin-bottom:6px;"></div>
         <div class="twrap" style="max-height:160px;margin-bottom:8px;"><table id="laptbl"><thead></thead><tbody></tbody></table></div>
       </div>
       <div id="mapsec" style="display:none;">
@@ -1206,6 +1210,9 @@ let curveRowHl=new Set(); // row labels highlighted yellow in the curve comparis
 let currentView=[];
 let viewS=0,viewE=0;
 let selS=-1,selE=-1;
+let activeLapTypes=new Set(); // lap types currently toggled on in the laps type filter
+let typeSelStrokes=null;      // strokes matched by activeLapTypes, or null when inactive
+let currentLapList=[];        // showLaps snapshot from the last buildLaps() call
 let vis={pace:true,rate:true,slope:false,slopeneg:false,caccel:false,dps:false,impulse:false,rloss:false,schar:false,ratio:false,angle:false,cdelta:false,cdur:false,drivetime:false,driveaccel:false,recoveryaccel:false,hr:false,peakforce:false,drivelength:false};
 try{const sv=JSON.parse(localStorage.getItem('br_tile_vis')||'null');if(sv&&typeof sv==='object')Object.assign(vis,sv);}catch{}
 let hid={pace:false,rate:false,slope:false,slopeneg:false,caccel:false,dps:false,impulse:false,rloss:false,schar:false,ratio:false,angle:false,cdelta:false,cdur:false,drivetime:false,driveaccel:false,recoveryaccel:false,hr:false,peakforce:false,drivelength:false};
@@ -3038,6 +3045,8 @@ function updateSel(doScroll=true){
 
 function clearSelection(){
   selS=-1;selE=-1;ovAbsSelS=-1;ovAbsSelE=-1;
+  activeLapTypes=new Set();typeSelStrokes=null;
+  document.querySelectorAll('.laptypebtn').forEach(b=>b.classList.remove('on'));
   hlRows([]);schedRender();
 }
 
@@ -3049,22 +3058,29 @@ function updateStatsStrip(){
   if(!ST.length){strip.style.display='none';return;}
   strip.style.display='block';
 
-  const hasSel=selS>=0&&selE>=0&&selS!==selE;
+  const typeSel=(typeSelStrokes&&typeSelStrokes.length)?typeSelStrokes:null;
+  const hasSel=typeSel||(selS>=0&&selE>=0&&selS!==selE);
   if(!hasSel){
     document.getElementById('stripcontext').textContent='No selection';
     document.getElementById('stripinner').innerHTML='';
     return;
   }
 
-  const vlen=viewE-viewS+1;
-  const s2=clamp(Math.min(selS,selE),0,vlen-1),e2=clamp(Math.max(selS,selE),0,vlen-1);
-  const strokes=ST.slice(viewS+s2,viewS+e2+1);
-  const hasCurves=strokes.some(s=>s.curve&&s.curve.length===CURVE_POINTS);
-  document.getElementById('stripcontext').textContent='Selection · '+strokes.length+' strokes'+(hasCurves?' · has curves':'');
+  let strokes;
+  if(typeSel){
+    strokes=typeSel;
+    document.getElementById('stripcontext').textContent=[...activeLapTypes].join(' + ')+' · '+strokes.length+' strokes';
+  } else {
+    const vlen=viewE-viewS+1;
+    const s2=clamp(Math.min(selS,selE),0,vlen-1),e2=clamp(Math.max(selS,selE),0,vlen-1);
+    strokes=ST.slice(viewS+s2,viewS+e2+1);
+    const hasCurves=strokes.some(s=>s.curve&&s.curve.length===CURVE_POINTS);
+    document.getElementById('stripcontext').textContent='Selection · '+strokes.length+' strokes'+(hasCurves?' · has curves':'');
+  }
 
   function sp(l,v,c){return`<div class="sp-stat"><div class="l">${l}</div><div class="v" style="color:${c||'var(--text)'}">${v}</div></div>`;}
   let html='';
-  if(curveGroups.length<8){
+  if(!typeSel&&curveGroups.length<8){
     html+='<button id="addcurvebtn" onclick="pinSelection()">＋ Add to curves</button>';
   }
     if(strokes.length){
@@ -3694,11 +3710,23 @@ function lapTypeChip(type){
 }
 function buildLaps(){
   const showLaps=LAPS.filter(l=>'stroke_rate_spm' in l);
+  currentLapList=showLaps;
+  activeLapTypes=new Set();
+  typeSelStrokes=null;
+  document.getElementById('lapsec').style.display=showLaps.length?'block':'none';
+  document.querySelector('#laptbl tbody').innerHTML='';
+  document.getElementById('laptypebar').innerHTML='';
   if(!showLaps.length)return;
-  document.getElementById('lapsec').style.display='block';
   document.getElementById('map-stroke-row').classList.add('on');
   const hasHR='avg_hr_bpm' in showLaps[0],hasCal='calories' in showLaps[0];
   const hasType=showLaps.some(l=>l.type);
+  const availTypes=isErgSession()?['work','rest']:['warmup','work','rest','cooldown'];
+  const barTypes=availTypes.filter(t=>showLaps.some(l=>l.type===t));
+  const typeColor=t=>({work:'var(--g)',rest:'var(--o)',warmup:'var(--b)',cooldown:'var(--p)'}[t]||'var(--muted)');
+  document.getElementById('laptypebar').innerHTML=(hasType&&barTypes.length)?
+    '<span style="font-size:10px;color:var(--muted);margin-right:6px;">Select:</span>'+
+    barTypes.map(t=>`<button class="laptypebtn" data-type="${t}" style="--btc:${typeColor(t)}" onclick="toggleLapType('${t}')">${t}</button>`).join('')
+    :'';
   document.querySelector('#laptbl thead').innerHTML=`<tr>${hasType?'<th style="text-align:left;">Type</th>':''}<th>Lap</th><th>Dist</th><th>Time</th><th>Pace</th><th>Rate</th>${hasHR?'<th>HR avg</th><th>HR max</th>':''}${hasCal?'<th>Cal</th>':''}</tr>`;
   document.querySelector('#laptbl tbody').innerHTML=showLaps.map((l,i)=>`<tr data-lap="${i+1}" style="cursor:pointer">
     ${hasType?`<td>${lapTypeChip(l.type)}</td>`:''}
@@ -3715,12 +3743,35 @@ function buildLaps(){
       const lapN=+row.dataset.lap;
       const idxs=ST.map((s,i)=>s.lapNum===lapN?i:-1).filter(i=>i>=0);
       if(!idxs.length)return;
+      activeLapTypes=new Set();
+      typeSelStrokes=null;
+      document.querySelectorAll('.laptypebtn').forEach(b=>b.classList.remove('on'));
       selS=idxs[0]-viewS;selE=idxs[idxs.length-1]-viewS;
       schedRender();
       updateSel(true);
     });
   });
 }
+function toggleLapType(type){
+  if(activeLapTypes.has(type))activeLapTypes.delete(type);else activeLapTypes.add(type);
+  selS=-1;selE=-1;
+  document.querySelectorAll('.laptypebtn').forEach(b=>b.classList.toggle('on',activeLapTypes.has(b.dataset.type)));
+  if(!activeLapTypes.size){
+    typeSelStrokes=null;
+    hlRows([]);
+    schedRender();
+    return;
+  }
+  const idxs=[];
+  ST.forEach((s,i)=>{
+    const l=s.lapNum?currentLapList[s.lapNum-1]:null;
+    if(l&&activeLapTypes.has(l.type))idxs.push(i);
+  });
+  typeSelStrokes=idxs.map(i=>ST[i]);
+  hlRows(idxs,true);
+  schedRender();
+}
+window.toggleLapType=toggleLapType;
 
 // ══════════════════════════════════════════════════════════════════════════
 // STROKE TABLE
@@ -3906,6 +3957,7 @@ function resetApp(){
   ST=[];HR=[];HR_T=[];HR_BPM=[];LAPS=[];GPSTRACE=[];curveGroups=[];
   SESSIONS=[];activeSessionIdx=-1;_addMode=false;
   selS=-1;selE=-1;ovAbsSelS=-1;ovAbsSelE=-1;
+  activeLapTypes=new Set();typeSelStrokes=null;
   unitSettings={..._unitDefaults};
   _rawOarAngles=[];
   _recordedOutboard=2.0;
