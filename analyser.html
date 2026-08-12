@@ -163,6 +163,9 @@
   .sess-tab.on { border-color: var(--b); color: var(--text); }
   .sess-x { opacity: .6; font-weight: 700; }
   .sess-x:hover { opacity: 1; color: #e74c3c; }
+  .laptypebtn { display: inline-flex; align-items: center; padding: 4px 10px; border-radius: 7px; font-size: 9.5px; font-weight: 700; letter-spacing: .5px; text-transform: uppercase; cursor: pointer; border: 1px solid var(--border); background: var(--s2); color: var(--muted); font-family: -apple-system, BlinkMacSystemFont, Helvetica Neue, sans-serif; margin: 0 4px 4px 0; transition: border-color .15s, color .15s, background .15s; }
+  .laptypebtn:hover { border-color: var(--b); }
+  .laptypebtn.on { border-color: var(--btc); color: #fff; background: var(--btc); }
   .curve-layout { display: flex; gap: 12px; align-items: flex-start; flex-wrap: wrap; }
   .curve-col { flex: 3; min-width: 260px; }
   .curve-stats-col { flex: 2; min-width: 200px; overflow: auto; }
@@ -488,12 +491,13 @@ body.light .hdrname{color:#fff;}
     </div>
   </div>
   <button class="hbtn hicon-btn" id="openbtn"><img class="hicon-img" src="icons/Open.svg"><span class="hicon-txt">Open</span></button>
-  <button class="hbtn hicon-btn" id="hdrThemeBtn"><img class="hicon-img" id="hdrThemeIcon" src="icons/Dark.svg"><span class="hicon-txt" id="hdrThemeLabel">Dark Mode</span></button>
-  <button class="hbtn hicon-btn" id="infobtn" title="What the metrics mean"><img class="hicon-img" src="icons/Metrics.svg"><span class="hicon-txt">Metrics</span></button>
-  <button class="hbtn hicon-btn" id="reorderbtn" title="Reorder and show/hide tiles"><img class="hicon-img" src="icons/Tiles.svg"><span class="hicon-txt">Tiles</span></button>
-  <button class="hbtn hicon-btn" id="aboutbtn" title="How to use BoatRun, and send feedback"><img class="hicon-img" src="icons/About.svg"><span class="hicon-txt">About</span></button>
+  <button class="hbtn hicon-btn" id="summarybtn" title="Summary and personal bests"><img class="hicon-img" src="icons/Win.svg"><span class="hicon-txt">Summary</span></button>
   <button class="hbtn hicon-btn" id="gdrivebtn" title="Google Drive sign-in status — click to sign in or re-sign in"><span id="gdrivedot" style="display:inline-block;width:8px;height:8px;border-radius:50%;background:#c0392b;margin-right:5px;"></span><span class="hicon-txt" id="gdrivelabel">Drive: Signed out</span></button>
+  <button class="hbtn hicon-btn" id="reorderbtn" title="Reorder and show/hide tiles"><img class="hicon-img" src="icons/Tiles.svg"><span class="hicon-txt">Tiles</span></button>
+  <button class="hbtn hicon-btn" id="infobtn" title="What the metrics mean"><img class="hicon-img" src="icons/Metrics.svg"><span class="hicon-txt">Metrics</span></button>
+  <button class="hbtn hicon-btn" id="hdrThemeBtn"><img class="hicon-img" id="hdrThemeIcon" src="icons/Dark.svg"><span class="hicon-txt" id="hdrThemeLabel">Dark Mode</span></button>
   <button class="hbtn hicon-btn" id="planbtn" title="Basic / Pro plan"><img class="hicon-img" src="icons/Lock.svg"><span class="hicon-txt">Plan</span></button>
+  <button class="hbtn hicon-btn" id="aboutbtn" title="How to use BoatRun, and send feedback"><img class="hicon-img" src="icons/About.svg"><span class="hicon-txt">About</span></button>
   </div>
 </div>
 
@@ -586,6 +590,7 @@ body.light .hdrname{color:#fff;}
     <div class="map-col">
       <div id="lapsec" style="display:none;">
         <div class="sec-hd" style="padding:0 0 4px;"><h2>Laps</h2></div>
+        <div id="laptypebar" style="margin-bottom:6px;"></div>
         <div class="twrap" style="max-height:160px;margin-bottom:8px;"><table id="laptbl"><thead></thead><tbody></tbody></table></div>
       </div>
       <div id="mapsec" style="display:none;">
@@ -931,12 +936,21 @@ const AnalyserDrive = {
     }
   },
 };
+function _normRecords(obj) {
+  if (!obj) return { water: {}, erg: {} };
+  if (obj.water || obj.erg) return { water: obj.water || {}, erg: obj.erg || {} };
+  return { water: obj, erg: {} };
+}
 function mergeRecords(a, b) {
-  const out = { ...a };
-  Object.keys(b || {}).forEach(d => {
-    if (!out[d] || (b[d].timeMs != null && b[d].timeMs < out[d].timeMs)) out[d] = b[d];
-  });
-  return out;
+  const A = _normRecords(a), B = _normRecords(b);
+  function mergeMode(am, bm) {
+    const out = { ...am };
+    Object.keys(bm || {}).forEach(d => {
+      if (!out[d] || (bm[d].timeMs != null && bm[d].timeMs < out[d].timeMs)) out[d] = bm[d];
+    });
+    return out;
+  }
+  return { water: mergeMode(A.water, B.water), erg: mergeMode(A.erg, B.erg) };
 }
 let _recordsPushTimer = null;
 function schedulePushRecordsToPrefs() {
@@ -1206,6 +1220,7 @@ let curveRowHl=new Set(); // row labels highlighted yellow in the curve comparis
 let currentView=[];
 let viewS=0,viewE=0;
 let selS=-1,selE=-1;
+let activeLapTypes=new Set(); // lap types currently shown in the laps table filter (empty = All)
 let vis={pace:true,rate:true,slope:false,slopeneg:false,caccel:false,dps:false,impulse:false,rloss:false,schar:false,ratio:false,angle:false,cdelta:false,cdur:false,drivetime:false,driveaccel:false,recoveryaccel:false,hr:false,peakforce:false,drivelength:false};
 try{const sv=JSON.parse(localStorage.getItem('br_tile_vis')||'null');if(sv&&typeof sv==='object')Object.assign(vis,sv);}catch{}
 let hid={pace:false,rate:false,slope:false,slopeneg:false,caccel:false,dps:false,impulse:false,rloss:false,schar:false,ratio:false,angle:false,cdelta:false,cdur:false,drivetime:false,driveaccel:false,recoveryaccel:false,hr:false,peakforce:false,drivelength:false};
@@ -1273,7 +1288,7 @@ let _clickStartX=-1,_clickStartTime=0;
 let SESSIONS=[]; // [{label,d}] — all loaded workout files
 let activeSessionIdx=-1;
 let _addMode=false; // true while "+ Add file" flow is choosing a file
-let RECORDS_DB={}; try{RECORDS_DB=JSON.parse(localStorage.getItem('br_records')||'{}');}catch{}
+let RECORDS_DB={water:{},erg:{}}; try{RECORDS_DB=_normRecords(JSON.parse(localStorage.getItem('br_records')||'{}'));}catch{}
 
 // ══════════════════════════════════════════════════════════════════════════
 // PARSE CSV
@@ -1382,7 +1397,8 @@ function sessionToAnalyserFmt(s) {
   }));
   const hr = (s.hrTrace||[]).map(h=>({ ts:new Date(h.t).toISOString(), bpm:h.hr }));
   const wlm=s.workoutLapMetrics||[];
-  const laps = (s.laps||[]).map((l,i)=>({ lap:l.n, distance_m:l.dist, time_s:l.time, pace_s_per_500m:l.pace, stroke_rate_spm:l.rate, type:l.type||wlm[i]?.type||null }));
+  const lapSrc=wlm.length?wlm:(s.laps||[]);
+  const laps = lapSrc.map((l,i)=>({ lap:l.n, distance_m:l.dist, time_s:l.time, pace_s_per_500m:(l.pace!=null?l.pace:l.lapPace), stroke_rate_spm:l.rate, type:l.type||wlm[i]?.type||null }));
   const glaps = (s.garminLaps||[]).map(l=>({ lap:l.n, distance_m:l.dist, time_s:l.time, pace_s_per_500m:l.pace, avg_hr_bpm:l.avgHr, max_hr_bpm:l.maxHr, calories:l.cal, strokes:l.garminStrokes, avg_spm:l.garminAvgSpm, avg_stroke_dist_m:l.avgStrokeDist }));
   const gpsTrace = (s.gpsTrace||[]).filter(p=>p.lat!=null&&p.lon!=null).map(p=>({ lat:p.lat, lon:p.lon, t:p.t, dist:p.dist }));
   return { sum, strokes, hr, laps, glaps, gpsTrace,
@@ -1605,10 +1621,18 @@ function loadFiles(fileList, replace) {
 }
 
 function addSessionFromData(d, label, replace, fileId, squadCode) {
+  if (!replace && SESSIONS.length) {
+    const curErg = !!(SESSIONS[0].d.sum && SESSIONS[0].d.sum.session_mode === 'erg');
+    const newErg = !!(d.sum && d.sum.session_mode === 'erg');
+    if (curErg !== newErg) {
+      toast('Can only compare sessions of the same type — on-water or erg.');
+      return;
+    }
+  }
   if (replace) { SESSIONS=[]; curveGroups=[]; activeSessionIdx=-1; }
   const idx=SESSIONS.length;
   SESSIONS.push({label, d, fileId: fileId||null, squadCode: squadCode || d.squadCode || null});
-  updateRecords(d.gpsTrace, label, d.sum&&d.sum.start_time, fileId);
+  updateRecords(d.gpsTrace, label, d.sum&&d.sum.start_time, fileId, (d.sum&&d.sum.session_mode==='erg')?'erg':'water');
   switchSession(idx);
 }
 function bestEffortForDistance(pts, targetDist) {
@@ -1635,13 +1659,14 @@ function computeBestEfforts(gpsTrace) {
   targets.forEach(d=>{ const ms=bestEffortForDistance(pts,d); if(ms!=null) out[d]=ms; });
   return out;
 }
-function updateRecords(gpsTrace, label, dateISO, fileId) {
+function updateRecords(gpsTrace, label, dateISO, fileId, mode) {
+  const m = mode==='erg' ? 'erg' : 'water';
   const efforts=computeBestEfforts(gpsTrace);
   let changed=false;
   Object.keys(efforts).forEach(d=>{
-    const cur=RECORDS_DB[d];
+    const cur=RECORDS_DB[m][d];
     if (!cur || efforts[d]<cur.timeMs) {
-      RECORDS_DB[d]={timeMs:efforts[d], date:dateISO||null, label:label||'', fileId:fileId||null};
+      RECORDS_DB[m][d]={timeMs:efforts[d], date:dateISO||null, label:label||'', fileId:fileId||null};
       changed=true;
     }
   });
@@ -1670,20 +1695,24 @@ function renderRecords() {
   const el=document.getElementById('sz-records');
   if (!el) return;
   const targets=[500,1000,2000,5000,10000];
-  let html='<div class="brpill"><div class="sumgrp"><div class="sumgrp-hd">Personal Bests</div><div class="sumgrp-cards">';
-  targets.forEach(d=>{
-    const r=RECORDS_DB[d];
-    const lbl=d>=1000?(d/1000)+'km':d+'m';
-    const val=r?fmtRecordTime(r.timeMs):'—';
-    const dateStr=r?fmtRecordDate(r.date):'';
-    html+='<div class="card cb" style="cursor:'+(r&&r.fileId?'pointer':'default')+';" onclick="'+(r&&r.fileId?'window.loadRecordSession(\''+d+'\')':'')+'"><div class="lbl">'+lbl+'</div><div class="val">'+val+'</div><div class="sub">'+dateStr+'</div></div>';
-  });
-  html+='</div></div></div>';
-  el.innerHTML=html;
+  function grpHTML(title,mode){
+    let h='<div class="sumgrp"><div class="sumgrp-hd">'+title+'</div><div class="sumgrp-cards">';
+    targets.forEach(d=>{
+      const r=RECORDS_DB[mode][d];
+      const lbl=d>=1000?(d/1000)+'km':d+'m';
+      const val=r?fmtRecordTime(r.timeMs):'—';
+      const dateStr=r?fmtRecordDate(r.date):'';
+      h+='<div class="card cb" style="cursor:'+(r&&r.fileId?'pointer':'default')+';" onclick="'+(r&&r.fileId?'window.loadRecordSession(\''+d+'\',\''+mode+'\')':'')+'"><div class="lbl">'+lbl+'</div><div class="val">'+val+'</div><div class="sub">'+dateStr+'</div></div>';
+    });
+    h+='</div></div>';
+    return h;
+  }
+  el.innerHTML='<div class="brpill">'+grpHTML('On-Water Personal Bests','water')+grpHTML('Erg Personal Bests','erg')+'</div>';
 }
 
-window.loadRecordSession=async function(dist){
-  const r=RECORDS_DB[dist];
+window.loadRecordSession=async function(dist, mode){
+  const m = mode==='erg' ? 'erg' : 'water';
+  const r=RECORDS_DB[m][dist];
   if (!r||!r.fileId) return;
   try{
     const session=await AnalyserDrive.fetchSession(r.fileId);
@@ -1737,13 +1766,55 @@ async function loadFromDrive() {
     });
   } catch(err) { toast('Drive error: '+err.message); }
 }
+function promptSquadCode(){
+    return new Promise(resolve=>{
+        document.getElementById('_squad_code_entry')?.remove();
+        let stored = '';
+        try { stored = localStorage.getItem('_squad_code') || ''; } catch {}
+        const overlay = document.createElement('div');
+        overlay.id = '_squad_code_entry';
+        overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,.72);display:flex;align-items:center;justify-content:center;z-index:9999;';
+        const panel = document.createElement('div');
+        panel.style.cssText = 'background:var(--s1);border:1px solid var(--border);border-radius:10px;padding:18px;max-width:340px;width:88%;color:var(--text);font-family:-apple-system, BlinkMacSystemFont, Helvetica Neue, sans-serif;';
+        panel.innerHTML = '<div style="font-size:1rem;font-weight:700;margin-bottom:12px;color:var(--b);">Open from Squad</div>'
+            + '<input id="sqc-input" type="text" maxlength="7" autocomplete="off" autocapitalize="characters" spellcheck="false" placeholder="Squad code" style="display:block;width:100%;box-sizing:border-box;padding:10px 12px;margin-bottom:10px;background:var(--s2);border:1px solid var(--border);border-radius:6px;color:var(--text);font-size:.95rem;text-transform:uppercase;letter-spacing:2px;text-align:center;font-weight:700;font-family:inherit;">'
+            + '<div id="sqc-hash" style="text-align:center;letter-spacing:6px;color:var(--muted);font-size:1rem;font-family:monospace;margin-bottom:14px;">#######</div>'
+            + '<div style="display:flex;gap:8px;">'
+            + '<button id="sqc-cancel" style="flex:1;padding:9px 0;background:var(--s2);border:1px solid var(--border);border-radius:6px;color:var(--text);cursor:pointer;font-size:.85rem;font-family:inherit;">Cancel</button>'
+            + '<button id="sqc-ok" style="flex:1;padding:9px 0;background:var(--b);border:1px solid var(--b);border-radius:6px;color:#fff;cursor:pointer;font-size:.85rem;font-family:inherit;opacity:.5;" disabled>Open</button>'
+            + '</div>';
+        overlay.appendChild(panel);
+        document.body.appendChild(overlay);
+        const input = document.getElementById('sqc-input');
+        const hashRow = document.getElementById('sqc-hash');
+        const okBtn = document.getElementById('sqc-ok');
+        function refresh(){
+            let v = input.value.toUpperCase().replace(/[^A-Z0-9]/g,'').slice(0,7);
+            input.value = v;
+            let slots = v.split('');
+            while (slots.length < 7) slots.push('#');
+            hashRow.textContent = slots.join(' ');
+            const ready = v.length === 7;
+            okBtn.disabled = !ready;
+            okBtn.style.opacity = ready ? '1' : '.5';
+        }
+        input.value = stored;
+        refresh();
+        input.addEventListener('input', refresh);
+        setTimeout(()=>input.focus(), 50);
+        function finish(code){ overlay.remove(); resolve(code); }
+        document.getElementById('sqc-cancel').onclick = () => finish(null);
+        okBtn.onclick = () => { if (input.value.length === 7) finish(input.value); };
+        input.addEventListener('keydown', e => {
+            if (e.key === 'Enter' && input.value.length === 7) finish(input.value);
+            if (e.key === 'Escape') finish(null);
+        });
+        overlay.onclick = e => { if (e.target === overlay) finish(null); };
+    });
+}
 async function loadFromSquad() {
-    let stored = '';
-    try { stored = localStorage.getItem('_squad_code') || ''; } catch {}
-    const raw = prompt('Squad code:', stored);
-    if (!raw) return;
-    const code = raw.trim().toUpperCase();
-    if (code.length !== 7) { toast('Squad codes are exactly 7 characters'); return; }
+    const code = await promptSquadCode();
+    if (!code || code.length !== 7) return;
     try { localStorage.setItem('_squad_code', code); } catch {}
     toast('Fetching sessions…');
     try {
@@ -1827,12 +1898,8 @@ async function showAddComparePicker() {
             return;
         }
         if (srcId === 'squad') {
-            let stored = '';
-            try { stored = localStorage.getItem('_squad_code') || ''; } catch {}
-            const raw = prompt('Squad code:', stored);
-            if (!raw) { content.innerHTML = '<div class="sz-loading">No code entered.</div>'; return; }
-            const code = raw.trim().toUpperCase();
-            if (code.length !== 7) { content.innerHTML = '<div class="sz-loading">Squad codes are exactly 7 characters.</div>'; return; }
+            const code = await promptSquadCode();
+            if (!code || code.length !== 7) { content.innerHTML = '<div class="sz-loading">No code entered.</div>'; return; }
             try { localStorage.setItem('_squad_code', code); } catch {}
             content.innerHTML = '<div class="sz-loading">Fetching sessions\u2026</div>';
             try {
@@ -1906,12 +1973,14 @@ async function showAddComparePicker() {
                     const str = name.match(/_(\d+)str/);
                     const ts = name.match(/RowSess_(\d{4})-(\d{2})-(\d{2})_(\d{2})(\d{2})/);
                     const fav = /_FAV1/.test(name);
+                    const erg = /_ERG(?:_|\.)/.test(name);
                     return {
                         distM: dist ? parseInt(dist[1]) : null,
                         durS: dur ? +dur[1]*3600 + +dur[2]*60 + +dur[3] : null,
                         name: nm ? nm[1].replace(/-/g,' ') : null,
                         strokes: str ? parseInt(str[1]) : null,
                         favourite: fav,
+                        erg: erg,
                         approxTs: ts ? new Date(+ts[1],+ts[2]-1,+ts[3],+ts[4],+ts[5]).getTime() : 0
                     };
                 }
@@ -1947,6 +2016,7 @@ async function showAddComparePicker() {
                     const q = daSearchQuery;
                     let shown = files.filter(f => {
                         const p = parseDA(f.name);
+                        if (p.erg !== isErgSession()) return false;
                         if (daFavOnly && !p.favourite) return false;
                         if (!q) return true;
                         const hay = [p.name, f.name].filter(Boolean).join(' ').toLowerCase();
@@ -2059,22 +2129,22 @@ function showSquadPicker(code, metas, desc) {
     overlay.id = '_squad_picker';
     overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,.72);display:flex;align-items:center;justify-content:center;z-index:9999;';
     const panel = document.createElement('div');
-    panel.style.cssText = 'background:#1e2328;border-radius:10px;width:min(92vw,420px);max-height:80vh;display:flex;flex-direction:column;overflow:hidden;';
+    panel.style.cssText = 'background:var(--s1);border:1px solid var(--border);border-radius:10px;width:min(92vw,420px);max-height:80vh;display:flex;flex-direction:column;overflow:hidden;';
     const hdr = document.createElement('div');
-    hdr.style.cssText = 'display:flex;align-items:center;padding:14px 16px;border-bottom:1px solid #2c3340;flex-shrink:0;';
+    hdr.style.cssText = 'display:flex;align-items:center;padding:14px 16px;border-bottom:1px solid var(--border);flex-shrink:0;';
     const title = document.createElement('span');
-    title.style.cssText = 'color:#fff;font-size:13px;font-weight:700;';
+    title.style.cssText = 'color:var(--text);font-size:13px;font-weight:700;';
     title.textContent = 'Squad ' + code + ' — Coach Sessions';
     const close = document.createElement('button');
     close.textContent = '✕';
-    close.style.cssText = 'margin-left:auto;background:none;border:1px solid #3d4755;color:#aaa;border-radius:6px;padding:4px 10px;font-size:11px;cursor:pointer;';
+    close.style.cssText = 'margin-left:auto;background:none;border:1px solid var(--border);color:var(--muted);border-radius:6px;padding:4px 10px;font-size:11px;cursor:pointer;';
     close.onclick = () => overlay.remove();
     hdr.appendChild(title);
     hdr.appendChild(close);
     panel.appendChild(hdr);
     if (desc) {
         const sub = document.createElement('div');
-        sub.style.cssText = 'padding:8px 16px 0;color:#7ec8e3;font-size:12px;font-weight:700;flex-shrink:0;';
+        sub.style.cssText = 'padding:8px 16px 0;color:var(--b);font-size:12px;font-weight:700;flex-shrink:0;';
         sub.textContent = desc;
         panel.appendChild(sub);
     }
@@ -2087,9 +2157,9 @@ function showSquadPicker(code, metas, desc) {
         const row = document.createElement('div');
         row.style.cssText = 'display:flex;align-items:center;gap:6px;';
         const btn = document.createElement('button');
-        btn.style.cssText = 'background:#2c3340;border:1px solid #3d4755;border-radius:6px;padding:10px 12px;text-align:left;cursor:pointer;color:#e0e6ef;font-size:12px;line-height:1.6;flex:1;min-width:0;font-family:inherit;';
-        btn.innerHTML = '<span style="color:#7ec8e3;font-weight:700">' + (m.rower || 'Rower') + '</span>  ' + dateStr +
-            '<br><span style="color:#aaa">' + (m.dist ? m.dist + 'm' : '—') + (m.dur ? '  ' + Math.floor(m.dur / 60) + ' min' : '') + (m.name ? '  · ' + m.name : '') + '</span>';
+        btn.style.cssText = 'background:var(--s2);border:1px solid var(--border);border-radius:6px;padding:10px 12px;text-align:left;cursor:pointer;color:var(--text);font-size:12px;line-height:1.6;flex:1;min-width:0;font-family:inherit;';
+        btn.innerHTML = '<span style="color:var(--b);font-weight:700">' + (m.rower || 'Rower') + '</span>  ' + dateStr +
+            '<br><span style="color:var(--muted)">' + (m.dist ? m.dist + 'm' : '—') + (m.dur ? '  ' + Math.floor(m.dur / 60) + ' min' : '') + (m.name ? '  · ' + m.name : '') + '</span>';
         btn.onclick = async () => {
             overlay.remove();
             toast('Loading…');
@@ -2449,7 +2519,7 @@ function schedRender() {
 }
 
 // ── Zoom helpers ────────────────────────────────────────────────────────────
-function resetZoom(){viewS=0;viewE=ST.length-1;selS=-1;selE=-1;schedRender();}
+function resetZoom(){viewS=0;viewE=ST.length-1;selS=-1;selE=-1;hlRows([]);schedRender();}
 
 function scrollZoom(canvas, deltaY, cx) {
   const n=ST.length;
@@ -2956,7 +3026,7 @@ function setupMainEvents(canvas){
       const _absIdx=viewS+getMainIdx(_tcx);
       _pinnedStrokeIdx=(_pinnedStrokeIdx===_absIdx)?-1:_absIdx;
       selS=-1;selE=-1;
-      updatePinHighlight();schedRender();updateMapPin();
+      hlRows([]);updatePinHighlight();schedRender();updateMapPin();
     }else{updateSel(false);}
   });
   canvas.addEventListener('dblclick',()=>resetZoom());
@@ -2981,7 +3051,7 @@ document.addEventListener('mouseup',e=>{
       const _absIdx=viewS+getMainIdx(_mcx);
       _pinnedStrokeIdx=(_pinnedStrokeIdx===_absIdx)?-1:_absIdx;
       selS=-1;selE=-1;
-      updatePinHighlight();schedRender();updateMapPin();
+      hlRows([]);updatePinHighlight();schedRender();updateMapPin();
     }else{updateSel(false);}
   }
 });
@@ -3034,7 +3104,7 @@ function updateStatsStrip(){
     html+=sp('Time',fmtTime(dur));
   }
   for(const m of METRIC_DEFS){
-    if(hid[m.k])continue;
+    if(hid[m.k]||(isErgSession()&&!ERG_TILE_KEYS.includes(m.k)))continue;
     const arr=strokes.filter(m.filter).map(m.val);
     if(!arr.length)continue;
     html+=sp('Avg '+m.l,m.fmtAvg(arrMean(arr)),m.c);
@@ -3067,6 +3137,7 @@ function pinSelection(){
     hrT:_hrSorted.map(x=>x.t), hrBpm:_hrSorted.map(x=>x.b),
   });
   selS=-1;selE=-1;
+  hlRows([]);
   buildCurveSection();
   updateStatsStrip();
   schedRender();
@@ -3077,6 +3148,7 @@ function removeCurveGroup(idx){
   curveGroups.forEach((g,i)=>{g.label='G'+(i+1);});
   buildCurveSection();
   updateMapGroups();
+  applyGroupHighlights();
   schedRender();
 }
 window.removeCurveGroup=removeCurveGroup;
@@ -3380,7 +3452,7 @@ function buildCurveStats(){
     {l:'Time',fn:g=>{const a=g.strokes;return a.length?fmtTime(a[a.length-1].elapsed-a[0].elapsed):EM;}},
   ];
   for(const m of METRIC_DEFS){
-    if(hid[m.k])continue;
+    if(hid[m.k]||(isErgSession()&&!ERG_TILE_KEYS.includes(m.k)))continue;
     if(m.k==='hr'){
       rows.push({l:'Avg '+m.l, c:m.c, fn:g=>{
         const arr=g.strokes.map(s=>nearestHRIn(g.hrT,g.hrBpm,s.ms)).filter(b=>b!=null&&b>40&&b<220);
@@ -3656,13 +3728,24 @@ function lapTypeChip(type){
 }
 function buildLaps(){
   const showLaps=LAPS.filter(l=>'stroke_rate_spm' in l);
+  activeLapTypes=new Set();
+  document.getElementById('lapsec').style.display=showLaps.length?'block':'none';
+  document.querySelector('#laptbl tbody').innerHTML='';
+  document.getElementById('laptypebar').innerHTML='';
   if(!showLaps.length)return;
-  document.getElementById('lapsec').style.display='block';
   document.getElementById('map-stroke-row').classList.add('on');
   const hasHR='avg_hr_bpm' in showLaps[0],hasCal='calories' in showLaps[0];
   const hasType=showLaps.some(l=>l.type);
+  const availTypes=isErgSession()?['work','rest']:['warmup','work','rest','cooldown'];
+  const barTypes=availTypes.filter(t=>showLaps.some(l=>l.type===t));
+  const typeColor=t=>({work:'var(--g)',rest:'var(--o)',warmup:'var(--b)',cooldown:'var(--p)'}[t]||'var(--muted)');
+  document.getElementById('laptypebar').innerHTML=(hasType&&barTypes.length)?
+    '<span style="font-size:10px;color:var(--muted);margin-right:6px;">Show:</span>'+
+    `<button class="laptypebtn on" data-type="all" style="--btc:var(--muted)" onclick="showAllLaps()">All</button>`+
+    barTypes.map(t=>`<button class="laptypebtn" data-type="${t}" style="--btc:${typeColor(t)}" onclick="toggleLapType('${t}')">${t}</button>`).join('')
+    :'';
   document.querySelector('#laptbl thead').innerHTML=`<tr>${hasType?'<th style="text-align:left;">Type</th>':''}<th>Lap</th><th>Dist</th><th>Time</th><th>Pace</th><th>Rate</th>${hasHR?'<th>HR avg</th><th>HR max</th>':''}${hasCal?'<th>Cal</th>':''}</tr>`;
-  document.querySelector('#laptbl tbody').innerHTML=showLaps.map((l,i)=>`<tr data-lap="${i+1}" style="cursor:pointer">
+  document.querySelector('#laptbl tbody').innerHTML=showLaps.map((l,i)=>`<tr data-lap="${i+1}" data-type="${l.type||''}" style="cursor:pointer">
     ${hasType?`<td>${lapTypeChip(l.type)}</td>`:''}
     <td>Lap ${i+1}</td>
     <td>${(+l.distance_m||0).toFixed(0)}m</td>
@@ -3683,6 +3766,24 @@ function buildLaps(){
     });
   });
 }
+function applyLapTypeFilter(){
+  document.querySelectorAll('.laptypebtn').forEach(b=>{
+    b.classList.toggle('on', b.dataset.type==='all'?activeLapTypes.size===0:activeLapTypes.has(b.dataset.type));
+  });
+  document.querySelectorAll('#laptbl tbody tr').forEach(row=>{
+    row.style.display=(activeLapTypes.size===0||activeLapTypes.has(row.dataset.type))?'':'none';
+  });
+}
+function toggleLapType(type){
+  if(activeLapTypes.has(type))activeLapTypes.delete(type);else activeLapTypes.add(type);
+  applyLapTypeFilter();
+}
+function showAllLaps(){
+  activeLapTypes=new Set();
+  applyLapTypeFilter();
+}
+window.toggleLapType=toggleLapType;
+window.showAllLaps=showAllLaps;
 
 // ══════════════════════════════════════════════════════════════════════════
 // STROKE TABLE
@@ -3868,6 +3969,7 @@ function resetApp(){
   ST=[];HR=[];HR_T=[];HR_BPM=[];LAPS=[];GPSTRACE=[];curveGroups=[];
   SESSIONS=[];activeSessionIdx=-1;_addMode=false;
   selS=-1;selE=-1;ovAbsSelS=-1;ovAbsSelE=-1;
+  activeLapTypes=new Set();
   unitSettings={..._unitDefaults};
   _rawOarAngles=[];
   _recordedOutboard=2.0;
@@ -3924,8 +4026,6 @@ async function showStartup(){
       <button class="dzbtn dzbtn-sec" id="sz-squad"><img src="icons/Import.svg"><span>From Squad</span></button>
       <button class="dzbtn dzbtn-sec" id="sz-openfile"><img src="icons/Open.svg"><span>Open file</span></button>
     </div>
-    <div id="sz-summary"></div>
-    <div id="sz-records"></div>
     <div class="brpill-row">
       <button class="dzbtn dzbtn-sec" id="sz-rescan"><img src="icons/Scan.svg"><span>Scan All for Records</span></button>
       <button class="dzbtn dzbtn-sec" id="sz-resetrecords"><img src="icons/Reset.svg"><span>Reset Records</span></button>
@@ -3942,10 +4042,10 @@ async function showStartup(){
   document.getElementById('sz-openfile').onclick=()=>document.getElementById('fin').click();
   document.getElementById('sz-resetrecords').onclick=()=>{
     if(!confirm('Reset all Personal Bests? Re-scan to restore.'))return;
-    RECORDS_DB={};
-    try{localStorage.setItem('br_records','{}');}catch{}
+    RECORDS_DB={water:{},erg:{}};
+    try{localStorage.setItem('br_records',JSON.stringify(RECORDS_DB));}catch{}
     renderRecords();
-    if(AnalyserDrive.isSignedIn())AnalyserDrive.pushPrefs({records:{}}).catch(()=>{});
+    if(AnalyserDrive.isSignedIn())AnalyserDrive.pushPrefs({records:RECORDS_DB}).catch(()=>{});
     toast('Personal Bests reset');
   };
   try{
@@ -3989,7 +4089,7 @@ async function showStartup(){
           const session=await AnalyserDrive.fetchSession(f.id);
           applySessionUnits(session);
           const conv=sessionToAnalyserFmt(session);
-          updateRecords(conv.gpsTrace, f.name||conv.name||'Session', conv.sum&&conv.sum.start_time, f.id);
+          updateRecords(conv.gpsTrace, f.name||conv.name||'Session', conv.sum&&conv.sum.start_time, f.id, (conv.sum&&conv.sum.session_mode==='erg')?'erg':'water');
         }catch(err){}
       }
       btn.innerHTML='<img src="icons/Scan.svg"><span>Scan All for Records</span>';
@@ -4573,6 +4673,121 @@ function showReorderModal(){
   overlay.onclick=e=>{if(e.target===overlay)overlay.remove();};
   document.body.appendChild(overlay);
 }
+function _sumParseFn(name){
+  const dist=name.match(/_(\d+)m_/);
+  const dur=name.match(/_(\d{2})h(\d{2})m(\d{2})s/);
+  const str=name.match(/_(\d+)str/);
+  const erg=/_ERG(?:_|\.)/.test(name);
+  const ts=name.match(/RowSess_(\d{4})-(\d{2})-(\d{2})_(\d{2})(\d{2})/);
+  return {
+    distM: dist?parseInt(dist[1]):null,
+    durS: dur?+dur[1]*3600+ +dur[2]*60+ +dur[3]:null,
+    strokes: str?parseInt(str[1]):null,
+    erg: erg,
+    approxTs: ts?new Date(+ts[1],+ts[2]-1,+ts[3],+ts[4],+ts[5]).getTime():0
+  };
+}
+function _sumMonthRange(off){
+  const d=new Date(); d.setDate(1); d.setHours(0,0,0,0); d.setMonth(d.getMonth()-off);
+  const start=new Date(d.getFullYear(),d.getMonth(),1).getTime();
+  const end=new Date(d.getFullYear(),d.getMonth()+1,1).getTime();
+  const label=d.toLocaleDateString('en-AU',{month:'long',year:'numeric'});
+  return {start,end,label};
+}
+function _sumWeekRange(off){
+  const now=new Date();
+  const dow=(now.getDay()+6)%7;
+  const mon=new Date(now); mon.setHours(0,0,0,0); mon.setDate(mon.getDate()-dow-off*7);
+  const start=mon.getTime();
+  const end=start+7*86400000;
+  const endD=new Date(end-86400000);
+  const label=mon.toLocaleDateString('en-AU',{day:'numeric',month:'short'})+' \u2013 '+endD.toLocaleDateString('en-AU',{day:'numeric',month:'short',year:'numeric'});
+  return {start,end,label};
+}
+function _sumCalc(list,monthRange,weekRange){
+  const T={all:{dist:0,dur:0,n:0},month:{dist:0,dur:0,n:0},week:{dist:0,dur:0,n:0}};
+  let longestDist=0,totalStrokes=0;
+  list.forEach(f=>{
+    const p=_sumParseFn(f.name);
+    const ts=p.approxTs||new Date(f.createdTime).getTime()||0;
+    const d=p.distM||0,t=p.durS||0,s=p.strokes||0;
+    T.all.dist+=d;T.all.dur+=t;T.all.n++;
+    totalStrokes+=s;
+    if(d>longestDist)longestDist=d;
+    if(ts>=monthRange.start&&ts<monthRange.end){T.month.dist+=d;T.month.dur+=t;T.month.n++;}
+    if(ts>=weekRange.start&&ts<weekRange.end){T.week.dist+=d;T.week.dur+=t;T.week.n++;}
+  });
+  return {T,longestDist,totalStrokes};
+}
+function _sumGroupHTML(title,groupKey,list,monthOff,weekOff){
+  const monthRange=_sumMonthRange(monthOff), weekRange=_sumWeekRange(weekOff);
+  const {T,longestDist,totalStrokes}=_sumCalc(list,monthRange,weekRange);
+  const pace=t=>t.dist&&t.dur?fmtPace(t.dur/t.dist*500):EM;
+  const mk=(cls,lbl,val)=>'<div class="card '+cls+'"><div class="lbl">'+lbl+'</div><div class="val">'+val+'</div></div>';
+  const grp=(cls,t)=>'<div class="sumgrp-cards">'+mk(cls,'Sessions',t.n)+mk(cls,'Distance',(t.dist/1000).toFixed(1)+'km')+mk(cls,'Time',fmtTime(t.dur))+mk(cls,'Avg Pace',pace(t))+'</div>';
+  const monthNav='<span class="sumnav"><button data-grp="'+groupKey+'" data-nav="month-prev">\u2039</button><span class="sumnav-lbl">'+monthRange.label+'</span><button data-grp="'+groupKey+'" data-nav="month-next"'+(monthOff<=0?' disabled':'')+'>\u203a</button></span>';
+  const weekNav='<span class="sumnav"><button data-grp="'+groupKey+'" data-nav="week-prev">\u2039</button><span class="sumnav-lbl">'+weekRange.label+'</span><button data-grp="'+groupKey+'" data-nav="week-next"'+(weekOff<=0?' disabled':'')+'>\u203a</button></span>';
+  let html='<div class="brpill"><div class="sz-lhd">'+title+'</div>';
+  html+='<div class="sumgrp-cards" style="margin-bottom:16px;">'+mk('co','Longest',(longestDist/1000).toFixed(1)+'km')+mk('cd','Total Strokes',totalStrokes.toLocaleString())+'</div>';
+  html+='<div class="sumgrp"><div class="sumgrp-hd">Total</div>'+grp('cb',T.all)+'</div>';
+  html+='<div class="sumgrp"><div class="sumgrp-hd">Monthly'+monthNav+'</div>'+grp('c-amber',T.month)+'</div>';
+  html+='<div class="sumgrp"><div class="sumgrp-hd">Weekly'+weekNav+'</div>'+grp('cp',T.week)+'</div></div>';
+  return html;
+}
+function _sumRecordsCardsHTML(mode){
+  const targets=[500,1000,2000,5000,10000];
+  return targets.map(d=>{
+    const r=RECORDS_DB[mode][d];
+    const lbl=d>=1000?(d/1000)+'km':d+'m';
+    const val=r?fmtRecordTime(r.timeMs):'—';
+    const dateStr=r?fmtRecordDate(r.date):'';
+    return '<div class="card cb" style="cursor:'+(r&&r.fileId?'pointer':'default')+';" onclick="'+(r&&r.fileId?'window.loadRecordSession(\''+d+'\',\''+mode+'\');document.getElementById(\'_summary_modal\')?.remove();':'')+'"><div class="lbl">'+lbl+'</div><div class="val">'+val+'</div><div class="sub">'+dateStr+'</div></div>';
+  }).join('');
+}
+let _sumOffsets={onwater:{m:0,w:0},erg:{m:0,w:0},combined:{m:0,w:0}};
+async function showSummaryModal(){
+  document.getElementById('_summary_modal')?.remove();
+  const overlay=document.createElement('div');
+  overlay.id='_summary_modal';
+  overlay.style.cssText='position:fixed;inset:0;background:rgba(0,0,0,.72);display:flex;align-items:center;justify-content:center;z-index:9999;padding:16px;';
+  const panel=document.createElement('div');
+  panel.style.cssText='background:var(--s1);border:1px solid var(--border);border-radius:10px;max-width:460px;width:100%;max-height:86vh;overflow-y:auto;padding:14px 16px;';
+  panel.innerHTML='<div style="display:flex;align-items:center;gap:10px;margin-bottom:12px;"><div style="font-size:13px;font-weight:600;color:var(--text);">Summary</div><button id="_sum_close" style="margin-left:auto;background:var(--s3);border:1px solid var(--border);color:var(--muted);border-radius:6px;padding:4px 10px;font-size:11px;cursor:pointer;">Close</button></div><div id="_sum_body" class="sz-loading">Loading\u2026</div>';
+  overlay.appendChild(panel);
+  overlay.onclick=e=>{if(e.target===overlay)overlay.remove();};
+  document.body.appendChild(overlay);
+  document.getElementById('_sum_close').onclick=()=>overlay.remove();
+  const body=document.getElementById('_sum_body');
+  if(!AnalyserDrive.isSignedIn()){
+    body.innerHTML='<div class="sz-loading">Sign in to Google Drive to see your summary.</div>';
+    return;
+  }
+  let files;
+  try{ files=await AnalyserDrive.list(); }catch(err){ body.innerHTML='<div class="sz-loading">Could not load sessions.</div>'; return; }
+  if(!files.length){ body.innerHTML='<div class="sz-loading">No sessions on Drive</div>'; return; }
+  function render(){
+    const onwater=files.filter(f=>!_sumParseFn(f.name).erg);
+    const erg=files.filter(f=>_sumParseFn(f.name).erg);
+    let html='';
+    html+=_sumGroupHTML('On-Water','onwater',onwater,_sumOffsets.onwater.m,_sumOffsets.onwater.w);
+    html+=_sumGroupHTML('Erg','erg',erg,_sumOffsets.erg.m,_sumOffsets.erg.w);
+    html+=_sumGroupHTML('Combined','combined',files,_sumOffsets.combined.m,_sumOffsets.combined.w);
+    html+='<div class="brpill"><div class="sumgrp"><div class="sumgrp-hd">On-Water Personal Bests</div><div class="sumgrp-cards">'+_sumRecordsCardsHTML('water')+'</div></div><div class="sumgrp"><div class="sumgrp-hd">Erg Personal Bests</div><div class="sumgrp-cards">'+_sumRecordsCardsHTML('erg')+'</div></div></div>';
+    body.innerHTML=html;
+    body.querySelectorAll('button[data-nav]').forEach(btn=>{
+      btn.onclick=()=>{
+        const g=btn.dataset.grp, nav=btn.dataset.nav;
+        const off=_sumOffsets[g];
+        if(nav==='month-prev')off.m++;
+        else if(nav==='month-next'){ if(off.m>0)off.m--; }
+        else if(nav==='week-prev')off.w++;
+        else if(nav==='week-next'){ if(off.w>0)off.w--; }
+        render();
+      };
+    });
+  }
+  render();
+}
 function showAboutModal(){
   const overlay=document.createElement('div');
   overlay.id='_about_modal';
@@ -4645,6 +4860,7 @@ document.getElementById('jsonbtn').onclick=exportJSON;
 document.getElementById('openbtn').onclick=()=>{const s=document.getElementById('startup');if(s.innerHTML&&s.style.display!=='none'){s.style.display='none';s.innerHTML='';}else{showStartup();}};
 document.getElementById('infobtn').onclick=showInfoModal;
 document.getElementById('reorderbtn').onclick=showReorderModal;
+document.getElementById('summarybtn').onclick=showSummaryModal;
 document.getElementById('aboutbtn').onclick=showAboutModal;
 document.getElementById('planbtn').onclick=()=>showPlanModal();
 document.getElementById('gdrivebtn').onclick=()=>{ if (AnalyserDrive.isSignedIn()) { toast('Already signed in to Google Drive'); return; } AnalyserDrive.signIn(); };
