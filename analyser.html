@@ -937,17 +937,30 @@ const AnalyserDrive = {
   },
 };
 function _normRecords(obj) {
-  if (!obj) return { water: {}, erg: {} };
-  if (obj.water || obj.erg) return { water: obj.water || {}, erg: obj.erg || {} };
-  return { water: obj, erg: {} };
+  let out;
+  if (!obj) out = { water: {}, erg: {} };
+  else if (obj.water || obj.erg) out = { water: obj.water || {}, erg: obj.erg || {} };
+  else out = { water: obj, erg: {} };
+  if (!out.water.dur) out.water.dur = {};
+  if (!out.erg.dur) out.erg.dur = {};
+  return out;
 }
 function mergeRecords(a, b) {
   const A = _normRecords(a), B = _normRecords(b);
+  function mergeDur(am, bm) {
+    const out = { ...(am || {}) };
+    Object.keys(bm || {}).forEach(ms => {
+      if (!out[ms] || (bm[ms].distM != null && bm[ms].distM > out[ms].distM)) out[ms] = bm[ms];
+    });
+    return out;
+  }
   function mergeMode(am, bm) {
     const out = { ...am };
     Object.keys(bm || {}).forEach(d => {
+      if (d === 'dur') return;
       if (!out[d] || (bm[d].timeMs != null && bm[d].timeMs < out[d].timeMs)) out[d] = bm[d];
     });
+    out.dur = mergeDur(am.dur, bm.dur);
     return out;
   }
   return { water: mergeMode(A.water, B.water), erg: mergeMode(A.erg, B.erg) };
@@ -1147,6 +1160,24 @@ let _lastLabel = '', _lastSum = {};
 
 // ── State ──────────────────────────────────────────────────────────────────
 const CURVE_POINTS = 80;
+/* PM5 force curves arrive as a variable-length newton array covering the drive.
+   Linear-resample to the fixed grid the rest of the Analyser assumes. */
+function resampleForceCurve(fc){
+  if(!Array.isArray(fc) || fc.length < 2) return null;
+  const n=fc.length, out=new Array(CURVE_POINTS);
+  for(let p=0;p<CURVE_POINTS;p++){
+    const x=p/(CURVE_POINTS-1)*(n-1);
+    const i0=Math.floor(x), i1=Math.min(n-1,i0+1), f=x-i0;
+    out[p]=Math.round((fc[i0]+(fc[i1]-fc[i0])*f)*100)/100;
+  }
+  return out;
+}
+/* True when the plotted curve is PM5 drive force (N), not IMU accel (m/s²). */
+function curvesAreForce(){
+  return !!(typeof ST!=='undefined' && ST && ST.length && ST.some(s=>s.curveIsForce));
+}
+function curveAxisLabel(){ return curvesAreForce() ? 'force (N)' : 'accel (m/s\u00B2)'; }
+function curveValUnit(){  return curvesAreForce() ? 'N' : 'm/s\u00B2'; }
 const GROUP_COLORS = ['#c084fc','#29b8ff','#f54040','#54a0ff','#fd79a8','#e17055','#00cec9','#ffc947'];
 const GROUP_BG     = ['rgba(192,132,252,.14)','rgba(41,184,255,.14)','rgba(245,64,64,.14)','rgba(84,160,255,.14)','rgba(253,121,168,.14)','rgba(225,112,85,.14)','rgba(0,206,201,.14)','rgba(255,201,71,.14)'];
 function hexToRgba(hex,a){const h=hex.replace('#','');const r=parseInt(h.substring(0,2),16),g=parseInt(h.substring(2,4),16),b=parseInt(h.substring(4,6),16);return`rgba(${r},${g},${b},${a})`;}
@@ -1288,7 +1319,7 @@ let _clickStartX=-1,_clickStartTime=0;
 let SESSIONS=[]; // [{label,d}] — all loaded workout files
 let activeSessionIdx=-1;
 let _addMode=false; // true while "+ Add file" flow is choosing a file
-let RECORDS_DB={water:{},erg:{}}; try{RECORDS_DB=_normRecords(JSON.parse(localStorage.getItem('br_records')||'{}'));}catch{}
+let RECORDS_DB={water:{dur:{}},erg:{dur:{}}}; try{RECORDS_DB=_normRecords(JSON.parse(localStorage.getItem('br_records')||'{}'));}catch{}
 
 // ══════════════════════════════════════════════════════════════════════════
 // PARSE CSV
@@ -1392,7 +1423,15 @@ function sessionToAnalyserFmt(s) {
     ratio:num(r.strokeRatio), oarAngle:num(r.oarAngle), checkDelta:num(r.velEff),
     catchDuration:num(r.catchDuration), driveTimeMs:num(r.driveTimeMs), recoveryAccel:num(r.recoveryAccel), driveAccel:num(r.driveAccel),
     catchAccel:num(r.catchAccel), catchSlopeNeg:num(r.catchSlopeNeg),
-    curve: r.curve||null, curveDriveFrac: r.curveDriveFrac||null,
+    /* Erg sessions carry `forceCurve` from the PM5 instead of the IMU `curve`:
+       drive force in newtons, sampled over the DRIVE ONLY, at whatever length
+       the erg returned. Resample it onto the same CURVE_POINTS grid so every
+       existing curve routine works unchanged, and flag it so the axis and
+       readouts can be labelled as force rather than acceleration. */
+    curve: r.curve || resampleForceCurve(r.forceCurve),
+    curveDriveFrac: r.curveDriveFrac || (r.forceCurve && !r.curve ? 1 : null),
+    forceCurve: r.forceCurve || null,
+    curveIsForce: !!(r.forceCurve && !r.curve),
     watts:num(r.powerW), drivelength:num(r.driveLength), peakforceN:num(r.peakForceN),
   }));
   const hr = (s.hrTrace||[]).map(h=>({ ts:new Date(h.t).toISOString(), bpm:h.hr }));
@@ -1659,14 +1698,47 @@ function computeBestEfforts(gpsTrace) {
   targets.forEach(d=>{ const ms=bestEffortForDistance(pts,d); if(ms!=null) out[d]=ms; });
   return out;
 }
+function bestDistanceForDuration(pts, targetMs) {
+  if (pts.length < 2) return null;
+  let i=0, bestDist=-Infinity;
+  for (let j=1; j<pts.length; j++) {
+    while (i<j && pts[j].t-pts[i+1].t>=targetMs) i++;
+    if (pts[j].t-pts[i].t < targetMs) continue;
+    const t0=pts[i].t, t1=pts[i+1]?pts[i+1].t:t0;
+    const d0=pts[i].dist, d1=pts[i+1]?pts[i+1].dist:d0;
+    const timeAtStart=pts[j].t-targetMs;
+    let startD;
+    if (t1>t0) { const frac=(timeAtStart-t0)/(t1-t0); startD=d0+frac*(d1-d0); }
+    else startD=d0;
+    const distCovered=pts[j].dist-startD;
+    if (distCovered>bestDist) bestDist=distCovered;
+  }
+  return bestDist===-Infinity ? null : bestDist;
+}
+function computeBestDurations(gpsTrace) {
+  const pts=(gpsTrace||[]).filter(p=>p.dist!=null&&p.t!=null);
+  const targets=[1800000,3600000];
+  const out={};
+  targets.forEach(ms=>{ const d=bestDistanceForDuration(pts,ms); if(d!=null) out[ms]=d; });
+  return out;
+}
 function updateRecords(gpsTrace, label, dateISO, fileId, mode) {
   const m = mode==='erg' ? 'erg' : 'water';
   const efforts=computeBestEfforts(gpsTrace);
+  const durations=computeBestDurations(gpsTrace);
   let changed=false;
   Object.keys(efforts).forEach(d=>{
     const cur=RECORDS_DB[m][d];
     if (!cur || efforts[d]<cur.timeMs) {
       RECORDS_DB[m][d]={timeMs:efforts[d], date:dateISO||null, label:label||'', fileId:fileId||null};
+      changed=true;
+    }
+  });
+  if(!RECORDS_DB[m].dur) RECORDS_DB[m].dur={};
+  Object.keys(durations).forEach(ms=>{
+    const cur=RECORDS_DB[m].dur[ms];
+    if (!cur || durations[ms]>cur.distM) {
+      RECORDS_DB[m].dur[ms]={distM:durations[ms], date:dateISO||null, label:label||'', fileId:fileId||null};
       changed=true;
     }
   });
@@ -1684,6 +1756,10 @@ function fmtRecordTime(ms) {
   const mmStr=(hh>0&&mm<10?'0':'')+mm;
   const ssStr=(ss<10?'0':'')+ss;
   return hh>0 ? (hh+':'+mmStr+':'+ssStr) : (mm+':'+ssStr);
+}
+function fmtRecordDist(m) {
+  if (m>=1000) return (m/1000).toFixed(2)+'km';
+  return Math.round(m)+'m';
 }
 function fmtRecordDate(dateISO) {
   if (!dateISO) return '';
@@ -1713,6 +1789,16 @@ function renderRecords() {
 window.loadRecordSession=async function(dist, mode){
   const m = mode==='erg' ? 'erg' : 'water';
   const r=RECORDS_DB[m][dist];
+  if (!r||!r.fileId) return;
+  try{
+    const session=await AnalyserDrive.fetchSession(r.fileId);
+    applySessionUnits(session);
+    addSessionFromData(sessionToAnalyserFmt(session), r.label||'Session', true, r.fileId);
+  }catch(err){ if(!driveAuthExpired(err)) toast('Load failed: '+err.message); }
+};
+window.loadRecordDurationSession=async function(ms, mode){
+  const m = mode==='erg' ? 'erg' : 'water';
+  const r=RECORDS_DB[m].dur&&RECORDS_DB[m].dur[ms];
   if (!r||!r.fileId) return;
   try{
     const session=await AnalyserDrive.fetchSession(r.fileId);
@@ -3222,6 +3308,9 @@ function drawCurvePanel(){
 
   function integrateSpeed(accel,rate,dps){
     if(!rate)return null;
+    // Integrating newtons would produce a meaningless "speed" trace — the
+    // maths only holds for acceleration.
+    if(curvesAreForce())return null;
     const T=60/rate,dt=T/(CURVE_POINTS-1);
     const v=new Array(CURVE_POINTS);v[0]=0;
     for(let i=1;i<CURVE_POINTS;i++)v[i]=v[i-1]+accel[i]*dt;
@@ -3279,7 +3368,7 @@ function drawCurvePanel(){
   }
   ctx.save();ctx.translate(9,accelTop+ph1/2);ctx.rotate(-Math.PI/2);
   ctx.fillStyle=C.muted;ctx.font='7px -apple-system, BlinkMacSystemFont, Helvetica Neue, sans-serif';ctx.textAlign='center';
-  ctx.fillText('accel (m/s\u00B2)',0,0);ctx.restore();
+  ctx.fillText(curveAxisLabel(),0,0);ctx.restore();
 
   // Speed grid
   if(hasSpeeds){
@@ -3413,9 +3502,9 @@ function showCurveTooltip(clientX,clientY){
   enriched.forEach(c=>{html+=`<td class="tt-dot"><span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:${c.color};"></span></td>`;});
   html+='</tr><tr><td class="tt-lbl">Speed (m/s)</td>';
   samples.forEach(s=>{html+=`<td class="tt-val">${s&&s.speed!=null?f2(s.speed):EM}</td>`;});
-  html+='</tr><tr><td class="tt-lbl">Accel (m/s\u00B2)</td>';
+  html+='</tr><tr><td class="tt-lbl">'+(curvesAreForce()?'Force (N)':'Accel (m/s\u00B2)')+'</td>';
   samples.forEach(s=>{html+=`<td class="tt-val">${s?f2(s.accel):EM}</td>`;});
-  html+='</tr><tr><td class="tt-lbl">Rate of accel (m/s\u00B3)</td>';
+  html+='</tr><tr><td class="tt-lbl">'+(curvesAreForce()?'Rate of force (N/s)':'Rate of accel (m/s\u00B3)')+'</td>';
   samples.forEach(s=>{html+=`<td class="tt-val">${s?f1(s.rate):EM}</td>`;});
   html+='</tr></table>';
 
@@ -4026,10 +4115,6 @@ async function showStartup(){
       <button class="dzbtn dzbtn-sec" id="sz-squad"><img src="icons/Import.svg"><span>From Squad</span></button>
       <button class="dzbtn dzbtn-sec" id="sz-openfile"><img src="icons/Open.svg"><span>Open file</span></button>
     </div>
-    <div class="brpill-row">
-      <button class="dzbtn dzbtn-sec" id="sz-rescan"><img src="icons/Scan.svg"><span>Scan All for Records</span></button>
-      <button class="dzbtn dzbtn-sec" id="sz-resetrecords"><img src="icons/Reset.svg"><span>Reset Records</span></button>
-    </div>
     <div class="brpill">
       <div class="sz-lhd">Sessions<span class="sz-signout" id="sz-signout">Sign out</span></div>
       <input type="text" id="sz-search" class="brsearch" placeholder="Search sessions…" autocomplete="off">
@@ -4040,14 +4125,6 @@ async function showStartup(){
   document.getElementById('sz-signout').onclick=()=>{AnalyserDrive.signOut();showStartup();};
   document.getElementById('sz-squad').onclick=loadFromSquad;
   document.getElementById('sz-openfile').onclick=()=>document.getElementById('fin').click();
-  document.getElementById('sz-resetrecords').onclick=()=>{
-    if(!confirm('Reset all Personal Bests? Re-scan to restore.'))return;
-    RECORDS_DB={water:{},erg:{}};
-    try{localStorage.setItem('br_records',JSON.stringify(RECORDS_DB));}catch{}
-    renderRecords();
-    if(AnalyserDrive.isSignedIn())AnalyserDrive.pushPrefs({records:RECORDS_DB}).catch(()=>{});
-    toast('Personal Bests reset');
-  };
   try{
     const files=await AnalyserDrive.list();
     const container=document.getElementById('sz-files');
@@ -4079,23 +4156,6 @@ async function showStartup(){
         renderList();
       };
     }
-    document.getElementById('sz-rescan').onclick=async()=>{
-      const btn=document.getElementById('sz-rescan');
-      btn.disabled=true;
-      for(let idx=0; idx<fileList.length; idx++){
-        const f=fileList[idx];
-        btn.innerHTML='<img src="icons/Scan.svg"><span>Scanning '+(idx+1)+'/'+fileList.length+'…</span>';
-        try{
-          const session=await AnalyserDrive.fetchSession(f.id);
-          applySessionUnits(session);
-          const conv=sessionToAnalyserFmt(session);
-          updateRecords(conv.gpsTrace, f.name||conv.name||'Session', conv.sum&&conv.sum.start_time, f.id, (conv.sum&&conv.sum.session_mode==='erg')?'erg':'water');
-        }catch(err){}
-      }
-      btn.innerHTML='<img src="icons/Scan.svg"><span>Scan All for Records</span>';
-      btn.disabled=false;
-      renderRecords();
-    };
     let sumMonthOff=0,sumWeekOff=0;
     function parseFn(name){
       const dist=name.match(/_(\d+)m_/);
@@ -4736,13 +4796,21 @@ function _sumGroupHTML(title,groupKey,list,monthOff,weekOff){
 }
 function _sumRecordsCardsHTML(mode){
   const targets=[500,1000,2000,5000,10000];
-  return targets.map(d=>{
+  let out=targets.map(d=>{
     const r=RECORDS_DB[mode][d];
     const lbl=d>=1000?(d/1000)+'km':d+'m';
     const val=r?fmtRecordTime(r.timeMs):'—';
     const dateStr=r?fmtRecordDate(r.date):'';
     return '<div class="card cb" style="cursor:'+(r&&r.fileId?'pointer':'default')+';" onclick="'+(r&&r.fileId?'window.loadRecordSession(\''+d+'\',\''+mode+'\');document.getElementById(\'_summary_modal\')?.remove();':'')+'"><div class="lbl">'+lbl+'</div><div class="val">'+val+'</div><div class="sub">'+dateStr+'</div></div>';
   }).join('');
+  const durTargets=[{ms:1800000,lbl:'30 min'},{ms:3600000,lbl:'1 hour'}];
+  out+=durTargets.map(t=>{
+    const r=RECORDS_DB[mode].dur&&RECORDS_DB[mode].dur[t.ms];
+    const val=r?fmtRecordDist(r.distM):'—';
+    const dateStr=r?fmtRecordDate(r.date):'';
+    return '<div class="card cb" style="cursor:'+(r&&r.fileId?'pointer':'default')+';" onclick="'+(r&&r.fileId?'window.loadRecordDurationSession(\''+t.ms+'\',\''+mode+'\');document.getElementById(\'_summary_modal\')?.remove();':'')+'"><div class="lbl">'+t.lbl+'</div><div class="val">'+val+'</div><div class="sub">'+dateStr+'</div></div>';
+  }).join('');
+  return out;
 }
 let _sumOffsets={onwater:{m:0,w:0},erg:{m:0,w:0},combined:{m:0,w:0}};
 async function showSummaryModal(){
@@ -4772,6 +4840,7 @@ async function showSummaryModal(){
     html+=_sumGroupHTML('On-Water','onwater',onwater,_sumOffsets.onwater.m,_sumOffsets.onwater.w);
     html+=_sumGroupHTML('Erg','erg',erg,_sumOffsets.erg.m,_sumOffsets.erg.w);
     html+=_sumGroupHTML('Combined','combined',files,_sumOffsets.combined.m,_sumOffsets.combined.w);
+    html+='<div class="brpill-row" style="margin-bottom:10px;"><button class="dzbtn dzbtn-sec" id="_sum-rescan"><img src="icons/Scan.svg"><span>Scan All for Records</span></button><button class="dzbtn dzbtn-sec" id="_sum-resetrecords"><img src="icons/Reset.svg"><span>Reset Records</span></button></div>';
     html+='<div class="brpill"><div class="sumgrp"><div class="sumgrp-hd">On-Water Personal Bests</div><div class="sumgrp-cards">'+_sumRecordsCardsHTML('water')+'</div></div><div class="sumgrp"><div class="sumgrp-hd">Erg Personal Bests</div><div class="sumgrp-cards">'+_sumRecordsCardsHTML('erg')+'</div></div></div>';
     body.innerHTML=html;
     body.querySelectorAll('button[data-nav]').forEach(btn=>{
@@ -4785,6 +4854,30 @@ async function showSummaryModal(){
         render();
       };
     });
+    const rescanBtn=document.getElementById('_sum-rescan');
+    if(rescanBtn) rescanBtn.onclick=async()=>{
+      rescanBtn.disabled=true;
+      for(let idx=0; idx<files.length; idx++){
+        const f=files[idx];
+        rescanBtn.innerHTML='<img src="icons/Scan.svg"><span>Scanning '+(idx+1)+'/'+files.length+'…</span>';
+        try{
+          const session=await AnalyserDrive.fetchSession(f.id);
+          applySessionUnits(session);
+          const conv=sessionToAnalyserFmt(session);
+          updateRecords(conv.gpsTrace, f.name||conv.name||'Session', conv.sum&&conv.sum.start_time, f.id, (conv.sum&&conv.sum.session_mode==='erg')?'erg':'water');
+        }catch(err){}
+      }
+      render();
+    };
+    const resetBtn=document.getElementById('_sum-resetrecords');
+    if(resetBtn) resetBtn.onclick=()=>{
+      if(!confirm('Reset all Personal Bests? Re-scan to restore.'))return;
+      RECORDS_DB={water:{dur:{}},erg:{dur:{}}};
+      try{localStorage.setItem('br_records',JSON.stringify(RECORDS_DB));}catch{}
+      if(AnalyserDrive.isSignedIn())AnalyserDrive.pushPrefs({records:RECORDS_DB}).catch(()=>{});
+      toast('Personal Bests reset');
+      render();
+    };
   }
   render();
 }
