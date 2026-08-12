@@ -3244,26 +3244,32 @@ function clearAllCurves(){curveGroups=[];buildCurveSection();updateMapGroups();a
 function computeGroupCurve(strokes){
   const valid=strokes.filter(s=>s.curve&&s.curve.length===CURVE_POINTS);
   if(!valid.length)return null;
+  const FORCE=curvesAreForce();
   const avg=new Array(CURVE_POINTS).fill(0);
-  let dfSum=0,rateSum=0,rateN=0,dpsSum=0,dpsN=0,paceSum=0,paceN=0;
+  let dfSum=0,rateSum=0,rateN=0,dpsSum=0,dpsN=0,paceSum=0,paceN=0,drvSum=0,drvN=0;
   for(const s of valid){
     for(let i=0;i<CURVE_POINTS;i++)avg[i]+=s.curve[i];
     dfSum+=(s.curveDriveFrac||0.5);
     if(s.rate>5&&s.rate<50){rateSum+=s.rate;rateN++;}
     if(s.dps>1&&s.dps<25){dpsSum+=s.dps;dpsN++;}
     if(s.pace>50&&s.pace<500){paceSum+=s.pace;paceN++;}
+    if(s.driveTimeMs>50&&s.driveTimeMs<3000){drvSum+=s.driveTimeMs;drvN++;}
   }
   for(let i=0;i<CURVE_POINTS;i++)avg[i]/=valid.length;
   let df=dfSum/valid.length;
   let pk=0,pki=-1;
   const pkEnd=Math.round(CURVE_POINTS*0.70);
   for(let i=0;i<pkEnd;i++){if(avg[i]>pk){pk=avg[i];pki=i;}}
-  if(pki>0&&pk>0.3){
+  /* A PM5 force curve is drive-only, so the full width IS the drive. Deriving
+     a drive fraction off its tail would draw a false finish line. */
+  if(FORCE){ df=1; }
+  else if(pki>0&&pk>0.3){
     const thr=pk*0.25;
     for(let i=pki+1;i<CURVE_POINTS;i++){if(avg[i]<thr){df=i/(CURVE_POINTS-1);break;}}
   }
   return{data:avg,driveFrac:df,n:valid.length,total:strokes.length,
-    avgRate:rateN?rateSum/rateN:null,avgDPS:dpsN?dpsSum/dpsN:null,avgPace:paceN?paceSum/paceN:null};
+    avgRate:rateN?rateSum/rateN:null,avgDPS:dpsN?dpsSum/dpsN:null,avgPace:paceN?paceSum/paceN:null,
+    avgDriveMs:drvN?drvSum/drvN:null};
 }
 
 function buildCurveSection(){
@@ -3284,8 +3290,10 @@ function buildCurveSection(){
   // Hint
   const hasCurves=curveGroups.some(g=>g.strokes.some(s=>s.curve));
   document.getElementById('curvehint').textContent=hasCurves
-    ?'Average of normalized catch-to-catch IMU curves · dashed line = drive/recovery boundary'
-    :'No curve data in selected strokes — record with latest Metrics app';
+    ?(curvesAreForce()
+      ?'Average PM5 drive force curve (N) \u00b7 x axis = drive time, catch at left'
+      :'Average of normalized catch-to-catch IMU curves \u00b7 dashed line = drive/recovery boundary')
+    :'No curve data in selected strokes \u2014 record with latest Metrics app';
 }
 
 function drawCurvePanel(){
@@ -3320,9 +3328,14 @@ function drawCurvePanel(){
   }
 
   // x=0 is blade entry (catch) — no rotation needed, curve is already catch-to-catch
+  const FORCE=curvesAreForce();
   const enriched=curves.map(c=>{
     const sp=integrateSpeed(c.data,c.avgRate,c.avgDPS);
-    return{...c,accelRot:c.data,catchFrac:0,finishFrac:c.driveFrac,speed:sp?sp.v:null,T:sp?sp.T:null,avgSpeedMS:c.avgPace?500/c.avgPace:null};
+    /* A PM5 force curve has no integrable speed, so its time base comes from
+       the PM5 drive time - the curve spans the drive only. Without this T was
+       null and the whole panel bailed out with "No stroke rate data available". */
+    const T=sp?sp.T:(FORCE?(c.avgDriveMs?c.avgDriveMs/1000:(c.avgRate?(60/c.avgRate)*0.4:null)):(c.avgRate?60/c.avgRate:null));
+    return{...c,accelRot:c.data,catchFrac:0,finishFrac:c.driveFrac,speed:sp?sp.v:null,T:T,avgSpeedMS:(!FORCE&&c.avgPace)?500/c.avgPace:null};
   });
 
   const maxT=Math.max(...enriched.map(c=>c.T||0));
@@ -3333,7 +3346,7 @@ function drawCurvePanel(){
 
   const PL=38,PR=10,PT=12,PB=34,GAP=16;
   const pw=W-PL-PR;
-  const ph1=152,ph2=H-PT-ph1-GAP-PB;
+  const ph1=FORCE?280:152,ph2=FORCE?0:(H-PT-ph1-GAP-PB);
   const accelTop=PT,speedTop=PT+ph1+GAP;
   const toPx=t=>PL+(t/maxT)*pw;
 
@@ -3439,7 +3452,7 @@ function drawCurvePanel(){
     ctx.fillText(t.toFixed(1)+'s',x,speedTop+ph2+13);
   }
   ctx.fillStyle=C.muted;ctx.font='7px -apple-system, BlinkMacSystemFont, Helvetica Neue, sans-serif';ctx.textAlign='left';
-  ctx.fillText('x=0: blade entry  \u2502  dashed: finish',PL,speedTop+ph2+26);
+  ctx.fillText(FORCE?'x=0: catch  \u2502  full width = drive':'x=0: blade entry  \u2502  dashed: finish',PL,speedTop+ph2+26);
 
   // Legend in gap between panels
   let lx=PL;
