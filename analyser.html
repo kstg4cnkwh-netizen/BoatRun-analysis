@@ -1020,6 +1020,12 @@ async function pullPrefsAndApply() {
       applyTileOrder(prefs.tiles.order);
     }
   }
+  if (prefs.squadPws && typeof prefs.squadPws === 'object') {
+    Object.keys(prefs.squadPws).forEach(c => {
+      const v = prefs.squadPws[c];
+      if (v) { try { localStorage.setItem('_squad_pw_' + c, String(v)); } catch {} }
+    });
+  }
   if (typeof buildUnitsBar === 'function') buildUnitsBar();
   if (typeof renderRecords === 'function') renderRecords();
   if (_lastSum && typeof buildCards === 'function') buildCards(_lastSum);
@@ -1852,6 +1858,80 @@ async function loadFromDrive() {
     });
   } catch(err) { toast('Drive error: '+err.message); }
 }
+// ── SQUAD PASSWORD ────────────────────────────────────────────────────────
+// A coach can lock reading of a squad. The hash lives at /squads/CODE/meta/pwh.
+// The plain password is kept locally and mirrored via Drive prefs (squadPws).
+const SQPW_DB = 'https://boatrun-default-rtdb.asia-southeast1.firebasedatabase.app';
+const SQ_PW_PREFIX = '_squad_pw_';
+function sqPwKey(code){ return SQ_PW_PREFIX + (code||'').trim().toUpperCase(); }
+function getSquadPw(code){ try { return localStorage.getItem(sqPwKey(code)) || ''; } catch { return ''; } }
+function setSquadPw(code, pw){
+    try { if (pw) localStorage.setItem(sqPwKey(code), pw); else localStorage.removeItem(sqPwKey(code)); } catch {}
+    try { pushSquadPwsToPrefs(); } catch {}
+}
+function pushSquadPwsToPrefs(){
+    if (typeof AnalyserDrive === 'undefined' || !AnalyserDrive.isSignedIn()) return;
+    const map = {};
+    try {
+        for (let i = 0; i < localStorage.length; i++){
+            const k = localStorage.key(i);
+            if (k && k.indexOf(SQ_PW_PREFIX) === 0) map[k.slice(SQ_PW_PREFIX.length)] = localStorage.getItem(k);
+        }
+    } catch {}
+    AnalyserDrive.pushPrefs({ squadPws: map }).catch(()=>{});
+}
+async function sqPwHash(code, pw){
+    const s = 'BoatRun|' + (code||'').trim().toUpperCase() + '|' + (pw||'');
+    const buf = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(s));
+    return Array.from(new Uint8Array(buf)).map(b=>b.toString(16).padStart(2,'0')).join('');
+}
+async function fetchSquadPwh(code){
+    try {
+        const r = await fetch(SQPW_DB + '/squads/' + (code||'').trim().toUpperCase() + '/meta/pwh.json');
+        if (!r.ok) return null;
+        const v = await r.json();
+        return v ? String(v) : '';
+    } catch { return null; }
+}
+async function ensureSquadUnlocked(code){
+    const c = (code||'').trim().toUpperCase();
+    if (!c) return false;
+    const pwh = await fetchSquadPwh(c);
+    if (pwh === null || pwh === '') return true;
+    const saved = getSquadPw(c);
+    if (saved && (await sqPwHash(c, saved)) === pwh) return true;
+    const entered = await promptSquadPassword(c);
+    if (entered === null) return false;
+    if ((await sqPwHash(c, entered)) === pwh) { setSquadPw(c, entered); return true; }
+    toast('Wrong squad password');
+    return false;
+}
+function promptSquadPassword(code){
+    return new Promise(resolve=>{
+        document.getElementById('_sq_pw_modal')?.remove();
+        const ov = document.createElement('div');
+        ov.id = '_sq_pw_modal';
+        ov.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,.72);display:flex;align-items:center;justify-content:center;z-index:99999;';
+        const p = document.createElement('div');
+        p.style.cssText = 'background:var(--s1);border:1px solid var(--border);border-radius:10px;padding:18px;max-width:340px;width:88%;color:var(--text);font-family:-apple-system, BlinkMacSystemFont, Helvetica Neue, sans-serif;';
+        p.innerHTML = '<div style="font-size:1rem;font-weight:700;margin-bottom:6px;color:var(--b);">Squad password</div>'
+            + '<div style="font-size:.8rem;color:var(--muted);margin-bottom:12px;">Squad ' + code + ' is protected. Enter the password your coach set.</div>'
+            + '<input id="sqpw-input" type="password" autocomplete="off" placeholder="Password" style="display:block;width:100%;box-sizing:border-box;padding:10px 12px;margin-bottom:12px;background:var(--s2);border:1px solid var(--border);border-radius:6px;color:var(--text);font-size:.95rem;font-family:inherit;">'
+            + '<div style="display:flex;gap:8px;">'
+            + '<button id="sqpw-cancel" style="flex:1;padding:9px 0;background:var(--s2);border:1px solid var(--border);border-radius:6px;color:var(--text);cursor:pointer;font-size:.85rem;font-family:inherit;">Cancel</button>'
+            + '<button id="sqpw-ok" style="flex:1;padding:9px 0;background:var(--b);border:1px solid var(--b);border-radius:6px;color:#fff;cursor:pointer;font-size:.85rem;font-family:inherit;">Unlock</button>'
+            + '</div>';
+        ov.appendChild(p);
+        document.body.appendChild(ov);
+        const inp = document.getElementById('sqpw-input');
+        setTimeout(()=>{ try { inp.focus(); } catch {} }, 50);
+        const done = v => { ov.remove(); resolve(v); };
+        document.getElementById('sqpw-cancel').onclick = () => done(null);
+        document.getElementById('sqpw-ok').onclick = () => done(inp.value || '');
+        inp.addEventListener('keydown', e => { if (e.key === 'Enter') done(inp.value || ''); if (e.key === 'Escape') done(null); });
+        ov.onclick = e => { if (e.target === ov) done(null); };
+    });
+}
 function promptSquadCode(){
     return new Promise(resolve=>{
         document.getElementById('_squad_code_entry')?.remove();
@@ -1902,6 +1982,7 @@ async function loadFromSquad() {
     const code = await promptSquadCode();
     if (!code || code.length !== 7) return;
     try { localStorage.setItem('_squad_code', code); } catch {}
+    if (!(await ensureSquadUnlocked(code))) { toast('Squad ' + code + ' is password protected'); return; }
     toast('Fetching sessions…');
     try {
         const r = await fetch('https://boatrun-default-rtdb.asia-southeast1.firebasedatabase.app/squads/' + code + '/coach_sessions.json?shallow=true');
@@ -1987,6 +2068,7 @@ async function showAddComparePicker() {
             const code = await promptSquadCode();
             if (!code || code.length !== 7) { content.innerHTML = '<div class="sz-loading">No code entered.</div>'; return; }
             try { localStorage.setItem('_squad_code', code); } catch {}
+            if (!(await ensureSquadUnlocked(code))) { content.innerHTML = '<div class="sz-loading">Squad ' + code + ' is password protected.</div>'; return; }
             content.innerHTML = '<div class="sz-loading">Fetching sessions\u2026</div>';
             try {
                 const r = await fetch(SQUAD_DB + '/squads/' + code + '/coach_sessions.json?shallow=true');
