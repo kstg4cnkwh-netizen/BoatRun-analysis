@@ -1885,25 +1885,52 @@ async function sqPwHash(code, pw){
     const buf = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(s));
     return Array.from(new Uint8Array(buf)).map(b=>b.toString(16).padStart(2,'0')).join('');
 }
-async function fetchSquadPwh(code){
+// The hash is never readable (rules deny it). A gated read is attempted with
+// ?orderBy="<hash>"; the rules compare it to the stored hash, so a wrong
+// password is rejected by the server.
+const _sqHash = {};   // code -> verified hash, memory only
+function sqQuery(code, extra){
+    const h = _sqHash[(code||'').trim().toUpperCase()];
+    const parts = [];
+    if (h) parts.push('orderBy=' + encodeURIComponent('"' + h + '"'));
+    if (extra) parts.push(extra);
+    return parts.length ? '?' + parts.join('&') : '';
+}
+// true = protected, false = open, null = could not tell (offline)
+async function squadHasPassword(code){
     try {
-        const r = await fetch(SQPW_DB + '/squads/' + (code||'').trim().toUpperCase() + '/meta/pwh.json');
+        const r = await fetch(SQPW_DB + '/squads/' + (code||'').trim().toUpperCase() + '/meta/pwSet.json');
         if (!r.ok) return null;
-        const v = await r.json();
-        return v ? String(v) : '';
+        return (await r.json()) === true;
+    } catch { return null; }
+}
+// true = accepted, false = rejected, null = network failure
+async function trySquadPw(code, pw){
+    const c = (code||'').trim().toUpperCase();
+    const h = await sqPwHash(c, pw);
+    try {
+        const r = await fetch(SQPW_DB + '/squads/' + c + '/idx.json?orderBy=' + encodeURIComponent('"' + h + '"') + '&limitToFirst=1');
+        if (r.ok) { _sqHash[c] = h; return true; }
+        if (r.status === 401 || r.status === 403) return false;
+        return null;
     } catch { return null; }
 }
 async function ensureSquadUnlocked(code){
     const c = (code||'').trim().toUpperCase();
     if (!c) return false;
-    const pwh = await fetchSquadPwh(c);
-    if (pwh === null || pwh === '') return true;
+    const prot = await squadHasPassword(c);
+    if (prot === null) return true;
+    if (!prot) { delete _sqHash[c]; return true; }
     const saved = getSquadPw(c);
-    if (saved && (await sqPwHash(c, saved)) === pwh) return true;
+    if (saved) {
+        const ok = await trySquadPw(c, saved);
+        if (ok === true || ok === null) return true;
+    }
     const entered = await promptSquadPassword(c);
     if (entered === null) return false;
-    if ((await sqPwHash(c, entered)) === pwh) { setSquadPw(c, entered); return true; }
-    toast('Wrong squad password');
+    const ok2 = await trySquadPw(c, entered);
+    if (ok2 === true) { setSquadPw(c, entered); return true; }
+    toast(ok2 === null ? 'Could not check password \u2014 no connection' : 'Wrong squad password');
     return false;
 }
 function promptSquadPassword(code){
@@ -1978,34 +2005,48 @@ function promptSquadCode(){
         overlay.onclick = e => { if (e.target === overlay) finish(null); };
     });
 }
+// Shared listing for a squad. Uses /idx (works with a password query) and
+// falls back to the old shallow listing for squads created before /idx.
+async function fetchSquadMetas(code) {
+    const DB = 'https://boatrun-default-rtdb.asia-southeast1.firebasedatabase.app';
+    let metas = [];
+    try {
+        const ri = await fetch(DB + '/squads/' + code + '/idx.json' + sqQuery(code));
+        if (ri.ok) {
+            const idx = await ri.json();
+            if (idx) metas = Object.keys(idx).map(id => ({ id, ...(idx[id] || {}) }));
+        }
+    } catch {}
+    if (metas.length) return metas;
+    const r = await fetch(DB + '/squads/' + code + '/coach_sessions.json' + sqQuery(code, 'shallow=true'));
+    if (!r.ok) throw new Error('HTTP ' + r.status);
+    const keys = await r.json();
+    if (!keys) return [];
+    const sessIds = Object.keys(keys).filter(k => !k.endsWith('_meta'));
+    return await Promise.all(sessIds.map(id =>
+        fetch(DB + '/squads/' + code + '/coach_sessions/' + id + '_meta.json' + sqQuery(code))
+            .then(r2 => r2.ok ? r2.json() : null)
+            .then(m => m ? { id, ...m } : { id, rower: 'Rower', dist: 0, dur: 0, t: parseInt(id) })
+            .catch(() => ({ id, rower: 'Rower', dist: 0, dur: 0, t: parseInt(id) }))
+    ));
+}
+async function fetchSquadDesc(code) {
+    try {
+        const mR = await fetch('https://boatrun-default-rtdb.asia-southeast1.firebasedatabase.app/squads/' + code + '/meta.json');
+        const meta = mR.ok ? await mR.json() : null;
+        return (meta && meta.desc) ? String(meta.desc) : '';
+    } catch { return ''; }
+}
 async function loadFromSquad() {
     const code = await promptSquadCode();
     if (!code || code.length !== 7) return;
     try { localStorage.setItem('_squad_code', code); } catch {}
     if (!(await ensureSquadUnlocked(code))) { toast('Squad ' + code + ' is password protected'); return; }
-    toast('Fetching sessions…');
+    toast('Fetching sessions\u2026');
     try {
-        const r = await fetch('https://boatrun-default-rtdb.asia-southeast1.firebasedatabase.app/squads/' + code + '/coach_sessions.json?shallow=true');
-        if (!r.ok) throw new Error('HTTP ' + r.status);
-        const keys = await r.json();
-        if (!keys) { toast('No sessions found for squad ' + code); return; }
-        const sessIds = Object.keys(keys).filter(k => !k.endsWith('_meta'));
-        if (!sessIds.length) { toast('No sessions found for squad ' + code); return; }
-        let squadDesc = '';
-        try {
-            const mR = await fetch('https://boatrun-default-rtdb.asia-southeast1.firebasedatabase.app/squads/' + code + '/meta.json');
-            const meta = mR.ok ? await mR.json() : null;
-            squadDesc = (meta && meta.desc) ? String(meta.desc) : '';
-        } catch {}
-        const metaR = await fetch('https://boatrun-default-rtdb.asia-southeast1.firebasedatabase.app/squads/' + code + '/coach_sessions.json?shallow=true');
-        const allKeys = await metaR.json();
-        const metaFetches = sessIds.map(id =>
-            fetch('https://boatrun-default-rtdb.asia-southeast1.firebasedatabase.app/squads/' + code + '/coach_sessions/' + id + '_meta.json')
-                .then(r => r.ok ? r.json() : null)
-                .then(m => m ? { id, ...m } : { id, rower: 'Rower', dist: 0, dur: 0, t: parseInt(id) })
-                .catch(() => ({ id, rower: 'Rower', dist: 0, dur: 0, t: parseInt(id) }))
-        );
-        const metas = await Promise.all(metaFetches);
+        const metas = await fetchSquadMetas(code);
+        if (!metas.length) { toast('No sessions found for squad ' + code); return; }
+        const squadDesc = await fetchSquadDesc(code);
         showSquadPicker(code, metas, squadDesc);
     } catch (e) { toast('Fetch failed: ' + e.message); }
 }
@@ -2071,24 +2112,9 @@ async function showAddComparePicker() {
             if (!(await ensureSquadUnlocked(code))) { content.innerHTML = '<div class="sz-loading">Squad ' + code + ' is password protected.</div>'; return; }
             content.innerHTML = '<div class="sz-loading">Fetching sessions\u2026</div>';
             try {
-                const r = await fetch(SQUAD_DB + '/squads/' + code + '/coach_sessions.json?shallow=true');
-                if (!r.ok) throw new Error('HTTP ' + r.status);
-                const keys = await r.json();
-                if (!keys) { content.innerHTML = '<div class="sz-loading">No sessions found for squad ' + code + '.</div>'; return; }
-                const sessIds = Object.keys(keys).filter(k => !k.endsWith('_meta'));
-                let squadDesc = '';
-                try {
-                    const mR = await fetch(SQUAD_DB + '/squads/' + code + '/meta.json');
-                    const meta = mR.ok ? await mR.json() : null;
-                    squadDesc = (meta && meta.desc) ? String(meta.desc) : '';
-                } catch {}
-                const metaFetches = sessIds.map(id =>
-                    fetch(SQUAD_DB + '/squads/' + code + '/coach_sessions/' + id + '_meta.json')
-                        .then(r2 => r2.ok ? r2.json() : null)
-                        .then(m => m ? { id, ...m } : { id, rower: 'Rower', dist: 0, dur: 0, t: parseInt(id) })
-                        .catch(() => ({ id, rower: 'Rower', dist: 0, dur: 0, t: parseInt(id) }))
-                );
-                const metas = await Promise.all(metaFetches);
+                const metas = await fetchSquadMetas(code);
+                if (!metas.length) { content.innerHTML = '<div class="sz-loading">No sessions found for squad ' + code + '.</div>'; return; }
+                const squadDesc = await fetchSquadDesc(code);
                 const sorted = [...metas].sort((a, b) => (b.t || 0) - (a.t || 0));
                 content.innerHTML = squadDesc
                     ? '<div style="color:var(--muted);font-size:11px;margin-bottom:8px;">Squad: <span style="color:var(--text);font-weight:700;">' + squadDesc + '</span></div>'
@@ -2104,7 +2130,7 @@ async function showAddComparePicker() {
                         if (btn.dataset.added) return;
                         btn.style.opacity = '.55'; btn.style.pointerEvents = 'none';
                         try {
-                            const r2 = await fetch(SQUAD_DB + '/squads/' + code + '/coach_sessions/' + m.id + '.json');
+                            const r2 = await fetch(SQUAD_DB + '/squads/' + code + '/coach_sessions/' + m.id + '.json' + sqQuery(code));
                             if (!r2.ok) throw new Error('HTTP ' + r2.status);
                             const session = await r2.json();
                             if (!session) throw new Error('Not found');
@@ -2332,7 +2358,7 @@ function showSquadPicker(code, metas, desc) {
             overlay.remove();
             toast('Loading…');
             try {
-                const r = await fetch('https://boatrun-default-rtdb.asia-southeast1.firebasedatabase.app/squads/' + code + '/coach_sessions/' + m.id + '.json');
+                const r = await fetch('https://boatrun-default-rtdb.asia-southeast1.firebasedatabase.app/squads/' + code + '/coach_sessions/' + m.id + '.json' + sqQuery(code));
                 if (!r.ok) throw new Error('HTTP ' + r.status);
                 const session = await r.json();
                 if (!session) throw new Error('Session not found');
@@ -2350,7 +2376,8 @@ function showSquadPicker(code, metas, desc) {
             try {
                 await Promise.all([
                     fetch('https://boatrun-default-rtdb.asia-southeast1.firebasedatabase.app/squads/' + code + '/coach_sessions/' + m.id + '.json', { method: 'DELETE' }),
-                    fetch('https://boatrun-default-rtdb.asia-southeast1.firebasedatabase.app/squads/' + code + '/coach_sessions/' + m.id + '_meta.json', { method: 'DELETE' })
+                    fetch('https://boatrun-default-rtdb.asia-southeast1.firebasedatabase.app/squads/' + code + '/coach_sessions/' + m.id + '_meta.json', { method: 'DELETE' }),
+                    fetch('https://boatrun-default-rtdb.asia-southeast1.firebasedatabase.app/squads/' + code + '/idx/' + m.id + '.json', { method: 'DELETE' })
                 ]);
                 row.remove();
             } catch (e2) { toast('Delete failed: ' + e2.message); del.textContent = '🗑'; del.disabled = false; }
