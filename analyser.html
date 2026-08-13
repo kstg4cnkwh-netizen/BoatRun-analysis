@@ -1862,7 +1862,10 @@ async function loadFromDrive() {
 // A coach can lock reading of a squad. The hash lives at /squads/CODE/meta/pwh.
 // The plain password is kept locally and mirrored via Drive prefs (squadPws).
 const SQPW_DB = 'https://boatrun-default-rtdb.asia-southeast1.firebasedatabase.app';
+// Squad reads go through the Worker, which checks the password server-side.
+const SQUAD_WORKER = 'https://boatrun-squad.davidmacready74.workers.dev';
 const SQ_PW_PREFIX = '_squad_pw_';
+const _sqPwOk = {};
 function sqPwKey(code){ return SQ_PW_PREFIX + (code||'').trim().toUpperCase(); }
 function getSquadPw(code){ try { return localStorage.getItem(sqPwKey(code)) || ''; } catch { return ''; } }
 function setSquadPw(code, pw){
@@ -1880,57 +1883,34 @@ function pushSquadPwsToPrefs(){
     } catch {}
     AnalyserDrive.pushPrefs({ squadPws: map }).catch(()=>{});
 }
-async function sqPwHash(code, pw){
-    const s = 'BoatRun|' + (code||'').trim().toUpperCase() + '|' + (pw||'');
-    const buf = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(s));
-    return Array.from(new Uint8Array(buf)).map(b=>b.toString(16).padStart(2,'0')).join('');
-}
-// The hash is never readable (rules deny it). A gated read is attempted with
-// ?orderBy="<hash>"; the rules compare it to the stored hash, so a wrong
-// password is rejected by the server.
-const _sqHash = {};   // code -> verified hash, memory only
-function sqQuery(code, extra){
-    const h = _sqHash[(code||'').trim().toUpperCase()];
-    const parts = [];
-    if (h) parts.push('orderBy=' + encodeURIComponent('"' + h + '"'));
-    if (extra) parts.push(extra);
-    return parts.length ? '?' + parts.join('&') : '';
-}
-// true = protected, false = open, null = could not tell (offline)
-async function squadHasPassword(code){
-    try {
-        const r = await fetch(SQPW_DB + '/squads/' + (code||'').trim().toUpperCase() + '/meta/pwSet.json');
-        if (!r.ok) return null;
-        return (await r.json()) === true;
-    } catch { return null; }
-}
-// true = accepted, false = rejected, null = network failure
-async function trySquadPw(code, pw){
+function sqProxy(code, sub, extra){
     const c = (code||'').trim().toUpperCase();
-    const h = await sqPwHash(c, pw);
+    let u = SQUAD_WORKER + '/squad/' + c + '/' + sub + '?pw=' + encodeURIComponent(getSquadPw(c));
+    if (extra) u += '&' + extra;
+    return u;
+}
+// 'ok' | 'bad' | 'offline'
+async function checkSquadPw(code, pw){
+    const c = (code||'').trim().toUpperCase();
     try {
-        const r = await fetch(SQPW_DB + '/squads/' + c + '/idx.json?orderBy=' + encodeURIComponent('"' + h + '"') + '&limitToFirst=1');
-        if (r.ok) { _sqHash[c] = h; return true; }
-        if (r.status === 401 || r.status === 403) return false;
-        return null;
-    } catch { return null; }
+        const r = await fetch(SQUAD_WORKER + '/squad/' + c + '/check?pw=' + encodeURIComponent(pw || ''));
+        if (r.ok) return 'ok';
+        if (r.status === 401) return 'bad';
+        return 'offline';
+    } catch { return 'offline'; }
 }
 async function ensureSquadUnlocked(code){
     const c = (code||'').trim().toUpperCase();
     if (!c) return false;
-    const prot = await squadHasPassword(c);
-    if (prot === null) return true;
-    if (!prot) { delete _sqHash[c]; return true; }
-    const saved = getSquadPw(c);
-    if (saved) {
-        const ok = await trySquadPw(c, saved);
-        if (ok === true || ok === null) return true;
-    }
+    if (_sqPwOk[c]) return true;
+    const first = await checkSquadPw(c, getSquadPw(c));
+    if (first === 'ok') { _sqPwOk[c] = true; return true; }
+    if (first === 'offline') return true;
     const entered = await promptSquadPassword(c);
     if (entered === null) return false;
-    const ok2 = await trySquadPw(c, entered);
-    if (ok2 === true) { setSquadPw(c, entered); return true; }
-    toast(ok2 === null ? 'Could not check password \u2014 no connection' : 'Wrong squad password');
+    const second = await checkSquadPw(c, entered);
+    if (second === 'ok') { setSquadPw(c, entered); _sqPwOk[c] = true; return true; }
+    toast(second === 'offline' ? 'Could not check password \u2014 no connection' : 'Wrong squad password');
     return false;
 }
 function promptSquadPassword(code){
@@ -2008,23 +1988,22 @@ function promptSquadCode(){
 // Shared listing for a squad. Uses /idx (works with a password query) and
 // falls back to the old shallow listing for squads created before /idx.
 async function fetchSquadMetas(code) {
-    const DB = 'https://boatrun-default-rtdb.asia-southeast1.firebasedatabase.app';
     let metas = [];
     try {
-        const ri = await fetch(DB + '/squads/' + code + '/idx.json' + sqQuery(code));
+        const ri = await fetch(sqProxy(code, 'idx'));
         if (ri.ok) {
             const idx = await ri.json();
             if (idx) metas = Object.keys(idx).map(id => ({ id, ...(idx[id] || {}) }));
         }
     } catch {}
     if (metas.length) return metas;
-    const r = await fetch(DB + '/squads/' + code + '/coach_sessions.json' + sqQuery(code, 'shallow=true'));
+    const r = await fetch(sqProxy(code, 'coach_sessions', 'shallow=true'));
     if (!r.ok) throw new Error('HTTP ' + r.status);
     const keys = await r.json();
     if (!keys) return [];
     const sessIds = Object.keys(keys).filter(k => !k.endsWith('_meta'));
     return await Promise.all(sessIds.map(id =>
-        fetch(DB + '/squads/' + code + '/coach_sessions/' + id + '_meta.json' + sqQuery(code))
+        fetch(sqProxy(code, 'coach_sessions/' + id + '_meta'))
             .then(r2 => r2.ok ? r2.json() : null)
             .then(m => m ? { id, ...m } : { id, rower: 'Rower', dist: 0, dur: 0, t: parseInt(id) })
             .catch(() => ({ id, rower: 'Rower', dist: 0, dur: 0, t: parseInt(id) }))
@@ -2130,7 +2109,7 @@ async function showAddComparePicker() {
                         if (btn.dataset.added) return;
                         btn.style.opacity = '.55'; btn.style.pointerEvents = 'none';
                         try {
-                            const r2 = await fetch(SQUAD_DB + '/squads/' + code + '/coach_sessions/' + m.id + '.json' + sqQuery(code));
+                            const r2 = await fetch(sqProxy(code, 'coach_sessions/' + m.id));
                             if (!r2.ok) throw new Error('HTTP ' + r2.status);
                             const session = await r2.json();
                             if (!session) throw new Error('Not found');
@@ -2358,7 +2337,7 @@ function showSquadPicker(code, metas, desc) {
             overlay.remove();
             toast('Loading…');
             try {
-                const r = await fetch('https://boatrun-default-rtdb.asia-southeast1.firebasedatabase.app/squads/' + code + '/coach_sessions/' + m.id + '.json' + sqQuery(code));
+                const r = await fetch(sqProxy(code, 'coach_sessions/' + m.id));
                 if (!r.ok) throw new Error('HTTP ' + r.status);
                 const session = await r.json();
                 if (!session) throw new Error('Session not found');
