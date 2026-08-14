@@ -1216,6 +1216,7 @@ const METRIC_DEFS = [
 // Tiles/rows the PM5 can actually feed — used to restrict the Tiles picker,
 // hover tooltip, and stroke table to erg-relevant metrics on erg sessions.
 const ERG_TILE_KEYS=['pace','rate','dps','peakforce','drivelength','drivetime','hr'];
+const ERG_ONLY_KEYS=['watts','peakforce','drivelength'];
 function applyTileOrder(ord){
   let order=ord;
   if(!order){
@@ -2659,7 +2660,7 @@ function buildCards(sum) {
   let html=
     card('cw','Distance',distDisp,distLbl,null,'Total distance travelled (GPS), in km or mi based on units setting.')+
     card('cw','Duration',dur,ST.length+' strokes',null,'Total elapsed time of the session.')+
-    METRIC_DEFS.map(m=>(hid[m.k]||!CARD_BUILDERS[m.k])?'':CARD_BUILDERS[m.k]()).join('');
+    METRIC_DEFS.map(m=>(hid[m.k]||!CARD_BUILDERS[m.k]||(!isErgSession()&&ERG_ONLY_KEYS.includes(m.k)))?'':CARD_BUILDERS[m.k]()).join('');
   document.getElementById('cards').innerHTML=html;
   buildHRZoneTable();
 }
@@ -3642,7 +3643,7 @@ function buildCurveStats(){
     {l:'Time',fn:g=>{const a=g.strokes;return a.length?fmtTime(a[a.length-1].elapsed-a[0].elapsed):EM;}},
   ];
   for(const m of METRIC_DEFS){
-    if(hid[m.k]||(isErgSession()&&!ERG_TILE_KEYS.includes(m.k)))continue;
+    if(hid[m.k]||(isErgSession()&&!ERG_TILE_KEYS.includes(m.k))||(!isErgSession()&&ERG_ONLY_KEYS.includes(m.k)))continue;
     if(m.k==='hr'){
       rows.push({l:'Avg '+m.l, c:m.c, fn:g=>{
         const arr=g.strokes.map(s=>nearestHRIn(g.hrT,g.hrBpm,s.ms)).filter(b=>b!=null&&b>40&&b<220);
