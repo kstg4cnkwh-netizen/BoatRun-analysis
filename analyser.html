@@ -3628,13 +3628,21 @@ function tplExport(){
   tplSortEntries(t);
   t.savedAt = Date.now();
   tplStore();
-  const blob = new Blob([JSON.stringify(t)], {type:'application/json'});
+  /* application/json makes some mobile browsers open the file inline for
+     preview instead of downloading it, which is what surfaces as a save/
+     location picker. octet-stream forces a straight save to Downloads —
+     the .json extension in the filename is untouched, so it still opens fine
+     when picked back up in Metrics → Import. */
+  const blob = new Blob([JSON.stringify(t)], {type:'application/octet-stream'});
   const url = URL.createObjectURL(blob);
   const a = document.createElement('a');
   a.href = url;
   a.download = (t.name || 'stroke_template').replace(/[^\w\-]+/g,'_') + '.brtemplate.json';
+  a.rel = 'noopener';
+  document.body.appendChild(a);
   a.click();
-  URL.revokeObjectURL(url);
+  a.remove();
+  setTimeout(() => URL.revokeObjectURL(url), 1000);
   renderTemplateModal(); buildCurveSection();
   toast('Saved \u2014 import this file in Metrics \u203a Settings');
 }
