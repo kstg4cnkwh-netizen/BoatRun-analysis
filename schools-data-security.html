@@ -1,0 +1,92 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>BoatRun - Data Security for Schools</title>
+<style>
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+    max-width: 720px;
+    margin: 0 auto;
+    padding: 24px 20px 60px;
+    line-height: 1.55;
+    color: #1a1a1a;
+    background: #fafafa;
+  }
+  h1 { font-size: 1.5rem; margin-bottom: 4px; }
+  .updated { color: #666; font-size: 0.85rem; margin-bottom: 28px; }
+  h2 { font-size: 1.05rem; margin-top: 32px; border-bottom: 1px solid #ddd; padding-bottom: 6px; }
+  ul { padding-left: 20px; }
+  li { margin-bottom: 6px; }
+  code { background: #eee; padding: 1px 5px; border-radius: 3px; font-size: 0.9em; }
+  table { border-collapse: collapse; width: 100%; margin-top: 10px; }
+  td, th { border: 1px solid #ddd; padding: 8px 10px; text-align: left; font-size: 0.92rem; }
+  th { background: #eee; }
+  .contact { background: #f0f0f0; padding: 14px 16px; border-radius: 8px; margin-top: 8px; }
+</style>
+</head>
+<body>
+
+<h1>BoatRun - Data Security for Schools</h1>
+<p class="updated">Last updated: 17 August 2026</p>
+
+<p>This page is a summary for school and club administrators evaluating BoatRun for use with junior rowers. It covers what data is collected, where it's stored, and how it can be deleted. For full detail, see our <a href="privacy.html">Privacy Policy</a>.</p>
+
+<h2>Summary</h2>
+<ul>
+  <li><strong>No accounts required to row.</strong> Rowers open Metrics and start recording - no sign-up, no email address, no personal profile.</li>
+  <li><strong>Rowers set their own username.</strong> Coaches do not assign or edit a rower's display name.</li>
+  <li><strong>No advertising, no tracking, no data sale.</strong> BoatRun has no ad tech and does not sell or share data with third parties.</li>
+  <li><strong>Data stays with the school/rower, not on our servers.</strong> Session files live on the rower's device, their own private Google Drive folder, and (for coached sessions) the squad's cloud storage - we do not hold a separate copy ourselves.</li>
+  <li><strong>All cloud data is encrypted.</strong> Firebase traffic is encrypted in transit (TLS) and encrypted at rest by Google's infrastructure.</li>
+</ul>
+
+<h2>What data is collected</h2>
+<table>
+  <tr><th>Data type</th><th>When</th><th>Where it goes</th></tr>
+  <tr><td>GPS location</td><td>Only while actively recording</td><td>Stored in the session file only</td></tr>
+  <tr><td>Motion sensor data</td><td>Only while actively recording</td><td>Stays on-device unless saved/synced</td></tr>
+  <tr><td>Heart rate</td><td>Only if a strap is connected</td><td>Stored in the session file only</td></tr>
+  <tr><td>Username</td><td>Set by the rower, always</td><td>Attached to live and uploaded session data as the only identifying label</td></tr>
+  <tr><td>Live stroke rate / pace / position</td><td>Only while connected to a squad session</td><td>Broadcast to coach/squad screens in real time, not retained after the session</td></tr>
+  <tr><td>Full session file</td><td>Automatically, at the end of any coached session</td><td>Squad cloud storage, along with the rower's username only, until pruned (21 days) or deleted early</td></tr>
+</table>
+
+<h2>Junior rowers and consent</h2>
+<p>BoatRun is not designed or marketed for children to use unsupervised. Where BoatRun is used by junior rowers through a school or club program, we rely on the school, club, or a parent/guardian to obtain any consent required by applicable law before a minor uses the app, and to supervise the minor's access to squad codes and any shared data.</p>
+<ul>
+  <li>No account or personal profile is required - a squad code identifies a rower's device within a session, not the individual.</li>
+  <li>The rower sets their own display name. We recommend schools instruct junior rowers to use first name or initials only - not full names.</li>
+  <li>We do not use any user's data, including a minor's, for advertising, marketing, or profiling of any kind.</li>
+  <li>We do not knowingly collect data for the purpose of building a profile of an individual child.</li>
+</ul>
+
+<h2>Coached sessions and squad storage</h2>
+<p>When a rower is connected to a coach, their full session file uploads automatically at the end of the session, along with their username only - no other identifying details are attached. This squad storage can optionally be password protected by the coach, and is only accessible to squad members at the "coach" role level, not to ordinary rowers or spectators.</p>
+
+<h2>Squad codes</h2>
+<p>A squad code is the only thing linking a rower's live data to a coach's screen - treat it like a shared password. We recommend schools generate a fresh code each term or season and avoid reusing it across squads, so past rowers lose visibility once they've moved on.</p>
+
+<h2>Deletion</h2>
+<ul>
+  <li>A rower or school admin can delete local session data from within the app at any time.</li>
+  <li>Google Drive session data can be permanently deleted using the "Delete my Drive data" button in Metrics settings.</li>
+  <li>Sent-to-coach cloud records are auto-pruned after 21 days, or a coach can remove them earlier from Settings.</li>
+  <li>A school or parent/guardian can request coach to delete a specific junior rower's data saved in the squad storage.</li>
+</ul>
+
+<h2>Third parties</h2>
+<ul>
+  <li><strong>Google Drive / Google Sign-In</strong> - only used for the rower's own private backup folder; we cannot read it.</li>
+  <li><strong>Firebase Realtime Database (Google Cloud)</strong> - used for live squad data and sent-to-coach session files, encrypted in transit and at rest.</li>
+  <li><strong>Strava</strong> - only contacted if a rower explicitly chooses to export a session there.</li>
+</ul>
+
+<h2>Contact</h2>
+<div class="contact">
+  Questions from school IT, safeguarding, or DPO teams: <strong>bigwig.91mash@icloud.com</strong>
+</div>
+
+</body>
+</html>
