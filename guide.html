@@ -658,7 +658,7 @@ img.inline{display:inline;margin:0 3px;vertical-align:-.32em;height:1.45em;width
 <h1 id="s13">13. Demo modes</h1>
 
 <img class="fr w-sm" src="screenshots/demo-mode.png" alt="Demo mode settings - OFF, ROW, COACH" loading="lazy"/>
-<p><strong>HOME → SETTINGS → DEMO MODE</strong></p>
+<p><strong>HOME → SETTINGS → ROLE → DEMO</strong></p>
 <p>For learning the app on dry land, showing someone what it does, or testing without getting wet.</p>
 
 <h2>ROW demo</h2>
@@ -667,13 +667,17 @@ img.inline{display:inline;margin:0 3px;vertical-align:-.32em;height:1.45em;width
 <p>Use it to set up your layout, learn what the metrics look like at different rates, or check a workout runs the way you expect.</p>
 
 <h2 class="clear">COACH demo</h2>
-<p>Set it to <strong>COACH</strong> and the app connects you to a simulated squad on code <strong>DEMO2026</strong> - four rowers (Thomas, Richard, Harry and Larry) generating plausible live data every three seconds.</p>
+<p>Set it to <strong>COACH</strong> and the app connects you to a simulated squad on code <strong>BOATRUN</strong> - four rowers (Thomas, Richard, Harry and Larry) generating plausible live data every three seconds.</p>
 <p>The map, tiles, detail views and curve requests all work. It's the fastest way to see what coach mode does without organising four people and a boat.</p>
+
+<h2 class="clear">ERG demo</h2>
+<p>Set it to <strong>ERG</strong> and go to the ERG screen. Press START and see a simulated erg session.</p>
+<p>The app will simulate the erg session with relative positions of rowers on the SQUAD tab.</p>
 
 <h2>Things to know</h2>
 <ul>
 <li>Demo sessions are <strong>never uploaded</strong> - not to Drive, not to a squad. Nothing you do in demo mode pollutes real data.</li>
-<li>Switching to COACH demo replaces your squad code with DEMO2026. Turn demo off and set your real code again afterwards.</li>
+<li>Switching to COACH demo replaces your squad code with BOATRUN. Turn demo off and set your real code again afterwards.</li>
 <li>Row demo only works in Row or Cox role. Coach demo needs Coach role.</li>
 <li>Set it back to <strong>OFF</strong> before a real row. The app also clears it automatically in most cases, but check.</li>
 </ul>
@@ -744,15 +748,15 @@ img.inline{display:inline;margin:0 3px;vertical-align:-.32em;height:1.45em;width
 <p>Three ways to load data:</p>
 <ul>
 <li><strong>Connect Google Drive</strong> - lists everything in your Drive folder</li>
-<li><strong>From Squad</strong> - enter a squad code and pull sessions your rowers have sent. This is how a coach reviews the squad's work.</li>
+<li><strong>From Squad</strong> - enter a squad code and pull sessions your rowers have sent (password required if set by coach). This is how a coach reviews the squad's work.</li>
 <li><strong>Open file</strong> - a <code>.json</code>, <code>.fit</code>, <code>.tcx</code> or <code>.csv</code> from anywhere.</li>
 </ul>
 
-<h2>The home screen</h2>
-<p>Once signed in, before you open anything, you get an overview.</p>
+<h2>The Summary Tab</h2>
+<p>Once signed in, you can view your personal summary of rows and ergs.</p>
 <img src="screenshots/analyser-home.png" alt="Analyser home screen with summary, personal bests and sessions" loading="lazy"/>
 <p><strong>Summary</strong> - Longest row and Total Strokes across everything, then Sessions / Distance / Time / Avg Pace for three ranges: all-time, a month you can step back through, and a week you can step back through. Use the ‹ › arrows to move between periods.</p>
-<p><strong>Personal Bests</strong> - your fastest <strong>500m, 1km, 2km, 5km and 10km</strong> ever recorded. These are true rolling best efforts, not lap times: the Analyser slides a window along your GPS trace looking for the quickest that distance was ever covered, anywhere within any session. A 2k PB found in the middle of a long steady row counts.</p>
+<p><strong>Personal Bests</strong> - your fastest <strong>500m, 1km, 2km, 5km, 10km, 30min and 1hour</strong> ever recorded. These are true rolling best efforts, not lap times: the Analyser slides a window along your GPS trace looking for the quickest that distance was ever covered, anywhere within any session. A 2k PB found in the middle of a long steady row counts.</p>
 <p>Tap a PB card to open the session it came from.</p>
 <p><strong>Scan All for Records</strong> - walks every session in your Drive and rebuilds the PB table. Run this once after you first sign in, and again after uploading a backlog. It takes a while with a large library - the button shows progress.</p>
 <p><strong>Reset Records</strong> clears them; re-scan to rebuild.</p>
@@ -762,7 +766,7 @@ img.inline{display:inline;margin:0 3px;vertical-align:-.32em;height:1.45em;width
 <p>Click any session. If you load more than one via the +add for comparison (PRO only), each gets a tab across the top - click a tab to make that session active.</p>
 
 <h2>Units bar</h2>
-<p>Sets pace unit (/500m, /1km, km/h, /mile, mph), distance (km or miles) and DPS sub-unit (m, ft, in). Applies instantly everywhere - cards, charts, tables. This is synced across your app and logins via your Google Drive.</p>
+<p>Sets pace unit (/500m, /1km, km/h, /mile, mph), distance (km or miles) and DPS sub-unit (m, ft, in). In erg files, options are Pace, Watts or Calories. Applies instantly everywhere - cards, charts, tables. This is synced across your app and logins via your Google Drive.</p>
 
 <h2>Summary cards</h2>
 <p>Across the top: Distance, Duration, Pace, Rate, DPS, Negative Catch Slope, Catch Accel, Positive Catch Slope, Catch Dur, Drive Time, Impulse, Drive Accel, Recovery Accel, Recovery Loss, Ratio, Stroke Char, Vel Efficiency, Avg HR.</p>
@@ -800,6 +804,14 @@ img.inline{display:inline;margin:0 3px;vertical-align:-.32em;height:1.45em;width
 </ol>
 <p>The stats table beside it gives one column per group: stroke count, strokes with curve data, elapsed time, and averages for every metric. Click any row to temporarily highlight it.</p>
 <p><strong>Cross-session comparison is the point.</strong> Load two sessions, pin a group from each, and compare. The curve shape is derived from the accelerometer and is <strong>not affected by wind, tide or current</strong> - so unlike pace, curve comparison between two different days is always valid. If the shape changed, your mechanics changed.</p>
+
+<h2>Stroke Templates</h2>
+<p>Create or edit stroke templates for consistent comparison.</p>
+<img src="screenshots/create-curve-template.png" alt="Create curve templates" loading="lazy"/>
+<p><strong>Create Template</strong> by dragging a selection on the chart → <strong>＋ Add to curves</strong> for multiple stroke rates then Click on <strong>Create / edit template</strong>, name your template, add the different stroke rate sectors and save. You can drag across the slider to see the curves at various stroke rates. Note that above or below your highest or lowest stroke rates, the srive portion of the shape stays the same and the recovery portion is scaled.</p>
+<p>Once a template is created, you can use it in analyser or on the live stroke curve on the rower's curve tab or the coach's stroke curve.</p>
+<p>In analyser, load the template (or multiple), click on the applicable template (it turns yellow), then click on the stroke curve coloured pill to compare. Re-click the pill or click on Show all curves to reset.</p>
+<p>Note that stroke templates are particular to boat class. You cannot compare across different types of boat using the same template.</p>
 
 <h2>Video overlay <span class="light">(Pro)</span></h2>
 <p>If your coach recorded clips in Coach mode, select the cloud drive where the videos were saved.</p>
@@ -842,9 +854,11 @@ img.inline{display:inline;margin:0 3px;vertical-align:-.32em;height:1.45em;width
 <ol>
 <li>Open the Viewer URL or the QR provided by the coach</li>
 <li>Enter the squad code (BOATRUN to view demo)</li>
+<li>Enter the password (if required)</li>
 <li><strong>CONNECT</strong></li>
 </ol>
 <p>You get a full-screen map with every rower as a labelled dot updating live, and a scrollable strip along the bottom with name, stroke rate and pace per rower. Cards grey out when the data goes stale.</p>
+<p>Add multiple squads at a time by clicking the <strong>+ Add another squad</strong> button next to the squad code.</p>
 <img src="screenshots/viewer.png" alt="Viewer live map with rower cards" loading="lazy"/>
 <p><strong>✕ LEAVE</strong> to disconnect.</p>
 <p>Viewer is always fully free on every tier.</p>
