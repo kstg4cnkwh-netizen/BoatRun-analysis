@@ -152,7 +152,7 @@
   /* ── Curve section ── */
   #curvesec { display: none; }
   #tplchips { display: flex; gap: 6px; flex-wrap: wrap; }
-  .tpl-chip { display: inline-flex; align-items: center; padding: 4px 10px; border-radius: 12px; font-size: 10px; font-weight: 700; cursor: pointer; border: 1px solid #c084fc; background: transparent; color: #c084fc; transition: opacity .15s; }
+  .tpl-chip { display: inline-flex; align-items: center; padding: 4px 10px; border-radius: 12px; font-size: 10px; font-weight: 700; cursor: pointer; border: 1px solid var(--text); background: transparent; color: var(--text); transition: opacity .15s; }
   .tpl-chip:hover { opacity: .78; }
   .tpl-chip.on { background: #ffc947; border-color: #ffc947; color: #000; }
   .tpl-chip-x { display: inline-flex; align-items: center; justify-content: center; margin: -4px -10px -4px 2px; padding: 4px 9px 4px 7px; border-left: 1px solid currentColor; border-radius: 0 12px 12px 0; font-size: 11px; line-height: 1; }
@@ -164,7 +164,7 @@
   .grp-chip-x:hover { background: rgba(0,0,0,.18); }
   #clearcurvebtn { background: none; border: 1px solid var(--border); color: var(--muted); padding: 4px 10px; border-radius: 6px; font-family: -apple-system, BlinkMacSystemFont, Helvetica Neue, sans-serif; font-size: 10px; cursor: pointer; margin-left: auto; transition: color .15s, border-color .15s; }
   #tplbtn { background: none; border: 1px solid var(--border); color: var(--muted); padding: 4px 10px; border-radius: 6px; font-family: -apple-system, BlinkMacSystemFont, Helvetica Neue, sans-serif; font-size: 10px; cursor: pointer; margin-left: 6px; transition: color .15s, border-color .15s; }
-  #tplfocusclose { background: none; border: 1px solid #c084fc; color: #c084fc; padding: 4px 10px; border-radius: 6px; font-family: -apple-system, BlinkMacSystemFont, Helvetica Neue, sans-serif; font-size: 10px; cursor: pointer; margin-left: 6px; }
+  #tplfocusclose { background: none; border: 1px solid #c084fc; color: #c084fc; padding: 4px 10px; border-radius: 6px; font-family: -apple-system, BlinkMacSystemFont, Helvetica Neue, sans-serif; font-size: 10px; cursor: pointer; margin-left: auto; }
   #tplloadbtn { background: none; border: 1px solid var(--border); color: var(--muted); padding: 4px 10px; border-radius: 6px; font-family: -apple-system, BlinkMacSystemFont, Helvetica Neue, sans-serif; font-size: 10px; cursor: pointer; margin-left: 6px; transition: color .15s, border-color .15s; }
   #tplloadbtn:hover { color: #c084fc; border-color: #c084fc; }
   #tplchip { font-size: 10px; color: #c084fc; border: 1px solid #c084fc; border-radius: 12px; padding: 3px 9px; margin-left: 6px; white-space: nowrap; max-width: 190px; overflow: hidden; text-overflow: ellipsis; }
@@ -576,11 +576,11 @@ body.light .hdrname{color:#fff;}
     <div class="sec-hd">
       <h2>Curve Comparison</h2>
       <div id="groupchips" style="display:flex;gap:6px;flex-wrap:wrap;"></div>
-      <div id="tplchips"></div>
-      <button id="tplfocusclose" style="display:none;">✕ Show all curves</button>
       <button id="tplloadbtn" title="Open a stroke template file">Load stroke template</button>
       <button id="tplbtn" title="Build or edit a stroke-rate template from your curve groups">Create / edit template</button>
-      <button id="clearcurvebtn" style="display:none;">Clear curves</button>
+      <div id="tplchips"></div>
+      <button id="tplfocusclose" style="display:none;">Show all curves</button>
+      <button id="clearcurvebtn" style="display:none;">Remove all curves</button>
     </div>
     <div class="curve-layout">
       <div class="curve-col">
@@ -3441,6 +3441,7 @@ function computeGroupCurve(strokes){
    one (yellow pill) is the one the editor edits and the one drawn over a
    focused curve. Saving writes a JSON file that Metrics imports and re-times
    to whatever rate is being rowed. */
+const TPL_COLOR = '#ffc947';                        // dotted template line + active pill
 const TPL_KEY = 'boatrun_stroke_tpl_v1';            // legacy single-template slot
 const TPL_OPEN_KEY = 'boatrun_stroke_tpl_open_v1';
 let tplOpen = [];        // templates currently open
@@ -4096,14 +4097,14 @@ function drawCurvePanel(){
     const c0=enriched[0];
     const tn=tplOv.data.length, tstep=c0.T/(tn-1);
     ctx.save();
-    ctx.setLineDash([11,8]);ctx.lineCap='round';ctx.lineJoin='round';
+    ctx.setLineDash([0.5,9]);ctx.lineCap='round';ctx.lineJoin='round';
     ctx.beginPath();
     for(let i=0;i<tn;i++){const x=toPx(i*tstep),y=toY(tplOv.data[i]);i===0?ctx.moveTo(x,y):ctx.lineTo(x,y);}
-    ctx.strokeStyle='#c084fc';ctx.lineWidth=6;ctx.stroke();
+    ctx.strokeStyle=TPL_COLOR;ctx.lineWidth=6;ctx.stroke();
     ctx.restore();
     if(!FORCE&&tplOv.driveFrac>0&&tplOv.driveFrac<1){
       const xT=toPx(tplOv.driveFrac*c0.T);
-      ctx.save();ctx.setLineDash([3,5]);ctx.strokeStyle='#c084fc';ctx.lineWidth=2;ctx.globalAlpha=.8;
+      ctx.save();ctx.setLineDash([0.5,5]);ctx.lineCap='round';ctx.strokeStyle=TPL_COLOR;ctx.lineWidth=3;ctx.globalAlpha=.85;
       ctx.beginPath();ctx.moveTo(xT,accelTop);ctx.lineTo(xT,accelTop+ph1);ctx.stroke();ctx.restore();
     }
   }
@@ -4131,7 +4132,7 @@ function drawCurvePanel(){
     lx+=ctx.measureText(txt).width+22;
   });
   if(tplOv){
-    ctx.fillStyle='#c084fc';ctx.fillRect(lx,ly-4,10,3);
+    ctx.fillStyle=TPL_COLOR;ctx.fillRect(lx,ly-4,10,3);
     const txt2='TEMPLATE '+((_atpl&&_atpl.name)||'')+' @ '+f1(tplOv.rate)+'spm';
     ctx.fillStyle=C.text;ctx.font='8px -apple-system, BlinkMacSystemFont, Helvetica Neue, sans-serif';ctx.textAlign='left';
     ctx.fillText(txt2,lx+13,ly);
@@ -4141,13 +4142,24 @@ function drawCurvePanel(){
   ctx.strokeStyle=C.frameLn;ctx.lineWidth=1;
   ctx.strokeRect(PL,accelTop,pw,ph1);
   if(hasSpeeds)ctx.strokeRect(PL,speedTop,pw,ph2);
-  canvas._g={PL,pw,maxT,accelTop,ph1,speedTop,ph2,enriched,yMin,yMax};
+  canvas._g={PL,pw,maxT,accelTop,ph1,speedTop,ph2,enriched,yMin,yMax,tplOv,tplT:(tplOv&&enriched[0])?enriched[0].T:null,tplName:(_atpl&&_atpl.name)||'Template'};
 }
 function curveDeriv(arr,i,step){
   const n=arr.length;
   if(i<=0)return(arr[1]-arr[0])/step;
   if(i>=n-1)return(arr[n-1]-arr[n-2])/step;
   return(arr[i+1]-arr[i-1])/(2*step);
+}
+/* The template is drawn on the focused curve's own time base, so it samples
+   the same way the curves do — there is no speed trace to integrate from it. */
+function sampleTplOverlay(g,t){
+  if(!g||!g.tplOv||!g.tplT||t>g.tplT+1e-6)return null;
+  const d=g.tplOv.data,n=d.length,step=g.tplT/(n-1);
+  const idx=clamp(t/step,0,n-1);
+  const i0=Math.floor(idx),i1=Math.min(i0+1,n-1),frac=idx-i0;
+  const accel=d[i0]*(1-frac)+d[i1]*frac;
+  const rate=curveDeriv(d,i0,step)*(1-frac)+curveDeriv(d,i1,step)*frac;
+  return{accel,rate,speed:null};
 }
 function sampleCurve(c,t){
   if(!c.T||t>c.T+1e-6)return null;
@@ -4181,16 +4193,21 @@ function showCurveTooltip(clientX,clientY){
   ctx.restore();
 
   const samples=enriched.map(c=>sampleCurve(c,t));
-  if(!samples.some(s=>s))return hideTooltip();
+  const tplS=sampleTplOverlay(g,t);
+  if(!samples.some(s=>s)&&!tplS)return hideTooltip();
 
   let html=`<div class="tt-hd">t = ${f2(t)}s since catch</div><table class="tt-ctable"><tr><td></td>`;
   enriched.forEach(c=>{html+=`<td class="tt-dot"><span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:${c.color};"></span></td>`;});
+  if(g.tplOv)html+=`<td class="tt-dot" title="${g.tplName}"><span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:${TPL_COLOR};"></span></td>`;
   html+='</tr><tr><td class="tt-lbl">Speed (m/s)</td>';
   samples.forEach(s=>{html+=`<td class="tt-val">${s&&s.speed!=null?f2(s.speed):EM}</td>`;});
+  if(g.tplOv)html+='<td class="tt-val">\u2013</td>';
   html+='</tr><tr><td class="tt-lbl">'+(curvesAreForce()?'Force (N)':'Accel (m/s\u00B2)')+'</td>';
   samples.forEach(s=>{html+=`<td class="tt-val">${s?f2(s.accel):EM}</td>`;});
+  if(g.tplOv)html+=`<td class="tt-val">${tplS?f2(tplS.accel):EM}</td>`;
   html+='</tr><tr><td class="tt-lbl">'+(curvesAreForce()?'Rate of force (N/s)':'Rate of accel (m/s\u00B3)')+'</td>';
   samples.forEach(s=>{html+=`<td class="tt-val">${s?f1(s.rate):EM}</td>`;});
+  if(g.tplOv)html+=`<td class="tt-val">${tplS?f1(tplS.rate):EM}</td>`;
   html+='</tr></table>';
 
   document.getElementById('tooltip').innerHTML=html;
