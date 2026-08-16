@@ -153,6 +153,9 @@
   #curvesec { display: none; }
   .grp-chip { display: inline-flex; align-items: center; gap: 5px; padding: 4px 10px; border-radius: 12px; font-size: 10px; font-weight: 700; cursor: pointer; border: none; transition: opacity .15s; }
   .grp-chip:hover { opacity: .75; }
+  .grp-chip.focused { box-shadow: 0 0 0 2px #c084fc; }
+  .grp-chip-x { display: inline-flex; align-items: center; justify-content: center; margin: -4px -10px -4px 2px; padding: 4px 9px 4px 7px; border-left: 1px solid rgba(0,0,0,.28); border-radius: 0 12px 12px 0; font-size: 11px; line-height: 1; }
+  .grp-chip-x:hover { background: rgba(0,0,0,.18); }
   #clearcurvebtn { background: none; border: 1px solid var(--border); color: var(--muted); padding: 4px 10px; border-radius: 6px; font-family: -apple-system, BlinkMacSystemFont, Helvetica Neue, sans-serif; font-size: 10px; cursor: pointer; margin-left: auto; transition: color .15s, border-color .15s; }
   #tplbtn { background: none; border: 1px solid var(--border); color: var(--muted); padding: 4px 10px; border-radius: 6px; font-family: -apple-system, BlinkMacSystemFont, Helvetica Neue, sans-serif; font-size: 10px; cursor: pointer; margin-left: 6px; transition: color .15s, border-color .15s; }
   #tplfocusclose { background: none; border: 1px solid #c084fc; color: #c084fc; padding: 4px 10px; border-radius: 6px; font-family: -apple-system, BlinkMacSystemFont, Helvetica Neue, sans-serif; font-size: 10px; cursor: pointer; margin-left: 6px; }
@@ -390,6 +393,7 @@ body.light .hdrname{color:#fff;}
   .sess-tab{border:none;border-radius:16px;background:var(--pill);box-shadow:0 2px 5px rgba(0,0,0,.20);padding:7px 13px;}
   .sess-tab.on{background:var(--acc);color:#fff;}
   .grp-chip{border-radius:16px;padding:5px 12px;box-shadow:0 2px 5px rgba(0,0,0,.20);}
+  .grp-chip-x{margin:-5px -12px -5px 2px;padding:5px 11px 5px 8px;border-radius:0 16px 16px 0;}
   .cbox,.ovbox,.twrap,#statsstrip,#tooltip{border:none;border-radius:14px;box-shadow:0 2px 6px rgba(0,0,0,.22);}
   #mapbox{border-radius:14px;}
   #dz{border-radius:22px;}
@@ -3691,7 +3695,7 @@ function tplRefreshUI(){
     if (strokeTpl && strokeTpl.entries && strokeTpl.entries.length){
       chip.style.display = '';
       chip.textContent = 'TPL: ' + (strokeTpl.name || 'template') + ' \u00b7 ' + strokeTpl.entries.length + ' rate' + (strokeTpl.entries.length === 1 ? '' : 's');
-      chip.title = 'Tap a curve to show it on its own with this template overlaid';
+      chip.title = 'Tap a curve pill to show it on its own with this template overlaid';
     } else {
       chip.style.display = 'none';
       tplFocusIdx = -1;
@@ -3710,29 +3714,6 @@ function tplExitFocus(){
   buildCurveSection();
 }
 window.tplExitFocus = tplExitFocus;
-
-/* Which plotted curve is under the pointer, as a curveGroups index. Compares
-   vertical distance at the pointer's time, so overlapping curves resolve to
-   the one actually being pointed at rather than the first drawn. */
-function tplCurveHitTest(canvas, clientX, clientY){
-  const g = canvas._g;
-  if (!g || !g.enriched.length) return -1;
-  const rect = canvas.getBoundingClientRect();
-  const x = clientX-rect.left, y = clientY-rect.top;
-  const {PL, pw, maxT, accelTop, ph1, yMin, yMax, enriched} = g;
-  if (x < PL || x > PL+pw || y < accelTop || y > accelTop+ph1) return -1;
-  const t = clamp((x-PL)/pw*maxT, 0, maxT);
-  const yRng = (yMax-yMin) || 1;
-  const toY = v => accelTop+ph1-(v-yMin)/yRng*ph1;
-  let best = -1, bestD = Infinity;
-  enriched.forEach(c => {
-    const s = sampleCurve(c, t);
-    if (!s) return;
-    const d = Math.abs(toY(s.accel)-y);
-    if (d < bestD){ bestD = d; best = (c.gi != null ? c.gi : -1); }
-  });
-  return bestD <= 44 ? best : -1;
-}
 
 function drawTemplatePreview(){
   const cv = document.getElementById('tplPrevC');
@@ -3794,9 +3775,24 @@ function buildCurveSection(){
   sec.style.display='block';
 
   // Group chips in header
-  document.getElementById('groupchips').innerHTML=curveGroups.map((g,i)=>
-    `<button class="grp-chip" onclick="removeCurveGroup(${i})" style="background:${g.color};color:#000;${tplFocusIdx>=0&&tplFocusIdx!==i?'opacity:.32;':''}">${g.label}${g.sessionLabel?' · '+shortName(g.sessionLabel):''} (${g.strokes.length}) ×</button>`
+  const _chipHost=document.getElementById('groupchips');
+  _chipHost.innerHTML=curveGroups.map((g,i)=>
+    `<span class="grp-chip${tplFocusIdx===i?' focused':''}" data-tplfocus="${i}" title="Tap to show this curve on its own with the stroke template over it" style="background:${g.color};color:#000;${tplFocusIdx>=0&&tplFocusIdx!==i?'opacity:.32;':''}">${g.label}${g.sessionLabel?' · '+shortName(g.sessionLabel):''} (${g.strokes.length})<span class="grp-chip-x" data-grpdel="${i}" title="Remove this curve group">×</span></span>`
   ).join('');
+  _chipHost.querySelectorAll('[data-grpdel]').forEach(x=>{
+    x.onclick=e=>{e.stopPropagation();removeCurveGroup(+x.dataset.grpdel);};
+  });
+  _chipHost.querySelectorAll('[data-tplfocus]').forEach(c=>{
+    c.onclick=()=>{
+      const i=+c.dataset.tplfocus;
+      if(tplFocusIdx===i){tplExitFocus();return;}
+      if(!strokeTpl||!tplValid(strokeTpl)||!strokeTpl.entries.length){
+        toast('Import a stroke template first — Stroke template… › Import');
+        return;
+      }
+      tplFocusIdx=i;hideTooltip();buildCurveSection();
+    };
+  });
   const _tplChip=document.getElementById('tplchip');
   if(_tplChip){
     const hasTpl=!!(strokeTpl&&strokeTpl.entries&&strokeTpl.entries.length);
@@ -3815,7 +3811,7 @@ function buildCurveSection(){
   const hasCurves=curveGroups.some(g=>g.strokes.some(s=>s.curve));
   if(tplFocusIdx>=0){
     const _g=curveGroups[tplFocusIdx];
-    document.getElementById('curvehint').textContent=(_g?_g.label:'Curve')+' shown on its own with the stroke template overlaid at its own rate \u2014 tap the chart or “Show all curves” to go back';
+    document.getElementById('curvehint').textContent=(_g?_g.label:'Curve')+' shown on its own with the stroke template overlaid at its own rate \u2014 tap its pill again, or “Show all curves”, to go back';
     return;
   }
   document.getElementById('curvehint').textContent=hasCurves
@@ -3824,7 +3820,7 @@ function buildCurveSection(){
       :'Average of normalized catch-to-catch IMU curves \u00b7 dashed line = drive/recovery boundary')
     :'No curve data in selected strokes \u2014 record with latest Metrics app';
   if(hasCurves&&strokeTpl&&strokeTpl.entries&&strokeTpl.entries.length)
-    document.getElementById('curvehint').textContent+=' \u00b7 tap a curve to overlay the template';
+    document.getElementById('curvehint').textContent+=' \u00b7 tap a curve pill above to overlay the template';
 }
 
 function drawCurvePanel(){
@@ -4106,17 +4102,6 @@ function setupCurveEvents(canvas){
   canvas.addEventListener('touchstart',e=>{const t=e.touches[0];showCurveTooltip(t.clientX,t.clientY);},{passive:true});
   canvas.addEventListener('touchmove',e=>{const t=e.touches[0];showCurveTooltip(t.clientX,t.clientY);},{passive:true});
   canvas.addEventListener('touchend',()=>{drawCurvePanel();hideTooltip();});
-  /* With a template loaded, a tap on a curve isolates it and lays the template
-     over it; a second tap anywhere puts the other curves back. */
-  canvas.addEventListener('click',e=>{
-    if(!strokeTpl||!tplValid(strokeTpl)||!strokeTpl.entries.length)return;
-    if(tplFocusIdx>=0){tplExitFocus();return;}
-    const hit=tplCurveHitTest(canvas,e.clientX,e.clientY);
-    if(hit<0)return;
-    tplFocusIdx=hit;
-    hideTooltip();
-    buildCurveSection();
-  });
 }
 
 // ── short label for session filenames in chips/tables ──────────────────────
