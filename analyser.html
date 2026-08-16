@@ -1240,6 +1240,11 @@ const METRIC_DEFS = [
 // Tiles/rows the PM5 can actually feed — used to restrict the Tiles picker,
 // hover tooltip, and stroke table to erg-relevant metrics on erg sessions.
 const ERG_TILE_KEYS=['pace','rate','dps','peakforce','drivelength','drivetime','hr'];
+// Metrics the PM5 alone can feed — meaningless (and always empty) on an on-water session.
+const ERG_ONLY_KEYS=['watts','peakforce','drivelength'];
+// True when metric key k belongs on the current session: erg sessions restrict to what a PM5
+// can send, on-water sessions exclude the erg-only metrics that would otherwise show as data-less rows.
+function metricFitsSession(k){ return isErgSession() ? ERG_TILE_KEYS.includes(k) : !ERG_ONLY_KEYS.includes(k); }
 function applyTileOrder(ord){
   let order=ord;
   if(!order){
@@ -3218,7 +3223,7 @@ function showTooltip(e){
     <div class="tt-hd">Stroke ${s.n}</div>
     ${ttRow('Time',fmtTime(s.elapsed))}
     ${ttRow('Distance',isNaN(s.dist)?EM:s.dist.toFixed(0)+'m')}
-    ${METRIC_DEFS.filter(m=>!hid[m.k]&&(!isErgSession()||ERG_TILE_KEYS.includes(m.k))).map(m=>TT_BUILDERS[m.k]?TT_BUILDERS[m.k]():'').join('')}
+    ${METRIC_DEFS.filter(m=>!hid[m.k]&&metricFitsSession(m.k)).map(m=>TT_BUILDERS[m.k]?TT_BUILDERS[m.k]():'').join('')}
   `;
   const tip=document.getElementById('tooltip');
   tip.style.display='block';
@@ -3350,7 +3355,7 @@ function updateStatsStrip(){
     html+=sp('Time',fmtTime(dur));
   }
   for(const m of METRIC_DEFS){
-    if(hid[m.k]||(isErgSession()&&!ERG_TILE_KEYS.includes(m.k)))continue;
+    if(hid[m.k]||!metricFitsSession(m.k))continue;
     const arr=strokes.filter(m.filter).map(m.val);
     if(!arr.length)continue;
     html+=sp('Avg '+m.l,m.fmtAvg(arrMean(arr)),m.c);
@@ -4243,7 +4248,7 @@ function buildCurveStats(){
     {l:'Time',fn:g=>{const a=g.strokes;return a.length?fmtTime(a[a.length-1].elapsed-a[0].elapsed):EM;}},
   ];
   for(const m of METRIC_DEFS){
-    if(hid[m.k]||(isErgSession()&&!ERG_TILE_KEYS.includes(m.k)))continue;
+    if(hid[m.k]||!metricFitsSession(m.k))continue;
     if(m.k==='hr'){
       rows.push({l:'Avg '+m.l, c:m.c, fn:g=>{
         const arr=g.strokes.map(s=>nearestHRIn(g.hrT,g.hrBpm,s.ms)).filter(b=>b!=null&&b>40&&b<220);
@@ -4600,7 +4605,7 @@ const TBL_COLS={
   hr:{h:()=>'HR bpm', cell:s=>{const b=nearestHRAt(s.ms);return `<td style="color:var(--mc-hr)">${b!=null?b:EM}</td>`;}},
 };
 function buildStrokeTable(){
-  const cols=METRIC_DEFS.filter(m=>!hid[m.k]&&(!isErgSession()||ERG_TILE_KEYS.includes(m.k))).map(m=>TBL_COLS[m.k]).filter(Boolean);
+  const cols=METRIC_DEFS.filter(m=>!hid[m.k]&&metricFitsSession(m.k)).map(m=>TBL_COLS[m.k]).filter(Boolean);
   document.getElementById('sth').innerHTML=`<tr><th>#</th><th>Lap</th><th>Dist m</th><th>Time</th><th>Consist σ</th>${cols.map(c=>`<th>${c.h()}</th>`).join('')}</tr>`;
   document.getElementById('stb').innerHTML=ST.slice(0,1000).map(s=>`<tr data-i="${s.n-1}">
     <td>${s.n}</td>
@@ -5381,7 +5386,7 @@ function showInfoModal(){
   document.getElementById('_info_close').onclick=()=>overlay.remove();
 }
 function showReorderModal(){
-  const order=isErgSession()?METRIC_DEFS.map(m=>m.k).filter(k=>ERG_TILE_KEYS.includes(k)):METRIC_DEFS.map(m=>m.k);
+  const order=METRIC_DEFS.map(m=>m.k).filter(metricFitsSession);
   const overlay=document.createElement('div');
   overlay.id='_reorder_modal';
   overlay.style.cssText='position:fixed;inset:0;background:rgba(0,0,0,.72);display:flex;align-items:center;justify-content:center;z-index:9999;padding:16px;';
