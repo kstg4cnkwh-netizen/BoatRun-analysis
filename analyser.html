@@ -155,6 +155,8 @@
   .grp-chip:hover { opacity: .75; }
   #clearcurvebtn { background: none; border: 1px solid var(--border); color: var(--muted); padding: 4px 10px; border-radius: 6px; font-family: -apple-system, BlinkMacSystemFont, Helvetica Neue, sans-serif; font-size: 10px; cursor: pointer; margin-left: auto; transition: color .15s, border-color .15s; }
   #tplbtn { background: none; border: 1px solid var(--border); color: var(--muted); padding: 4px 10px; border-radius: 6px; font-family: -apple-system, BlinkMacSystemFont, Helvetica Neue, sans-serif; font-size: 10px; cursor: pointer; margin-left: 6px; transition: color .15s, border-color .15s; }
+  #tplfocusclose { background: none; border: 1px solid #c084fc; color: #c084fc; padding: 4px 10px; border-radius: 6px; font-family: -apple-system, BlinkMacSystemFont, Helvetica Neue, sans-serif; font-size: 10px; cursor: pointer; margin-left: 6px; }
+  #tplchip { font-size: 10px; color: #c084fc; border: 1px solid #c084fc; border-radius: 12px; padding: 3px 9px; margin-left: 6px; white-space: nowrap; max-width: 190px; overflow: hidden; text-overflow: ellipsis; }
   #clearcurvebtn:hover { color: var(--r); border-color: var(--r); }
 
   /* ── Session tabs (multi-file) ── */
@@ -392,7 +394,7 @@ body.light .hdrname{color:#fff;}
   #mapbox{border-radius:14px;}
   #dz{border-radius:22px;}
   #addcurvebtn{background:var(--acc);color:#fff;border-radius:14px;padding:7px 15px;box-shadow:0 2px 5px rgba(0,0,0,.22);}
-  #selclear,#clearcurvebtn,#tplbtn{border:none;border-radius:14px;background:var(--pill);color:var(--muted);padding:6px 13px;box-shadow:0 2px 5px rgba(0,0,0,.20);}
+  #selclear,#clearcurvebtn,#tplbtn,#tplfocusclose{border:none;border-radius:14px;background:var(--pill);color:var(--muted);padding:6px 13px;box-shadow:0 2px 5px rgba(0,0,0,.20);}
   #selclear:hover,#clearcurvebtn:hover{border:none;color:var(--acc-r);}
   #tplbtn:hover{border:none;color:var(--acc-p,#c084fc);}
   .zoom-btn{border:none;border-radius:12px;background:var(--seg);color:var(--seg-txt);box-shadow:0 1px 3px rgba(0,0,0,.25);}
@@ -560,6 +562,8 @@ body.light .hdrname{color:#fff;}
     <div class="sec-hd">
       <h2>Curve Comparison</h2>
       <div id="groupchips" style="display:flex;gap:6px;flex-wrap:wrap;"></div>
+      <span id="tplchip" style="display:none;"></span>
+      <button id="tplfocusclose" style="display:none;">✕ Show all curves</button>
       <button id="tplbtn" title="Build a stroke-rate template from these curve groups">Stroke template…</button>
       <button id="clearcurvebtn">Clear all</button>
     </div>
@@ -3363,6 +3367,7 @@ function pinSelection(){
     hrT:_hrSorted.map(x=>x.t), hrBpm:_hrSorted.map(x=>x.b),
   });
   selS=-1;selE=-1;
+  tplFocusIdx=-1;
   hlRows([]);
   buildCurveSection();
   updateStatsStrip();
@@ -3370,6 +3375,7 @@ function pinSelection(){
 }
 
 function removeCurveGroup(idx){
+  if(typeof tplFocusIdx!=='undefined')tplFocusIdx=-1;
   curveGroups.splice(idx,1);
   curveGroups.forEach((g,i)=>{g.label='G'+(i+1);});
   buildCurveSection();
@@ -3379,7 +3385,7 @@ function removeCurveGroup(idx){
 }
 window.removeCurveGroup=removeCurveGroup;
 
-function clearAllCurves(){curveGroups=[];buildCurveSection();updateMapGroups();applyGroupHighlights();schedRender();}
+function clearAllCurves(){curveGroups=[];tplFocusIdx=-1;buildCurveSection();updateMapGroups();applyGroupHighlights();schedRender();}
 
 function computeGroupCurve(strokes){
   const valid=strokes.filter(s=>s.curve&&s.curve.length===CURVE_POINTS);
@@ -3421,6 +3427,13 @@ function computeGroupCurve(strokes){
 const TPL_KEY = 'boatrun_stroke_tpl_v1';
 let strokeTpl = null;
 let _tplPreviewRate = null;
+/* Index of the curve group being shown on its own with the template drawn
+   over it, or -1 for the normal all-curves view. */
+let tplFocusIdx = -1;
+/* A template counts as saved only until something in it changes — that is
+   what greys out the Save button and brings it back. */
+function tplTouch(){ if (strokeTpl){ strokeTpl.savedAt = null; tplStore(); } }
+function tplIsSaved(){ return !!(strokeTpl && strokeTpl.savedAt); }
 
 function tplLoadStored(){
   try { const raw = localStorage.getItem(TPL_KEY); if (raw) return JSON.parse(raw); } catch {}
@@ -3506,7 +3519,8 @@ function tplAddCurrentGroup(gi){
                n:c.n, data:c.data.map(v=>Math.round(v*1000)/1000)};
   const ex = strokeTpl.entries.findIndex(x=>Math.abs(x.rate-rate) < 0.25);
   if (ex >= 0) strokeTpl.entries[ex] = ent; else strokeTpl.entries.push(ent);
-  tplSortEntries(); tplStore();
+  strokeTpl.savedAt = null;
+  tplSortEntries(); tplStore(); tplRefreshUI();
   _tplPreviewRate = rate;
   toast((ex >= 0 ? 'Replaced ' : 'Added ') + rate.toFixed(1) + ' spm');
   renderTemplateModal();
@@ -3514,16 +3528,19 @@ function tplAddCurrentGroup(gi){
 function tplRemoveEntry(i){
   if (!strokeTpl) return;
   strokeTpl.entries.splice(i,1);
-  tplStore(); renderTemplateModal();
+  strokeTpl.savedAt = null;
+  tplStore(); renderTemplateModal(); tplRefreshUI();
 }
 function tplClearAll(){
   if (!confirm('Delete the whole stroke template?')) return;
-  strokeTpl = null; _tplPreviewRate = null;
-  tplStore(); renderTemplateModal();
+  strokeTpl = null; _tplPreviewRate = null; tplFocusIdx = -1;
+  tplStore(); renderTemplateModal(); tplRefreshUI();
 }
 function tplExport(){
   if (!strokeTpl || !strokeTpl.entries.length){ toast('Template is empty'); return; }
   tplSortEntries();
+  strokeTpl.savedAt = Date.now();
+  tplStore();
   const blob = new Blob([JSON.stringify(strokeTpl)], {type:'application/json'});
   const url = URL.createObjectURL(blob);
   const a = document.createElement('a');
@@ -3531,7 +3548,8 @@ function tplExport(){
   a.download = (strokeTpl.name || 'stroke_template').replace(/[^\w\-]+/g,'_') + '.brtemplate.json';
   a.click();
   URL.revokeObjectURL(url);
-  toast('Exported \u2014 import this file in Metrics \u203a Settings');
+  renderTemplateModal();
+  toast('Saved \u2014 import this file in Metrics \u203a Settings');
 }
 function tplImportPick(){
   let inp = document.getElementById('_tplfile');
@@ -3553,9 +3571,10 @@ function tplImportPick(){
         strokeTpl.points = strokeTpl.points || CURVE_POINTS;
         strokeTpl.kind = strokeTpl.kind || 'accel';
         strokeTpl.entries = strokeTpl.entries.filter(x=>x && Array.isArray(x.data) && x.rate > 0);
-        _tplPreviewRate = null;
-        tplSortEntries(); tplStore(); renderTemplateModal();
-        toast('Loaded ' + strokeTpl.entries.length + ' rate' + (strokeTpl.entries.length === 1 ? '' : 's'));
+        strokeTpl.savedAt = strokeTpl.savedAt || Date.now();
+        _tplPreviewRate = null; tplFocusIdx = -1;
+        tplSortEntries(); tplStore(); renderTemplateModal(); tplRefreshUI();
+        toast('Loaded ' + strokeTpl.entries.length + ' rate' + (strokeTpl.entries.length === 1 ? '' : 's') + ' \u2014 tap a curve to overlay it');
       } catch { toast('Could not read that file'); }
     };
     r.readAsText(f);
@@ -3635,7 +3654,7 @@ function renderTemplateModal(){
 
     '<div style="display:flex;gap:8px;flex-wrap:wrap;">'+
       '<button id="tplimport" style="'+B+'flex:1;">Import\u2026</button>'+
-      '<button id="tplexport" style="'+BP+'flex:1;'+(n?'':'opacity:.4;')+'"'+(n?'':' disabled')+'>Export</button>'+
+      '<button id="tplexport" style="'+BP+'flex:1;'+((n&&!tplIsSaved())?'':'opacity:.35;cursor:default;')+'"'+((n&&!tplIsSaved())?'':' disabled')+'>'+((n&&tplIsSaved())?'Saved \u2713':'Save')+'</button>'+
       '<button id="tpldelall" style="'+B+'flex:1;color:#f54040;"'+(n?'':' disabled')+'>Delete all</button>'+
       '<button id="tplclose" style="'+B+'flex:1;">Close</button>'+
     '</div>';
@@ -3643,7 +3662,13 @@ function renderTemplateModal(){
   panel.querySelectorAll('[data-tpladd]').forEach(b=>{ b.onclick = ()=>tplAddCurrentGroup(+b.dataset.tpladd); });
   panel.querySelectorAll('[data-tpldel]').forEach(b=>{ b.onclick = ()=>tplRemoveEntry(+b.dataset.tpldel); });
   const nameEl = document.getElementById('tplname');
-  if (nameEl) nameEl.oninput = e => { if (!strokeTpl) strokeTpl = tplBlank(); strokeTpl.name = e.target.value; tplStore(); };
+  if (nameEl) nameEl.oninput = e => {
+    if (!strokeTpl) strokeTpl = tplBlank();
+    strokeTpl.name = e.target.value; strokeTpl.savedAt = null; tplStore();
+    const b = document.getElementById('tplexport');
+    if (b && strokeTpl.entries.length){ b.disabled = false; b.textContent = 'Save'; b.style.opacity = '1'; b.style.cursor = 'pointer'; }
+    tplRefreshUI();
+  };
   const rateEl = document.getElementById('tplrate');
   if (rateEl) rateEl.oninput = e => {
     _tplPreviewRate = +e.target.value;
@@ -3656,6 +3681,57 @@ function renderTemplateModal(){
   document.getElementById('tpldelall').onclick = tplClearAll;
   document.getElementById('tplclose').onclick = () => { const m = document.getElementById('_tplmodal'); if (m) m.remove(); };
   drawTemplatePreview();
+}
+
+/* Header chip + focus-close button, kept in step with the loaded template. */
+function tplRefreshUI(){
+  const chip = document.getElementById('tplchip');
+  const close = document.getElementById('tplfocusclose');
+  if (chip){
+    if (strokeTpl && strokeTpl.entries && strokeTpl.entries.length){
+      chip.style.display = '';
+      chip.textContent = 'TPL: ' + (strokeTpl.name || 'template') + ' \u00b7 ' + strokeTpl.entries.length + ' rate' + (strokeTpl.entries.length === 1 ? '' : 's');
+      chip.title = 'Tap a curve to show it on its own with this template overlaid';
+    } else {
+      chip.style.display = 'none';
+      tplFocusIdx = -1;
+    }
+  }
+  if (close) close.style.display = (tplFocusIdx >= 0) ? '' : 'none';
+  const sec = document.getElementById('curvesec');
+  if (sec && sec.style.display !== 'none') buildCurveSection();
+}
+window.tplRefreshUI = tplRefreshUI;
+
+function tplExitFocus(){
+  if (tplFocusIdx < 0) return;
+  tplFocusIdx = -1;
+  hideTooltip();
+  buildCurveSection();
+}
+window.tplExitFocus = tplExitFocus;
+
+/* Which plotted curve is under the pointer, as a curveGroups index. Compares
+   vertical distance at the pointer's time, so overlapping curves resolve to
+   the one actually being pointed at rather than the first drawn. */
+function tplCurveHitTest(canvas, clientX, clientY){
+  const g = canvas._g;
+  if (!g || !g.enriched.length) return -1;
+  const rect = canvas.getBoundingClientRect();
+  const x = clientX-rect.left, y = clientY-rect.top;
+  const {PL, pw, maxT, accelTop, ph1, yMin, yMax, enriched} = g;
+  if (x < PL || x > PL+pw || y < accelTop || y > accelTop+ph1) return -1;
+  const t = clamp((x-PL)/pw*maxT, 0, maxT);
+  const yRng = (yMax-yMin) || 1;
+  const toY = v => accelTop+ph1-(v-yMin)/yRng*ph1;
+  let best = -1, bestD = Infinity;
+  enriched.forEach(c => {
+    const s = sampleCurve(c, t);
+    if (!s) return;
+    const d = Math.abs(toY(s.accel)-y);
+    if (d < bestD){ bestD = d; best = (c.gi != null ? c.gi : -1); }
+  });
+  return bestD <= 44 ? best : -1;
 }
 
 function drawTemplatePreview(){
@@ -3719,8 +3795,16 @@ function buildCurveSection(){
 
   // Group chips in header
   document.getElementById('groupchips').innerHTML=curveGroups.map((g,i)=>
-    `<button class="grp-chip" onclick="removeCurveGroup(${i})" style="background:${g.color};color:#000;">${g.label}${g.sessionLabel?' · '+shortName(g.sessionLabel):''} (${g.strokes.length}) ×</button>`
+    `<button class="grp-chip" onclick="removeCurveGroup(${i})" style="background:${g.color};color:#000;${tplFocusIdx>=0&&tplFocusIdx!==i?'opacity:.32;':''}">${g.label}${g.sessionLabel?' · '+shortName(g.sessionLabel):''} (${g.strokes.length}) ×</button>`
   ).join('');
+  const _tplChip=document.getElementById('tplchip');
+  if(_tplChip){
+    const hasTpl=!!(strokeTpl&&strokeTpl.entries&&strokeTpl.entries.length);
+    _tplChip.style.display=hasTpl?'':'none';
+    if(hasTpl)_tplChip.textContent='TPL: '+(strokeTpl.name||'template')+' · '+strokeTpl.entries.length+' rate'+(strokeTpl.entries.length===1?'':'s');
+  }
+  const _tplClose=document.getElementById('tplfocusclose');
+  if(_tplClose)_tplClose.style.display=(tplFocusIdx>=0)?'':'none';
 
   buildCurveStats();
   drawCurvePanel();
@@ -3729,11 +3813,18 @@ function buildCurveSection(){
 
   // Hint
   const hasCurves=curveGroups.some(g=>g.strokes.some(s=>s.curve));
+  if(tplFocusIdx>=0){
+    const _g=curveGroups[tplFocusIdx];
+    document.getElementById('curvehint').textContent=(_g?_g.label:'Curve')+' shown on its own with the stroke template overlaid at its own rate \u2014 tap the chart or “Show all curves” to go back';
+    return;
+  }
   document.getElementById('curvehint').textContent=hasCurves
     ?(curvesAreForce()
       ?'Average PM5 drive force curve (N) \u00b7 x axis = drive time, catch at left'
       :'Average of normalized catch-to-catch IMU curves \u00b7 dashed line = drive/recovery boundary')
     :'No curve data in selected strokes \u2014 record with latest Metrics app';
+  if(hasCurves&&strokeTpl&&strokeTpl.entries&&strokeTpl.entries.length)
+    document.getElementById('curvehint').textContent+=' \u00b7 tap a curve to overlay the template';
 }
 
 function drawCurvePanel(){
@@ -3748,7 +3839,12 @@ function drawCurvePanel(){
   canvas.style.width=W+'px';canvas.style.height=H+'px';
   const ctx=canvas.getContext('2d');ctx.scale(dpr,dpr);ctx.clearRect(0,0,W,H);
 
-  const curves=curveGroups.map(g=>({...computeGroupCurve(g.strokes),color:g.color,label:g.label})).filter(c=>c.data);
+  let curves=curveGroups.map((g,i)=>({...computeGroupCurve(g.strokes),color:g.color,label:g.label,gi:i})).filter(c=>c.data);
+  /* Focus mode: one curve on its own so the template sits over it cleanly. */
+  if(tplFocusIdx>=0){
+    const f=curves.filter(c=>c.gi===tplFocusIdx);
+    if(f.length)curves=f; else tplFocusIdx=-1;
+  }
   if(!curves.length){
     ctx.fillStyle=C.muted;ctx.font='11px -apple-system, BlinkMacSystemFont, Helvetica Neue, sans-serif';ctx.textAlign='center';
     ctx.fillText('No curve data available',W/2,H/2);return;
@@ -3778,6 +3874,14 @@ function drawCurvePanel(){
     return{...c,accelRot:c.data,catchFrac:0,finishFrac:c.driveFrac,speed:sp?sp.v:null,T:T,avgSpeedMS:(!FORCE&&c.avgPace)?500/c.avgPace:null};
   });
 
+  /* Template re-timed to the focused curve's own rate, drawn on the same time
+     base so catch, finish and next catch all line up. */
+  let tplOv=null;
+  if(tplFocusIdx>=0 && strokeTpl && tplValid(strokeTpl) && strokeTpl.entries.length && enriched.length===1){
+    const c0=enriched[0];
+    if(((strokeTpl.kind==='force')===FORCE) && c0.T && c0.avgRate) tplOv=tplResolve(strokeTpl,c0.avgRate);
+  }
+
   const maxT=Math.max(...enriched.map(c=>c.T||0));
   if(!maxT){
     ctx.fillStyle=C.muted;ctx.font='11px -apple-system, BlinkMacSystemFont, Helvetica Neue, sans-serif';ctx.textAlign='center';
@@ -3793,6 +3897,7 @@ function drawCurvePanel(){
   // Accel Y range
   let yMin=Infinity,yMax=-Infinity;
   enriched.forEach(c=>{c.accelRot.forEach(v=>{if(v<yMin)yMin=v;if(v>yMax)yMax=v;});});
+  if(tplOv)tplOv.data.forEach(v=>{if(v<yMin)yMin=v;if(v>yMax)yMax=v;});
   const yPad=(yMax-yMin)*0.12;yMin-=yPad;yMax+=yPad;
   const yRng=yMax-yMin||1;
   const toY=v=>accelTop+ph1-(v-yMin)/yRng*ph1;
@@ -3882,6 +3987,23 @@ function drawCurvePanel(){
     }
   });
 
+  // Stroke template overlay (focus mode only)
+  if(tplOv){
+    const c0=enriched[0];
+    const tn=tplOv.data.length, tstep=c0.T/(tn-1);
+    ctx.save();
+    ctx.setLineDash([11,8]);ctx.lineCap='round';ctx.lineJoin='round';
+    ctx.beginPath();
+    for(let i=0;i<tn;i++){const x=toPx(i*tstep),y=toY(tplOv.data[i]);i===0?ctx.moveTo(x,y):ctx.lineTo(x,y);}
+    ctx.strokeStyle='#c084fc';ctx.lineWidth=6;ctx.stroke();
+    ctx.restore();
+    if(!FORCE&&tplOv.driveFrac>0&&tplOv.driveFrac<1){
+      const xT=toPx(tplOv.driveFrac*c0.T);
+      ctx.save();ctx.setLineDash([3,5]);ctx.strokeStyle='#c084fc';ctx.lineWidth=2;ctx.globalAlpha=.8;
+      ctx.beginPath();ctx.moveTo(xT,accelTop);ctx.lineTo(xT,accelTop+ph1);ctx.stroke();ctx.restore();
+    }
+  }
+
   // X axis ticks + labels
   const tickStep=maxT>2.5?0.5:maxT>1.2?0.25:0.1;
   for(let t=0;t<=maxT+0.001;t+=tickStep){
@@ -3904,12 +4026,18 @@ function drawCurvePanel(){
     ctx.fillText(txt,lx+13,ly);
     lx+=ctx.measureText(txt).width+22;
   });
+  if(tplOv){
+    ctx.fillStyle='#c084fc';ctx.fillRect(lx,ly-4,10,3);
+    const txt2='TEMPLATE '+(strokeTpl.name||'')+' @ '+f1(tplOv.rate)+'spm';
+    ctx.fillStyle=C.text;ctx.font='8px -apple-system, BlinkMacSystemFont, Helvetica Neue, sans-serif';ctx.textAlign='left';
+    ctx.fillText(txt2,lx+13,ly);
+  }
 
   // Panel borders
   ctx.strokeStyle=C.frameLn;ctx.lineWidth=1;
   ctx.strokeRect(PL,accelTop,pw,ph1);
   if(hasSpeeds)ctx.strokeRect(PL,speedTop,pw,ph2);
-  canvas._g={PL,pw,maxT,accelTop,ph1,speedTop,ph2,enriched};
+  canvas._g={PL,pw,maxT,accelTop,ph1,speedTop,ph2,enriched,yMin,yMax};
 }
 function curveDeriv(arr,i,step){
   const n=arr.length;
@@ -3978,6 +4106,17 @@ function setupCurveEvents(canvas){
   canvas.addEventListener('touchstart',e=>{const t=e.touches[0];showCurveTooltip(t.clientX,t.clientY);},{passive:true});
   canvas.addEventListener('touchmove',e=>{const t=e.touches[0];showCurveTooltip(t.clientX,t.clientY);},{passive:true});
   canvas.addEventListener('touchend',()=>{drawCurvePanel();hideTooltip();});
+  /* With a template loaded, a tap on a curve isolates it and lays the template
+     over it; a second tap anywhere puts the other curves back. */
+  canvas.addEventListener('click',e=>{
+    if(!strokeTpl||!tplValid(strokeTpl)||!strokeTpl.entries.length)return;
+    if(tplFocusIdx>=0){tplExitFocus();return;}
+    const hit=tplCurveHitTest(canvas,e.clientX,e.clientY);
+    if(hit<0)return;
+    tplFocusIdx=hit;
+    hideTooltip();
+    buildCurveSection();
+  });
 }
 
 // ── short label for session filenames in chips/tables ──────────────────────
@@ -5426,6 +5565,7 @@ document.getElementById('clearcurvebtn').onclick=clearAllCurves;
 document.getElementById('tplbtn').onclick=openTemplateModal;
 document.getElementById('tplmenubtn').onclick=()=>{document.getElementById('filemenu').classList.remove('open');openTemplateModal();};
 strokeTpl=tplLoadStored();
+document.getElementById('tplfocusclose').onclick=tplExitFocus;
 document.getElementById('cards').addEventListener('click',e=>{const c=e.target.closest('[data-vis]');if(c)window.toggleVis(c.dataset.vis);});
 
 const su=document.getElementById('startup');
