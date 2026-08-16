@@ -5730,6 +5730,7 @@ const VID = {
     opacity: 0.82, curveOpacity: 0.82,
     vidWidth: 100, vidZoom: 1, vidPanX: 0, vidPanY: 0,
     curveAvg5: true, rate: 1,
+    showTpl: false, tplIdx: -1,
   }
 };
 
@@ -5992,6 +5993,21 @@ function vidRenderBody(){
   const cfg=VID.cfg;
   const tabs=VID.clips.map((c,i)=>`<div class="vid-clip-tab${i===VID.active?' on':''}" onclick="vidSetActive(${i})">${vidShort(c.name)}<span class="x" onclick="event.stopPropagation();vidRemoveClip(${i})">\u00D7</span></div>`).join('');
   const mchips=VID_METRIC_ORDER.filter(k=>!vidKeyHidden(k)).map(k=>`<div class="vid-mchip${cfg.metrics.includes(k)?' on':''}" onclick="vidToggleMetric('${k}')">${VID_METRICS[k].l}</div>`).join('');
+  let tplRowHtml='';
+  if(isCoach()){
+    const _tl = (typeof tplOpen!=='undefined' && tplOpen) ? tplOpen : [];
+    const _sel = (cfg.tplIdx>=0 && cfg.tplIdx<_tl.length) ? cfg.tplIdx : tplActiveIdx;
+    const _opts = _tl.map((t,i)=>`<option value="${i}"${i===_sel?' selected':''}>${escHtml(t.name||'Template')} \u00b7 ${t.entries.length}r</option>`).join('');
+    tplRowHtml =
+      '<div class="vid-row" style="margin-top:8px;">'+
+        `<label><input type="checkbox" id="vidShowTpl" ${cfg.showTpl?'checked':''}> show stroke template</label>`+
+        (_tl.length ? `<select class="vid-num" id="vidTplSel" style="width:auto;max-width:150px;">${_opts}</select>`
+                    : '<span class="vid-mini">no template open \u2014 load or create one from the menu</span>')+
+      '</div>'+
+      '<div class="vid-mini" style="margin-top:4px;">Coach only. Drawn dotted yellow, re-timed to each stroke\u2019s own rate.</div>';
+  } else {
+    tplRowHtml = '<div class="vid-mini" style="margin-top:8px;">Stroke template overlay is a Coach feature.</div>';
+  }
   const probe = a.probedMs ? ((a.probeSource==='filename'?'Coach clip start ':'capture \u2248 ')+new Date(a.probedMs).toLocaleTimeString()) : 'no capture/coach timestamp found';
 
   body.innerHTML=`
@@ -6069,6 +6085,7 @@ function vidRenderBody(){
         <div class="vid-slider"><span>opacity</span><input type="range" id="vidCurveOpacity" min="20" max="100" value="${Math.round(cfg.curveOpacity*100)}"></div>
       </div>
       <div class="vid-mini" style="margin-top:5px;">Drag the box or curve directly on the video to reposition.</div>
+      ${tplRowHtml}
     </div>
 
     <div class="vid-panel">
@@ -6118,6 +6135,11 @@ function vidRenderBody(){
   on('vidExportMp4Btn','onclick',vidExportMp4);
   on('vidExportCancel','onclick',vidCancelExport);
   on('vidCurveAvg5','onchange',e=>{ cfg.curveAvg5=e.target.checked; vidDraw(); });
+  on('vidShowTpl','onchange',e=>{
+    if(e.target.checked && !isCoach()){ e.target.checked=false; showPlanModal('Stroke template overlay is a Coach feature.'); return; }
+    cfg.showTpl=e.target.checked; vidDraw();
+  });
+  on('vidTplSel','onchange',e=>{ cfg.tplIdx=parseInt(e.target.value,10); if(isNaN(cfg.tplIdx))cfg.tplIdx=-1; vidDraw(); });
   on('vidSyncBtn','onclick',vidSyncToggle);
   on('vidBack5','onclick',()=>vidSeekBy(-5));
   on('vidFwd5','onclick',()=>vidSeekBy(5));
@@ -6447,6 +6469,29 @@ function vidDrawBox(ctx,W,H,st){
   });
 }
 
+/* Template chosen for the video overlay: the one picked in the Curve panel,
+   otherwise whichever template is active in the Curves section. */
+function vidTplPick(){
+  if(typeof tplOpen==='undefined' || !tplOpen || !tplOpen.length) return null;
+  const i=(VID.cfg.tplIdx>=0 && VID.cfg.tplIdx<tplOpen.length) ? VID.cfg.tplIdx : tplActiveIdx;
+  const t=(i>=0 && i<tplOpen.length) ? tplOpen[i] : null;
+  return tplHasEntries(t) ? t : null;
+}
+/* Resolves that template to this stroke's own rate, matching the way the
+   Curves panel and Metrics re-time it. Erg force templates are never drawn
+   over on-water accel curves, or the other way round. */
+function vidTplCurve(st){
+  if(!VID.cfg.showTpl || !isCoach() || !st) return null;
+  const t=vidTplPick(); if(!t) return null;
+  const FORCE=curvesAreForce();
+  if((t.kind==='force')!==FORCE) return null;
+  let rate=st.stroke && st.stroke.rate;
+  if(!(rate>0) && st.T>0) rate=60/st.T;
+  const r=tplResolve(t, rate||0);
+  if(!r || !r.data || r.data.length<2) return null;
+  return {data:r.data, driveFrac:r.driveFrac, rate:r.rate, name:t.name||'Template'};
+}
+
 function vidCurveRect(W,H){
   const sc=VID.cfg.curveScale;
   const cw=Math.min(W*0.42*sc, W*0.9);
@@ -6467,6 +6512,8 @@ function vidDrawCurve(ctx,W,H,st){
   }
   const hasAvg=avgData&&avgData.curve&&avgData.curve.length===CURVE_POINTS;
 
+  const tplD=vidTplCurve(st);
+
   // background panel
   ctx.fillStyle='rgba(4,14,28,0.72)';
   vidRoundRect(ctx,r.x,r.y,r.cw,r.ch,8); ctx.fill();
@@ -6476,7 +6523,7 @@ function vidDrawCurve(ctx,W,H,st){
   const pad=r.ch*0.12;
   const px=r.x+pad, py=r.y+pad, pw=r.cw-pad*2, ph=r.ch-pad*2;
 
-  if(!hasCur && !hasAvg){
+  if(!hasCur && !hasAvg && !tplD){
     ctx.fillStyle='rgba(200,210,225,0.7)';
     ctx.font='600 '+Math.round(r.ch*0.13)+'px -apple-system, BlinkMacSystemFont, Helvetica Neue, sans-serif';
     ctx.textAlign='center'; ctx.fillText('no curve', r.x+r.cw/2, r.y+r.ch/2);
@@ -6487,6 +6534,7 @@ function vidDrawCurve(ctx,W,H,st){
   let mn=0, mx=0;
   if(hasCur)  for(const v of cur.curve)   { if(v<mn)mn=v; if(v>mx)mx=v; }
   if(hasAvg)  for(const v of avgData.curve){ if(v<mn)mn=v; if(v>mx)mx=v; }
+  if(tplD)    for(const v of tplD.data)     { if(v<mn)mn=v; if(v>mx)mx=v; }
   const ypad=Math.max((mx-mn)*0.08, 0.1); mn-=ypad; mx+=ypad;
   // keep at least 25% of positive headroom so zero line isn't at bottom
   if(mx>0 && mn>-mx*0.25) mn=-mx*0.25;
@@ -6534,6 +6582,23 @@ function vidDrawCurve(ctx,W,H,st){
     }
   }
 
+  // stroke template — dotted yellow, over the fills but under the live stroke
+  if(tplD){
+    const tn=tplD.data.length;
+    ctx.save();
+    ctx.setLineDash([0.5,7]); ctx.lineCap='round'; ctx.lineJoin='round';
+    ctx.beginPath();
+    for(let i=0;i<tn;i++){ const x=px+i/(tn-1)*pw, y=toY(tplD.data[i]); i?ctx.lineTo(x,y):ctx.moveTo(x,y); }
+    ctx.strokeStyle=TPL_COLOR; ctx.lineWidth=Math.max(3,r.ch*0.035); ctx.stroke();
+    ctx.restore();
+    if(tplD.driveFrac>0 && tplD.driveFrac<1){
+      const bx=px+tplD.driveFrac*pw;
+      ctx.save(); ctx.setLineDash([0.5,5]); ctx.lineCap='round';
+      ctx.strokeStyle=TPL_COLOR; ctx.lineWidth=2; ctx.globalAlpha=.85;
+      ctx.beginPath(); ctx.moveTo(bx,py); ctx.lineTo(bx,py+ph); ctx.stroke(); ctx.restore();
+    }
+  }
+
   // current stroke drawn on top — blue, thicker, no fill (let green/red show through)
   if(hasCur){
     drawCurveData(cur.curve, '#0077cc', 3.5, false);
@@ -6568,8 +6633,14 @@ function vidDrawCurve(ctx,W,H,st){
     ctx.fillStyle='#c0392b'; ctx.fillRect(lx, ly-fs+1, fs*1.2, fs*0.6);
     lx+=fs*1.4;
     ctx.fillStyle='rgba(210,225,245,0.75)'; ctx.textAlign='left'; ctx.fillText('AVG '+avgN, lx, ly);
+    lx+=ctx.measureText('AVG '+avgN).width+fs*1.2;
   }
-  if(!hasCur && !hasAvg){ /* already returned */ }
+  if(tplD){
+    ctx.fillStyle=TPL_COLOR; ctx.fillRect(lx, ly-fs+1, fs*1.2, fs*0.6);
+    lx+=fs*1.4;
+    const ltxt='TPL '+f1(tplD.rate)+'spm';
+    ctx.fillStyle='rgba(210,225,245,0.75)'; ctx.textAlign='left'; ctx.fillText(ltxt, lx, ly);
+  }
 }
 
 function vidRoundRect(ctx,x,y,w,h,r){
