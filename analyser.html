@@ -154,6 +154,7 @@
   .grp-chip { display: inline-flex; align-items: center; gap: 5px; padding: 4px 10px; border-radius: 12px; font-size: 10px; font-weight: 700; cursor: pointer; border: none; transition: opacity .15s; }
   .grp-chip:hover { opacity: .75; }
   #clearcurvebtn { background: none; border: 1px solid var(--border); color: var(--muted); padding: 4px 10px; border-radius: 6px; font-family: -apple-system, BlinkMacSystemFont, Helvetica Neue, sans-serif; font-size: 10px; cursor: pointer; margin-left: auto; transition: color .15s, border-color .15s; }
+  #tplbtn { background: none; border: 1px solid var(--border); color: var(--muted); padding: 4px 10px; border-radius: 6px; font-family: -apple-system, BlinkMacSystemFont, Helvetica Neue, sans-serif; font-size: 10px; cursor: pointer; margin-left: 6px; transition: color .15s, border-color .15s; }
   #clearcurvebtn:hover { color: var(--r); border-color: var(--r); }
 
   /* ── Session tabs (multi-file) ── */
@@ -391,8 +392,9 @@ body.light .hdrname{color:#fff;}
   #mapbox{border-radius:14px;}
   #dz{border-radius:22px;}
   #addcurvebtn{background:var(--acc);color:#fff;border-radius:14px;padding:7px 15px;box-shadow:0 2px 5px rgba(0,0,0,.22);}
-  #selclear,#clearcurvebtn{border:none;border-radius:14px;background:var(--pill);color:var(--muted);padding:6px 13px;box-shadow:0 2px 5px rgba(0,0,0,.20);}
+  #selclear,#clearcurvebtn,#tplbtn{border:none;border-radius:14px;background:var(--pill);color:var(--muted);padding:6px 13px;box-shadow:0 2px 5px rgba(0,0,0,.20);}
   #selclear:hover,#clearcurvebtn:hover{border:none;color:var(--acc-r);}
+  #tplbtn:hover{border:none;color:var(--acc-p,#c084fc);}
   .zoom-btn{border:none;border-radius:12px;background:var(--seg);color:var(--seg-txt);box-shadow:0 1px 3px rgba(0,0,0,.25);}
   .zoom-btn:hover{border:none;color:var(--acc);}
   select{border:none;border-radius:12px;background:var(--seg);color:var(--seg-txt);padding:6px 10px;box-shadow:0 1px 3px rgba(0,0,0,.22);}
@@ -488,6 +490,7 @@ body.light .hdrname{color:#fff;}
       <button class="hbtn" id="jsonbtn" style="display:none;"><img class="hmenu-icon" src="icons/Export.svg"><span>Share JSON</span></button>
       <button class="hbtn" id="tcxbtn" style="display:none;"><img class="hmenu-icon" src="icons/Export.svg"><span>Export TCX</span></button>
       <button class="hbtn" id="fitbtn" style="display:none;"><img class="hmenu-icon" src="icons/Export.svg"><span>Export FIT (Recommended)</span></button>
+      <button class="hbtn" id="tplmenubtn"><img class="hmenu-icon" src="icons/Export.svg"><span>Stroke template…</span></button>
     </div>
   </div>
   <button class="hbtn hicon-btn" id="openbtn"><img class="hicon-img" src="icons/Open.svg"><span class="hicon-txt">Open</span></button>
@@ -557,6 +560,7 @@ body.light .hdrname{color:#fff;}
     <div class="sec-hd">
       <h2>Curve Comparison</h2>
       <div id="groupchips" style="display:flex;gap:6px;flex-wrap:wrap;"></div>
+      <button id="tplbtn" title="Build a stroke-rate template from these curve groups">Stroke template…</button>
       <button id="clearcurvebtn">Clear all</button>
     </div>
     <div class="curve-layout">
@@ -1216,7 +1220,6 @@ const METRIC_DEFS = [
 // Tiles/rows the PM5 can actually feed — used to restrict the Tiles picker,
 // hover tooltip, and stroke table to erg-relevant metrics on erg sessions.
 const ERG_TILE_KEYS=['pace','rate','dps','peakforce','drivelength','drivetime','hr'];
-const ERG_ONLY_KEYS=['watts','peakforce','drivelength'];
 function applyTileOrder(ord){
   let order=ord;
   if(!order){
@@ -1940,6 +1943,36 @@ function promptSquadPassword(code){
         ov.onclick = e => { if (e.target === ov) done(null); };
     });
 }
+function escHtml(s){
+    return String(s == null ? '' : s)
+        .replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;')
+        .replace(/"/g,'&quot;').replace(/'/g,'&#39;');
+}
+// Returns {desc} if the squad exists, false if it definitely does not,
+// null if we could not tell (offline / read blocked).
+async function peekSquadMeta(code){
+    const B = 'https://boatrun-default-rtdb.asia-southeast1.firebasedatabase.app/squads/';
+    const c = String(code || '').trim().toUpperCase();
+    if (!c) return false;
+    let sawMeta = false;
+    try {
+        const mR = await fetch(B + c + '/meta.json');
+        if (mR.ok) {
+            sawMeta = true;
+            const meta = await mR.json();
+            if (meta && typeof meta === 'object') return { desc: meta.desc ? String(meta.desc) : '' };
+        }
+    } catch { return null; }
+    try {
+        const sR = await fetch(B + c + '.json?shallow=true');
+        if (sR.ok) {
+            const s = await sR.json();
+            if (s) return { desc: '' };
+            return false;
+        }
+    } catch {}
+    return sawMeta ? false : null;
+}
 function promptSquadCode(){
     return new Promise(resolve=>{
         document.getElementById('_squad_code_entry')?.remove();
@@ -1952,7 +1985,8 @@ function promptSquadCode(){
         panel.style.cssText = 'background:var(--s1);border:1px solid var(--border);border-radius:10px;padding:18px;max-width:340px;width:88%;color:var(--text);font-family:-apple-system, BlinkMacSystemFont, Helvetica Neue, sans-serif;';
         panel.innerHTML = '<div style="font-size:1rem;font-weight:700;margin-bottom:12px;color:var(--b);">Open from Squad</div>'
             + '<input id="sqc-input" type="text" maxlength="7" autocomplete="off" autocapitalize="characters" spellcheck="false" placeholder="Squad code" style="display:block;width:100%;box-sizing:border-box;padding:10px 12px;margin-bottom:10px;background:var(--s2);border:1px solid var(--border);border-radius:6px;color:var(--text);font-size:.95rem;text-transform:uppercase;letter-spacing:2px;text-align:center;font-weight:700;font-family:inherit;">'
-            + '<div id="sqc-hash" style="text-align:center;letter-spacing:6px;color:var(--muted);font-size:1rem;font-family:monospace;margin-bottom:14px;">#######</div>'
+            + '<div id="sqc-hash" style="text-align:center;letter-spacing:6px;color:var(--muted);font-size:1rem;font-family:monospace;margin-bottom:6px;">#######</div>'
+            + '<div id="sqc-lookup" style="text-align:center;font-size:.8rem;font-weight:600;min-height:17px;line-height:17px;margin-bottom:12px;"></div>'
             + '<div style="display:flex;gap:8px;">'
             + '<button id="sqc-cancel" style="flex:1;padding:9px 0;background:var(--s2);border:1px solid var(--border);border-radius:6px;color:var(--text);cursor:pointer;font-size:.85rem;font-family:inherit;">Cancel</button>'
             + '<button id="sqc-ok" style="flex:1;padding:9px 0;background:var(--b);border:1px solid var(--b);border-radius:6px;color:#fff;cursor:pointer;font-size:.85rem;font-family:inherit;opacity:.5;" disabled>Open</button>'
@@ -1962,6 +1996,8 @@ function promptSquadCode(){
         const input = document.getElementById('sqc-input');
         const hashRow = document.getElementById('sqc-hash');
         const okBtn = document.getElementById('sqc-ok');
+        const lookRow = document.getElementById('sqc-lookup');
+        let lkTimer = null, lkSeq = 0;
         function refresh(){
             let v = input.value.toUpperCase().replace(/[^A-Z0-9]/g,'').slice(0,7);
             input.value = v;
@@ -1971,6 +2007,21 @@ function promptSquadCode(){
             const ready = v.length === 7;
             okBtn.disabled = !ready;
             okBtn.style.opacity = ready ? '1' : '.5';
+            // Live lookup: confirm the typed code really is a squad, and show its name.
+            if (lkTimer) clearTimeout(lkTimer);
+            lkSeq++;
+            if (lookRow) lookRow.innerHTML = '';
+            if (!ready) return;
+            const seq = lkSeq;
+            lkTimer = setTimeout(async () => {
+                if (lookRow && seq === lkSeq) lookRow.innerHTML = '<span style="color:var(--muted);">Checking\u2026</span>';
+                const m = await peekSquadMeta(v);
+                if (seq !== lkSeq || !lookRow) return;
+                if (input.value.toUpperCase() !== v) return;
+                if (m === false) lookRow.innerHTML = '<span style="color:#c0392b;">No squad found with this code</span>';
+                else if (m === null) lookRow.innerHTML = '';
+                else lookRow.innerHTML = '<span style="color:#16a085;">\u25cf ' + escHtml(m.desc || 'Squad found (no name set)') + '</span>';
+            }, 450);
         }
         input.value = stored;
         refresh();
@@ -2660,7 +2711,7 @@ function buildCards(sum) {
   let html=
     card('cw','Distance',distDisp,distLbl,null,'Total distance travelled (GPS), in km or mi based on units setting.')+
     card('cw','Duration',dur,ST.length+' strokes',null,'Total elapsed time of the session.')+
-    METRIC_DEFS.map(m=>(hid[m.k]||!CARD_BUILDERS[m.k]||(!isErgSession()&&ERG_ONLY_KEYS.includes(m.k)))?'':CARD_BUILDERS[m.k]()).join('');
+    METRIC_DEFS.map(m=>(hid[m.k]||!CARD_BUILDERS[m.k])?'':CARD_BUILDERS[m.k]()).join('');
   document.getElementById('cards').innerHTML=html;
   buildHRZoneTable();
 }
@@ -3361,6 +3412,306 @@ function computeGroupCurve(strokes){
     avgDriveMs:drvN?drvSum/drvN:null};
 }
 
+
+/* ── Stroke template ───────────────────────────────────────────────────────
+   A template is a set of averaged stroke curves, one per stroke rate, built
+   here from pinned curve groups. Exported as JSON and imported into Metrics,
+   where it is re-timed to whatever rate is being rowed and drawn as a target
+   ghost behind the live curve. */
+const TPL_KEY = 'boatrun_stroke_tpl_v1';
+let strokeTpl = null;
+let _tplPreviewRate = null;
+
+function tplLoadStored(){
+  try { const raw = localStorage.getItem(TPL_KEY); if (raw) return JSON.parse(raw); } catch {}
+  return null;
+}
+function tplStore(){
+  try {
+    if (strokeTpl && strokeTpl.entries && strokeTpl.entries.length) localStorage.setItem(TPL_KEY, JSON.stringify(strokeTpl));
+    else localStorage.removeItem(TPL_KEY);
+  } catch {}
+}
+function tplBlank(kind){
+  return {type:'boatrun-stroke-template', v:1, name:'My stroke template', kind:kind||'accel',
+          points:CURVE_POINTS, created:Date.now(), entries:[]};
+}
+function tplValid(o){ return !!(o && o.type === 'boatrun-stroke-template' && Array.isArray(o.entries)); }
+function tplSortEntries(){ if (strokeTpl && strokeTpl.entries) strokeTpl.entries.sort((a,b)=>a.rate-b.rate); }
+
+/* Re-times one normalized curve so its drive/recovery boundary moves from
+   dfFrom to dfTo: the drive samples are stretched into [0,dfTo] and the
+   recovery samples into [dfTo,1]. Shape is preserved, timing is not. */
+function tplWarp(data, dfFrom, dfTo){
+  const N = data.length, out = new Array(N);
+  if (!(dfFrom > 0.02 && dfFrom < 0.98) || !(dfTo > 0.02 && dfTo < 0.98) || Math.abs(dfFrom-dfTo) < 0.002){
+    for (let i=0;i<N;i++) out[i] = data[i];
+    return out;
+  }
+  for (let i=0;i<N;i++){
+    const u = i/(N-1);
+    const src = (u <= dfTo) ? (u/dfTo)*dfFrom : dfFrom + ((u-dfTo)/(1-dfTo))*(1-dfFrom);
+    const x = Math.max(0, Math.min(1, src)) * (N-1);
+    const i0 = Math.floor(x), i1 = Math.min(N-1, i0+1), f = x-i0;
+    out[i] = data[i0] + (data[i1]-data[i0])*f;
+  }
+  return out;
+}
+
+/* Returns the template curve for a given stroke rate.
+   Between recorded rates: warp both neighbours to a blended drive fraction,
+   then cross-fade. Outside them: hold the nearest recorded shape, keeping the
+   drive at its real duration and letting only the recovery change length. */
+function tplResolve(tpl, rate){
+  if (!tpl || !Array.isArray(tpl.entries) || !tpl.entries.length) return null;
+  const e = tpl.entries.slice().sort((a,b)=>a.rate-b.rate);
+  const N = tpl.points || (e[0].data ? e[0].data.length : CURVE_POINTS);
+  const FORCE = (tpl.kind === 'force');
+  if (!(rate > 0)) rate = e[e.length-1].rate;
+  if (e.length === 1 || rate <= e[0].rate || rate >= e[e.length-1].rate){
+    const b = (e.length === 1 || rate <= e[0].rate) ? e[0] : e[e.length-1];
+    const bdf = FORCE ? 1 : (b.driveFrac || 0.45);
+    if (FORCE || Math.abs(rate-b.rate) < 0.05) return {data:b.data.slice(), driveFrac:bdf, rate:rate, mode:'hold'};
+    const driveT = bdf * (60/b.rate), T = 60/rate;
+    const df = Math.max(0.12, Math.min(0.92, driveT/T));
+    return {data:tplWarp(b.data, bdf, df), driveFrac:df, rate:rate, mode:'stretch'};
+  }
+  let i = 0;
+  while (i < e.length-2 && e[i+1].rate <= rate) i++;
+  const a = e[i], b = e[i+1];
+  const f = (b.rate === a.rate) ? 0 : (rate-a.rate)/(b.rate-a.rate);
+  const adf = FORCE ? 1 : (a.driveFrac || 0.45), bdf = FORCE ? 1 : (b.driveFrac || 0.45);
+  const df = adf + (bdf-adf)*f;
+  const wa = tplWarp(a.data, adf, df), wb = tplWarp(b.data, bdf, df);
+  const out = new Array(N);
+  for (let k=0;k<N;k++) out[k] = wa[k] + (wb[k]-wa[k])*f;
+  return {data:out, driveFrac:df, rate:rate, mode:'blend'};
+}
+
+function tplAddCurrentGroup(gi){
+  const g = curveGroups[gi];
+  if (!g) return;
+  const c = computeGroupCurve(g.strokes);
+  if (!c || !c.data){ toast('That group has no curve data'); return; }
+  if (!c.avgRate){ toast('That group has no stroke rate'); return; }
+  const kind = curvesAreForce() ? 'force' : 'accel';
+  if (!strokeTpl) strokeTpl = tplBlank(kind);
+  if (strokeTpl.entries.length && strokeTpl.kind !== kind){
+    toast('This template holds ' + (strokeTpl.kind === 'force' ? 'erg force' : 'on-water') + ' curves \u2014 they cannot be mixed');
+    return;
+  }
+  strokeTpl.kind = kind;
+  const rate = Math.round(c.avgRate*10)/10;
+  const ent = {rate:rate, driveFrac:+((kind === 'force' ? 1 : c.driveFrac).toFixed(4)),
+               n:c.n, data:c.data.map(v=>Math.round(v*1000)/1000)};
+  const ex = strokeTpl.entries.findIndex(x=>Math.abs(x.rate-rate) < 0.25);
+  if (ex >= 0) strokeTpl.entries[ex] = ent; else strokeTpl.entries.push(ent);
+  tplSortEntries(); tplStore();
+  _tplPreviewRate = rate;
+  toast((ex >= 0 ? 'Replaced ' : 'Added ') + rate.toFixed(1) + ' spm');
+  renderTemplateModal();
+}
+function tplRemoveEntry(i){
+  if (!strokeTpl) return;
+  strokeTpl.entries.splice(i,1);
+  tplStore(); renderTemplateModal();
+}
+function tplClearAll(){
+  if (!confirm('Delete the whole stroke template?')) return;
+  strokeTpl = null; _tplPreviewRate = null;
+  tplStore(); renderTemplateModal();
+}
+function tplExport(){
+  if (!strokeTpl || !strokeTpl.entries.length){ toast('Template is empty'); return; }
+  tplSortEntries();
+  const blob = new Blob([JSON.stringify(strokeTpl)], {type:'application/json'});
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = (strokeTpl.name || 'stroke_template').replace(/[^\w\-]+/g,'_') + '.brtemplate.json';
+  a.click();
+  URL.revokeObjectURL(url);
+  toast('Exported \u2014 import this file in Metrics \u203a Settings');
+}
+function tplImportPick(){
+  let inp = document.getElementById('_tplfile');
+  if (!inp){
+    inp = document.createElement('input');
+    inp.type = 'file'; inp.id = '_tplfile'; inp.accept = '.json,application/json'; inp.style.display = 'none';
+    document.body.appendChild(inp);
+  }
+  inp.onchange = () => {
+    const f = inp.files && inp.files[0];
+    inp.value = '';
+    if (!f) return;
+    const r = new FileReader();
+    r.onload = () => {
+      try {
+        const o = JSON.parse(r.result);
+        if (!tplValid(o)){ toast('Not a BoatRun stroke template'); return; }
+        strokeTpl = o;
+        strokeTpl.points = strokeTpl.points || CURVE_POINTS;
+        strokeTpl.kind = strokeTpl.kind || 'accel';
+        strokeTpl.entries = strokeTpl.entries.filter(x=>x && Array.isArray(x.data) && x.rate > 0);
+        _tplPreviewRate = null;
+        tplSortEntries(); tplStore(); renderTemplateModal();
+        toast('Loaded ' + strokeTpl.entries.length + ' rate' + (strokeTpl.entries.length === 1 ? '' : 's'));
+      } catch { toast('Could not read that file'); }
+    };
+    r.readAsText(f);
+  };
+  inp.click();
+}
+
+function openTemplateModal(){
+  if (!strokeTpl) strokeTpl = tplLoadStored();
+  const old = document.getElementById('_tplmodal');
+  if (old) old.remove();
+  const overlay = document.createElement('div');
+  overlay.id = '_tplmodal';
+  overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,.72);display:flex;align-items:center;justify-content:center;z-index:9999;padding:12px;';
+  const panel = document.createElement('div');
+  panel.id = '_tplpanel';
+  panel.style.cssText = 'background:var(--s1);border:1px solid var(--border);border-radius:10px;padding:16px;max-width:540px;width:100%;max-height:88vh;overflow:auto;color:var(--text);font-family:-apple-system, BlinkMacSystemFont, Helvetica Neue, sans-serif;';
+  overlay.appendChild(panel);
+  document.body.appendChild(overlay);
+  overlay.onclick = e => { if (e.target === overlay) overlay.remove(); };
+  renderTemplateModal();
+}
+window.openTemplateModal = openTemplateModal;
+
+function renderTemplateModal(){
+  const panel = document.getElementById('_tplpanel');
+  if (!panel) return;
+  const t = strokeTpl;
+  const n = (t && t.entries) ? t.entries.length : 0;
+  const B  = 'padding:8px 12px;border-radius:6px;border:1px solid var(--border);background:var(--s2);color:var(--text);cursor:pointer;font-size:.8rem;font-family:inherit;';
+  const BP = 'padding:8px 12px;border-radius:6px;border:1px solid var(--b);background:var(--b);color:#fff;cursor:pointer;font-size:.8rem;font-family:inherit;';
+
+  let groupsHtml;
+  if (curveGroups.length){
+    groupsHtml = curveGroups.map((g,i)=>{
+      const c = computeGroupCurve(g.strokes);
+      const ok = !!(c && c.data && c.avgRate);
+      const lbl = ok ? f1(c.avgRate)+' spm' : 'no rate';
+      return '<button data-tpladd="'+i+'"'+(ok?'':' disabled')+' style="'+B+'background:'+g.color+';color:#000;border-color:'+g.color+';margin:0 6px 6px 0;'+(ok?'':'opacity:.35;cursor:default;')+'">\uff0b '+g.label+' \u00b7 '+lbl+'</button>';
+    }).join('');
+  } else {
+    groupsHtml = '<div style="font-size:.78rem;color:var(--muted);line-height:1.5;">Drag a selection on the main chart, tap \u201c\uff0b Add to curves\u201d, then come back here. Add one group per stroke rate \u2014 e.g. 18, 22, 26, 30, 34.</div>';
+  }
+
+  let rows = '';
+  if (n){
+    rows = t.entries.map((e,i)=>
+      '<tr><td style="padding:4px 8px;font-weight:700;">'+e.rate.toFixed(1)+' spm</td>'+
+      '<td style="padding:4px 8px;color:var(--muted);">drive '+Math.round((e.driveFrac||0)*100)+'%</td>'+
+      '<td style="padding:4px 8px;color:var(--muted);">'+(e.n||0)+' strokes</td>'+
+      '<td style="padding:4px 8px;text-align:right;"><span data-tpldel="'+i+'" style="cursor:pointer;color:#f54040;font-weight:700;font-size:1rem;">\u00d7</span></td></tr>'
+    ).join('');
+  }
+
+  const rMin = n ? Math.max(12, Math.floor(t.entries[0].rate) - 6) : 16;
+  const rMax = n ? Math.ceil(t.entries[n-1].rate) + 12 : 40;
+  if (_tplPreviewRate == null || _tplPreviewRate < rMin || _tplPreviewRate > rMax) _tplPreviewRate = n ? t.entries[n-1].rate : 24;
+
+  panel.innerHTML =
+    '<div style="font-size:1rem;font-weight:700;margin-bottom:4px;color:var(--b);">Stroke Template</div>'+
+    '<div style="font-size:.75rem;color:var(--muted);line-height:1.5;margin-bottom:12px;">Add an averaged curve for each stroke rate you want as a target. Export it, then import the file into Metrics to see it drawn live over your own curve in Row, Cox or Erg.</div>'+
+
+    '<input id="tplname" type="text" maxlength="40" placeholder="Template name" value="'+escHtml((t&&t.name)||'')+'" style="display:block;width:100%;box-sizing:border-box;padding:9px 11px;margin-bottom:14px;background:var(--s2);border:1px solid var(--border);border-radius:6px;color:var(--text);font-size:.9rem;font-family:inherit;">'+
+
+    '<div style="font-size:.72rem;font-weight:700;letter-spacing:.06em;color:var(--muted);margin-bottom:6px;">ADD FROM CURVE GROUP</div>'+
+    '<div style="margin-bottom:14px;">'+groupsHtml+'</div>'+
+
+    '<div style="font-size:.72rem;font-weight:700;letter-spacing:.06em;color:var(--muted);margin-bottom:6px;">TEMPLATE \u2014 '+n+' RATE'+(n===1?'':'S')+(t&&t.kind==='force'?' \u00b7 ERG FORCE':(n?' \u00b7 ON-WATER':''))+'</div>'+
+    (n ? '<table style="width:100%;border-collapse:collapse;font-size:.8rem;margin-bottom:14px;">'+rows+'</table>'
+       : '<div style="font-size:.78rem;color:var(--muted);margin-bottom:14px;">Empty.</div>')+
+
+    (n ? '<div style="font-size:.72rem;font-weight:700;letter-spacing:.06em;color:var(--muted);margin-bottom:6px;">PREVIEW AT <span id="tplratelbl" style="color:var(--b);">'+_tplPreviewRate.toFixed(1)+'</span> SPM</div>'+
+         '<div style="margin-bottom:6px;"><canvas id="tplPrevC"></canvas></div>'+
+         '<input id="tplrate" type="range" min="'+rMin+'" max="'+rMax+'" step="0.5" value="'+_tplPreviewRate+'" style="width:100%;accent-color:var(--b);margin:0 0 6px;">'+
+         '<div style="font-size:.7rem;color:var(--muted);line-height:1.5;margin-bottom:14px;">Grey = the curves you recorded. Purple = what Metrics will draw at this rate. Green dashed = the finish. Above '+t.entries[n-1].rate.toFixed(1)+' spm the drive is held at its recorded length and only the recovery shortens.</div>'
+       : '')+
+
+    '<div style="display:flex;gap:8px;flex-wrap:wrap;">'+
+      '<button id="tplimport" style="'+B+'flex:1;">Import\u2026</button>'+
+      '<button id="tplexport" style="'+BP+'flex:1;'+(n?'':'opacity:.4;')+'"'+(n?'':' disabled')+'>Export</button>'+
+      '<button id="tpldelall" style="'+B+'flex:1;color:#f54040;"'+(n?'':' disabled')+'>Delete all</button>'+
+      '<button id="tplclose" style="'+B+'flex:1;">Close</button>'+
+    '</div>';
+
+  panel.querySelectorAll('[data-tpladd]').forEach(b=>{ b.onclick = ()=>tplAddCurrentGroup(+b.dataset.tpladd); });
+  panel.querySelectorAll('[data-tpldel]').forEach(b=>{ b.onclick = ()=>tplRemoveEntry(+b.dataset.tpldel); });
+  const nameEl = document.getElementById('tplname');
+  if (nameEl) nameEl.oninput = e => { if (!strokeTpl) strokeTpl = tplBlank(); strokeTpl.name = e.target.value; tplStore(); };
+  const rateEl = document.getElementById('tplrate');
+  if (rateEl) rateEl.oninput = e => {
+    _tplPreviewRate = +e.target.value;
+    const l = document.getElementById('tplratelbl');
+    if (l) l.textContent = _tplPreviewRate.toFixed(1);
+    drawTemplatePreview();
+  };
+  document.getElementById('tplimport').onclick = tplImportPick;
+  document.getElementById('tplexport').onclick = tplExport;
+  document.getElementById('tpldelall').onclick = tplClearAll;
+  document.getElementById('tplclose').onclick = () => { const m = document.getElementById('_tplmodal'); if (m) m.remove(); };
+  drawTemplatePreview();
+}
+
+function drawTemplatePreview(){
+  const cv = document.getElementById('tplPrevC');
+  if (!cv) return;
+  const t = strokeTpl;
+  if (!t || !t.entries.length) return;
+  const C = pal();
+  const dpr = window.devicePixelRatio || 1;
+  const W = Math.max(160, cv.parentElement.clientWidth), H = 175;
+  cv.width = W*dpr; cv.height = H*dpr;
+  cv.style.width = W+'px'; cv.style.height = H+'px';
+  const ctx = cv.getContext('2d');
+  ctx.setTransform(dpr,0,0,dpr,0,0);
+  ctx.clearRect(0,0,W,H);
+  const PL = 32, PR = 8, PT = 10, PB = 18, pw = W-PL-PR, ph = H-PT-PB;
+  const N = t.points || t.entries[0].data.length;
+  const res = tplResolve(t, _tplPreviewRate);
+  let yMin = Infinity, yMax = -Infinity;
+  t.entries.forEach(e=>e.data.forEach(v=>{ if(v<yMin)yMin=v; if(v>yMax)yMax=v; }));
+  if (res) res.data.forEach(v=>{ if(v<yMin)yMin=v; if(v>yMax)yMax=v; });
+  const pad = (yMax-yMin)*0.1 || 1;
+  yMin -= pad; yMax += pad;
+  const rng = yMax-yMin || 1;
+  const sx = i => PL + (i/(N-1))*pw;
+  const sy = v => PT + ph - (v-yMin)/rng*ph;
+  ctx.strokeStyle = C.frameLn; ctx.lineWidth = 1; ctx.strokeRect(PL,PT,pw,ph);
+  if (yMin < 0 && yMax > 0){
+    ctx.strokeStyle = C.gridLn; ctx.beginPath();
+    ctx.moveTo(PL,sy(0)); ctx.lineTo(PL+pw,sy(0)); ctx.stroke();
+  }
+  ctx.lineWidth = 1; ctx.strokeStyle = C.muted; ctx.globalAlpha = 0.4;
+  t.entries.forEach(e=>{
+    ctx.beginPath();
+    for (let i=0;i<N;i++){ const x=sx(i), y=sy(e.data[i]); i?ctx.lineTo(x,y):ctx.moveTo(x,y); }
+    ctx.stroke();
+  });
+  ctx.globalAlpha = 1;
+  if (res){
+    if (res.driveFrac > 0 && res.driveFrac < 1){
+      const xd = sx(Math.round(res.driveFrac*(N-1)));
+      ctx.save(); ctx.setLineDash([3,4]); ctx.strokeStyle = '#27ae60'; ctx.lineWidth = 1.5;
+      ctx.beginPath(); ctx.moveTo(xd,PT); ctx.lineTo(xd,PT+ph); ctx.stroke(); ctx.restore();
+    }
+    ctx.beginPath();
+    for (let i=0;i<N;i++){ const x=sx(i), y=sy(res.data[i]); i?ctx.lineTo(x,y):ctx.moveTo(x,y); }
+    ctx.strokeStyle = '#c084fc'; ctx.lineWidth = 2.5; ctx.lineJoin = 'round'; ctx.stroke();
+  }
+  ctx.font = '8px -apple-system, BlinkMacSystemFont, Helvetica Neue, sans-serif';
+  ctx.fillStyle = C.muted; ctx.textAlign = 'left';  ctx.fillText('catch', PL, H-5);
+  ctx.textAlign = 'right'; ctx.fillText('next catch', PL+pw, H-5);
+  ctx.fillStyle = C.gridLb; ctx.textAlign = 'right';
+  ctx.fillText(yMax.toFixed(1), PL-3, PT+8);
+  ctx.fillText(yMin.toFixed(1), PL-3, PT+ph);
+}
+
 function buildCurveSection(){
   const sec=document.getElementById('curvesec');
   if(!curveGroups.length){sec.style.display='none';return;}
@@ -3643,7 +3994,7 @@ function buildCurveStats(){
     {l:'Time',fn:g=>{const a=g.strokes;return a.length?fmtTime(a[a.length-1].elapsed-a[0].elapsed):EM;}},
   ];
   for(const m of METRIC_DEFS){
-    if(hid[m.k]||(isErgSession()&&!ERG_TILE_KEYS.includes(m.k))||(!isErgSession()&&ERG_ONLY_KEYS.includes(m.k)))continue;
+    if(hid[m.k]||(isErgSession()&&!ERG_TILE_KEYS.includes(m.k)))continue;
     if(m.k==='hr'){
       rows.push({l:'Avg '+m.l, c:m.c, fn:g=>{
         const arr=g.strokes.map(s=>nearestHRIn(g.hrT,g.hrBpm,s.ms)).filter(b=>b!=null&&b>40&&b<220);
@@ -5072,6 +5423,9 @@ document.getElementById('addcompbtn').onclick=showAddComparePicker;
 document.getElementById('xmode').onchange=schedRender;
 document.getElementById('emaMode').onchange=schedRender;
 document.getElementById('clearcurvebtn').onclick=clearAllCurves;
+document.getElementById('tplbtn').onclick=openTemplateModal;
+document.getElementById('tplmenubtn').onclick=()=>{document.getElementById('filemenu').classList.remove('open');openTemplateModal();};
+strokeTpl=tplLoadStored();
 document.getElementById('cards').addEventListener('click',e=>{const c=e.target.closest('[data-vis]');if(c)window.toggleVis(c.dataset.vis);});
 
 const su=document.getElementById('startup');
