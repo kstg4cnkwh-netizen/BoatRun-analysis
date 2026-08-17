@@ -3341,12 +3341,14 @@ function havM(a,b){
    without ever tripping the live rescue. Straight-line anchors ~30 s apart are
    used rather than fix-to-fix, so per-second position jitter cannot inflate
    the result. A 5%% margin is required before GPS overrides Doppler. */
-function segDistanceM(strokes){
+function segDistanceM(strokes,useGps){
   if(!strokes||strokes.length<2)return null;
   const a=strokes[0],b=strokes[strokes.length-1];
   const dop=(isFinite(a.dist)&&isFinite(b.dist)&&b.dist>a.dist)?(b.dist-a.dist):null;
   let gps=null;
-  if(GPSTRACE.length>2){
+  /* GPSTRACE only ever holds the ACTIVE session, so a curve group pinned from
+     another session must fall back to its own recorded dist. */
+  if(useGps!==false&&GPSTRACE.length>2){
     let pts=[];
     if(isFinite(a.ms)&&isFinite(b.ms))pts=GPSTRACE.filter(p=>p.t>=a.ms&&p.t<=b.ms);
     if(pts.length<3&&isFinite(a.elapsed)&&isFinite(b.elapsed))
@@ -3369,10 +3371,10 @@ function segDistanceM(strokes){
 
 /* Segment pace in s/500m from total distance over total time. Averaging the
    per-stroke pace values instead biases slow, because pace is a reciprocal. */
-function segPaceS500(strokes){
+function segPaceS500(strokes,useGps){
   if(!strokes||strokes.length<2)return null;
   const t=strokes[strokes.length-1].elapsed-strokes[0].elapsed;
-  const d=segDistanceM(strokes);
+  const d=segDistanceM(strokes,useGps);
   return (t>0&&d>0)?(t/d*500):null;
 }
 
@@ -3486,7 +3488,7 @@ function computeGroupCurve(strokes){
     for(let i=pki+1;i<CURVE_POINTS;i++){if(avg[i]<thr){df=i/(CURVE_POINTS-1);break;}}
   }
   let gAvgPace=paceN?paceSum/paceN:null;
-  if(!isErgSession()){const _p=segPaceS500(strokes);if(_p>0)gAvgPace=_p;}
+  if(!isErgSession()){const _p=segPaceS500(strokes,true);if(_p>0)gAvgPace=_p;}
   return{data:avg,driveFrac:df,n:valid.length,total:strokes.length,
     avgRate:rateN?rateSum/rateN:null,avgDPS:dpsN?dpsSum/dpsN:null,avgPace:gAvgPace,
     avgDriveMs:drvN?drvSum/drvN:null};
@@ -4319,7 +4321,14 @@ function buildCurveStats(){
     }
     rows.push({l:'Avg '+m.l, c:m.c, fn:g=>{
       const arr=g.strokes.filter(m.filter).map(m.val);
-      return arr.length?m.fmtAvg(arrMean(arr)):EM;
+      if(!arr.length)return EM;
+      /* Pace is a reciprocal — average it as total distance over total time,
+         not as the mean of the per-stroke values, which biases slow. */
+      if(m.k==='pace'&&!isErgSession()){
+        const _p=segPaceS500(g.strokes,g.sessionIdx===activeSessionIdx);
+        if(_p>0)return m.fmtAvg(_p);
+      }
+      return m.fmtAvg(arrMean(arr));
     }});
     if(m.showBest) rows.push({l:'Best '+m.l, c:m.c, fn:g=>{
       const arr=g.strokes.filter(m.filter).map(m.val);
