@@ -672,7 +672,7 @@ function setTier(t) {
     v.tier = t;
     try { localStorage.setItem(TIER_SETTINGS_KEY, JSON.stringify(v)); } catch {}
 }
-function isPro() { return true; } // BETA: Analyser fully unlocked until full release then: function isPro() { return getTier() === 'pro'; }
+function isPro() { return true; } // BETA: Analyser fully unlocked until full release then: function isPro() { const t = getTier(); return t === 'pro' || t === 'coach'; }
 function isCoach() { return true; } // BETA: Analyser fully unlocked until full release then: function isCoach() { return getTier() === 'coach'; }
 // ── FIREBASE AUTH (account + entitlement) ───────────────────────────────────
 const firebaseConfig = {
@@ -3327,57 +3327,6 @@ function clearSelection(){
 // ══════════════════════════════════════════════════════════════════════════
 // STATS STRIP — shows selection stats when active, else "No selection"
 // ══════════════════════════════════════════════════════════════════════════
-/* Great-circle metres between two {lat,lon} points. */
-function havM(a,b){
-  const R=6371000,r=Math.PI/180,dLat=(b.lat-a.lat)*r,dLon=(b.lon-a.lon)*r;
-  const x=Math.sin(dLat/2)**2+Math.cos(a.lat*r)*Math.cos(b.lat*r)*Math.sin(dLon/2)**2;
-  return 2*R*Math.atan2(Math.sqrt(x),Math.sqrt(1-x));
-}
-
-/* Distance covered across a stroke slice, for segment pace.
-   The recorded Doppler-integrated dist is the primary source, but GPS position
-   is measured over the same window and wins when it says the boat travelled
-   meaningfully further — Doppler multipath under-reads for minutes at a time
-   without ever tripping the live rescue. Straight-line anchors ~30 s apart are
-   used rather than fix-to-fix, so per-second position jitter cannot inflate
-   the result. A 5%% margin is required before GPS overrides Doppler. */
-function segDistanceM(strokes,useGps){
-  if(!strokes||strokes.length<2)return null;
-  const a=strokes[0],b=strokes[strokes.length-1];
-  const dop=(isFinite(a.dist)&&isFinite(b.dist)&&b.dist>a.dist)?(b.dist-a.dist):null;
-  let gps=null;
-  /* GPSTRACE only ever holds the ACTIVE session, so a curve group pinned from
-     another session must fall back to its own recorded dist. */
-  if(useGps!==false&&GPSTRACE.length>2){
-    let pts=[];
-    if(isFinite(a.ms)&&isFinite(b.ms))pts=GPSTRACE.filter(p=>p.t>=a.ms&&p.t<=b.ms);
-    if(pts.length<3&&isFinite(a.elapsed)&&isFinite(b.elapsed))
-      pts=GPSTRACE.filter(p=>p.t>=a.elapsed*1000&&p.t<=b.elapsed*1000);
-    if(pts.length>=3){
-      let d=0,i=0;
-      while(i<pts.length-1){
-        let j=i+1;
-        while(j<pts.length-1&&(pts[j].t-pts[i].t)<30000)j++;
-        d+=havM(pts[i],pts[j]);
-        i=j;
-      }
-      gps=d;
-    }
-  }
-  if(dop==null)return gps;
-  if(gps!=null&&gps>dop*1.05)return gps;
-  return dop;
-}
-
-/* Segment pace in s/500m from total distance over total time. Averaging the
-   per-stroke pace values instead biases slow, because pace is a reciprocal. */
-function segPaceS500(strokes,useGps){
-  if(!strokes||strokes.length<2)return null;
-  const t=strokes[strokes.length-1].elapsed-strokes[0].elapsed;
-  const d=segDistanceM(strokes,useGps);
-  return (t>0&&d>0)?(t/d*500):null;
-}
-
 function updateStatsStrip(){
   const strip=document.getElementById('statsstrip');
   if(!ST.length){strip.style.display='none';return;}
@@ -3409,9 +3358,7 @@ function updateStatsStrip(){
     if(hid[m.k]||!metricFitsSession(m.k))continue;
     const arr=strokes.filter(m.filter).map(m.val);
     if(!arr.length)continue;
-    let avgv=arrMean(arr);
-    if(m.k==='pace'&&!isErgSession()){const _p=segPaceS500(strokes);if(_p>0)avgv=_p;}
-    html+=sp('Avg '+m.l,m.fmtAvg(avgv),m.c);
+    html+=sp('Avg '+m.l,m.fmtAvg(arrMean(arr)),m.c);
     if(m.showBest) html+=sp('Best '+m.l,m.fmtAvg(m.bestIsMin?arrMin(arr):arrMax(arr)),m.c);
   }
   html+='<button id="selclear" onclick="clearSelection()">✕ Clear</button>';
@@ -3487,10 +3434,8 @@ function computeGroupCurve(strokes){
     const thr=pk*0.25;
     for(let i=pki+1;i<CURVE_POINTS;i++){if(avg[i]<thr){df=i/(CURVE_POINTS-1);break;}}
   }
-  let gAvgPace=paceN?paceSum/paceN:null;
-  if(!isErgSession()){const _p=segPaceS500(strokes,true);if(_p>0)gAvgPace=_p;}
   return{data:avg,driveFrac:df,n:valid.length,total:strokes.length,
-    avgRate:rateN?rateSum/rateN:null,avgDPS:dpsN?dpsSum/dpsN:null,avgPace:gAvgPace,
+    avgRate:rateN?rateSum/rateN:null,avgDPS:dpsN?dpsSum/dpsN:null,avgPace:paceN?paceSum/paceN:null,
     avgDriveMs:drvN?drvSum/drvN:null};
 }
 
@@ -4321,14 +4266,7 @@ function buildCurveStats(){
     }
     rows.push({l:'Avg '+m.l, c:m.c, fn:g=>{
       const arr=g.strokes.filter(m.filter).map(m.val);
-      if(!arr.length)return EM;
-      /* Pace is a reciprocal — average it as total distance over total time,
-         not as the mean of the per-stroke values, which biases slow. */
-      if(m.k==='pace'&&!isErgSession()){
-        const _p=segPaceS500(g.strokes,g.sessionIdx===activeSessionIdx);
-        if(_p>0)return m.fmtAvg(_p);
-      }
-      return m.fmtAvg(arrMean(arr));
+      return arr.length?m.fmtAvg(arrMean(arr)):EM;
     }});
     if(m.showBest) rows.push({l:'Best '+m.l, c:m.c, fn:g=>{
       const arr=g.strokes.filter(m.filter).map(m.val);
@@ -5703,10 +5641,10 @@ function showPlanModal(msg){
   </div>
   ${msg?`<div style="font-size:12px;color:var(--text);margin-bottom:14px;">${msg}</div>`:''}
   <div style="display:flex;align-items:center;gap:8px;">
-  <div style="padding:8px 14px;border-radius:8px;background:${pro?'var(--b)':'var(--s2)'};color:${pro?'#000':'var(--text)'};font-weight:700;">${pro?'PRO':'BASIC'}</div>
+  <div style="padding:8px 14px;border-radius:8px;background:${isCoach()?'#8e44ad':(pro?'var(--b)':'var(--s2)')};color:${isCoach()?'#fff':(pro?'#000':'var(--text)')};font-weight:700;">${isCoach()?'COACH':(pro?'PRO':'BASIC')}</div>
   </div>
   <div style="font-size:11px;color:var(--muted);margin-top:12px;line-height:1.5;">Basic: full single-session replay, always free. Pro unlocks multi-session comparison and video overlay/sync — buy Pro in the BoatRun app while signed in to this same account, and it syncs here automatically.</div>
-  <div style="font-size:11px;color:var(--muted);margin-top:10px;line-height:1.5;">Coaching a squad? The Coach add-on lives in the BoatRun app (Account &amp; Plan → Upgrade to Coach) — it lets you push synced erg workouts and see live pace/rate for every connected rower. Coach includes Pro.</div>
+  <div style="font-size:11px;color:var(--muted);margin-top:10px;line-height:1.5;">Coaching a squad? The Coach add-on lives in the BoatRun app (Account &amp; Plan → Upgrade to Coach) — it lets you push synced erg workouts and see live pace/rate for every connected rower. In the Analyser it adds stroke templates — create, edit and overlay them on video. Coach includes Pro.</div>
   </div>`;
   overlay.appendChild(panel);
   overlay.onclick=e=>{if(e.target===overlay)overlay.remove();};
