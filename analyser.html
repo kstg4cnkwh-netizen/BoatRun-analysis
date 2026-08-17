@@ -3327,6 +3327,55 @@ function clearSelection(){
 // ══════════════════════════════════════════════════════════════════════════
 // STATS STRIP — shows selection stats when active, else "No selection"
 // ══════════════════════════════════════════════════════════════════════════
+/* Great-circle metres between two {lat,lon} points. */
+function havM(a,b){
+  const R=6371000,r=Math.PI/180,dLat=(b.lat-a.lat)*r,dLon=(b.lon-a.lon)*r;
+  const x=Math.sin(dLat/2)**2+Math.cos(a.lat*r)*Math.cos(b.lat*r)*Math.sin(dLon/2)**2;
+  return 2*R*Math.atan2(Math.sqrt(x),Math.sqrt(1-x));
+}
+
+/* Distance covered across a stroke slice, for segment pace.
+   The recorded Doppler-integrated dist is the primary source, but GPS position
+   is measured over the same window and wins when it says the boat travelled
+   meaningfully further — Doppler multipath under-reads for minutes at a time
+   without ever tripping the live rescue. Straight-line anchors ~30 s apart are
+   used rather than fix-to-fix, so per-second position jitter cannot inflate
+   the result. A 5%% margin is required before GPS overrides Doppler. */
+function segDistanceM(strokes){
+  if(!strokes||strokes.length<2)return null;
+  const a=strokes[0],b=strokes[strokes.length-1];
+  const dop=(isFinite(a.dist)&&isFinite(b.dist)&&b.dist>a.dist)?(b.dist-a.dist):null;
+  let gps=null;
+  if(GPSTRACE.length>2){
+    let pts=[];
+    if(isFinite(a.ms)&&isFinite(b.ms))pts=GPSTRACE.filter(p=>p.t>=a.ms&&p.t<=b.ms);
+    if(pts.length<3&&isFinite(a.elapsed)&&isFinite(b.elapsed))
+      pts=GPSTRACE.filter(p=>p.t>=a.elapsed*1000&&p.t<=b.elapsed*1000);
+    if(pts.length>=3){
+      let d=0,i=0;
+      while(i<pts.length-1){
+        let j=i+1;
+        while(j<pts.length-1&&(pts[j].t-pts[i].t)<30000)j++;
+        d+=havM(pts[i],pts[j]);
+        i=j;
+      }
+      gps=d;
+    }
+  }
+  if(dop==null)return gps;
+  if(gps!=null&&gps>dop*1.05)return gps;
+  return dop;
+}
+
+/* Segment pace in s/500m from total distance over total time. Averaging the
+   per-stroke pace values instead biases slow, because pace is a reciprocal. */
+function segPaceS500(strokes){
+  if(!strokes||strokes.length<2)return null;
+  const t=strokes[strokes.length-1].elapsed-strokes[0].elapsed;
+  const d=segDistanceM(strokes);
+  return (t>0&&d>0)?(t/d*500):null;
+}
+
 function updateStatsStrip(){
   const strip=document.getElementById('statsstrip');
   if(!ST.length){strip.style.display='none';return;}
@@ -3358,7 +3407,9 @@ function updateStatsStrip(){
     if(hid[m.k]||!metricFitsSession(m.k))continue;
     const arr=strokes.filter(m.filter).map(m.val);
     if(!arr.length)continue;
-    html+=sp('Avg '+m.l,m.fmtAvg(arrMean(arr)),m.c);
+    let avgv=arrMean(arr);
+    if(m.k==='pace'&&!isErgSession()){const _p=segPaceS500(strokes);if(_p>0)avgv=_p;}
+    html+=sp('Avg '+m.l,m.fmtAvg(avgv),m.c);
     if(m.showBest) html+=sp('Best '+m.l,m.fmtAvg(m.bestIsMin?arrMin(arr):arrMax(arr)),m.c);
   }
   html+='<button id="selclear" onclick="clearSelection()">✕ Clear</button>';
@@ -3434,8 +3485,10 @@ function computeGroupCurve(strokes){
     const thr=pk*0.25;
     for(let i=pki+1;i<CURVE_POINTS;i++){if(avg[i]<thr){df=i/(CURVE_POINTS-1);break;}}
   }
+  let gAvgPace=paceN?paceSum/paceN:null;
+  if(!isErgSession()){const _p=segPaceS500(strokes);if(_p>0)gAvgPace=_p;}
   return{data:avg,driveFrac:df,n:valid.length,total:strokes.length,
-    avgRate:rateN?rateSum/rateN:null,avgDPS:dpsN?dpsSum/dpsN:null,avgPace:paceN?paceSum/paceN:null,
+    avgRate:rateN?rateSum/rateN:null,avgDPS:dpsN?dpsSum/dpsN:null,avgPace:gAvgPace,
     avgDriveMs:drvN?drvSum/drvN:null};
 }
 
