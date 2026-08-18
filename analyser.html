@@ -2764,6 +2764,134 @@ function coachIntervalTable(sn){
     '<th style="'+th+'">Pace</th><th style="'+th+'">SPM</th><th style="'+th+'">W</th><th style="'+th+'">HR</th></tr>'+
     rows+tot+'</table></div>';
 }
+/* ── CONSOLIDATED LAP EXPORT ────────────────────────────────────────────────
+   Flattens every athlete's interval table in the coach session into one row
+   per lap, then writes it out in whichever format the coach's tools want. */
+function coachLapRows(file){
+  const iv=file.intervals||{};
+  const roster=(file.roster&&file.roster.length)?file.roster.slice()
+    :Object.keys(iv).map(d=>({dev:d,name:(iv[d]||{}).name||'Rower'}));
+  roster.sort((a,b)=>String(a.name||'').localeCompare(String(b.name||'')));
+  const out=[];
+  roster.forEach(r=>{
+    const sn=iv[r.dev]||{};
+    const st=sn.start||r.start||0;
+    (sn.rows||[]).forEach((row,i)=>{
+      const pace=(row.pace>0)?row.pace:null;
+      out.push({
+        athlete:(sn.name||r.name||'Rower'),
+        squad:(file.squadCode||''),
+        session:(sn.sess||file.sessName||''),
+        mode:(sn.mode||r.mode||'rower'),
+        start_iso:(st?new Date(st).toISOString():''),
+        lap:(row.n!=null?row.n:(i+1)),
+        type:String(row.type||'work').toLowerCase(),
+        time_s:(row.time!=null?Math.round(row.time*10)/10:null),
+        time_hms:(row.time!=null?fmtTime(row.time):''),
+        distance_m:(row.dist!=null?Math.round(row.dist):null),
+        pace_s_500m:(pace?Math.round(pace*10)/10:null),
+        pace_mmss:(pace?fmtPace(pace):''),
+        stroke_rate_spm:(row.rate!=null?row.rate:null),
+        power_w:(row.power!=null?row.power:null),
+        hr_bpm:(row.hr!=null?row.hr:null)
+      });
+    });
+  });
+  return out;
+}
+const COACH_LAP_COLS=['athlete','squad','session','mode','start_iso','lap','type',
+  'time_s','time_hms','distance_m','pace_s_500m','pace_mmss','stroke_rate_spm','power_w','hr_bpm'];
+function coachLapFname(file){
+  const d=new Date(file.end||Date.now()),z=n=>String(n).padStart(2,'0');
+  return 'CoachLaps_'+d.getFullYear()+'-'+z(d.getMonth()+1)+'-'+z(d.getDate())+'_'+
+    z(d.getHours())+z(d.getMinutes())+'_SQ'+(file.squadCode||'');
+}
+function coachLapDL(text,mime,ext,file,label){
+  const blob=new Blob([text],{type:mime});
+  const url=URL.createObjectURL(blob);
+  const a=document.createElement('a');
+  a.href=url; a.download=coachLapFname(file)+ext; a.click();
+  setTimeout(()=>URL.revokeObjectURL(url),2000);
+  toast(label+' exported \u00b7 '+coachLapFname(file)+ext);
+}
+function coachLapDelim(rows,sep){
+  const cell=v=>{
+    let s=(v==null?'':String(v));
+    if(sep==='\t')return s.replace(/[\t\r\n]/g,' ');
+    return /[",\r\n]/.test(s)?('"'+s.replace(/"/g,'""')+'"'):s;
+  };
+  const head=COACH_LAP_COLS.join(sep);
+  const body=rows.map(r=>COACH_LAP_COLS.map(c=>cell(r[c])).join(sep)).join('\r\n');
+  return head+'\r\n'+body+'\r\n';
+}
+function coachLapHTML(file,rows){
+  const th='padding:5px 8px;border:1px solid #999;background:#eee;text-align:left;font-size:12px;';
+  const td='padding:4px 8px;border:1px solid #ccc;font-size:12px;';
+  const body=rows.map(r=>'<tr>'+COACH_LAP_COLS.map(c=>'<td style="'+td+'">'+
+    coachEsc(r[c]==null?'':r[c])+'</td>').join('')+'</tr>').join('\n');
+  return '<!doctype html><html><head><meta charset="utf-8"><title>'+
+    coachEsc(coachLapFname(file))+'</title></head><body>'+
+    '<h3 style="font-family:sans-serif;">'+coachEsc(file.sessName||('Squad '+file.squadCode))+
+    ' \u2014 consolidated laps</h3>'+
+    '<table style="border-collapse:collapse;font-family:sans-serif;"><tr>'+
+    COACH_LAP_COLS.map(c=>'<th style="'+th+'">'+c+'</th>').join('')+'</tr>'+
+    body+'</table></body></html>';
+}
+function coachExportLaps(file,fmt){
+  const rows=coachLapRows(file);
+  if(!rows.length){ toast('No lap data in this coach session'); return; }
+  if(fmt==='csv') coachLapDL('\ufeff'+coachLapDelim(rows,','),'text/csv;charset=utf-8','.csv',file,'CSV');
+  else if(fmt==='tsv') coachLapDL(coachLapDelim(rows,'\t'),'text/tab-separated-values;charset=utf-8','.tsv',file,'TSV');
+  else if(fmt==='json') coachLapDL(JSON.stringify({
+      squadCode:file.squadCode||null, sessName:file.sessName||null,
+      end:file.end||null, athletes:(file.roster||[]).length,
+      columns:COACH_LAP_COLS, laps:rows
+    },null,2),'application/json','.json',file,'JSON');
+  else if(fmt==='html') coachLapDL(coachLapHTML(file,rows),'text/html;charset=utf-8','.html',file,'HTML');
+  else if(fmt==='clip'){
+    const t=coachLapDelim(rows,'\t');
+    if(navigator.clipboard&&navigator.clipboard.writeText){
+      navigator.clipboard.writeText(t).then(()=>toast(rows.length+' laps copied \u2014 paste into a spreadsheet'))
+        .catch(()=>toast('Clipboard blocked \u2014 use TSV instead'));
+    } else toast('Clipboard not available \u2014 use TSV instead');
+  }
+}
+function coachExportMenu(file){
+  document.getElementById('_coach_exp')?.remove();
+  const rows=coachLapRows(file);
+  const ov=document.createElement('div');
+  ov.id='_coach_exp';
+  ov.style.cssText='position:fixed;inset:0;background:rgba(0,0,0,.72);display:flex;align-items:center;justify-content:center;z-index:10001;';
+  const p=document.createElement('div');
+  p.style.cssText='background:var(--s1);border:1px solid var(--border);border-radius:10px;padding:18px;width:min(92vw,360px);color:var(--text);font-family:-apple-system,BlinkMacSystemFont,Helvetica Neue,sans-serif;';
+  p.innerHTML='<div style="font-size:14px;font-weight:700;color:var(--b);">Export consolidated laps</div>'+
+    '<div style="font-size:11px;color:var(--muted);margin:4px 0 14px;">'+rows.length+
+    ' lap'+(rows.length===1?'':'s')+' across '+((file.roster||[]).length||Object.keys(file.intervals||{}).length)+
+    ' athlete'+(((file.roster||[]).length)===1?'':'s')+' \u00b7 one row per lap</div>';
+  const opts=[
+    ['csv','CSV','Excel, Sheets, Numbers, R, Python'],
+    ['tsv','TSV','Tab separated \u2014 clean paste into Excel'],
+    ['json','JSON','Structured, for scripts and databases'],
+    ['html','HTML table','Open in a browser or print to PDF'],
+    ['clip','Copy to clipboard','Paste straight into a spreadsheet']
+  ];
+  opts.forEach(o=>{
+    const b=document.createElement('button');
+    b.style.cssText='display:block;width:100%;text-align:left;background:var(--s2);border:1px solid var(--border);color:var(--text);border-radius:6px;padding:9px 12px;margin-bottom:8px;cursor:pointer;font-family:inherit;';
+    b.innerHTML='<div style="font-size:12px;font-weight:700;">'+o[1]+'</div>'+
+      '<div style="font-size:10px;color:var(--muted);">'+o[2]+'</div>';
+    b.onclick=()=>{ coachExportLaps(file,o[0]); ov.remove(); };
+    p.appendChild(b);
+  });
+  const c=document.createElement('button');
+  c.textContent='Cancel';
+  c.style.cssText='display:block;width:100%;background:none;border:1px solid var(--border);color:var(--muted);border-radius:6px;padding:8px;font-size:11px;cursor:pointer;font-family:inherit;margin-top:4px;';
+  c.onclick=()=>ov.remove();
+  p.appendChild(c);
+  ov.appendChild(p);
+  ov.onclick=e=>{ if(e.target===ov) ov.remove(); };
+  document.body.appendChild(ov);
+}
 function showCoachSessionView(file,fileId){
   document.getElementById('_coach_view')?.remove();
   const overlay=document.createElement('div');
@@ -2788,7 +2916,11 @@ function showCoachSessionView(file,fileId){
   close.textContent='\u2715';
   close.style.cssText='background:none;border:1px solid var(--border);color:var(--muted);border-radius:6px;padding:5px 10px;font-size:11px;cursor:pointer;flex-shrink:0;';
   close.onclick=()=>overlay.remove();
-  hdr.appendChild(allBtn); hdr.appendChild(close);
+  const expBtn=document.createElement('button');
+  expBtn.textContent='\u2913 Export laps';
+  expBtn.style.cssText='background:var(--s2);border:1px solid var(--border);color:var(--text);border-radius:6px;padding:7px 12px;font-size:11px;font-weight:700;cursor:pointer;font-family:inherit;flex-shrink:0;';
+  expBtn.onclick=()=>coachExportMenu(file);
+  hdr.appendChild(expBtn); hdr.appendChild(allBtn); hdr.appendChild(close);
   panel.appendChild(hdr);
   const body=document.createElement('div');
   body.style.cssText='padding:8px 16px 18px;';
