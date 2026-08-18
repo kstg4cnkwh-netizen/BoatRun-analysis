@@ -46,6 +46,8 @@
   /* ── Header ── */
   #hdr { display: flex; align-items: center; gap: 10px; padding: 11px 20px; background: rgb(5,23,56); border-bottom: 1px solid var(--border); position: sticky; top: 0; z-index: 200; flex-wrap: wrap; box-shadow: 0 1px 0 var(--border), 0 4px 16px rgba(0,0,0,.14); }
   #hdr h1 { font-family: -apple-system, BlinkMacSystemFont, Helvetica Neue, sans-serif; font-size: 17px; font-weight: 700; color: #fff; letter-spacing: -.4px; }
+  #hdr h1 a { color: inherit; text-decoration: none; }
+  #hdr h1 a:hover { opacity: .8; }
   #hdr .meta { color: rgba(255,255,255,.92); font-size: 15px; line-height: 1.5; font-weight: 500; }
   #hdr .sp { flex: 1; }
   .hbtn { background: transparent; border: 1px solid var(--border); color: var(--muted); padding: 5px 13px; border-radius: 7px; font-family: -apple-system, BlinkMacSystemFont, Helvetica Neue, sans-serif; font-size: 11px; cursor: pointer; white-space: nowrap; transition: border-color .15s, color .15s, background .15s; }
@@ -494,7 +496,7 @@ body.light .hdrname{color:#fff;}
 <body class="light">
 
 <div id="hdr">
-  <h1>⊳ BoatRun</h1>
+  <h1><a href="https://boatrun.au" title="BoatRun home">⊳ BoatRun</a></h1>
   <div class="meta" id="hdrmeta"></div>
   <div class="sp"></div>
   <div class="hdr-tabs">
