@@ -652,7 +652,7 @@ body.light .hdrname{color:#fff;}
       const params = new URLSearchParams(location.hash.slice(1));
       const token = params.get('access_token');
       if (token) {
-        window.opener.postMessage({ type: 'ad_oauth_token', token: token }, location.origin);
+        window.opener.postMessage({ type: 'ad_oauth_token', token: token, state: params.get('state') || '' }, location.origin);
         document.body.innerHTML = '<div style="font-family:sans-serif;padding:40px;text-align:center;">Signed in — you can close this window.</div>';
         setTimeout(() => window.close(), 400);
       }
@@ -777,20 +777,37 @@ const AnalyserAuth = {
 // ══════════════════════════════════════════════════════════════════════════
 const AnalyserDrive = {
   CLIENT_ID: '118760764612-4kbbha2t6ga218im3ut25l55q3uld32h.apps.googleusercontent.com',
+  LEGACY_CLIENT_ID: '729480414852-kko8e7bi3r38tcg2rf6iiupptagoegpc.apps.googleusercontent.com',
   SCOPE: 'https://www.googleapis.com/auth/drive.appdata',
   _token: null,
+  _ltoken: null,
+  _legacyIds: new Set(),
   init() {
     const hash = new URLSearchParams(location.hash.slice(1));
     const token = hash.get('access_token');
-    if (token) {
+    if (token && hash.get('state') === 'legacy') {
+      history.replaceState({}, '', location.pathname);
+      this._ltoken = token;
+      sessionStorage.setItem('_ad_token_legacy', token);
+      const keep = sessionStorage.getItem('_ad_token');
+      if (keep) this._token = keep;
+      if (sessionStorage.getItem('_ad_pending') === '1') {
+        sessionStorage.removeItem('_ad_pending');
+        setTimeout(() => showStartup(), 300);
+      }
+    } else if (token) {
       history.replaceState({}, '', location.pathname);
       this._token = token;
       sessionStorage.setItem('_ad_token', token);
+      const keepL = sessionStorage.getItem('_ad_token_legacy');
+      if (keepL) this._ltoken = keepL;
       if (sessionStorage.getItem('_ad_pending') === '1') {
         sessionStorage.removeItem('_ad_pending');
         setTimeout(() => showStartup(), 300);
       }
     } else {
+      const savedL = sessionStorage.getItem('_ad_token_legacy');
+      if (savedL) { this._ltoken = savedL; }
       const saved = sessionStorage.getItem('_ad_token');
       if (saved) { this._token = saved; }
       else {
@@ -812,6 +829,15 @@ const AnalyserDrive = {
     window.addEventListener('message', (ev) => {
       if (ev.origin !== location.origin) return;
       if (ev.data && ev.data.type === 'ad_oauth_token' && ev.data.token) {
+        if (ev.data.state === 'legacy') {
+          this._ltoken = ev.data.token;
+          sessionStorage.setItem('_ad_token_legacy', ev.data.token);
+          this._legacyIds = new Set();
+          this._updateBtn();
+          toast('Old account connected \u2014 archive sessions included');
+          if (typeof showStartup === 'function') showStartup();
+          return;
+        }
         this._token = ev.data.token;
         sessionStorage.setItem('_ad_token', ev.data.token);
         this._updateBtn();
@@ -822,20 +848,38 @@ const AnalyserDrive = {
     });
   },
   isSignedIn() { return !!this._token; },
-  signIn() {
-    const p = new URLSearchParams({ client_id: this.CLIENT_ID, redirect_uri: location.origin + location.pathname, response_type: 'token', scope: this.SCOPE });
+  isLegacyLinked() { return !!this._ltoken; },
+  _authUrl(which) {
+    const legacy = which === 'legacy';
+    const p = new URLSearchParams({ client_id: legacy ? this.LEGACY_CLIENT_ID : this.CLIENT_ID, redirect_uri: location.origin + location.pathname, response_type: 'token', scope: this.SCOPE, state: legacy ? 'legacy' : 'main' });
+    return 'https://accounts.google.com/o/oauth2/v2/auth?' + p;
+  },
+  signIn(which) {
     const w = 480, h = 640;
     const left = Math.round((screen.width - w) / 2), top = Math.round((screen.height - h) / 2);
-    const popup = window.open('https://accounts.google.com/o/oauth2/v2/auth?' + p, 'boatrun_google_signin', `width=${w},height=${h},left=${left},top=${top}`);
-    if (!popup) { this._redirectSignIn(); return; }
+    const popup = window.open(this._authUrl(which), 'boatrun_google_signin', `width=${w},height=${h},left=${left},top=${top}`);
+    if (!popup) { this._redirectSignIn(which); return; }
     const closeCheck = setInterval(() => { if (popup.closed) clearInterval(closeCheck); }, 500);
   },
-  _redirectSignIn() {
+  signInLegacy() { this.signIn('legacy'); },
+  _redirectSignIn(which) {
     sessionStorage.setItem('_ad_pending', '1');
-    const p = new URLSearchParams({ client_id: this.CLIENT_ID, redirect_uri: location.origin + location.pathname, response_type: 'token', scope: this.SCOPE });
-    window.location.href = 'https://accounts.google.com/o/oauth2/v2/auth?' + p;
+    window.location.href = this._authUrl(which);
   },
-  signOut() { this._token = null; sessionStorage.removeItem('_ad_token'); this._updateBtn(); },
+  signOut() { this._token = null; this._ltoken = null; this._legacyIds = new Set(); sessionStorage.removeItem('_ad_token'); sessionStorage.removeItem('_ad_token_legacy'); this._updateBtn(); },
+  _tokFor(fileId) { return (this._legacyIds && this._legacyIds.has(fileId)) ? this._ltoken : this._token; },
+  async _listLegacy(q) {
+    if (!this._ltoken) return [];
+    try {
+      const r = await fetch(`https://www.googleapis.com/drive/v3/files?spaces=appDataFolder&q=${q}&fields=files(id,name,createdTime,size)&orderBy=createdTime+desc&pageSize=200`, { headers: { Authorization: 'Bearer ' + this._ltoken } });
+      if (r.status === 401) { this._ltoken = null; sessionStorage.removeItem('_ad_token_legacy'); this._updateBtn(); return []; }
+      if (!r.ok) return [];
+      const d = await r.json();
+      const files = d.files || [];
+      files.forEach(f => this._legacyIds.add(f.id));
+      return files;
+    } catch { return []; }
+  },
   async list() {
     this._check();
     const q = encodeURIComponent("name contains 'RowSess_' and name contains '.json' and trashed=false");
@@ -848,8 +892,10 @@ const AnalyserDrive = {
     if (resp.status === 401) { this._expire(); throw new Error('Session expired — sign out and sign in again'); }
     if (!resp.ok) throw new Error('Drive error: HTTP ' + resp.status + ' — try signing out and in again');
     const d = await resp.json();
+    let all = (d.files || []).concat(await this._listLegacy(q));
+    all.sort((a, b) => String(b.createdTime || '').localeCompare(String(a.createdTime || '')));
     const seen = new Set();
-    return (d.files || []).filter(f => { if (seen.has(f.name)) return false; seen.add(f.name); return true; });
+    return all.filter(f => { if (seen.has(f.name)) return false; seen.add(f.name); return true; });
   },
   // Coach session files sit in the same appDataFolder under a CoachSess_
   // prefix, so they are listed separately and never mixed into the rowing
@@ -861,24 +907,26 @@ const AnalyserDrive = {
     if (resp.status === 401) { this._expire(); throw new Error('Session expired — sign out and sign in again'); }
     if (!resp.ok) throw new Error('Drive error: HTTP ' + resp.status);
     const d = await resp.json();
+    let all = (d.files || []).concat(await this._listLegacy(q));
+    all.sort((a, b) => String(b.createdTime || '').localeCompare(String(a.createdTime || '')));
     const seen = new Set();
-    return (d.files || []).filter(f => { if (seen.has(f.name)) return false; seen.add(f.name); return true; });
+    return all.filter(f => { if (seen.has(f.name)) return false; seen.add(f.name); return true; });
   },
   async fetchSession(fileId) {
     this._check();
-    const resp = await fetch(`https://www.googleapis.com/drive/v3/files/${fileId}?alt=media`, { headers: { Authorization: 'Bearer ' + this._token } });
+    const resp = await fetch(`https://www.googleapis.com/drive/v3/files/${fileId}?alt=media`, { headers: { Authorization: 'Bearer ' + this._tokFor(fileId) } });
     if (resp.status === 401) { this._expire(); throw new Error('Session expired — please sign in again'); }
     if (!resp.ok) throw new Error('Drive fetch failed: HTTP ' + resp.status);
     return resp.json();
   },
   async deleteFile(fileId) {
     this._check();
-    const resp = await fetch(`https://www.googleapis.com/drive/v3/files/${fileId}`, { method: 'DELETE', headers: { Authorization: 'Bearer ' + this._token } });
+    const resp = await fetch(`https://www.googleapis.com/drive/v3/files/${fileId}`, { method: 'DELETE', headers: { Authorization: 'Bearer ' + this._tokFor(fileId) } });
     if (!resp.ok && resp.status !== 204) throw new Error('Delete failed: HTTP ' + resp.status);
   },
   async patchName(fileId, newName) {
     this._check();
-    const mResp = await fetch(`https://www.googleapis.com/drive/v3/files/${fileId}?fields=name`, { headers: { Authorization: 'Bearer ' + this._token } });
+    const mResp = await fetch(`https://www.googleapis.com/drive/v3/files/${fileId}?fields=name`, { headers: { Authorization: 'Bearer ' + this._tokFor(fileId) } });
     if (mResp.status===401) { this._expire(); throw new Error('Session expired'); }
     if (!mResp.ok) throw new Error('Metadata fetch failed: HTTP ' + mResp.status);
     const { name: currentName } = await mResp.json();
@@ -890,7 +938,7 @@ const AnalyserDrive = {
     form.append('metadata', new Blob([JSON.stringify({name: newFilename})], {type:'application/json'}));
     form.append('file', new Blob([JSON.stringify(content)], {type:'application/json'}));
     const r = await fetch(`https://www.googleapis.com/upload/drive/v3/files/${fileId}?uploadType=multipart`, {
-      method: 'PATCH', headers: { Authorization: 'Bearer ' + this._token }, body: form
+      method: 'PATCH', headers: { Authorization: 'Bearer ' + this._tokFor(fileId) }, body: form
     });
     if (!r.ok) throw new Error('Patch failed: HTTP ' + r.status);
   },
@@ -902,12 +950,12 @@ const AnalyserDrive = {
     form.append('metadata',new Blob([JSON.stringify({})],{type:'application/json'}));
     form.append('file',new Blob([JSON.stringify(content)],{type:'application/json'}));
     const r=await fetch(`https://www.googleapis.com/upload/drive/v3/files/${fileId}?uploadType=multipart`,{
-      method:'PATCH',headers:{Authorization:'Bearer '+this._token},body:form});
+      method:'PATCH',headers:{Authorization:'Bearer '+this._tokFor(fileId)},body:form});
     if(!r.ok) throw new Error('Sync save failed: HTTP '+r.status);
   },
   async patchFavourite(fileId, isFav) {
     this._check();
-    const mResp = await fetch(`https://www.googleapis.com/drive/v3/files/${fileId}?fields=name`, { headers: { Authorization: 'Bearer ' + this._token } });
+    const mResp = await fetch(`https://www.googleapis.com/drive/v3/files/${fileId}?fields=name`, { headers: { Authorization: 'Bearer ' + this._tokFor(fileId) } });
     if (mResp.status===401) { this._expire(); throw new Error('Session expired'); }
     if (!mResp.ok) throw new Error('Metadata fetch failed: HTTP ' + mResp.status);
     const { name: currentName } = await mResp.json();
@@ -915,7 +963,7 @@ const AnalyserDrive = {
     if (isFav) newName = newName.replace(/\.json$/, '_FAV1.json');
     const r = await fetch(`https://www.googleapis.com/drive/v3/files/${fileId}`, {
       method: 'PATCH',
-      headers: { Authorization: 'Bearer ' + this._token, 'Content-Type': 'application/json' },
+      headers: { Authorization: 'Bearer ' + this._tokFor(fileId), 'Content-Type': 'application/json' },
       body: JSON.stringify({ name: newName })
     });
     if (!r.ok) throw new Error('Favourite save failed: HTTP ' + r.status);
@@ -958,7 +1006,7 @@ const AnalyserDrive = {
       return true;
     } catch { return false; }
   },
-  _check() { if (!this._token) throw new Error('Not signed in to Drive'); },
+  _check() { if (!this._token && !this._ltoken) throw new Error('Not signed in to Drive'); },
   _expire() { this._token = null; sessionStorage.removeItem('_ad_token'); this._updateBtn(); },
   _updateBtn() {
     const dot = document.getElementById('gdrivedot');
@@ -966,7 +1014,7 @@ const AnalyserDrive = {
     if (!dot || !label) return;
     if (this.isSignedIn()) {
       dot.style.background = '#2ecc71';
-      label.textContent = 'Drive: Signed in';
+      label.textContent = this.isLegacyLinked() ? 'Drive: Signed in +archive' : 'Drive: Signed in';
     } else {
       dot.style.background = '#c0392b';
       label.textContent = 'Drive: Signed out';
@@ -5092,6 +5140,7 @@ async function showStartup(){
       <button class="dzbtn dzbtn-sec" id="sz-coach"><img src="icons/Import.svg"><span>Coach Sessions</span></button>
       <button class="dzbtn dzbtn-sec" id="sz-squad"><img src="icons/Import.svg"><span>From Squad</span></button>
       <button class="dzbtn dzbtn-sec" id="sz-openfile"><img src="icons/Open.svg"><span>Open file</span></button>
+      ${AnalyserDrive.isLegacyLinked() ? '' : '<button class="dzbtn dzbtn-sec" id="sz-oldacct"><span>Old sessions</span></button>'}
     </div>
     <div class="brpill">
       <div class="sz-lhd">Sessions<span class="sz-signout" id="sz-signout">Sign out</span></div>
@@ -5101,6 +5150,8 @@ async function showStartup(){
     </div>
   </div>`;
   document.getElementById('sz-signout').onclick=()=>{AnalyserDrive.signOut();showStartup();};
+  const _oldBtn=document.getElementById('sz-oldacct');
+  if(_oldBtn) _oldBtn.onclick=()=>{ toast('Sign in to the same Google account to load pre-update sessions'); AnalyserDrive.signInLegacy(); };
   document.getElementById('sz-coach').onclick=loadCoachSessions;
   document.getElementById('sz-squad').onclick=loadFromSquad;
   document.getElementById('sz-openfile').onclick=()=>document.getElementById('fin').click();
