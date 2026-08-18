@@ -775,6 +775,15 @@ const AnalyserAuth = {
 // ══════════════════════════════════════════════════════════════════════════
 // DRIVE (inline — works without drive-sync.js)
 // ══════════════════════════════════════════════════════════════════════════
+function _fnTs(name) {
+  const m = String(name || '').match(/(?:RowSess|CoachSess)_(\d{4})-(\d{2})-(\d{2})_(\d{2})(\d{2})/);
+  return m ? new Date(+m[1], +m[2] - 1, +m[3], +m[4], +m[5]).getTime() : 0;
+}
+function _byFnTsDesc(a, b) {
+  const ta = _fnTs(a.name), tb = _fnTs(b.name);
+  if (ta || tb) return tb - ta;
+  return String(b.createdTime || '').localeCompare(String(a.createdTime || ''));
+}
 const AnalyserDrive = {
   CLIENT_ID: '118760764612-4kbbha2t6ga218im3ut25l55q3uld32h.apps.googleusercontent.com',
   LEGACY_CLIENT_ID: '729480414852-kko8e7bi3r38tcg2rf6iiupptagoegpc.apps.googleusercontent.com',
@@ -937,7 +946,7 @@ const AnalyserDrive = {
     if (!resp.ok) throw new Error('Drive error: HTTP ' + resp.status + ' — try signing out and in again');
     const d = await resp.json();
     let all = (d.files || []).concat(await this._listLegacy(q));
-    all.sort((a, b) => String(b.createdTime || '').localeCompare(String(a.createdTime || '')));
+    all.sort(_byFnTsDesc);
     const seen = new Set();
     return all.filter(f => { if (seen.has(f.name)) return false; seen.add(f.name); return true; });
   },
@@ -952,7 +961,7 @@ const AnalyserDrive = {
     if (!resp.ok) throw new Error('Drive error: HTTP ' + resp.status);
     const d = await resp.json();
     let all = (d.files || []).concat(await this._listLegacy(q));
-    all.sort((a, b) => String(b.createdTime || '').localeCompare(String(a.createdTime || '')));
+    all.sort(_byFnTsDesc);
     const seen = new Set();
     return all.filter(f => { if (seen.has(f.name)) return false; seen.add(f.name); return true; });
   },
@@ -5231,26 +5240,32 @@ async function showStartup(){
     let fileList=[...files];
     let searchQuery='';
     let favOnly=false;
-    let sortBy=null;
+    let sortBy='date';
     let sortDir='desc';
     const searchInput=document.getElementById('sz-search');
     if(searchInput) searchInput.oninput=()=>{searchQuery=searchInput.value.trim().toLowerCase();renderList();};
     const filterBar=document.getElementById('sz-filterbar');
     if(filterBar){
       filterBar.innerHTML='<button id="sz-fav-btn" class="filt-chip">★ Favourites</button>'
+        +'<button id="sz-sort-date" class="filt-chip">Date</button>'
         +'<button id="sz-sort-dist" class="filt-chip">Distance</button>'
         +'<button id="sz-sort-time" class="filt-chip">Time</button>';
       document.getElementById('sz-fav-btn').onclick=()=>{favOnly=!favOnly;renderList();};
+      document.getElementById('sz-sort-date').onclick=()=>{
+        if(sortBy!=='date'){sortBy='date';sortDir='desc';}
+        else {sortDir=sortDir==='desc'?'asc':'desc';}
+        renderList();
+      };
       document.getElementById('sz-sort-dist').onclick=()=>{
         if(sortBy!=='distance'){sortBy='distance';sortDir='desc';}
         else if(sortDir==='desc'){sortDir='asc';}
-        else {sortBy=null;}
+        else {sortBy='date';sortDir='desc';}
         renderList();
       };
       document.getElementById('sz-sort-time').onclick=()=>{
         if(sortBy!=='time'){sortBy='time';sortDir='desc';}
         else if(sortDir==='desc'){sortDir='asc';}
-        else {sortBy=null;}
+        else {sortBy='date';sortDir='desc';}
         renderList();
       };
     }
@@ -5341,6 +5356,12 @@ async function showStartup(){
       if(favBtn){
         favBtn.className='filt-chip'+(favOnly?' on':'');
       }
+      const dateBtn=document.getElementById('sz-sort-date');
+      if(dateBtn){
+        const on=sortBy==='date';
+        dateBtn.textContent='Date'+(on?(sortDir==='desc'?' ▼':' ▲'):'');
+        dateBtn.className='filt-chip'+(on?' on':'');
+      }
       const distBtn=document.getElementById('sz-sort-dist');
       if(distBtn){
         const on=sortBy==='distance';
@@ -5365,6 +5386,10 @@ async function showStartup(){
       if(sortBy){
         shown=[...shown].sort((a,b)=>{
           const pa=parseFn(a.name),pb=parseFn(b.name);
+          if(sortBy==='date'){
+            const ta=pa.approxTs||_fnTs(a.name),tb=pb.approxTs||_fnTs(b.name);
+            return sortDir==='desc'?tb-ta:ta-tb;
+          }
           const va=sortBy==='distance'?pa.distM:pa.durS;
           const vb=sortBy==='distance'?pb.distM:pb.durS;
           if(va==null&&vb==null) return 0;
