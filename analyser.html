@@ -791,10 +791,8 @@ const AnalyserDrive = {
       sessionStorage.setItem('_ad_token_legacy', token);
       const keep = sessionStorage.getItem('_ad_token');
       if (keep) this._token = keep;
-      if (sessionStorage.getItem('_ad_pending') === '1') {
-        sessionStorage.removeItem('_ad_pending');
-        setTimeout(() => showStartup(), 300);
-      }
+      sessionStorage.removeItem('_ad_pending');
+      setTimeout(() => { if (typeof runLegacyMigration === 'function') runLegacyMigration(); }, 500);
     } else if (token) {
       history.replaceState({}, '', location.pathname);
       this._token = token;
@@ -834,8 +832,7 @@ const AnalyserDrive = {
           sessionStorage.setItem('_ad_token_legacy', ev.data.token);
           this._legacyIds = new Set();
           this._updateBtn();
-          toast('Old account connected \u2014 archive sessions included');
-          if (typeof showStartup === 'function') showStartup();
+          if (typeof runLegacyMigration === 'function') setTimeout(runLegacyMigration, 200);
           return;
         }
         this._token = ev.data.token;
@@ -868,6 +865,52 @@ const AnalyserDrive = {
   },
   signOut() { this._token = null; this._ltoken = null; this._legacyIds = new Set(); sessionStorage.removeItem('_ad_token'); sessionStorage.removeItem('_ad_token_legacy'); this._updateBtn(); },
   _tokFor(fileId) { return (this._legacyIds && this._legacyIds.has(fileId)) ? this._ltoken : this._token; },
+  dropLegacy() { this._ltoken = null; this._legacyIds = new Set(); sessionStorage.removeItem('_ad_token_legacy'); this._updateBtn(); },
+  async _listAllPaged(tok, q) {
+    let out = [], page = null;
+    do {
+      const url = `https://www.googleapis.com/drive/v3/files?spaces=appDataFolder&q=${q}&fields=nextPageToken,files(id,name,size)&pageSize=200` + (page ? '&pageToken=' + encodeURIComponent(page) : '');
+      const r = await fetch(url, { headers: { Authorization: 'Bearer ' + tok } });
+      if (!r.ok) throw new Error('List failed: HTTP ' + r.status);
+      const d = await r.json();
+      out = out.concat(d.files || []);
+      page = d.nextPageToken || null;
+    } while (page);
+    return out;
+  },
+  // One-time copy of every archive file from the old project's appDataFolder
+  // into the current one. Files already present (matched by name) are skipped,
+  // so re-running is safe and never duplicates.
+  async migrateLegacy(onProgress) {
+    if (!this._token) throw new Error('Sign in to Google Drive first');
+    if (!this._ltoken) throw new Error('Old account not connected');
+    const q = encodeURIComponent("(name contains 'RowSess_' or name contains 'CoachSess_') and trashed=false");
+    const oldFiles = await this._listAllPaged(this._ltoken, q);
+    if (!oldFiles.length) return { total: 0, copied: 0, skipped: 0, failed: 0 };
+    const have = new Set((await this._listAllPaged(this._token, q)).map(f => f.name));
+    let copied = 0, skipped = 0, failed = 0, i = 0;
+    for (const f of oldFiles) {
+      i++;
+      if (onProgress) onProgress(i, oldFiles.length);
+      if (have.has(f.name)) { skipped++; continue; }
+      try {
+        const dl = await fetch(`https://www.googleapis.com/drive/v3/files/${f.id}?alt=media`, { headers: { Authorization: 'Bearer ' + this._ltoken } });
+        if (!dl.ok) throw new Error('HTTP ' + dl.status);
+        const blob = await dl.blob();
+        const meta = { name: f.name, mimeType: 'application/json', parents: ['appDataFolder'] };
+        const form = new FormData();
+        form.append('metadata', new Blob([JSON.stringify(meta)], { type: 'application/json' }));
+        form.append('file', blob);
+        const up = await fetch('https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart&fields=id', {
+          method: 'POST', headers: { Authorization: 'Bearer ' + this._token }, body: form
+        });
+        if (!up.ok) throw new Error('HTTP ' + up.status);
+        have.add(f.name);
+        copied++;
+      } catch { failed++; }
+    }
+    return { total: oldFiles.length, copied, skipped, failed };
+  },
   async _listLegacy(q) {
     if (!this._ltoken) return [];
     try {
@@ -876,6 +919,7 @@ const AnalyserDrive = {
       if (!r.ok) return [];
       const d = await r.json();
       const files = d.files || [];
+      if (!files.length) { try { localStorage.setItem('_ad_legacy_empty', '1'); } catch {} this.dropLegacy(); return []; }
       files.forEach(f => this._legacyIds.add(f.id));
       return files;
     } catch { return []; }
@@ -1021,6 +1065,30 @@ const AnalyserDrive = {
     }
   },
 };
+async function runLegacyMigration() {
+  if (!AnalyserDrive.isSignedIn()) { toast('Connect Google Drive first'); return; }
+  if (!AnalyserDrive.isLegacyLinked()) { toast('Old account not connected'); return; }
+  const bar = document.createElement('div');
+  bar.style.cssText = 'position:fixed;left:0;right:0;bottom:0;z-index:99999;background:#111;color:#eee;font:13px system-ui,sans-serif;padding:12px 14px;text-align:center;';
+  bar.textContent = 'Importing old sessions\u2026';
+  document.body.appendChild(bar);
+  try {
+    const r = await AnalyserDrive.migrateLegacy((i, n) => { bar.textContent = 'Importing old sessions\u2026 ' + i + '/' + n; });
+    if (r.total === 0) {
+      try { localStorage.setItem('_ad_legacy_empty', '1'); } catch {}
+      AnalyserDrive.dropLegacy();
+      toast('No old sessions found');
+    } else if (r.failed === 0) {
+      try { localStorage.setItem('_ad_legacy_done', '1'); } catch {}
+      AnalyserDrive.dropLegacy();
+      toast('Imported ' + r.copied + ' session(s)' + (r.skipped ? ', ' + r.skipped + ' already present' : ''));
+    } else {
+      toast('Imported ' + r.copied + ', ' + r.failed + ' failed \u2014 run it again to finish');
+    }
+  } catch (e) { toast('Import failed: ' + (e && e.message ? e.message : e)); }
+  bar.remove();
+  if (typeof showStartup === 'function') showStartup();
+}
 function _normRecords(obj) {
   let out;
   if (!obj) out = { water: {}, erg: {} };
@@ -5140,7 +5208,7 @@ async function showStartup(){
       <button class="dzbtn dzbtn-sec" id="sz-coach"><img src="icons/Import.svg"><span>Coach Sessions</span></button>
       <button class="dzbtn dzbtn-sec" id="sz-squad"><img src="icons/Import.svg"><span>From Squad</span></button>
       <button class="dzbtn dzbtn-sec" id="sz-openfile"><img src="icons/Open.svg"><span>Open file</span></button>
-      ${AnalyserDrive.isLegacyLinked() ? '' : '<button class="dzbtn dzbtn-sec" id="sz-oldacct"><span>Old sessions</span></button>'}
+      ${(localStorage.getItem('_ad_legacy_done') === '1' || localStorage.getItem('_ad_legacy_empty') === '1') ? '' : '<button class="dzbtn dzbtn-sec" id="sz-oldacct"><span>Import old sessions</span></button>'}
     </div>
     <div class="brpill">
       <div class="sz-lhd">Sessions<span class="sz-signout" id="sz-signout">Sign out</span></div>
@@ -5151,7 +5219,7 @@ async function showStartup(){
   </div>`;
   document.getElementById('sz-signout').onclick=()=>{AnalyserDrive.signOut();showStartup();};
   const _oldBtn=document.getElementById('sz-oldacct');
-  if(_oldBtn) _oldBtn.onclick=()=>{ toast('Sign in to the same Google account to load pre-update sessions'); AnalyserDrive.signInLegacy(); };
+  if(_oldBtn) _oldBtn.onclick=()=>{ if(AnalyserDrive.isLegacyLinked()){ runLegacyMigration(); return; } toast('Sign in with the same Google account'); AnalyserDrive.signInLegacy(); };
   document.getElementById('sz-coach').onclick=loadCoachSessions;
   document.getElementById('sz-squad').onclick=loadFromSquad;
   document.getElementById('sz-openfile').onclick=()=>document.getElementById('fin').click();
