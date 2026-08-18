@@ -851,6 +851,19 @@ const AnalyserDrive = {
     const seen = new Set();
     return (d.files || []).filter(f => { if (seen.has(f.name)) return false; seen.add(f.name); return true; });
   },
+  // Coach session files sit in the same appDataFolder under a CoachSess_
+  // prefix, so they are listed separately and never mixed into the rowing
+  // session list.
+  async listCoachSessions() {
+    this._check();
+    const q = encodeURIComponent("name contains 'CoachSess_' and name contains '.json' and trashed=false");
+    const resp = await fetch(`https://www.googleapis.com/drive/v3/files?spaces=appDataFolder&q=${q}&fields=files(id,name,createdTime,size)&orderBy=createdTime+desc&pageSize=200`, { headers: { Authorization: 'Bearer ' + this._token } });
+    if (resp.status === 401) { this._expire(); throw new Error('Session expired — sign out and sign in again'); }
+    if (!resp.ok) throw new Error('Drive error: HTTP ' + resp.status);
+    const d = await resp.json();
+    const seen = new Set();
+    return (d.files || []).filter(f => { if (seen.has(f.name)) return false; seen.add(f.name); return true; });
+  },
   async fetchSession(fileId) {
     this._check();
     const resp = await fetch(`https://www.googleapis.com/drive/v3/files/${fileId}?alt=media`, { headers: { Authorization: 'Bearer ' + this._token } });
@@ -2445,6 +2458,255 @@ function showSquadPicker(code, metas, desc) {
     overlay.appendChild(panel);
     overlay.onclick = e => { if (e.target === overlay) overlay.remove(); };
     document.body.appendChild(overlay);
+}
+
+/* \u2550\u2550 COACH SESSIONS \u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550
+   A CoachSess_ file is written to the coach's own Drive by the Metrics app.
+   It holds the squad interval tables verbatim plus a roster naming each
+   athlete and, where the athlete uploaded one, the id of their full session
+   in the squad cloud. Opening the file gives the table view only - clicking
+   an athlete follows their sessId into the normal session view.
+
+   The interval tables live in the file forever. The full sessions live in the
+   squad cloud and are pruned after 21 days, so an athlete link can go dead
+   while the table it sits under stays intact. That is intended. */
+function coachParseFn(name){
+  const d=name.match(/CoachSess_(\d{4})-(\d{2})-(\d{2})_(\d{2})(\d{2})/);
+  const sq=name.match(/_SQ([A-Z0-9]{1,8})/);
+  const ath=name.match(/_(\d+)ath/);
+  const nm=name.match(/_NAME([a-zA-Z0-9\-]+)/);
+  return {
+    ts: d?new Date(+d[1],+d[2]-1,+d[3],+d[4],+d[5]).getTime():0,
+    squadCode: sq?sq[1]:null,
+    athletes: ath?parseInt(ath[1]):null,
+    name: nm?nm[1].replace(/-/g,' '):null
+  };
+}
+async function loadCoachSessions(){
+  if(!AnalyserDrive.isSignedIn()){ toast('Connect Google Drive first'); return; }
+  toast('Fetching coach sessions\u2026');
+  let files=[];
+  try{ files=await AnalyserDrive.listCoachSessions(); }
+  catch(e){ toast('Drive error: '+e.message); return; }
+  if(!files.length){ toast('No coach sessions on Drive'); return; }
+  showCoachPicker(files);
+}
+function showCoachPicker(files){
+  document.getElementById('_coach_picker')?.remove();
+  const overlay=document.createElement('div');
+  overlay.id='_coach_picker';
+  overlay.style.cssText='position:fixed;inset:0;background:rgba(0,0,0,.72);display:flex;align-items:center;justify-content:center;z-index:9999;';
+  const panel=document.createElement('div');
+  panel.style.cssText='background:var(--s1);border:1px solid var(--border);border-radius:10px;width:min(92vw,460px);max-height:80vh;display:flex;flex-direction:column;overflow:hidden;color:var(--text);font-family:-apple-system,BlinkMacSystemFont,Helvetica Neue,sans-serif;';
+  const hdr=document.createElement('div');
+  hdr.style.cssText='display:flex;align-items:center;padding:14px 16px;border-bottom:1px solid var(--border);flex-shrink:0;';
+  hdr.innerHTML='<span style="font-size:13px;font-weight:700;">Coach Sessions</span>';
+  const close=document.createElement('button');
+  close.textContent='\u2715';
+  close.style.cssText='margin-left:auto;background:none;border:1px solid var(--border);color:var(--muted);border-radius:6px;padding:4px 10px;font-size:11px;cursor:pointer;';
+  close.onclick=()=>overlay.remove();
+  hdr.appendChild(close);
+  panel.appendChild(hdr);
+  const list=document.createElement('div');
+  list.style.cssText='overflow-y:auto;flex:1;display:flex;flex-direction:column;gap:6px;padding:14px 16px;';
+  const rows=files.map(f=>({f,p:coachParseFn(f.name)}))
+    .sort((a,b)=>(b.p.ts||0)-(a.p.ts||0));
+  rows.forEach(({f,p})=>{
+    const row=document.createElement('div');
+    row.style.cssText='display:flex;align-items:center;gap:6px;';
+    const btn=document.createElement('button');
+    btn.style.cssText='background:var(--s2);border:1px solid var(--border);border-radius:6px;padding:10px 12px;text-align:left;cursor:pointer;color:var(--text);font-size:12px;line-height:1.6;flex:1;min-width:0;font-family:inherit;';
+    const when=p.ts?new Date(p.ts).toLocaleDateString()+' '+new Date(p.ts).toLocaleTimeString([],{hour:'2-digit',minute:'2-digit'}):'';
+    btn.innerHTML='<span style="color:var(--b);font-weight:700">'+(p.name||('Squad '+(p.squadCode||'')))+'</span>  '+when+
+      '<br><span style="color:var(--muted)">'+(p.squadCode?('squad '+p.squadCode):'')+
+      (p.athletes!=null?('  \u00b7 '+p.athletes+' athlete'+(p.athletes===1?'':'s')):'')+'</span>';
+    btn.onclick=async()=>{
+      overlay.remove();
+      toast('Loading\u2026');
+      try{
+        const file=await AnalyserDrive.fetchSession(f.id);
+        if(!file||file.type!=='BoatRunCoachSession')throw new Error('Not a coach session file');
+        showCoachSessionView(file,f.id);
+      }catch(e){ toast('Load failed: '+e.message); }
+    };
+    const del=document.createElement('button');
+    del.textContent='\uD83D\uDDD1'; del.title='Delete from Drive';
+    del.style.cssText='padding:9px 10px;background:rgba(192,57,43,.15);border:1px solid rgba(192,57,43,.4);border-radius:6px;color:#e74c3c;cursor:pointer;font-size:.85rem;flex-shrink:0;';
+    del.onclick=async()=>{
+      if(!confirm('Delete this coach session from Drive? This cannot be undone.'))return;
+      del.textContent='\u2026'; del.disabled=true;
+      try{ await AnalyserDrive.deleteFile(f.id); row.remove(); }
+      catch(e){ toast('Delete failed: '+e.message); del.textContent='\uD83D\uDDD1'; del.disabled=false; }
+    };
+    row.appendChild(btn); row.appendChild(del);
+    list.appendChild(row);
+  });
+  panel.appendChild(list);
+  overlay.appendChild(panel);
+  overlay.onclick=e=>{ if(e.target===overlay) overlay.remove(); };
+  document.body.appendChild(overlay);
+}
+function coachEsc(v){
+  return String(v==null?'':v).replace(/&/g,'&amp;').replace(/</g,'&lt;')
+    .replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+/* Re-resolve a roster entry to a squad session id. Device id first; name +
+   start time within six hours as a fallback for sessions uploaded by a build
+   that predates the dev field. */
+function coachMatchMeta(metas,r){
+  const start=r.start||0;
+  const near=m=>!start||Math.abs((m.t||parseInt(m.id)||0)-start)<6*3600000;
+  for(const m of metas){ if(m.dev&&m.dev===r.dev&&near(m))return m.id; }
+  for(const m of metas){ if(!m.dev&&String(m.rower||'')===String(r.name)&&start&&near(m))return m.id; }
+  return null;
+}
+async function coachFetchAthlete(file,r){
+  const code=file.squadCode;
+  if(!code)throw new Error('No squad code in file');
+  if(!(await ensureSquadUnlocked(code)))throw new Error('Squad '+code+' is password protected');
+  let sessId=r.sessId;
+  if(!sessId){
+    let metas=[];
+    try{ metas=await fetchSquadMetas(code); }catch{}
+    sessId=coachMatchMeta(metas,r);
+    if(sessId) r.sessId=sessId;   // cache for the rest of this view
+  }
+  if(!sessId)throw new Error((r.name||'Rower')+' has not sent this session to the squad');
+  const resp=await fetch(sqProxy(code,'coach_sessions/'+sessId));
+  if(!resp.ok)throw new Error('HTTP '+resp.status);
+  const session=await resp.json();
+  if(!session)throw new Error('Session no longer in the squad cloud \u2014 it may have been pruned');
+  return session;
+}
+async function coachOpenAthlete(file,r,replace){
+  const session=await coachFetchAthlete(file,r);
+  applySessionUnits(session);
+  const label=(r.name||'Rower')+' '+new Date(r.start||file.end||Date.now()).toLocaleDateString();
+  addSessionFromData(sessionToAnalyserFmt(session),label,replace,null,file.squadCode);
+}
+async function coachOpenAll(file,btn){
+  const roster=(file.roster||[]);
+  if(!roster.length){ toast('No athletes in this file'); return; }
+  if(roster.length>1&&!isPro()){ showPlanModal('Opening a whole squad at once is a Pro feature.'); return; }
+  btn.disabled=true; const old=btn.textContent;
+  let n=0,fail=0;
+  for(let i=0;i<roster.length;i++){
+    btn.textContent='Opening '+(i+1)+'/'+roster.length+'\u2026';
+    try{ await coachOpenAthlete(file,roster[i],n===0); n++; }
+    catch{ fail++; }
+  }
+  btn.disabled=false; btn.textContent=old;
+  if(!n){ toast('No athlete sessions could be opened'); return; }
+  document.getElementById('_coach_view')?.remove();
+  toast(n+' session'+(n===1?'':'s')+' opened'+(fail?(' \u00b7 '+fail+' unavailable'):''));
+}
+function coachIntervalTable(sn){
+  const erg=sn.mode==='erg';
+  const f=v=>(v==null?'\u2014':(erg?fmtPace(v):fmtTime(v)));
+  let wT=0,wD=0,rT=0,rD=0;
+  (sn.rows||[]).forEach(r=>{
+    if((r.type||'')==='rest'){rT+=(r.time||0);rD+=(r.dist||0);}
+    else{wT+=(r.time||0);wD+=(r.dist||0);}
+  });
+  const badgeCol={warmup:'#5dade2',work:'#27ae60',rest:'#f39c12',cooldown:'#8e44ad'};
+  const rows=(sn.rows||[]).map(r=>{
+    const ty=String(r.type||'work').toLowerCase();
+    const col=badgeCol[ty]||'#27ae60';
+    return '<tr>'+
+      '<td style="padding:6px 8px;border-bottom:1px solid var(--border);"><span style="background:'+col+';color:#fff;font-size:8px;font-weight:700;padding:2px 5px;border-radius:2px;">'+coachEsc(ty.toUpperCase().slice(0,4))+'</span></td>'+
+      '<td style="padding:6px 8px;border-bottom:1px solid var(--border);">'+(r.n!=null?r.n:'\u2014')+'</td>'+
+      '<td style="padding:6px 8px;border-bottom:1px solid var(--border);">'+(r.time!=null?fmtTime(r.time):'\u2014')+'</td>'+
+      '<td style="padding:6px 8px;border-bottom:1px solid var(--border);">'+(r.dist!=null?Math.round(r.dist):'\u2014')+'</td>'+
+      '<td style="padding:6px 8px;border-bottom:1px solid var(--border);">'+(r.pace>0?fmtPace(r.pace):'\u2014')+'</td>'+
+      '<td style="padding:6px 8px;border-bottom:1px solid var(--border);">'+(r.rate||'\u2014')+'</td>'+
+      '<td style="padding:6px 8px;border-bottom:1px solid var(--border);">'+(r.power||'\u2014')+'</td>'+
+      '<td style="padding:6px 8px;border-bottom:1px solid var(--border);">'+(r.hr||'\u2014')+'</td>'+
+      '</tr>';
+  }).join('');
+  const anyRest=rT>0||rD>0;
+  const wPace=(wD>5&&wT>0)?(wT/wD)*500:0;
+  const tot='<tr style="font-weight:800;"><td style="padding:6px 8px;border-top:2px solid var(--b);">'+(anyRest?'WORK':'TOTAL')+'</td><td style="border-top:2px solid var(--b);"></td>'+
+    '<td style="padding:6px 8px;border-top:2px solid var(--b);">'+fmtTime(wT)+'</td>'+
+    '<td style="padding:6px 8px;border-top:2px solid var(--b);">'+Math.round(wD)+'</td>'+
+    '<td style="padding:6px 8px;border-top:2px solid var(--b);">'+(wPace>0?fmtPace(wPace):'\u2014')+'</td>'+
+    '<td colspan="3" style="border-top:2px solid var(--b);"></td></tr>'+
+    (anyRest?('<tr style="color:var(--muted);"><td style="padding:6px 8px;">REST</td><td></td><td style="padding:6px 8px;">'+fmtTime(rT)+'</td><td style="padding:6px 8px;">'+Math.round(rD)+'</td><td colspan="4"></td></tr>'):'');
+  const th='padding:6px 8px;font-size:10px;letter-spacing:.06em;color:var(--muted);text-align:left;border-bottom:1px solid var(--border);';
+  return '<div style="overflow-x:auto;"><table style="width:100%;border-collapse:collapse;font-size:12px;">'+
+    '<tr><th style="'+th+'">Type</th><th style="'+th+'">#</th><th style="'+th+'">Time</th><th style="'+th+'">Dist</th>'+
+    '<th style="'+th+'">Pace</th><th style="'+th+'">SPM</th><th style="'+th+'">W</th><th style="'+th+'">HR</th></tr>'+
+    rows+tot+'</table></div>';
+}
+function showCoachSessionView(file,fileId){
+  document.getElementById('_coach_view')?.remove();
+  const overlay=document.createElement('div');
+  overlay.id='_coach_view';
+  overlay.style.cssText='position:fixed;inset:0;background:rgba(0,0,0,.8);display:flex;align-items:flex-start;justify-content:center;z-index:9999;padding:16px;overflow-y:auto;';
+  const panel=document.createElement('div');
+  panel.style.cssText='background:var(--s1);border:1px solid var(--border);border-radius:10px;width:min(96vw,760px);color:var(--text);font-family:-apple-system,BlinkMacSystemFont,Helvetica Neue,sans-serif;margin:auto;';
+  const when=file.end?new Date(file.end).toLocaleString():'';
+  const roster=file.roster||[];
+  const hdr=document.createElement('div');
+  hdr.style.cssText='display:flex;align-items:center;gap:8px;padding:14px 16px;border-bottom:1px solid var(--border);flex-wrap:wrap;';
+  hdr.innerHTML='<div style="flex:1;min-width:0;">'+
+    '<div style="font-size:14px;font-weight:700;">'+coachEsc(file.sessName||('Squad '+file.squadCode))+'</div>'+
+    '<div style="font-size:11px;color:var(--muted);">squad '+coachEsc(file.squadCode||'')+
+    (file.squadDesc?(' \u00b7 '+coachEsc(file.squadDesc)):'')+' \u00b7 '+coachEsc(when)+
+    ' \u00b7 '+roster.length+' athlete'+(roster.length===1?'':'s')+'</div></div>';
+  const allBtn=document.createElement('button');
+  allBtn.textContent='Open all athletes';
+  allBtn.style.cssText='background:var(--b);border:1px solid var(--b);color:#fff;border-radius:6px;padding:7px 12px;font-size:11px;font-weight:700;cursor:pointer;font-family:inherit;flex-shrink:0;';
+  allBtn.onclick=()=>coachOpenAll(file,allBtn);
+  const close=document.createElement('button');
+  close.textContent='\u2715';
+  close.style.cssText='background:none;border:1px solid var(--border);color:var(--muted);border-radius:6px;padding:5px 10px;font-size:11px;cursor:pointer;flex-shrink:0;';
+  close.onclick=()=>overlay.remove();
+  hdr.appendChild(allBtn); hdr.appendChild(close);
+  panel.appendChild(hdr);
+  const body=document.createElement('div');
+  body.style.cssText='padding:8px 16px 18px;';
+  const iv=file.intervals||{};
+  const order=roster.length?roster.slice():Object.keys(iv).map(d=>({dev:d,name:(iv[d]||{}).name||'Rower'}));
+  order.sort((a,b)=>String(a.name||'').localeCompare(String(b.name||'')));
+  if(!order.length){ body.innerHTML='<div style="color:var(--muted);font-size:12px;padding:20px 0;text-align:center;">This coach session has no athletes.</div>'; }
+  order.forEach(r=>{
+    const sn=iv[r.dev]||{};
+    const blk=document.createElement('div');
+    blk.style.cssText='margin:14px 0 4px;';
+    const bh=document.createElement('div');
+    bh.style.cssText='display:flex;align-items:center;gap:8px;padding-bottom:6px;flex-wrap:wrap;';
+    const sub=[(sn.mode||r.mode||'rower').toUpperCase(),sn.sess||'',
+      (sn.start||r.start)?new Date(sn.start||r.start).toLocaleString():''].filter(Boolean).join(' \u00b7 ');
+    bh.innerHTML='<div style="flex:1;min-width:0;"><div style="font-size:14px;font-weight:800;color:var(--b);">'+
+      coachEsc(sn.name||r.name||'Rower')+'</div>'+
+      '<div style="font-size:10px;color:var(--muted);">'+coachEsc(sub)+'</div></div>';
+    const open=document.createElement('button');
+    open.textContent=r.sessId?'Open session \u2192':'Find session \u2192';
+    open.style.cssText='background:var(--s2);border:1px solid var(--border);color:var(--text);border-radius:6px;padding:6px 11px;font-size:11px;font-weight:700;cursor:pointer;font-family:inherit;flex-shrink:0;';
+    open.onclick=async()=>{
+      const was=open.textContent;
+      open.disabled=true; open.textContent='Loading\u2026';
+      try{
+        await coachOpenAthlete(file,r,true);
+        overlay.remove();
+      }catch(e){
+        toast(e.message);
+        open.disabled=false; open.textContent=was;
+      }
+    };
+    bh.appendChild(open);
+    blk.appendChild(bh);
+    const tbl=document.createElement('div');
+    tbl.style.cssText='background:var(--s2);border:1px solid var(--border);border-radius:8px;padding:4px 8px;';
+    tbl.innerHTML=(sn.rows&&sn.rows.length)?coachIntervalTable(sn)
+      :'<div style="color:var(--muted);font-size:12px;padding:12px 4px;">No intervals recorded.</div>';
+    blk.appendChild(tbl);
+    body.appendChild(blk);
+  });
+  panel.appendChild(body);
+  overlay.appendChild(panel);
+  overlay.onclick=e=>{ if(e.target===overlay) overlay.remove(); };
+  document.body.appendChild(overlay);
 }
 
 function showDrivePicker(files, onSelect) {
@@ -4827,6 +5089,7 @@ async function showStartup(){
 
   el.innerHTML=`<div class="sz-list">
     <div class="brpill-row">
+      <button class="dzbtn dzbtn-sec" id="sz-coach"><img src="icons/Import.svg"><span>Coach Sessions</span></button>
       <button class="dzbtn dzbtn-sec" id="sz-squad"><img src="icons/Import.svg"><span>From Squad</span></button>
       <button class="dzbtn dzbtn-sec" id="sz-openfile"><img src="icons/Open.svg"><span>Open file</span></button>
     </div>
@@ -4838,6 +5101,7 @@ async function showStartup(){
     </div>
   </div>`;
   document.getElementById('sz-signout').onclick=()=>{AnalyserDrive.signOut();showStartup();};
+  document.getElementById('sz-coach').onclick=loadCoachSessions;
   document.getElementById('sz-squad').onclick=loadFromSquad;
   document.getElementById('sz-openfile').onclick=()=>document.getElementById('fin').click();
   try{
