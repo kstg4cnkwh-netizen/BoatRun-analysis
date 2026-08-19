@@ -4,20 +4,6 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
 <title>BoatRun Analyser</title>
-<script>
-// OAuth popup bootstrap. Google redirects back to this same page with ?code=,
-// so when we are the popup we hand the code to the opener and close before the
-// rest of the Analyser boots — otherwise a second full copy of the app loads.
-(function(){try{
-  var q=new URLSearchParams(location.search);
-  var c=q.get('code');
-  if(!c||q.get('state')!=='main')return;
-  if(window.opener&&!window.opener.closed){
-    try{window.opener.postMessage({type:'ad_oauth_code',code:c},location.origin);}catch{}
-    window.close();
-  }
-}catch{}})();
-</script>
 <style>
   /* system font */
 
@@ -60,8 +46,6 @@
   /* ── Header ── */
   #hdr { display: flex; align-items: center; gap: 10px; padding: 11px 20px; background: rgb(5,23,56); border-bottom: 1px solid var(--border); position: sticky; top: 0; z-index: 200; flex-wrap: wrap; box-shadow: 0 1px 0 var(--border), 0 4px 16px rgba(0,0,0,.14); }
   #hdr h1 { font-family: -apple-system, BlinkMacSystemFont, Helvetica Neue, sans-serif; font-size: 17px; font-weight: 700; color: #fff; letter-spacing: -.4px; }
-  #hdr h1 a { color: inherit; text-decoration: none; }
-  #hdr h1 a:hover { opacity: .8; }
   #hdr .meta { color: rgba(255,255,255,.92); font-size: 15px; line-height: 1.5; font-weight: 500; }
   #hdr .sp { flex: 1; }
   .hbtn { background: transparent; border: 1px solid var(--border); color: var(--muted); padding: 5px 13px; border-radius: 7px; font-family: -apple-system, BlinkMacSystemFont, Helvetica Neue, sans-serif; font-size: 11px; cursor: pointer; white-space: nowrap; transition: border-color .15s, color .15s, background .15s; }
@@ -167,23 +151,9 @@
 
   /* ── Curve section ── */
   #curvesec { display: none; }
-  #tplchips { display: flex; gap: 6px; flex-wrap: wrap; }
-  .tpl-chip { display: inline-flex; align-items: center; padding: 4px 10px; border-radius: 12px; font-size: 10px; font-weight: 700; cursor: pointer; border: 1px solid var(--text); background: transparent; color: var(--text); transition: opacity .15s; }
-  .tpl-chip:hover { opacity: .78; }
-  .tpl-chip.on { background: #ffc947; border-color: #ffc947; color: #000; }
-  .tpl-chip-x { display: inline-flex; align-items: center; justify-content: center; margin: -4px -10px -4px 2px; padding: 4px 9px 4px 7px; border-left: 1px solid currentColor; border-radius: 0 12px 12px 0; font-size: 11px; line-height: 1; }
-  .tpl-chip-x:hover { background: rgba(0,0,0,.18); }
   .grp-chip { display: inline-flex; align-items: center; gap: 5px; padding: 4px 10px; border-radius: 12px; font-size: 10px; font-weight: 700; cursor: pointer; border: none; transition: opacity .15s; }
   .grp-chip:hover { opacity: .75; }
-  .grp-chip.focused { box-shadow: 0 0 0 2px #c084fc; }
-  .grp-chip-x { display: inline-flex; align-items: center; justify-content: center; margin: -4px -10px -4px 2px; padding: 4px 9px 4px 7px; border-left: 1px solid rgba(0,0,0,.28); border-radius: 0 12px 12px 0; font-size: 11px; line-height: 1; }
-  .grp-chip-x:hover { background: rgba(0,0,0,.18); }
   #clearcurvebtn { background: none; border: 1px solid var(--border); color: var(--muted); padding: 4px 10px; border-radius: 6px; font-family: -apple-system, BlinkMacSystemFont, Helvetica Neue, sans-serif; font-size: 10px; cursor: pointer; margin-left: auto; transition: color .15s, border-color .15s; }
-  #tplbtn { background: none; border: 1px solid var(--border); color: var(--muted); padding: 4px 10px; border-radius: 6px; font-family: -apple-system, BlinkMacSystemFont, Helvetica Neue, sans-serif; font-size: 10px; cursor: pointer; margin-left: 6px; transition: color .15s, border-color .15s; }
-  #tplfocusclose { background: none; border: 1px solid #c084fc; color: #c084fc; padding: 4px 10px; border-radius: 6px; font-family: -apple-system, BlinkMacSystemFont, Helvetica Neue, sans-serif; font-size: 10px; cursor: pointer; margin-left: auto; }
-  #tplloadbtn { background: none; border: 1px solid var(--border); color: var(--muted); padding: 4px 10px; border-radius: 6px; font-family: -apple-system, BlinkMacSystemFont, Helvetica Neue, sans-serif; font-size: 10px; cursor: pointer; margin-left: 6px; transition: color .15s, border-color .15s; }
-  #tplloadbtn:hover { color: #c084fc; border-color: #c084fc; }
-  #tplchip { font-size: 10px; color: #c084fc; border: 1px solid #c084fc; border-radius: 12px; padding: 3px 9px; margin-left: 6px; white-space: nowrap; max-width: 190px; overflow: hidden; text-overflow: ellipsis; }
   #clearcurvebtn:hover { color: var(--r); border-color: var(--r); }
 
   /* ── Session tabs (multi-file) ── */
@@ -417,16 +387,12 @@ body.light .hdrname{color:#fff;}
   .sess-tab{border:none;border-radius:16px;background:var(--pill);box-shadow:0 2px 5px rgba(0,0,0,.20);padding:7px 13px;}
   .sess-tab.on{background:var(--acc);color:#fff;}
   .grp-chip{border-radius:16px;padding:5px 12px;box-shadow:0 2px 5px rgba(0,0,0,.20);}
-  .grp-chip-x{margin:-5px -12px -5px 2px;padding:5px 11px 5px 8px;border-radius:0 16px 16px 0;}
-  .tpl-chip{border-radius:16px;padding:5px 12px;box-shadow:0 2px 5px rgba(0,0,0,.20);}
-  .tpl-chip-x{margin:-5px -12px -5px 2px;padding:5px 11px 5px 8px;border-radius:0 16px 16px 0;}
   .cbox,.ovbox,.twrap,#statsstrip,#tooltip{border:none;border-radius:14px;box-shadow:0 2px 6px rgba(0,0,0,.22);}
   #mapbox{border-radius:14px;}
   #dz{border-radius:22px;}
   #addcurvebtn{background:var(--acc);color:#fff;border-radius:14px;padding:7px 15px;box-shadow:0 2px 5px rgba(0,0,0,.22);}
-  #selclear,#clearcurvebtn,#tplbtn,#tplfocusclose,#tplloadbtn{border:none;border-radius:14px;background:var(--pill);color:var(--muted);padding:6px 13px;box-shadow:0 2px 5px rgba(0,0,0,.20);}
+  #selclear,#clearcurvebtn{border:none;border-radius:14px;background:var(--pill);color:var(--muted);padding:6px 13px;box-shadow:0 2px 5px rgba(0,0,0,.20);}
   #selclear:hover,#clearcurvebtn:hover{border:none;color:var(--acc-r);}
-  #tplbtn:hover{border:none;color:var(--acc-p,#c084fc);}
   .zoom-btn{border:none;border-radius:12px;background:var(--seg);color:var(--seg-txt);box-shadow:0 1px 3px rgba(0,0,0,.25);}
   .zoom-btn:hover{border:none;color:var(--acc);}
   select{border:none;border-radius:12px;background:var(--seg);color:var(--seg-txt);padding:6px 10px;box-shadow:0 1px 3px rgba(0,0,0,.22);}
@@ -510,7 +476,7 @@ body.light .hdrname{color:#fff;}
 <body class="light">
 
 <div id="hdr">
-  <h1><a href="https://boatrun.au" title="BoatRun home">⊳ BoatRun</a></h1>
+  <h1>⊳ BoatRun</h1>
   <div class="meta" id="hdrmeta"></div>
   <div class="sp"></div>
   <div class="hdr-tabs">
@@ -522,7 +488,6 @@ body.light .hdrname{color:#fff;}
       <button class="hbtn" id="jsonbtn" style="display:none;"><img class="hmenu-icon" src="icons/Export.svg"><span>Share JSON</span></button>
       <button class="hbtn" id="tcxbtn" style="display:none;"><img class="hmenu-icon" src="icons/Export.svg"><span>Export TCX</span></button>
       <button class="hbtn" id="fitbtn" style="display:none;"><img class="hmenu-icon" src="icons/Export.svg"><span>Export FIT (Recommended)</span></button>
-      <button class="hbtn" id="tplmenubtn"><img class="hmenu-icon" src="icons/Export.svg"><span>Stroke template…</span></button>
     </div>
   </div>
   <button class="hbtn hicon-btn" id="openbtn"><img class="hicon-img" src="icons/Open.svg"><span class="hicon-txt">Open</span></button>
@@ -592,11 +557,7 @@ body.light .hdrname{color:#fff;}
     <div class="sec-hd">
       <h2>Curve Comparison</h2>
       <div id="groupchips" style="display:flex;gap:6px;flex-wrap:wrap;"></div>
-      <button id="tplloadbtn" title="Open a stroke template file">Load stroke template</button>
-      <button id="tplbtn" title="Build or edit a stroke-rate template from your curve groups">Create / edit template</button>
-      <div id="tplchips"></div>
-      <button id="tplfocusclose" style="display:none;">Show all curves</button>
-      <button id="clearcurvebtn" style="display:none;">Remove all curves</button>
+      <button id="clearcurvebtn">Clear all</button>
     </div>
     <div class="curve-layout">
       <div class="curve-col">
@@ -668,7 +629,7 @@ body.light .hdrname{color:#fff;}
       const params = new URLSearchParams(location.hash.slice(1));
       const token = params.get('access_token');
       if (token) {
-        window.opener.postMessage({ type: 'ad_oauth_token', token: token, state: params.get('state') || '' }, location.origin);
+        window.opener.postMessage({ type: 'ad_oauth_token', token: token }, location.origin);
         document.body.innerHTML = '<div style="font-family:sans-serif;padding:40px;text-align:center;">Signed in — you can close this window.</div>';
         setTimeout(() => window.close(), 400);
       }
@@ -688,8 +649,7 @@ function setTier(t) {
     v.tier = t;
     try { localStorage.setItem(TIER_SETTINGS_KEY, JSON.stringify(v)); } catch {}
 }
-function isPro() { return true; } // BETA: Analyser fully unlocked until full release then: function isPro() { const t = getTier(); return t === 'pro' || t === 'coach'; }
-function isCoach() { return true; } // BETA: Analyser fully unlocked until full release then: function isCoach() { return getTier() === 'coach'; }
+function isPro() { return true; } // BETA: Analyser fully unlocked until full release then: function isPro() { return getTier() === 'pro'; }
 // ── FIREBASE AUTH (account + entitlement) ───────────────────────────────────
 const firebaseConfig = {
   apiKey: "AIzaSyBXpkmVnRzp6a-FqWmjxqrjzxdHtKiwP7I",
@@ -777,24 +737,11 @@ const AnalyserAuth = {
     toast('Signed out');
   },
   async _syncEntitlement() {
-    // Prefer the SDK's live user over the one captured at sign-in — a tab left
-    // open for hours can be holding a stale reference.
-    const u = (typeof fbAuth !== 'undefined' && fbAuth.currentUser) || this.user;
-    if (!u) return;
-    const read = async (force) => {
-      const idToken = await u.getIdToken(force);
-      return await fetch(`https://boatrun-default-rtdb.asia-southeast1.firebasedatabase.app/users/${u.uid}.json?auth=${encodeURIComponent(idToken)}`);
-    };
+    if (!this.user) return;
     try {
-      let r = await read(false);
-      // RTDB answers 401 for BOTH an expired token and a rules denial, so mint
-      // a fresh token and ask again before believing it.
-      if (r.status === 401) r = await read(true);
-      if (r.status === 401) {
-        console.error('entitlement sync: RTDB refused a freshly issued token — check the .read rule on /users/$uid');
-        return;
-      }
-      if (!r.ok) { console.error('entitlement sync: HTTP ' + r.status); return; }
+      const idToken = await this.user.getIdToken();
+      const r = await fetch(`https://boatrun-default-rtdb.asia-southeast1.firebasedatabase.app/users/${this.user.uid}.json?auth=${idToken}`);
+      if (!r.ok) return;
       const data = await r.json();
       setTier(data && data.tier ? data.tier : 'basic');
     } catch (e) { console.error('entitlement sync failed', e); }
@@ -804,76 +751,22 @@ const AnalyserAuth = {
 // ══════════════════════════════════════════════════════════════════════════
 // DRIVE (inline — works without drive-sync.js)
 // ══════════════════════════════════════════════════════════════════════════
-function _fnTs(name) {
-  const m = String(name || '').match(/(?:RowSess|CoachSess)_(\d{4})-(\d{2})-(\d{2})_(\d{2})(\d{2})/);
-  return m ? new Date(+m[1], +m[2] - 1, +m[3], +m[4], +m[5]).getTime() : 0;
-}
-function _byFnTsDesc(a, b) {
-  const ta = _fnTs(a.name), tb = _fnTs(b.name);
-  if (ta || tb) return tb - ta;
-  return String(b.createdTime || '').localeCompare(String(a.createdTime || ''));
-}
 const AnalyserDrive = {
-  CLIENT_ID: '118760764612-4kbbha2t6ga218im3ut25l55q3uld32h.apps.googleusercontent.com',
-  LEGACY_CLIENT_ID: '729480414852-kko8e7bi3r38tcg2rf6iiupptagoegpc.apps.googleusercontent.com',
+  CLIENT_ID: '729480414852-kko8e7bi3r38tcg2rf6iiupptagoegpc.apps.googleusercontent.com',
   SCOPE: 'https://www.googleapis.com/auth/drive.appdata',
-  // Same Worker and client the Metrics app uses. The authorization-code flow
-  // returns a refresh token, so the Analyser no longer dies after one hour.
-  WORKER: 'https://boatrun-drive-auth.davidmacready74.workers.dev',
-  REDIRECT: 'https://boatrun.au/analyser.html',
   _token: null,
-  _exp: 0,
-  _rtok: null,
-  _ltoken: null,
-  _legacyIds: new Set(),
   init() {
-    try {
-      const rt = localStorage.getItem('_ad_rtok');
-      if (rt) this._rtok = rt;
-      const ex = sessionStorage.getItem('_ad_token_exp');
-      if (ex) this._exp = parseInt(ex) || 0;
-    } catch {}
-    // Full-page redirect fallback: the code lands here in the query string.
-    const qs = new URLSearchParams(location.search);
-    const acode = qs.get('code');
-    if (acode && qs.get('state') === 'main') {
-      history.replaceState({}, '', location.pathname);
-      const keepL = sessionStorage.getItem('_ad_token_legacy');
-      if (keepL) this._ltoken = keepL;
-      sessionStorage.removeItem('_ad_pending');
-      this._updateBtn();
-      this.exchangeCode(acode).then(ok => {
-        if (!ok) { toast('Google sign-in failed — please try again'); return; }
-        toast('Signed in with Google');
-        pullPrefsAndApply().catch(() => {});
-        if (typeof showStartup === 'function') showStartup();
-      });
-      this._bindMessages();
-      return;
-    }
     const hash = new URLSearchParams(location.hash.slice(1));
     const token = hash.get('access_token');
-    if (token && hash.get('state') === 'legacy') {
-      history.replaceState({}, '', location.pathname);
-      this._ltoken = token;
-      sessionStorage.setItem('_ad_token_legacy', token);
-      const keep = sessionStorage.getItem('_ad_token');
-      if (keep) this._token = keep;
-      sessionStorage.removeItem('_ad_pending');
-      setTimeout(() => { if (typeof runLegacyMigration === 'function') runLegacyMigration(); }, 500);
-    } else if (token) {
+    if (token) {
       history.replaceState({}, '', location.pathname);
       this._token = token;
       sessionStorage.setItem('_ad_token', token);
-      const keepL = sessionStorage.getItem('_ad_token_legacy');
-      if (keepL) this._ltoken = keepL;
       if (sessionStorage.getItem('_ad_pending') === '1') {
         sessionStorage.removeItem('_ad_pending');
         setTimeout(() => showStartup(), 300);
       }
     } else {
-      const savedL = sessionStorage.getItem('_ad_token_legacy');
-      if (savedL) { this._ltoken = savedL; }
       const saved = sessionStorage.getItem('_ad_token');
       if (saved) { this._token = saved; }
       else {
@@ -892,32 +785,9 @@ const AnalyserDrive = {
       }
     }
     this._updateBtn();
-    this._bindMessages();
-  },
-  _bindMessages() {
-    if (this._msgBound) return;
-    this._msgBound = true;
     window.addEventListener('message', (ev) => {
       if (ev.origin !== location.origin) return;
-      // Authorization code handed back by the sign-in popup.
-      if (ev.data && ev.data.type === 'ad_oauth_code' && ev.data.code) {
-        this.exchangeCode(ev.data.code).then(ok => {
-          if (!ok) { toast('Google sign-in failed — please try again'); return; }
-          toast('Signed in with Google');
-          pullPrefsAndApply().catch(() => {});
-          if (typeof showStartup === 'function') showStartup();
-        });
-        return;
-      }
       if (ev.data && ev.data.type === 'ad_oauth_token' && ev.data.token) {
-        if (ev.data.state === 'legacy') {
-          this._ltoken = ev.data.token;
-          sessionStorage.setItem('_ad_token_legacy', ev.data.token);
-          this._legacyIds = new Set();
-          this._updateBtn();
-          if (typeof runLegacyMigration === 'function') setTimeout(runLegacyMigration, 200);
-          return;
-        }
         this._token = ev.data.token;
         sessionStorage.setItem('_ad_token', ev.data.token);
         this._updateBtn();
@@ -927,225 +797,53 @@ const AnalyserDrive = {
       }
     });
   },
-  // A stored refresh token counts as signed in — the access token is fetched
-  // on demand, so there is no reason to show the user a signed-out button.
-  isSignedIn() { return !!this._token || !!this._rtok; },
-  isLegacyLinked() { return !!this._ltoken; },
-  _authUrl(which) {
-    // The old account stays on the implicit flow. It is only ever read once to
-    // migrate files across, so it never needs a refresh token.
-    if (which === 'legacy') {
-      const lp = new URLSearchParams({ client_id: this.LEGACY_CLIENT_ID, redirect_uri: location.origin + location.pathname, response_type: 'token', scope: this.SCOPE, state: 'legacy' });
-      return 'https://accounts.google.com/o/oauth2/v2/auth?' + lp;
-    }
-    const p = new URLSearchParams({ client_id: this.CLIENT_ID, redirect_uri: this.REDIRECT, response_type: 'code', scope: this.SCOPE, include_granted_scopes: 'true', access_type: 'offline', prompt: 'consent', state: 'main' });
-    return 'https://accounts.google.com/o/oauth2/v2/auth?' + p;
-  },
-  signIn(which) {
+  isSignedIn() { return !!this._token; },
+  signIn() {
+    const p = new URLSearchParams({ client_id: this.CLIENT_ID, redirect_uri: location.origin + location.pathname, response_type: 'token', scope: this.SCOPE });
     const w = 480, h = 640;
     const left = Math.round((screen.width - w) / 2), top = Math.round((screen.height - h) / 2);
-    const popup = window.open(this._authUrl(which), 'boatrun_google_signin', `width=${w},height=${h},left=${left},top=${top}`);
-    if (!popup) { this._redirectSignIn(which); return; }
+    const popup = window.open('https://accounts.google.com/o/oauth2/v2/auth?' + p, 'boatrun_google_signin', `width=${w},height=${h},left=${left},top=${top}`);
+    if (!popup) { this._redirectSignIn(); return; }
     const closeCheck = setInterval(() => { if (popup.closed) clearInterval(closeCheck); }, 500);
   },
-  signInLegacy() { this.signIn('legacy'); },
-  _redirectSignIn(which) {
+  _redirectSignIn() {
     sessionStorage.setItem('_ad_pending', '1');
-    window.location.href = this._authUrl(which);
+    const p = new URLSearchParams({ client_id: this.CLIENT_ID, redirect_uri: location.origin + location.pathname, response_type: 'token', scope: this.SCOPE });
+    window.location.href = 'https://accounts.google.com/o/oauth2/v2/auth?' + p;
   },
-  signOut() {
-    this._token = null; this._exp = 0; this._rtok = null; this._ltoken = null; this._legacyIds = new Set();
-    sessionStorage.removeItem('_ad_token'); sessionStorage.removeItem('_ad_token_exp'); sessionStorage.removeItem('_ad_token_legacy');
-    try { localStorage.removeItem('_ad_rtok'); } catch {}
-    this._updateBtn();
-  },
-  _tokFor(fileId) { return (this._legacyIds && this._legacyIds.has(fileId)) ? this._ltoken : this._token; },
-  dropLegacy() { this._ltoken = null; this._legacyIds = new Set(); sessionStorage.removeItem('_ad_token_legacy'); this._updateBtn(); },
-  async _listAllPaged(tok, q) {
-    let out = [], page = null;
-    do {
-      const url = `https://www.googleapis.com/drive/v3/files?spaces=appDataFolder&q=${q}&fields=nextPageToken,files(id,name,size)&pageSize=200` + (page ? '&pageToken=' + encodeURIComponent(page) : '');
-      const r = await this._fetch(url, { headers: { Authorization: 'Bearer ' + tok } }, 'Migration list', 20000);
-      if (!r.ok) throw new Error('List failed: HTTP ' + r.status);
-      const d = await r.json();
-      out = out.concat(d.files || []);
-      page = d.nextPageToken || null;
-    } while (page);
-    return out;
-  },
-  // One-time copy of every archive file from the old project's appDataFolder
-  // into the current one. Files already present (matched by name) are skipped,
-  // so re-running is safe and never duplicates.
-  async migrateLegacy(onProgress) {
-    if (!(await this.ensureToken())) throw new Error('Sign in to Google Drive first');
-    if (!this._ltoken) throw new Error('Old account not connected');
-    const q = encodeURIComponent("(name contains 'RowSess_' or name contains 'CoachSess_') and trashed=false");
-    const oldFiles = await this._listAllPaged(this._ltoken, q);
-    if (!oldFiles.length) return { total: 0, copied: 0, skipped: 0, failed: 0 };
-    const have = new Set((await this._listAllPaged(this._token, q)).map(f => f.name));
-    let copied = 0, skipped = 0, failed = 0, i = 0;
-    for (const f of oldFiles) {
-      i++;
-      if (onProgress) onProgress(i, oldFiles.length);
-      if (have.has(f.name)) { skipped++; continue; }
-      try {
-        const dl = await this._fetch(`https://www.googleapis.com/drive/v3/files/${f.id}?alt=media`, { headers: { Authorization: 'Bearer ' + this._ltoken } }, 'Migration download', 45000);
-        if (!dl.ok) throw new Error('HTTP ' + dl.status);
-        const blob = await dl.blob();
-        const meta = { name: f.name, mimeType: 'application/json', parents: ['appDataFolder'] };
-        const form = new FormData();
-        form.append('metadata', new Blob([JSON.stringify(meta)], { type: 'application/json' }));
-        form.append('file', blob);
-        const up = await this._api('https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart&fields=id', {
-          method: 'POST', body: form
-        }, 'Migration upload', 45000);
-        if (!up.ok) throw new Error('HTTP ' + up.status);
-        have.add(f.name);
-        copied++;
-      } catch { failed++; }
-    }
-    return { total: oldFiles.length, copied, skipped, failed };
-  },
-  async _listLegacy(prefix) {
-    if (!this._ltoken) return [];
-    // Once the old account is known to hold nothing, stop paying for the query
-    // on every single list.
-    try { if (localStorage.getItem('_ad_legacy_empty') === '1') return []; } catch {}
-    try {
-      const r = await this._fetch(`https://www.googleapis.com/drive/v3/files?spaces=appDataFolder&q=trashed%3Dfalse&fields=files(id,name,createdTime,size)&pageSize=1000`, { headers: { Authorization: 'Bearer ' + this._ltoken } }, 'Old account list', 10000);
-      // Never let a stalled old-account query take the main list down with it.
-      if (r.status === 401) { this._ltoken = null; sessionStorage.removeItem('_ad_token_legacy'); this._updateBtn(); return []; }
-      if (!r.ok) return [];
-      const d = await r.json();
-      const files = d.files || [];
-      if (!files.length) { try { localStorage.setItem('_ad_legacy_empty', '1'); } catch {} this.dropLegacy(); return []; }
-      files.forEach(f => this._legacyIds.add(f.id));
-      return files.filter(f => String(f.name || '').includes(prefix));
-    } catch { return []; }
-  },
-  // A plain appDataFolder listing is indexed and returns in well under a
-  // second. Adding "name contains 'RowSess_'" turns it into an unindexed
-  // substring scan that took 16s on a 60-file archive, so the folder is listed
-  // whole and the names are matched here instead. The short cache stops the
-  // rowing list and the coach list from fetching the same folder twice.
-  async _listFolder() {
-    if (this._folderCache && Date.now() - this._folderCache.t < 20000) return this._folderCache.files;
-    if (this._folderPending) return await this._folderPending;
-    this._folderPending = (async () => {
-      let out = [], page = null;
-      do {
-        const url = `https://www.googleapis.com/drive/v3/files?spaces=appDataFolder&q=trashed%3Dfalse&fields=nextPageToken,files(id,name,createdTime,size)&pageSize=1000` + (page ? '&pageToken=' + encodeURIComponent(page) : '');
-        const resp = await this._api(url, {}, 'Session list');
-        this._ok(resp, 'Session list');
-        const d = await resp.json();
-        out = out.concat(d.files || []);
-        page = d.nextPageToken || null;
-      } while (page);
-      this._folderCache = { t: Date.now(), files: out };
-      return out;
-    })();
-    try { return await this._folderPending; }
-    finally { this._folderPending = null; }
-  },
-  _invalidateFolder() { this._folderCache = null; },
+  signOut() { this._token = null; sessionStorage.removeItem('_ad_token'); this._updateBtn(); },
   async list() {
     this._check();
-    const mine = (await this._listFolder()).filter(f => String(f.name || '').includes('RowSess_'));
-    let all = mine.concat(await this._listLegacy('RowSess_'));
-    all.sort(_byFnTsDesc);
+    const q = encodeURIComponent("name contains 'RowSess_' and name contains '.json' and trashed=false");
+    const ac = new AbortController();
+    const timer = setTimeout(() => ac.abort(), 15000);
+    let resp;
+    try { resp = await fetch(`https://www.googleapis.com/drive/v3/files?spaces=appDataFolder&q=${q}&fields=files(id,name,createdTime,size)&orderBy=createdTime+desc&pageSize=200`, { headers: { Authorization: 'Bearer ' + this._token }, signal: ac.signal }); }
+    catch (e) { clearTimeout(timer); throw new Error(e.name === 'AbortError' ? 'Connection timed out — sign out and sign in again' : ('Network error — ' + e.message)); }
+    clearTimeout(timer);
+    if (resp.status === 401) { this._expire(); throw new Error('Session expired — sign out and sign in again'); }
+    if (!resp.ok) throw new Error('Drive error: HTTP ' + resp.status + ' — try signing out and in again');
+    const d = await resp.json();
     const seen = new Set();
-    return all.filter(f => { if (seen.has(f.name)) return false; seen.add(f.name); return true; });
-  },
-  // Coach session files sit in the same appDataFolder under a CoachSess_
-  // prefix, so they are listed separately and never mixed into the rowing
-  // session list.
-  async listCoachSessions() {
-    this._check();
-    const mine = (await this._listFolder()).filter(f => String(f.name || '').includes('CoachSess_'));
-    let all = mine.concat(await this._listLegacy('CoachSess_'));
-    all.sort(_byFnTsDesc);
-    const seen = new Set();
-    return all.filter(f => { if (seen.has(f.name)) return false; seen.add(f.name); return true; });
+    return (d.files || []).filter(f => { if (seen.has(f.name)) return false; seen.add(f.name); return true; });
   },
   async fetchSession(fileId) {
     this._check();
-    const resp = await this._api(`https://www.googleapis.com/drive/v3/files/${fileId}?alt=media`, {}, 'Session load', 45000, fileId);
-    this._ok(resp, 'Session load');
+    const resp = await fetch(`https://www.googleapis.com/drive/v3/files/${fileId}?alt=media`, { headers: { Authorization: 'Bearer ' + this._token } });
+    if (resp.status === 401) { this._expire(); throw new Error('Session expired — please sign in again'); }
+    if (!resp.ok) throw new Error('Drive fetch failed: HTTP ' + resp.status);
     return resp.json();
-  },
-  /* Shared session index, written by the Metrics app. Deleting a session here
-     removes the Drive file, but the phone keeps its own local copy — so a
-     tombstone goes into the index to tell it to drop that session on its next
-     sync. Best-effort throughout: a failed tombstone must never block a delete. */
-  MANIFEST_NAME: 'BoatRunIndex.json',
-  _manifestFid: null,
-  /* Matches the Metrics app: tombstones older than this are dropped, so the
-     index cannot grow without bound and a long-dead entry never blocks a
-     deliberate re-upload of the same session. */
-  TOMBSTONE_TTL_MS: 180 * 24 * 60 * 60 * 1000,
-  _pruneDeleted(deleted) {
-    const out = {}, cut = Date.now() - this.TOMBSTONE_TTL_MS;
-    for (const id of Object.keys(deleted || {})) {
-      const t = +deleted[id];
-      if (!t || isNaN(t) || t > cut) out[id] = deleted[id];
-    }
-    return out;
-  },
-  async _findManifest() {
-    if (this._manifestFid) return this._manifestFid;
-    const q = encodeURIComponent(`name='${this.MANIFEST_NAME}' and trashed=false`);
-    const r = await this._api(`https://www.googleapis.com/drive/v3/files?spaces=appDataFolder&q=${q}&fields=files(id)`, {}, 'Index', 15000);
-    if (!r.ok) return null;
-    const d = await r.json();
-    const id = (d.files && d.files[0] && d.files[0].id) || null;
-    if (id) this._manifestFid = id;
-    return id;
-  },
-  // Session id is the millisecond timestamp the filename was built from.
-  _idFromName(name) {
-    const m = String(name || '').match(/^RowSess_(\d{4})-(\d{2})-(\d{2})_(\d{2})(\d{2})/);
-    if (!m) return null;
-    const d = new Date(+m[1], +m[2] - 1, +m[3], +m[4], +m[5], 0, 0);
-    return isNaN(d.getTime()) ? null : d.getTime();
-  },
-  async tombstoneSession(fileName) {
-    try {
-      const fid = await this._findManifest();
-      if (!fid) return;                       // no index yet, nothing to mark
-      const r = await this._api(`https://www.googleapis.com/drive/v3/files/${fid}?alt=media`, {}, 'Index', 15000);
-      if (!r.ok) return;
-      const doc = await r.json();
-      const sessions = (doc && doc.sessions) || {};
-      const deleted = this._pruneDeleted((doc && doc.deleted) || {});
-      /* Filenames encode minutes, not milliseconds, so match the index entry
-         whose id falls in the same minute rather than trusting an exact value. */
-      const target = this._idFromName(fileName);
-      if (target == null) return;
-      let hit = null;
-      for (const id of Object.keys(sessions)) {
-        if (Math.abs(+id - target) < 60000) { hit = id; break; }
-      }
-      const mark = hit || String(target);
-      delete sessions[mark];
-      deleted[mark] = Date.now();
-      const form = new FormData();
-      form.append('metadata', new Blob([JSON.stringify({ name: this.MANIFEST_NAME, mimeType: 'application/json' })], { type: 'application/json' }));
-      form.append('file', new Blob([JSON.stringify({ v: 1, sessions, deleted })], { type: 'application/json' }));
-      await this._api(`https://www.googleapis.com/upload/drive/v3/files/${fid}?uploadType=multipart&fields=id`, { method: 'PATCH', body: form }, 'Index', 20000);
-    } catch {}
   },
   async deleteFile(fileId) {
     this._check();
-    const resp = await this._api(`https://www.googleapis.com/drive/v3/files/${fileId}`, { method: 'DELETE' }, 'Delete', null, fileId);
-    // 404 means it is already gone — treat that as success so the row clears.
-    if (resp.status === 404) { this._invalidateFolder(); return; }
-    this._ok(resp, 'Delete');
-    this._invalidateFolder();
+    const resp = await fetch(`https://www.googleapis.com/drive/v3/files/${fileId}`, { method: 'DELETE', headers: { Authorization: 'Bearer ' + this._token } });
+    if (!resp.ok && resp.status !== 204) throw new Error('Delete failed: HTTP ' + resp.status);
   },
   async patchName(fileId, newName) {
     this._check();
-    const mResp = await this._api(`https://www.googleapis.com/drive/v3/files/${fileId}?fields=name`, {}, 'Rename', null, fileId);
-    this._ok(mResp, 'Rename');
+    const mResp = await fetch(`https://www.googleapis.com/drive/v3/files/${fileId}?fields=name`, { headers: { Authorization: 'Bearer ' + this._token } });
+    if (mResp.status===401) { this._expire(); throw new Error('Session expired'); }
+    if (!mResp.ok) throw new Error('Metadata fetch failed: HTTP ' + mResp.status);
     const { name: currentName } = await mResp.json();
     const safe = newName.replace(/\s+/g,'-').replace(/[^a-zA-Z0-9-]/g,'').slice(0,30);
     const newFilename = currentName.replace(/_NAME[a-zA-Z0-9-]*/,'').replace(/\.json$/, '_NAME'+safe+'.json');
@@ -1154,11 +852,10 @@ const AnalyserDrive = {
     const form = new FormData();
     form.append('metadata', new Blob([JSON.stringify({name: newFilename})], {type:'application/json'}));
     form.append('file', new Blob([JSON.stringify(content)], {type:'application/json'}));
-    const r = await this._api(`https://www.googleapis.com/upload/drive/v3/files/${fileId}?uploadType=multipart`, {
-      method: 'PATCH', body: form
-    }, 'Rename', 45000, fileId);
-    this._ok(r, 'Rename');
-    this._invalidateFolder();
+    const r = await fetch(`https://www.googleapis.com/upload/drive/v3/files/${fileId}?uploadType=multipart`, {
+      method: 'PATCH', headers: { Authorization: 'Bearer ' + this._token }, body: form
+    });
+    if (!r.ok) throw new Error('Patch failed: HTTP ' + r.status);
   },
   async patchVidSync(fileId, vidSync) {
     this._check();
@@ -1167,45 +864,45 @@ const AnalyserDrive = {
     const form=new FormData();
     form.append('metadata',new Blob([JSON.stringify({})],{type:'application/json'}));
     form.append('file',new Blob([JSON.stringify(content)],{type:'application/json'}));
-    const r=await this._api(`https://www.googleapis.com/upload/drive/v3/files/${fileId}?uploadType=multipart`,{
-      method:'PATCH',body:form}, 'Sync save', 45000, fileId);
-    this._ok(r, 'Sync save');
+    const r=await fetch(`https://www.googleapis.com/upload/drive/v3/files/${fileId}?uploadType=multipart`,{
+      method:'PATCH',headers:{Authorization:'Bearer '+this._token},body:form});
+    if(!r.ok) throw new Error('Sync save failed: HTTP '+r.status);
   },
   async patchFavourite(fileId, isFav) {
     this._check();
-    const mResp = await this._api(`https://www.googleapis.com/drive/v3/files/${fileId}?fields=name`, {}, 'Favourite', null, fileId);
-    this._ok(mResp, 'Favourite');
+    const mResp = await fetch(`https://www.googleapis.com/drive/v3/files/${fileId}?fields=name`, { headers: { Authorization: 'Bearer ' + this._token } });
+    if (mResp.status===401) { this._expire(); throw new Error('Session expired'); }
+    if (!mResp.ok) throw new Error('Metadata fetch failed: HTTP ' + mResp.status);
     const { name: currentName } = await mResp.json();
     let newName = currentName.replace(/_FAV1/,'');
     if (isFav) newName = newName.replace(/\.json$/, '_FAV1.json');
-    const r = await this._api(`https://www.googleapis.com/drive/v3/files/${fileId}`, {
+    const r = await fetch(`https://www.googleapis.com/drive/v3/files/${fileId}`, {
       method: 'PATCH',
-      headers: { 'Content-Type': 'application/json' },
+      headers: { Authorization: 'Bearer ' + this._token, 'Content-Type': 'application/json' },
       body: JSON.stringify({ name: newName })
-    }, 'Favourite', null, fileId);
-    this._ok(r, 'Favourite');
-    this._invalidateFolder();
+    });
+    if (!r.ok) throw new Error('Favourite save failed: HTTP ' + r.status);
     return newName;
   },
   async pullPrefs() {
-    if (!(await this.ensureToken())) return null;
+    if (!this._token) return null;
     try {
       let fid = localStorage.getItem('_ad_prefs_fid');
       if (!fid) {
         const q = encodeURIComponent("name='BoatRunPrefs.json' and trashed=false");
-        const r = await this._api(`https://www.googleapis.com/drive/v3/files?spaces=appDataFolder&q=${q}&fields=files(id)`, {}, 'Prefs', 10000);
+        const r = await fetch(`https://www.googleapis.com/drive/v3/files?spaces=appDataFolder&q=${q}&fields=files(id)`, { headers: { Authorization: 'Bearer ' + this._token } });
         if (!r.ok) return null;
         const d = await r.json();
         if (d.files && d.files.length) { fid = d.files[0].id; localStorage.setItem('_ad_prefs_fid', fid); }
       }
       if (!fid) return null;
-      const r2 = await this._api(`https://www.googleapis.com/drive/v3/files/${fid}?alt=media`, {}, 'Prefs', 10000);
+      const r2 = await fetch(`https://www.googleapis.com/drive/v3/files/${fid}?alt=media`, { headers: { Authorization: 'Bearer ' + this._token } });
       if (!r2.ok) return null;
       return await r2.json();
     } catch { return null; }
   },
   async pushPrefs(patch) {
-    if (!(await this.ensureToken())) return false;
+    if (!this._token) return false;
     try {
       const cur = (await this.pullPrefs()) || {};
       const merged = { ...cur, ...patch, updatedAt: Date.now() };
@@ -1217,143 +914,28 @@ const AnalyserDrive = {
       const url = fid
         ? `https://www.googleapis.com/upload/drive/v3/files/${fid}?uploadType=multipart&fields=id`
         : 'https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart&fields=id';
-      const r = await this._api(url, { method: fid ? 'PATCH' : 'POST', body: form }, 'Prefs', 15000);
+      const r = await fetch(url, { method: fid ? 'PATCH' : 'POST', headers: { Authorization: 'Bearer ' + this._token }, body: form });
       if (!r.ok) return false;
       const rd = await r.json();
       if (rd && rd.id) localStorage.setItem('_ad_prefs_fid', rd.id);
       return true;
     } catch { return false; }
   },
-  // Every Drive request goes through here. appDataFolder queries are unindexed
-  // and can stall with no response at all, so each call gets its own abort
-  // timer instead of hanging the UI forever.
-  DRIVE_TIMEOUT_MS: 20000,
-  async _fetch(url, opts, label, ms) {
-    const ac = new AbortController();
-    const timer = setTimeout(() => ac.abort(), ms || this.DRIVE_TIMEOUT_MS);
-    try {
-      return await fetch(url, { ...(opts || {}), signal: ac.signal });
-    } catch (e) {
-      throw new Error(e.name === 'AbortError'
-        ? (label || 'Drive') + ' timed out \u2014 check your connection and try again'
-        : (label || 'Drive') + ' network error \u2014 ' + e.message);
-    } finally { clearTimeout(timer); }
-  },
-  async _workerPost(path, bodyObj) {
-    const r = await this._fetch(this.WORKER + path, {
-      method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(bodyObj)
-    }, 'Google sign-in', 20000);
-    const txt = await r.text();
-    let d = {}; try { d = JSON.parse(txt); } catch {}
-    return { ok: r.ok, status: r.status, data: d };
-  },
-  _injectToken(t, secs, rtok) {
-    this._token = t;
-    this._exp = Date.now() + (secs || 3600) * 1000;
-    try {
-      sessionStorage.setItem('_ad_token', t);
-      sessionStorage.setItem('_ad_token_exp', String(this._exp));
-    } catch {}
-    if (rtok) { this._rtok = rtok; try { localStorage.setItem('_ad_rtok', rtok); } catch {} }
-    this._updateBtn();
-  },
-  async exchangeCode(code) {
-    try {
-      const res = await this._workerPost('/exchange', { code, redirect_uri: this.REDIRECT });
-      if (!res.ok || !res.data.access_token) return false;
-      this._injectToken(res.data.access_token, res.data.expires_in, res.data.refresh_token || null);
-      return true;
-    } catch { return false; }
-  },
-  async refreshViaWorker() {
-    if (!this._rtok) return false;
-    try {
-      const res = await this._workerPost('/refresh', { refresh_token: this._rtok });
-      if (!res.ok || !res.data.access_token) {
-        // Google revokes refresh tokens when access is removed or the password
-        // changes. Drop it so the button offers a fresh sign-in.
-        if (res.status === 400 || res.status === 401) {
-          this._rtok = null;
-          try { localStorage.removeItem('_ad_rtok'); } catch {}
-          this._updateBtn();
-        }
-        return false;
-      }
-      this._injectToken(res.data.access_token, res.data.expires_in);
-      return true;
-    } catch { return false; }
-  },
-  // Renews a minute early so a long upload never starts on a dying token.
-  async ensureToken() {
-    if (this._token && Date.now() < this._exp - 60000) return true;
-    return await this.refreshViaWorker();
-  },
-  // All Drive traffic goes through here: it picks the right account's token,
-  // renews it if stale, and retries once if Google still says 401.
-  async _api(url, opts, label, ms, fileId) {
-    const o = opts || {};
-    const legacy = fileId != null && this._legacyIds && this._legacyIds.has(fileId);
-    if (!legacy) await this.ensureToken();
-    const withAuth = () => ({ ...o, headers: { ...(o.headers || {}), Authorization: 'Bearer ' + (legacy ? this._ltoken : this._token) } });
-    let resp = await this._fetch(url, withAuth(), label, ms);
-    if (resp.status === 401 && !legacy && await this.refreshViaWorker()) {
-      resp = await this._fetch(url, withAuth(), label, ms);
-    }
-    return resp;
-  },
-  // Shared response check. A 401 means the hour-long Google token has died, so
-  // clear it and flip the button back to signed-out rather than throwing a bare
-  // HTTP code that leaves the UI looking signed in.
-  _ok(resp, label) {
-    if (resp.status === 401) { this._expire(); throw new Error('Session expired \u2014 sign in to Google again'); }
-    if (!resp.ok && resp.status !== 204) throw new Error((label || 'Drive') + ' failed: HTTP ' + resp.status);
-    return resp;
-  },
-  _check() { if (!this._token && !this._rtok && !this._ltoken) throw new Error('Not signed in to Drive'); },
-  // Clears the access token but keeps the refresh token — the next call just
-  // fetches a new one rather than making the user sign in again.
-  _expire() {
-    this._token = null; this._exp = 0;
-    sessionStorage.removeItem('_ad_token'); sessionStorage.removeItem('_ad_token_exp');
-    this._updateBtn();
-  },
+  _check() { if (!this._token) throw new Error('Not signed in to Drive'); },
+  _expire() { this._token = null; sessionStorage.removeItem('_ad_token'); this._updateBtn(); },
   _updateBtn() {
     const dot = document.getElementById('gdrivedot');
     const label = document.getElementById('gdrivelabel');
     if (!dot || !label) return;
     if (this.isSignedIn()) {
       dot.style.background = '#2ecc71';
-      label.textContent = this.isLegacyLinked() ? 'Drive: Signed in +archive' : 'Drive: Signed in';
+      label.textContent = 'Drive: Signed in';
     } else {
       dot.style.background = '#c0392b';
       label.textContent = 'Drive: Signed out';
     }
   },
 };
-async function runLegacyMigration() {
-  if (!AnalyserDrive.isSignedIn()) { toast('Connect Google Drive first'); return; }
-  if (!AnalyserDrive.isLegacyLinked()) { toast('Old account not connected'); return; }
-  const bar = document.createElement('div');
-  bar.style.cssText = 'position:fixed;left:0;right:0;bottom:0;z-index:99999;background:#111;color:#eee;font:13px system-ui,sans-serif;padding:12px 14px;text-align:center;';
-  bar.textContent = 'Importing old sessions\u2026';
-  document.body.appendChild(bar);
-  try {
-    const r = await AnalyserDrive.migrateLegacy((i, n) => { bar.textContent = 'Importing old sessions\u2026 ' + i + '/' + n; });
-    if (r.total === 0) {
-      try { localStorage.setItem('_ad_legacy_empty', '1'); } catch {}
-      AnalyserDrive.dropLegacy();
-      toast('No old sessions found');
-    } else if (r.failed === 0) {
-      try { localStorage.setItem('_ad_legacy_done', '1'); } catch {}
-      AnalyserDrive.dropLegacy();
-      toast('Imported ' + r.copied + ' session(s)' + (r.skipped ? ', ' + r.skipped + ' already present' : ''));
-    } else {
-      toast('Imported ' + r.copied + ', ' + r.failed + ' failed \u2014 run it again to finish');
-    }
-  } catch (e) { toast('Import failed: ' + (e && e.message ? e.message : e)); }
-  bar.remove();
-  if (typeof showStartup === 'function') showStartup();
-}
 function _normRecords(obj) {
   let out;
   if (!obj) out = { water: {}, erg: {} };
@@ -1634,11 +1216,6 @@ const METRIC_DEFS = [
 // Tiles/rows the PM5 can actually feed — used to restrict the Tiles picker,
 // hover tooltip, and stroke table to erg-relevant metrics on erg sessions.
 const ERG_TILE_KEYS=['pace','rate','dps','peakforce','drivelength','drivetime','hr'];
-// Metrics the PM5 alone can feed — meaningless (and always empty) on an on-water session.
-const ERG_ONLY_KEYS=['watts','peakforce','drivelength'];
-// True when metric key k belongs on the current session: erg sessions restrict to what a PM5
-// can send, on-water sessions exclude the erg-only metrics that would otherwise show as data-less rows.
-function metricFitsSession(k){ return isErgSession() ? ERG_TILE_KEYS.includes(k) : !ERG_ONLY_KEYS.includes(k); }
 function applyTileOrder(ord){
   let order=ord;
   if(!order){
@@ -2841,387 +2418,6 @@ function showSquadPicker(code, metas, desc) {
     document.body.appendChild(overlay);
 }
 
-/* \u2550\u2550 COACH SESSIONS \u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550
-   A CoachSess_ file is written to the coach's own Drive by the Metrics app.
-   It holds the squad interval tables verbatim plus a roster naming each
-   athlete and, where the athlete uploaded one, the id of their full session
-   in the squad cloud. Opening the file gives the table view only - clicking
-   an athlete follows their sessId into the normal session view.
-
-   The interval tables live in the file forever. The full sessions live in the
-   squad cloud and are pruned after 21 days, so an athlete link can go dead
-   while the table it sits under stays intact. That is intended. */
-function coachParseFn(name){
-  const d=name.match(/CoachSess_(\d{4})-(\d{2})-(\d{2})_(\d{2})(\d{2})/);
-  const sq=name.match(/_SQ([A-Z0-9]{1,8})/);
-  const ath=name.match(/_(\d+)ath/);
-  const nm=name.match(/_NAME([a-zA-Z0-9\-]+)/);
-  return {
-    ts: d?new Date(+d[1],+d[2]-1,+d[3],+d[4],+d[5]).getTime():0,
-    squadCode: sq?sq[1]:null,
-    athletes: ath?parseInt(ath[1]):null,
-    name: nm?nm[1].replace(/-/g,' '):null
-  };
-}
-async function loadCoachSessions(){
-  if(!AnalyserDrive.isSignedIn()){ toast('Connect Google Drive first'); return; }
-  toast('Fetching coach sessions\u2026');
-  let files=[];
-  try{ files=await AnalyserDrive.listCoachSessions(); }
-  catch(e){ toast('Drive error: '+e.message); return; }
-  if(!files.length){ toast('No coach sessions on Drive'); return; }
-  showCoachPicker(files);
-}
-function showCoachPicker(files){
-  document.getElementById('_coach_picker')?.remove();
-  const overlay=document.createElement('div');
-  overlay.id='_coach_picker';
-  overlay.style.cssText='position:fixed;inset:0;background:rgba(0,0,0,.72);display:flex;align-items:center;justify-content:center;z-index:9999;';
-  const panel=document.createElement('div');
-  panel.style.cssText='background:var(--s1);border:1px solid var(--border);border-radius:10px;width:min(92vw,460px);max-height:80vh;display:flex;flex-direction:column;overflow:hidden;color:var(--text);font-family:-apple-system,BlinkMacSystemFont,Helvetica Neue,sans-serif;';
-  const hdr=document.createElement('div');
-  hdr.style.cssText='display:flex;align-items:center;padding:14px 16px;border-bottom:1px solid var(--border);flex-shrink:0;';
-  hdr.innerHTML='<span style="font-size:13px;font-weight:700;">Coach Sessions</span>';
-  const close=document.createElement('button');
-  close.textContent='\u2715';
-  close.style.cssText='margin-left:auto;background:none;border:1px solid var(--border);color:var(--muted);border-radius:6px;padding:4px 10px;font-size:11px;cursor:pointer;';
-  close.onclick=()=>overlay.remove();
-  hdr.appendChild(close);
-  panel.appendChild(hdr);
-  const list=document.createElement('div');
-  list.style.cssText='overflow-y:auto;flex:1;display:flex;flex-direction:column;gap:6px;padding:14px 16px;';
-  const rows=files.map(f=>({f,p:coachParseFn(f.name)}))
-    .sort((a,b)=>(b.p.ts||0)-(a.p.ts||0));
-  rows.forEach(({f,p})=>{
-    const row=document.createElement('div');
-    row.style.cssText='display:flex;align-items:center;gap:6px;';
-    const btn=document.createElement('button');
-    btn.style.cssText='background:var(--s2);border:1px solid var(--border);border-radius:6px;padding:10px 12px;text-align:left;cursor:pointer;color:var(--text);font-size:12px;line-height:1.6;flex:1;min-width:0;font-family:inherit;';
-    const when=p.ts?new Date(p.ts).toLocaleDateString()+' '+new Date(p.ts).toLocaleTimeString([],{hour:'2-digit',minute:'2-digit'}):'';
-    btn.innerHTML='<span style="color:var(--b);font-weight:700">'+(p.name||('Squad '+(p.squadCode||'')))+'</span>  '+when+
-      '<br><span style="color:var(--muted)">'+(p.squadCode?('squad '+p.squadCode):'')+
-      (p.athletes!=null?('  \u00b7 '+p.athletes+' athlete'+(p.athletes===1?'':'s')):'')+'</span>';
-    btn.onclick=async()=>{
-      overlay.remove();
-      toast('Loading\u2026');
-      try{
-        const file=await AnalyserDrive.fetchSession(f.id);
-        if(!file||file.type!=='BoatRunCoachSession')throw new Error('Not a coach session file');
-        showCoachSessionView(file,f.id);
-      }catch(e){ toast('Load failed: '+e.message); }
-    };
-    const del=document.createElement('button');
-    del.textContent='\uD83D\uDDD1'; del.title='Delete from Drive';
-    del.style.cssText='padding:9px 10px;background:rgba(192,57,43,.15);border:1px solid rgba(192,57,43,.4);border-radius:6px;color:#e74c3c;cursor:pointer;font-size:.85rem;flex-shrink:0;';
-    del.onclick=async()=>{
-      if(!confirm('Delete this coach session from Drive? This cannot be undone.'))return;
-      del.textContent='\u2026'; del.disabled=true;
-      try{ await AnalyserDrive.deleteFile(f.id); row.remove(); }
-      catch(e){ toast('Delete failed: '+e.message); del.textContent='\uD83D\uDDD1'; del.disabled=false; }
-    };
-    row.appendChild(btn); row.appendChild(del);
-    list.appendChild(row);
-  });
-  panel.appendChild(list);
-  overlay.appendChild(panel);
-  overlay.onclick=e=>{ if(e.target===overlay) overlay.remove(); };
-  document.body.appendChild(overlay);
-}
-function coachEsc(v){
-  return String(v==null?'':v).replace(/&/g,'&amp;').replace(/</g,'&lt;')
-    .replace(/>/g,'&gt;').replace(/"/g,'&quot;');
-}
-/* Re-resolve a roster entry to a squad session id. Device id first; name +
-   start time within six hours as a fallback for sessions uploaded by a build
-   that predates the dev field. */
-function coachMatchMeta(metas,r){
-  const start=r.start||0;
-  const near=m=>!start||Math.abs((m.t||parseInt(m.id)||0)-start)<6*3600000;
-  for(const m of metas){ if(m.dev&&m.dev===r.dev&&near(m))return m.id; }
-  for(const m of metas){ if(!m.dev&&String(m.rower||'')===String(r.name)&&start&&near(m))return m.id; }
-  return null;
-}
-async function coachFetchAthlete(file,r){
-  const code=file.squadCode;
-  if(!code)throw new Error('No squad code in file');
-  if(!(await ensureSquadUnlocked(code)))throw new Error('Squad '+code+' is password protected');
-  let sessId=r.sessId;
-  if(!sessId){
-    let metas=[];
-    try{ metas=await fetchSquadMetas(code); }catch{}
-    sessId=coachMatchMeta(metas,r);
-    if(sessId) r.sessId=sessId;   // cache for the rest of this view
-  }
-  if(!sessId)throw new Error((r.name||'Rower')+' has not sent this session to the squad');
-  const resp=await fetch(sqProxy(code,'coach_sessions/'+sessId));
-  if(!resp.ok)throw new Error('HTTP '+resp.status);
-  const session=await resp.json();
-  if(!session)throw new Error('Session no longer in the squad cloud \u2014 it may have been pruned');
-  return session;
-}
-async function coachOpenAthlete(file,r,replace){
-  const session=await coachFetchAthlete(file,r);
-  applySessionUnits(session);
-  const label=(r.name||'Rower')+' '+new Date(r.start||file.end||Date.now()).toLocaleDateString();
-  addSessionFromData(sessionToAnalyserFmt(session),label,replace,null,file.squadCode);
-}
-async function coachOpenAll(file,btn){
-  const roster=(file.roster||[]);
-  if(!roster.length){ toast('No athletes in this file'); return; }
-  if(roster.length>1&&!isPro()){ showPlanModal('Opening a whole squad at once is a Pro feature.'); return; }
-  btn.disabled=true; const old=btn.textContent;
-  let n=0,fail=0;
-  for(let i=0;i<roster.length;i++){
-    btn.textContent='Opening '+(i+1)+'/'+roster.length+'\u2026';
-    try{ await coachOpenAthlete(file,roster[i],n===0); n++; }
-    catch{ fail++; }
-  }
-  btn.disabled=false; btn.textContent=old;
-  if(!n){ toast('No athlete sessions could be opened'); return; }
-  document.getElementById('_coach_view')?.remove();
-  toast(n+' session'+(n===1?'':'s')+' opened'+(fail?(' \u00b7 '+fail+' unavailable'):''));
-}
-function coachIntervalTable(sn){
-  const erg=sn.mode==='erg';
-  const f=v=>(v==null?'\u2014':(erg?fmtPace(v):fmtTime(v)));
-  let wT=0,wD=0,rT=0,rD=0;
-  (sn.rows||[]).forEach(r=>{
-    if((r.type||'')==='rest'){rT+=(r.time||0);rD+=(r.dist||0);}
-    else{wT+=(r.time||0);wD+=(r.dist||0);}
-  });
-  const badgeCol={warmup:'#5dade2',work:'#27ae60',rest:'#f39c12',cooldown:'#8e44ad'};
-  const rows=(sn.rows||[]).map(r=>{
-    const ty=String(r.type||'work').toLowerCase();
-    const col=badgeCol[ty]||'#27ae60';
-    return '<tr>'+
-      '<td style="padding:6px 8px;border-bottom:1px solid var(--border);"><span style="background:'+col+';color:#fff;font-size:8px;font-weight:700;padding:2px 5px;border-radius:2px;">'+coachEsc(ty.toUpperCase().slice(0,4))+'</span></td>'+
-      '<td style="padding:6px 8px;border-bottom:1px solid var(--border);">'+(r.n!=null?r.n:'\u2014')+'</td>'+
-      '<td style="padding:6px 8px;border-bottom:1px solid var(--border);">'+(r.time!=null?fmtTime(r.time):'\u2014')+'</td>'+
-      '<td style="padding:6px 8px;border-bottom:1px solid var(--border);">'+(r.dist!=null?Math.round(r.dist):'\u2014')+'</td>'+
-      '<td style="padding:6px 8px;border-bottom:1px solid var(--border);">'+(r.pace>0?fmtPace(r.pace):'\u2014')+'</td>'+
-      '<td style="padding:6px 8px;border-bottom:1px solid var(--border);">'+(r.rate||'\u2014')+'</td>'+
-      '<td style="padding:6px 8px;border-bottom:1px solid var(--border);">'+(r.power||'\u2014')+'</td>'+
-      '<td style="padding:6px 8px;border-bottom:1px solid var(--border);">'+(r.hr||'\u2014')+'</td>'+
-      '</tr>';
-  }).join('');
-  const anyRest=rT>0||rD>0;
-  const wPace=(wD>5&&wT>0)?(wT/wD)*500:0;
-  const tot='<tr style="font-weight:800;"><td style="padding:6px 8px;border-top:2px solid var(--b);">'+(anyRest?'WORK':'TOTAL')+'</td><td style="border-top:2px solid var(--b);"></td>'+
-    '<td style="padding:6px 8px;border-top:2px solid var(--b);">'+fmtTime(wT)+'</td>'+
-    '<td style="padding:6px 8px;border-top:2px solid var(--b);">'+Math.round(wD)+'</td>'+
-    '<td style="padding:6px 8px;border-top:2px solid var(--b);">'+(wPace>0?fmtPace(wPace):'\u2014')+'</td>'+
-    '<td colspan="3" style="border-top:2px solid var(--b);"></td></tr>'+
-    (anyRest?('<tr style="color:var(--muted);"><td style="padding:6px 8px;">REST</td><td></td><td style="padding:6px 8px;">'+fmtTime(rT)+'</td><td style="padding:6px 8px;">'+Math.round(rD)+'</td><td colspan="4"></td></tr>'):'');
-  const th='padding:6px 8px;font-size:10px;letter-spacing:.06em;color:var(--muted);text-align:left;border-bottom:1px solid var(--border);';
-  return '<div style="overflow-x:auto;"><table style="width:100%;border-collapse:collapse;font-size:12px;">'+
-    '<tr><th style="'+th+'">Type</th><th style="'+th+'">#</th><th style="'+th+'">Time</th><th style="'+th+'">Dist</th>'+
-    '<th style="'+th+'">Pace</th><th style="'+th+'">SPM</th><th style="'+th+'">W</th><th style="'+th+'">HR</th></tr>'+
-    rows+tot+'</table></div>';
-}
-/* ── CONSOLIDATED LAP EXPORT ────────────────────────────────────────────────
-   Flattens every athlete's interval table in the coach session into one row
-   per lap, then writes it out in whichever format the coach's tools want. */
-function coachLapRows(file){
-  const iv=file.intervals||{};
-  const roster=(file.roster&&file.roster.length)?file.roster.slice()
-    :Object.keys(iv).map(d=>({dev:d,name:(iv[d]||{}).name||'Rower'}));
-  roster.sort((a,b)=>String(a.name||'').localeCompare(String(b.name||'')));
-  const out=[];
-  roster.forEach(r=>{
-    const sn=iv[r.dev]||{};
-    const st=sn.start||r.start||0;
-    (sn.rows||[]).forEach((row,i)=>{
-      const pace=(row.pace>0)?row.pace:null;
-      out.push({
-        athlete:(sn.name||r.name||'Rower'),
-        squad:(file.squadCode||''),
-        session:(sn.sess||file.sessName||''),
-        mode:(sn.mode||r.mode||'rower'),
-        start_iso:(st?new Date(st).toISOString():''),
-        lap:(row.n!=null?row.n:(i+1)),
-        type:String(row.type||'work').toLowerCase(),
-        time_s:(row.time!=null?Math.round(row.time*10)/10:null),
-        time_hms:(row.time!=null?fmtTime(row.time):''),
-        distance_m:(row.dist!=null?Math.round(row.dist):null),
-        pace_s_500m:(pace?Math.round(pace*10)/10:null),
-        pace_mmss:(pace?fmtPace(pace):''),
-        stroke_rate_spm:(row.rate!=null?row.rate:null),
-        power_w:(row.power!=null?row.power:null),
-        hr_bpm:(row.hr!=null?row.hr:null)
-      });
-    });
-  });
-  return out;
-}
-const COACH_LAP_COLS=['athlete','squad','session','mode','start_iso','lap','type',
-  'time_s','time_hms','distance_m','pace_s_500m','pace_mmss','stroke_rate_spm','power_w','hr_bpm'];
-function coachLapFname(file){
-  const d=new Date(file.end||Date.now()),z=n=>String(n).padStart(2,'0');
-  return 'CoachLaps_'+d.getFullYear()+'-'+z(d.getMonth()+1)+'-'+z(d.getDate())+'_'+
-    z(d.getHours())+z(d.getMinutes())+'_SQ'+(file.squadCode||'');
-}
-function coachLapDL(text,mime,ext,file,label){
-  const blob=new Blob([text],{type:mime});
-  const url=URL.createObjectURL(blob);
-  const a=document.createElement('a');
-  a.href=url; a.download=coachLapFname(file)+ext; a.click();
-  setTimeout(()=>URL.revokeObjectURL(url),2000);
-  toast(label+' exported \u00b7 '+coachLapFname(file)+ext);
-}
-function coachLapDelim(rows,sep){
-  const cell=v=>{
-    let s=(v==null?'':String(v));
-    if(sep==='\t')return s.replace(/[\t\r\n]/g,' ');
-    return /[",\r\n]/.test(s)?('"'+s.replace(/"/g,'""')+'"'):s;
-  };
-  const head=COACH_LAP_COLS.join(sep);
-  const body=rows.map(r=>COACH_LAP_COLS.map(c=>cell(r[c])).join(sep)).join('\r\n');
-  return head+'\r\n'+body+'\r\n';
-}
-function coachLapHTML(file,rows){
-  const th='padding:5px 8px;border:1px solid #999;background:#eee;text-align:left;font-size:12px;';
-  const td='padding:4px 8px;border:1px solid #ccc;font-size:12px;';
-  const body=rows.map(r=>'<tr>'+COACH_LAP_COLS.map(c=>'<td style="'+td+'">'+
-    coachEsc(r[c]==null?'':r[c])+'</td>').join('')+'</tr>').join('\n');
-  return '<!doctype html><html><head><meta charset="utf-8"><title>'+
-    coachEsc(coachLapFname(file))+'</title></head><body>'+
-    '<h3 style="font-family:sans-serif;">'+coachEsc(file.sessName||('Squad '+file.squadCode))+
-    ' \u2014 consolidated laps</h3>'+
-    '<table style="border-collapse:collapse;font-family:sans-serif;"><tr>'+
-    COACH_LAP_COLS.map(c=>'<th style="'+th+'">'+c+'</th>').join('')+'</tr>'+
-    body+'</table></body></html>';
-}
-function coachExportLaps(file,fmt){
-  const rows=coachLapRows(file);
-  if(!rows.length){ toast('No lap data in this coach session'); return; }
-  if(fmt==='csv') coachLapDL('\ufeff'+coachLapDelim(rows,','),'text/csv;charset=utf-8','.csv',file,'CSV');
-  else if(fmt==='tsv') coachLapDL(coachLapDelim(rows,'\t'),'text/tab-separated-values;charset=utf-8','.tsv',file,'TSV');
-  else if(fmt==='json') coachLapDL(JSON.stringify({
-      squadCode:file.squadCode||null, sessName:file.sessName||null,
-      end:file.end||null, athletes:(file.roster||[]).length,
-      columns:COACH_LAP_COLS, laps:rows
-    },null,2),'application/json','.json',file,'JSON');
-  else if(fmt==='html') coachLapDL(coachLapHTML(file,rows),'text/html;charset=utf-8','.html',file,'HTML');
-  else if(fmt==='clip'){
-    const t=coachLapDelim(rows,'\t');
-    if(navigator.clipboard&&navigator.clipboard.writeText){
-      navigator.clipboard.writeText(t).then(()=>toast(rows.length+' laps copied \u2014 paste into a spreadsheet'))
-        .catch(()=>toast('Clipboard blocked \u2014 use TSV instead'));
-    } else toast('Clipboard not available \u2014 use TSV instead');
-  }
-}
-function coachExportMenu(file){
-  document.getElementById('_coach_exp')?.remove();
-  const rows=coachLapRows(file);
-  const ov=document.createElement('div');
-  ov.id='_coach_exp';
-  ov.style.cssText='position:fixed;inset:0;background:rgba(0,0,0,.72);display:flex;align-items:center;justify-content:center;z-index:10001;';
-  const p=document.createElement('div');
-  p.style.cssText='background:var(--s1);border:1px solid var(--border);border-radius:10px;padding:18px;width:min(92vw,360px);color:var(--text);font-family:-apple-system,BlinkMacSystemFont,Helvetica Neue,sans-serif;';
-  p.innerHTML='<div style="font-size:14px;font-weight:700;color:var(--b);">Export consolidated laps</div>'+
-    '<div style="font-size:11px;color:var(--muted);margin:4px 0 14px;">'+rows.length+
-    ' lap'+(rows.length===1?'':'s')+' across '+((file.roster||[]).length||Object.keys(file.intervals||{}).length)+
-    ' athlete'+(((file.roster||[]).length)===1?'':'s')+' \u00b7 one row per lap</div>';
-  const opts=[
-    ['csv','CSV','Excel, Sheets, Numbers, R, Python'],
-    ['tsv','TSV','Tab separated \u2014 clean paste into Excel'],
-    ['json','JSON','Structured, for scripts and databases'],
-    ['html','HTML table','Open in a browser or print to PDF'],
-    ['clip','Copy to clipboard','Paste straight into a spreadsheet']
-  ];
-  opts.forEach(o=>{
-    const b=document.createElement('button');
-    b.style.cssText='display:block;width:100%;text-align:left;background:var(--s2);border:1px solid var(--border);color:var(--text);border-radius:6px;padding:9px 12px;margin-bottom:8px;cursor:pointer;font-family:inherit;';
-    b.innerHTML='<div style="font-size:12px;font-weight:700;">'+o[1]+'</div>'+
-      '<div style="font-size:10px;color:var(--muted);">'+o[2]+'</div>';
-    b.onclick=()=>{ coachExportLaps(file,o[0]); ov.remove(); };
-    p.appendChild(b);
-  });
-  const c=document.createElement('button');
-  c.textContent='Cancel';
-  c.style.cssText='display:block;width:100%;background:none;border:1px solid var(--border);color:var(--muted);border-radius:6px;padding:8px;font-size:11px;cursor:pointer;font-family:inherit;margin-top:4px;';
-  c.onclick=()=>ov.remove();
-  p.appendChild(c);
-  ov.appendChild(p);
-  ov.onclick=e=>{ if(e.target===ov) ov.remove(); };
-  document.body.appendChild(ov);
-}
-function showCoachSessionView(file,fileId){
-  document.getElementById('_coach_view')?.remove();
-  const overlay=document.createElement('div');
-  overlay.id='_coach_view';
-  overlay.style.cssText='position:fixed;inset:0;background:rgba(0,0,0,.8);display:flex;align-items:flex-start;justify-content:center;z-index:9999;padding:16px;overflow-y:auto;';
-  const panel=document.createElement('div');
-  panel.style.cssText='background:var(--s1);border:1px solid var(--border);border-radius:10px;width:min(96vw,760px);color:var(--text);font-family:-apple-system,BlinkMacSystemFont,Helvetica Neue,sans-serif;margin:auto;';
-  const when=file.end?new Date(file.end).toLocaleString():'';
-  const roster=file.roster||[];
-  const hdr=document.createElement('div');
-  hdr.style.cssText='display:flex;align-items:center;gap:8px;padding:14px 16px;border-bottom:1px solid var(--border);flex-wrap:wrap;';
-  hdr.innerHTML='<div style="flex:1;min-width:0;">'+
-    '<div style="font-size:14px;font-weight:700;">'+coachEsc(file.sessName||('Squad '+file.squadCode))+'</div>'+
-    '<div style="font-size:11px;color:var(--muted);">squad '+coachEsc(file.squadCode||'')+
-    (file.squadDesc?(' \u00b7 '+coachEsc(file.squadDesc)):'')+' \u00b7 '+coachEsc(when)+
-    ' \u00b7 '+roster.length+' athlete'+(roster.length===1?'':'s')+'</div></div>';
-  const allBtn=document.createElement('button');
-  allBtn.textContent='Open all athletes';
-  allBtn.style.cssText='background:var(--b);border:1px solid var(--b);color:#fff;border-radius:6px;padding:7px 12px;font-size:11px;font-weight:700;cursor:pointer;font-family:inherit;flex-shrink:0;';
-  allBtn.onclick=()=>coachOpenAll(file,allBtn);
-  const close=document.createElement('button');
-  close.textContent='\u2715';
-  close.style.cssText='background:none;border:1px solid var(--border);color:var(--muted);border-radius:6px;padding:5px 10px;font-size:11px;cursor:pointer;flex-shrink:0;';
-  close.onclick=()=>overlay.remove();
-  const expBtn=document.createElement('button');
-  expBtn.textContent='\u2913 Export laps';
-  expBtn.style.cssText='background:var(--s2);border:1px solid var(--border);color:var(--text);border-radius:6px;padding:7px 12px;font-size:11px;font-weight:700;cursor:pointer;font-family:inherit;flex-shrink:0;';
-  expBtn.onclick=()=>coachExportMenu(file);
-  hdr.appendChild(expBtn); hdr.appendChild(allBtn); hdr.appendChild(close);
-  panel.appendChild(hdr);
-  const body=document.createElement('div');
-  body.style.cssText='padding:8px 16px 18px;';
-  const iv=file.intervals||{};
-  const order=roster.length?roster.slice():Object.keys(iv).map(d=>({dev:d,name:(iv[d]||{}).name||'Rower'}));
-  order.sort((a,b)=>String(a.name||'').localeCompare(String(b.name||'')));
-  if(!order.length){ body.innerHTML='<div style="color:var(--muted);font-size:12px;padding:20px 0;text-align:center;">This coach session has no athletes.</div>'; }
-  order.forEach(r=>{
-    const sn=iv[r.dev]||{};
-    const blk=document.createElement('div');
-    blk.style.cssText='margin:14px 0 4px;';
-    const bh=document.createElement('div');
-    bh.style.cssText='display:flex;align-items:center;gap:8px;padding-bottom:6px;flex-wrap:wrap;';
-    const sub=[(sn.mode||r.mode||'rower').toUpperCase(),sn.sess||'',
-      (sn.start||r.start)?new Date(sn.start||r.start).toLocaleString():''].filter(Boolean).join(' \u00b7 ');
-    bh.innerHTML='<div style="flex:1;min-width:0;"><div style="font-size:14px;font-weight:800;color:var(--b);">'+
-      coachEsc(sn.name||r.name||'Rower')+'</div>'+
-      '<div style="font-size:10px;color:var(--muted);">'+coachEsc(sub)+'</div></div>';
-    const open=document.createElement('button');
-    open.textContent=r.sessId?'Open session \u2192':'Find session \u2192';
-    open.style.cssText='background:var(--s2);border:1px solid var(--border);color:var(--text);border-radius:6px;padding:6px 11px;font-size:11px;font-weight:700;cursor:pointer;font-family:inherit;flex-shrink:0;';
-    open.onclick=async()=>{
-      const was=open.textContent;
-      open.disabled=true; open.textContent='Loading\u2026';
-      try{
-        await coachOpenAthlete(file,r,true);
-        overlay.remove();
-      }catch(e){
-        toast(e.message);
-        open.disabled=false; open.textContent=was;
-      }
-    };
-    bh.appendChild(open);
-    blk.appendChild(bh);
-    const tbl=document.createElement('div');
-    tbl.style.cssText='background:var(--s2);border:1px solid var(--border);border-radius:8px;padding:4px 8px;';
-    tbl.innerHTML=(sn.rows&&sn.rows.length)?coachIntervalTable(sn)
-      :'<div style="color:var(--muted);font-size:12px;padding:12px 4px;">No intervals recorded.</div>';
-    blk.appendChild(tbl);
-    body.appendChild(blk);
-  });
-  panel.appendChild(body);
-  overlay.appendChild(panel);
-  overlay.onclick=e=>{ if(e.target===overlay) overlay.remove(); };
-  document.body.appendChild(overlay);
-}
-
 function showDrivePicker(files, onSelect) {
   document.getElementById('_drive_picker')?.remove();
   const overlay=document.createElement('div');
@@ -3345,9 +2541,9 @@ function showDrivePicker(files, onSelect) {
       del.textContent='🗑';del.title='Delete from Drive';
       del.style.cssText='padding:9px 10px;background:rgba(192,57,43,.15);border:1px solid rgba(192,57,43,.4);border-radius:6px;color:#e74c3c;cursor:pointer;font-size:.85rem;flex-shrink:0;';
       del.onclick=async()=>{
-        if(!confirm('Delete this session permanently?\n\nIt will be removed from Google Drive, and from every device on its next sync.\n\nThis cannot be undone.'))return;
+        if(!confirm('Delete from Drive?'))return;
         del.textContent='…';del.disabled=true;
-        try{await AnalyserDrive.deleteFile(f.id);await AnalyserDrive.tombstoneSession(f.name);fileList=fileList.filter(x=>x.id!==f.id);renderList();}
+        try{await AnalyserDrive.deleteFile(f.id);fileList=fileList.filter(x=>x.id!==f.id);renderList();}
         catch(e){toast('Delete failed: '+e.message);del.textContent='🗑';del.disabled=false;}
       };
 
@@ -3998,7 +3194,7 @@ function showTooltip(e){
     <div class="tt-hd">Stroke ${s.n}</div>
     ${ttRow('Time',fmtTime(s.elapsed))}
     ${ttRow('Distance',isNaN(s.dist)?EM:s.dist.toFixed(0)+'m')}
-    ${METRIC_DEFS.filter(m=>!hid[m.k]&&metricFitsSession(m.k)).map(m=>TT_BUILDERS[m.k]?TT_BUILDERS[m.k]():'').join('')}
+    ${METRIC_DEFS.filter(m=>!hid[m.k]&&(!isErgSession()||ERG_TILE_KEYS.includes(m.k))).map(m=>TT_BUILDERS[m.k]?TT_BUILDERS[m.k]():'').join('')}
   `;
   const tip=document.getElementById('tooltip');
   tip.style.display='block';
@@ -4130,7 +3326,7 @@ function updateStatsStrip(){
     html+=sp('Time',fmtTime(dur));
   }
   for(const m of METRIC_DEFS){
-    if(hid[m.k]||!metricFitsSession(m.k))continue;
+    if(hid[m.k]||(isErgSession()&&!ERG_TILE_KEYS.includes(m.k)))continue;
     const arr=strokes.filter(m.filter).map(m.val);
     if(!arr.length)continue;
     html+=sp('Avg '+m.l,m.fmtAvg(arrMean(arr)),m.c);
@@ -4163,7 +3359,6 @@ function pinSelection(){
     hrT:_hrSorted.map(x=>x.t), hrBpm:_hrSorted.map(x=>x.b),
   });
   selS=-1;selE=-1;
-  tplFocusIdx=-1;
   hlRows([]);
   buildCurveSection();
   updateStatsStrip();
@@ -4171,7 +3366,6 @@ function pinSelection(){
 }
 
 function removeCurveGroup(idx){
-  if(typeof tplFocusIdx!=='undefined')tplFocusIdx=-1;
   curveGroups.splice(idx,1);
   curveGroups.forEach((g,i)=>{g.label='G'+(i+1);});
   buildCurveSection();
@@ -4181,7 +3375,7 @@ function removeCurveGroup(idx){
 }
 window.removeCurveGroup=removeCurveGroup;
 
-function clearAllCurves(){curveGroups=[];tplFocusIdx=-1;buildCurveSection();updateMapGroups();applyGroupHighlights();schedRender();}
+function clearAllCurves(){curveGroups=[];buildCurveSection();updateMapGroups();applyGroupHighlights();schedRender();}
 
 function computeGroupCurve(strokes){
   const valid=strokes.filter(s=>s.curve&&s.curve.length===CURVE_POINTS);
@@ -4214,489 +3408,15 @@ function computeGroupCurve(strokes){
     avgDriveMs:drvN?drvSum/drvN:null};
 }
 
-
-/* ── Stroke templates ──────────────────────────────────────────────────────
-   A template is a set of averaged stroke curves, one per stroke rate, built
-   here from pinned curve groups. Any number can be open at once; the active
-   one (yellow pill) is the one the editor edits and the one drawn over a
-   focused curve. Saving writes a JSON file that Metrics imports and re-times
-   to whatever rate is being rowed. */
-const TPL_COLOR = '#ffc947';                        // dotted template line + active pill
-const TPL_KEY = 'boatrun_stroke_tpl_v1';            // legacy single-template slot
-const TPL_OPEN_KEY = 'boatrun_stroke_tpl_open_v1';
-let tplOpen = [];        // templates currently open
-let tplActiveIdx = -1;   // which one is active, -1 for none
-let _tplPreviewRate = null;
-/* Index of the curve group being shown on its own with the active template
-   drawn over it, or -1 for the normal all-curves view. */
-let tplFocusIdx = -1;
-
-function tplActive(){ return (tplActiveIdx >= 0 && tplActiveIdx < tplOpen.length) ? tplOpen[tplActiveIdx] : null; }
-function tplValid(o){ return !!(o && o.type === 'boatrun-stroke-template' && Array.isArray(o.entries)); }
-function tplHasEntries(o){ return !!(o && Array.isArray(o.entries) && o.entries.length); }
-function tplNewId(){ return 't' + Date.now().toString(36) + Math.random().toString(36).slice(2,7); }
-/* A template counts as saved only until something in it changes — that is what
-   greys out the Save button and brings it back. */
-function tplIsSaved(){ const t = tplActive(); return !!(t && t.savedAt); }
-function tplTouch(){ const t = tplActive(); if (t){ t.savedAt = null; tplStore(); } }
-
-function tplStore(){
-  try {
-    if (tplOpen.length) localStorage.setItem(TPL_OPEN_KEY, JSON.stringify({v:1, active:tplActiveIdx, list:tplOpen}));
-    else localStorage.removeItem(TPL_OPEN_KEY);
-  } catch {}
-}
-function tplLoadStored(){
-  let list = [], act = -1;
-  try {
-    const raw = localStorage.getItem(TPL_OPEN_KEY);
-    if (raw){
-      const o = JSON.parse(raw);
-      if (Array.isArray(o)) list = o;
-      else if (o && Array.isArray(o.list)){ list = o.list; act = (o.active != null ? o.active : -1); }
-    }
-  } catch {}
-  /* One-time migration of the original single-template slot. */
-  if (!list.length){
-    try {
-      const legacy = localStorage.getItem(TPL_KEY);
-      if (legacy){
-        const o = JSON.parse(legacy);
-        if (tplValid(o)){ list = [o]; act = 0; localStorage.removeItem(TPL_KEY); }
-      }
-    } catch {}
-  }
-  tplOpen = list.filter(tplValid).map(t => { if (!t.id) t.id = tplNewId(); return t; });
-  tplActiveIdx = (act >= 0 && act < tplOpen.length) ? act : (tplOpen.length ? 0 : -1);
-  tplStore();
-}
-function tplBlank(kind){
-  return {type:'boatrun-stroke-template', v:1, id:tplNewId(), name:'New template', kind:kind || 'accel',
-          points:CURVE_POINTS, created:Date.now(), savedAt:null, entries:[]};
-}
-function tplSortEntries(t){ if (t && t.entries) t.entries.sort((a,b)=>a.rate-b.rate); }
-
-function tplSetActive(i){
-  tplActiveIdx = (i >= 0 && i < tplOpen.length) ? i : -1;
-  if (tplActiveIdx < 0) tplFocusIdx = -1;
-  _tplPreviewRate = null;
-  tplStore();
-  buildCurveSection();
-  renderTemplateModal();
-}
-function tplCloseOne(i){
-  if (i < 0 || i >= tplOpen.length) return;
-  const t = tplOpen[i];
-  if (t && !t.savedAt && tplHasEntries(t) && !confirm('“' + (t.name || 'Template') + '” has unsaved changes. Close it anyway?')) return;
-  tplOpen.splice(i,1);
-  if (tplActiveIdx === i) tplActiveIdx = tplOpen.length ? 0 : -1;
-  else if (tplActiveIdx > i) tplActiveIdx--;
-  tplFocusIdx = -1;
-  tplStore();
-  buildCurveSection();
-  renderTemplateModal();
-}
-function tplNew(){
-  if (!isCoach()){ showPlanModal('Creating stroke templates is a Coach feature.'); return; }
-  tplOpen.push(tplBlank(curvesAreForce() ? 'force' : 'accel'));
-  tplActiveIdx = tplOpen.length-1;
-  _tplPreviewRate = null;
-  tplStore();
-  buildCurveSection();
-  renderTemplateModal();
-}
-
-/* Re-times one normalized curve so its drive/recovery boundary moves from
-   dfFrom to dfTo: the drive samples are stretched into [0,dfTo] and the
-   recovery samples into [dfTo,1]. Shape is preserved, timing is not. */
-function tplWarp(data, dfFrom, dfTo){
-  const N = data.length, out = new Array(N);
-  if (!(dfFrom > 0.02 && dfFrom < 0.98) || !(dfTo > 0.02 && dfTo < 0.98) || Math.abs(dfFrom-dfTo) < 0.002){
-    for (let i=0;i<N;i++) out[i] = data[i];
-    return out;
-  }
-  for (let i=0;i<N;i++){
-    const u = i/(N-1);
-    const src = (u <= dfTo) ? (u/dfTo)*dfFrom : dfFrom + ((u-dfTo)/(1-dfTo))*(1-dfFrom);
-    const x = Math.max(0, Math.min(1, src)) * (N-1);
-    const i0 = Math.floor(x), i1 = Math.min(N-1, i0+1), f = x-i0;
-    out[i] = data[i0] + (data[i1]-data[i0])*f;
-  }
-  return out;
-}
-
-/* Returns the template curve for a given stroke rate.
-   Between recorded rates: warp both neighbours to a blended drive fraction,
-   then cross-fade. Outside them: hold the nearest recorded shape, keeping the
-   drive at its real duration and letting only the recovery change length. */
-function tplResolve(tpl, rate){
-  if (!tplHasEntries(tpl)) return null;
-  const e = tpl.entries.slice().sort((a,b)=>a.rate-b.rate);
-  const N = tpl.points || (e[0].data ? e[0].data.length : CURVE_POINTS);
-  const FORCE = (tpl.kind === 'force');
-  if (!(rate > 0)) rate = e[e.length-1].rate;
-  if (e.length === 1 || rate <= e[0].rate || rate >= e[e.length-1].rate){
-    const b = (e.length === 1 || rate <= e[0].rate) ? e[0] : e[e.length-1];
-    const bdf = FORCE ? 1 : (b.driveFrac || 0.45);
-    if (FORCE || Math.abs(rate-b.rate) < 0.05) return {data:b.data.slice(), driveFrac:bdf, rate:rate, mode:'hold'};
-    const driveT = bdf * (60/b.rate), T = 60/rate;
-    const df = Math.max(0.12, Math.min(0.92, driveT/T));
-    return {data:tplWarp(b.data, bdf, df), driveFrac:df, rate:rate, mode:'stretch'};
-  }
-  let i = 0;
-  while (i < e.length-2 && e[i+1].rate <= rate) i++;
-  const a = e[i], b = e[i+1];
-  const f = (b.rate === a.rate) ? 0 : (rate-a.rate)/(b.rate-a.rate);
-  const adf = FORCE ? 1 : (a.driveFrac || 0.45), bdf = FORCE ? 1 : (b.driveFrac || 0.45);
-  const df = adf + (bdf-adf)*f;
-  const wa = tplWarp(a.data, adf, df), wb = tplWarp(b.data, bdf, df);
-  const out = new Array(N);
-  for (let k=0;k<N;k++) out[k] = wa[k] + (wb[k]-wa[k])*f;
-  return {data:out, driveFrac:df, rate:rate, mode:'blend'};
-}
-
-function tplAddCurrentGroup(gi){
-  if (!isCoach()){ showPlanModal('Creating stroke templates is a Coach feature.'); return; }
-  const g = curveGroups[gi];
-  if (!g) return;
-  const c = computeGroupCurve(g.strokes);
-  if (!c || !c.data){ toast('That group has no curve data'); return; }
-  if (!c.avgRate){ toast('That group has no stroke rate'); return; }
-  const kind = curvesAreForce() ? 'force' : 'accel';
-  let t = tplActive();
-  if (!t){ tplOpen.push(tplBlank(kind)); tplActiveIdx = tplOpen.length-1; t = tplActive(); }
-  if (t.entries.length && t.kind !== kind){
-    toast('This template holds ' + (t.kind === 'force' ? 'erg force' : 'on-water') + ' curves \u2014 they cannot be mixed');
-    return;
-  }
-  t.kind = kind;
-  const rate = Math.round(c.avgRate*10)/10;
-  const ent = {rate:rate, driveFrac:+((kind === 'force' ? 1 : c.driveFrac).toFixed(4)),
-               n:c.n, data:c.data.map(v=>Math.round(v*1000)/1000)};
-  const ex = t.entries.findIndex(x=>Math.abs(x.rate-rate) < 0.25);
-  if (ex >= 0) t.entries[ex] = ent; else t.entries.push(ent);
-  t.savedAt = null;
-  tplSortEntries(t); tplStore();
-  _tplPreviewRate = rate;
-  toast((ex >= 0 ? 'Replaced ' : 'Added ') + rate.toFixed(1) + ' spm');
-  renderTemplateModal(); buildCurveSection();
-}
-function tplRemoveEntry(i){
-  const t = tplActive();
-  if (!t) return;
-  t.entries.splice(i,1);
-  t.savedAt = null;
-  tplStore(); renderTemplateModal(); buildCurveSection();
-}
-function tplDeleteActive(){
-  const t = tplActive();
-  if (!t) return;
-  if (!confirm('Delete \u201c' + (t.name || 'Template') + '\u201d? Any unsaved rates are lost.')) return;
-  tplOpen.splice(tplActiveIdx,1);
-  tplActiveIdx = tplOpen.length ? 0 : -1;
-  tplFocusIdx = -1;
-  tplStore(); renderTemplateModal(); buildCurveSection();
-}
-function tplExport(){
-  const t = tplActive();
-  if (!tplHasEntries(t)){ toast('Template is empty'); return; }
-  tplSortEntries(t);
-  t.savedAt = Date.now();
-  tplStore();
-  /* application/json makes some mobile browsers open the file inline for
-     preview instead of downloading it, which is what surfaces as a save/
-     location picker. octet-stream forces a straight save to Downloads —
-     the .json extension in the filename is untouched, so it still opens fine
-     when picked back up in Metrics → Import. */
-  const blob = new Blob([JSON.stringify(t)], {type:'application/octet-stream'});
-  const url = URL.createObjectURL(blob);
-  const a = document.createElement('a');
-  a.href = url;
-  a.download = (t.name || 'stroke_template').replace(/[^\w\-]+/g,'_') + '.brtemplate.json';
-  a.rel = 'noopener';
-  document.body.appendChild(a);
-  a.click();
-  a.remove();
-  setTimeout(() => URL.revokeObjectURL(url), 1000);
-  renderTemplateModal(); buildCurveSection();
-  toast('Saved \u2014 import this file in Metrics \u203a Settings');
-}
-function tplImportPick(){
-  if (!(isPro() || isCoach())){ showPlanModal('Loading stroke templates is a Pro feature.'); return; }
-  let inp = document.getElementById('_tplfile');
-  if (!inp){
-    inp = document.createElement('input');
-    inp.type = 'file'; inp.id = '_tplfile'; inp.accept = '.json,application/json';
-    inp.multiple = true; inp.style.display = 'none';
-    document.body.appendChild(inp);
-  }
-  inp.onchange = async () => {
-    const files = Array.from(inp.files || []);
-    inp.value = '';
-    if (!files.length) return;
-    let added = 0, bad = 0;
-    for (const f of files){
-      let o = null;
-      try { o = JSON.parse(await f.text()); } catch { o = null; }
-      if (!tplValid(o) || !o.entries.length){ bad++; continue; }
-      o.points = o.points || CURVE_POINTS;
-      o.kind = o.kind || 'accel';
-      o.entries = o.entries.filter(x=>x && Array.isArray(x.data) && x.rate > 0);
-      o.savedAt = o.savedAt || Date.now();
-      o.id = tplNewId();
-      tplSortEntries(o);
-      /* Re-opening the same template replaces it rather than stacking copies. */
-      const dup = tplOpen.findIndex(x => x.name === o.name && x.kind === o.kind);
-      if (dup >= 0) tplOpen[dup] = o; else tplOpen.push(o);
-      tplActiveIdx = (dup >= 0) ? dup : tplOpen.length-1;
-      added++;
-    }
-    _tplPreviewRate = null; tplFocusIdx = -1;
-    tplStore(); renderTemplateModal(); buildCurveSection();
-    toast(added
-      ? ('Loaded ' + added + ' template' + (added === 1 ? '' : 's') + (bad ? ' \u00b7 ' + bad + ' skipped' : '') + ' \u2014 tap a curve pill to overlay it')
-      : 'Not a BoatRun stroke template');
-  };
-  inp.click();
-}
-
-/* ── Editor ─────────────────────────────────────────────────────────────── */
-function openTemplateModal(){
-  if (!isCoach()){ showPlanModal('Creating and editing stroke templates is a Coach feature.'); return; }
-  const old = document.getElementById('_tplmodal');
-  if (old) old.remove();
-  const overlay = document.createElement('div');
-  overlay.id = '_tplmodal';
-  overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,.72);display:flex;align-items:center;justify-content:center;z-index:9999;padding:12px;';
-  const panel = document.createElement('div');
-  panel.id = '_tplpanel';
-  panel.style.cssText = 'background:var(--s1);border:1px solid var(--border);border-radius:10px;padding:16px;max-width:540px;width:100%;max-height:88vh;overflow:auto;color:var(--text);font-family:-apple-system, BlinkMacSystemFont, Helvetica Neue, sans-serif;';
-  overlay.appendChild(panel);
-  document.body.appendChild(overlay);
-  overlay.onclick = e => { if (e.target === overlay) overlay.remove(); };
-  renderTemplateModal();
-}
-window.openTemplateModal = openTemplateModal;
-
-function renderTemplateModal(){
-  const panel = document.getElementById('_tplpanel');
-  if (!panel) return;
-  const t = tplActive();
-  const n = t ? t.entries.length : 0;
-  const B  = 'padding:8px 12px;border-radius:6px;border:1px solid var(--border);background:var(--s2);color:var(--text);cursor:pointer;font-size:.8rem;font-family:inherit;';
-  const BP = 'padding:8px 12px;border-radius:6px;border:1px solid var(--b);background:var(--b);color:#fff;cursor:pointer;font-size:.8rem;font-family:inherit;';
-
-  let openHtml = '';
-  if (tplOpen.length > 1){
-    openHtml = '<div style="font-size:.72rem;font-weight:700;letter-spacing:.06em;color:var(--muted);margin-bottom:6px;">EDITING</div>'
-      + '<div style="margin-bottom:14px;">'
-      + tplOpen.map((x,i)=>'<button data-tplpick="'+i+'" style="'+B+'margin:0 6px 6px 0;'
-          + (i===tplActiveIdx?'background:#ffc947;border-color:#ffc947;color:#000;font-weight:700;':'')+'">'
-          + escHtml(x.name || 'Template') + '</button>').join('')
-      + '</div>';
-  }
-
-  let groupsHtml;
-  if (curveGroups.length){
-    groupsHtml = curveGroups.map((g,i)=>{
-      const c = computeGroupCurve(g.strokes);
-      const ok = !!(c && c.data && c.avgRate);
-      const lbl = ok ? f1(c.avgRate)+' spm' : 'no rate';
-      return '<button data-tpladd="'+i+'"'+(ok?'':' disabled')+' style="'+B+'background:'+g.color+';color:#000;border-color:'+g.color+';margin:0 6px 6px 0;'+(ok?'':'opacity:.35;cursor:default;')+'">\uff0b '+g.label+' \u00b7 '+lbl+'</button>';
-    }).join('');
-  } else {
-    groupsHtml = '<div style="font-size:.78rem;color:var(--muted);line-height:1.5;">Drag a selection on the main chart, tap \u201c\uff0b Add to curves\u201d, then come back here. Add one group per stroke rate \u2014 e.g. 18, 22, 26, 30, 34.</div>';
-  }
-
-  let rows = '';
-  if (n){
-    rows = t.entries.map((e,i)=>
-      '<tr><td style="padding:4px 8px;font-weight:700;">'+e.rate.toFixed(1)+' spm</td>'+
-      '<td style="padding:4px 8px;color:var(--muted);">drive '+Math.round((e.driveFrac||0)*100)+'%</td>'+
-      '<td style="padding:4px 8px;color:var(--muted);">'+(e.n||0)+' strokes</td>'+
-      '<td style="padding:4px 8px;text-align:right;"><span data-tpldel="'+i+'" style="cursor:pointer;color:#f54040;font-weight:700;font-size:1rem;">\u00d7</span></td></tr>'
-    ).join('');
-  }
-
-  const rMin = n ? Math.max(12, Math.floor(t.entries[0].rate) - 6) : 16;
-  const rMax = n ? Math.ceil(t.entries[n-1].rate) + 12 : 40;
-  if (_tplPreviewRate == null || _tplPreviewRate < rMin || _tplPreviewRate > rMax) _tplPreviewRate = n ? t.entries[n-1].rate : 24;
-
-  panel.innerHTML =
-    '<div style="font-size:1rem;font-weight:700;margin-bottom:4px;color:var(--b);">Create / Edit Stroke Template</div>'+
-    '<div style="font-size:.75rem;color:var(--muted);line-height:1.5;margin-bottom:12px;">Add an averaged curve for each stroke rate you want as a target. Save it, then load the file into Metrics to see it drawn live over your own curve in Row, Cox or Erg.</div>'+
-
-    openHtml+
-
-    (t ? '<input id="tplname" type="text" maxlength="40" placeholder="Template name" value="'+escHtml(t.name||'')+'" style="display:block;width:100%;box-sizing:border-box;padding:9px 11px;margin-bottom:14px;background:var(--s2);border:1px solid var(--border);border-radius:6px;color:var(--text);font-size:.9rem;font-family:inherit;">'
-        : '<div style="font-size:.8rem;color:var(--muted);margin-bottom:14px;">No template open \u2014 tap New template below to start one.</div>')+
-
-    (t ? '<div style="font-size:.72rem;font-weight:700;letter-spacing:.06em;color:var(--muted);margin-bottom:6px;">ADD FROM CURVE GROUP</div>'+
-         '<div style="margin-bottom:14px;">'+groupsHtml+'</div>' : '')+
-
-    (t ? '<div style="font-size:.72rem;font-weight:700;letter-spacing:.06em;color:var(--muted);margin-bottom:6px;">'+n+' RATE'+(n===1?'':'S')+(t.kind==='force'?' \u00b7 ERG FORCE':(n?' \u00b7 ON-WATER':''))+'</div>'+
-         (n ? '<table style="width:100%;border-collapse:collapse;font-size:.8rem;margin-bottom:14px;">'+rows+'</table>'
-            : '<div style="font-size:.78rem;color:var(--muted);margin-bottom:14px;">Empty.</div>') : '')+
-
-    (n ? '<div style="font-size:.72rem;font-weight:700;letter-spacing:.06em;color:var(--muted);margin-bottom:6px;">PREVIEW AT <span id="tplratelbl" style="color:var(--b);">'+_tplPreviewRate.toFixed(1)+'</span> SPM</div>'+
-         '<div style="margin-bottom:6px;"><canvas id="tplPrevC"></canvas></div>'+
-         '<input id="tplrate" type="range" min="'+rMin+'" max="'+rMax+'" step="0.5" value="'+_tplPreviewRate+'" style="width:100%;accent-color:var(--b);margin:0 0 6px;">'+
-         '<div style="font-size:.7rem;color:var(--muted);line-height:1.5;margin-bottom:14px;">Grey = the curves you recorded. Purple = what Metrics will draw at this rate. Green dashed = the finish. Above '+t.entries[n-1].rate.toFixed(1)+' spm the drive is held at its recorded length and only the recovery shortens.</div>'
-       : '')+
-
-    '<div style="display:flex;gap:8px;flex-wrap:wrap;">'+
-      '<button id="tplnewbtn" style="'+B+'flex:1;">New template</button>'+
-      '<button id="tplexport" style="'+BP+'flex:1;'+((n&&!tplIsSaved())?'':'opacity:.35;cursor:default;')+'"'+((n&&!tplIsSaved())?'':' disabled')+'>'+((n&&tplIsSaved())?'Saved \u2713':'Save')+'</button>'+
-      '<button id="tpldelall" style="'+B+'flex:1;color:#f54040;"'+(t?'':' disabled')+'>Delete</button>'+
-      '<button id="tplclose" style="'+B+'flex:1;">Close</button>'+
-    '</div>';
-
-  panel.querySelectorAll('[data-tplpick]').forEach(b=>{ b.onclick = ()=>tplSetActive(+b.dataset.tplpick); });
-  panel.querySelectorAll('[data-tpladd]').forEach(b=>{ b.onclick = ()=>tplAddCurrentGroup(+b.dataset.tpladd); });
-  panel.querySelectorAll('[data-tpldel]').forEach(b=>{ b.onclick = ()=>tplRemoveEntry(+b.dataset.tpldel); });
-  const nameEl = document.getElementById('tplname');
-  if (nameEl) nameEl.oninput = e => {
-    const cur = tplActive();
-    if (!cur) return;
-    cur.name = e.target.value; cur.savedAt = null; tplStore();
-    const b = document.getElementById('tplexport');
-    if (b && cur.entries.length){ b.disabled = false; b.textContent = 'Save'; b.style.opacity = '1'; b.style.cursor = 'pointer'; }
-    buildCurveSection();
-  };
-  const rateEl = document.getElementById('tplrate');
-  if (rateEl) rateEl.oninput = e => {
-    _tplPreviewRate = +e.target.value;
-    const l = document.getElementById('tplratelbl');
-    if (l) l.textContent = _tplPreviewRate.toFixed(1);
-    drawTemplatePreview();
-  };
-  document.getElementById('tplnewbtn').onclick = tplNew;
-  document.getElementById('tplexport').onclick = tplExport;
-  document.getElementById('tpldelall').onclick = tplDeleteActive;
-  document.getElementById('tplclose').onclick = () => { const m = document.getElementById('_tplmodal'); if (m) m.remove(); };
-  drawTemplatePreview();
-}
-
-function tplExitFocus(){
-  if (tplFocusIdx < 0) return;
-  tplFocusIdx = -1;
-  hideTooltip();
-  buildCurveSection();
-}
-window.tplExitFocus = tplExitFocus;
-
-function drawTemplatePreview(){
-  const cv = document.getElementById('tplPrevC');
-  if (!cv) return;
-  const t = tplActive();
-  if (!tplHasEntries(t)) return;
-  const C = pal();
-  const dpr = window.devicePixelRatio || 1;
-  const W = Math.max(160, cv.parentElement.clientWidth), H = 175;
-  cv.width = W*dpr; cv.height = H*dpr;
-  cv.style.width = W+'px'; cv.style.height = H+'px';
-  const ctx = cv.getContext('2d');
-  ctx.setTransform(dpr,0,0,dpr,0,0);
-  ctx.clearRect(0,0,W,H);
-  const PL = 32, PR = 8, PT = 10, PB = 18, pw = W-PL-PR, ph = H-PT-PB;
-  const N = t.points || t.entries[0].data.length;
-  const res = tplResolve(t, _tplPreviewRate);
-  let yMin = Infinity, yMax = -Infinity;
-  t.entries.forEach(e=>e.data.forEach(v=>{ if(v<yMin)yMin=v; if(v>yMax)yMax=v; }));
-  if (res) res.data.forEach(v=>{ if(v<yMin)yMin=v; if(v>yMax)yMax=v; });
-  const pad = (yMax-yMin)*0.1 || 1;
-  yMin -= pad; yMax += pad;
-  const rng = yMax-yMin || 1;
-  const sx = i => PL + (i/(N-1))*pw;
-  const sy = v => PT + ph - (v-yMin)/rng*ph;
-  ctx.strokeStyle = C.frameLn; ctx.lineWidth = 1; ctx.strokeRect(PL,PT,pw,ph);
-  if (yMin < 0 && yMax > 0){
-    ctx.strokeStyle = C.gridLn; ctx.beginPath();
-    ctx.moveTo(PL,sy(0)); ctx.lineTo(PL+pw,sy(0)); ctx.stroke();
-  }
-  ctx.lineWidth = 1; ctx.strokeStyle = C.muted; ctx.globalAlpha = 0.4;
-  t.entries.forEach(e=>{
-    ctx.beginPath();
-    for (let i=0;i<N;i++){ const x=sx(i), y=sy(e.data[i]); i?ctx.lineTo(x,y):ctx.moveTo(x,y); }
-    ctx.stroke();
-  });
-  ctx.globalAlpha = 1;
-  if (res){
-    if (res.driveFrac > 0 && res.driveFrac < 1){
-      const xd = sx(Math.round(res.driveFrac*(N-1)));
-      ctx.save(); ctx.setLineDash([3,4]); ctx.strokeStyle = '#27ae60'; ctx.lineWidth = 1.5;
-      ctx.beginPath(); ctx.moveTo(xd,PT); ctx.lineTo(xd,PT+ph); ctx.stroke(); ctx.restore();
-    }
-    ctx.beginPath();
-    for (let i=0;i<N;i++){ const x=sx(i), y=sy(res.data[i]); i?ctx.lineTo(x,y):ctx.moveTo(x,y); }
-    ctx.strokeStyle = '#c084fc'; ctx.lineWidth = 2.5; ctx.lineJoin = 'round'; ctx.stroke();
-  }
-  ctx.font = '8px -apple-system, BlinkMacSystemFont, Helvetica Neue, sans-serif';
-  ctx.fillStyle = C.muted; ctx.textAlign = 'left';  ctx.fillText('catch', PL, H-5);
-  ctx.textAlign = 'right'; ctx.fillText('next catch', PL+pw, H-5);
-  ctx.fillStyle = C.gridLb; ctx.textAlign = 'right';
-  ctx.fillText(yMax.toFixed(1), PL-3, PT+8);
-  ctx.fillText(yMin.toFixed(1), PL-3, PT+ph);
-}
-
 function buildCurveSection(){
   const sec=document.getElementById('curvesec');
-  if(!sec)return;
-  /* The header stays up from the moment a session loads so the template
-     buttons are reachable before any curves have been pinned. */
+  if(!curveGroups.length){sec.style.display='none';return;}
   sec.style.display='block';
-  const hasGroups=curveGroups.length>0;
-  const layout=sec.querySelector('.curve-layout');
-  if(layout)layout.style.display=hasGroups?'':'none';
-  document.getElementById('clearcurvebtn').style.display=hasGroups?'':'none';
 
-  // Entitlement gating on the two template buttons
-  const _mk=document.getElementById('tplbtn');
-  if(_mk)_mk.style.display=isCoach()?'':'none';
-  const _ld=document.getElementById('tplloadbtn');
-  if(_ld)_ld.style.display=(isPro()||isCoach())?'':'none';
-
-  // Curve group pills — body focuses, right-edge cap removes
-  const _chipHost=document.getElementById('groupchips');
-  _chipHost.innerHTML=curveGroups.map((g,i)=>
-    `<span class="grp-chip${tplFocusIdx===i?' focused':''}" data-tplfocus="${i}" title="Tap to show this curve on its own with the active stroke template over it" style="background:${g.color};color:#000;${tplFocusIdx>=0&&tplFocusIdx!==i?'opacity:.32;':''}">${g.label}${g.sessionLabel?' \u00b7 '+shortName(g.sessionLabel):''} (${g.strokes.length})<span class="grp-chip-x" data-grpdel="${i}" title="Remove this curve group">\u00d7</span></span>`
+  // Group chips in header
+  document.getElementById('groupchips').innerHTML=curveGroups.map((g,i)=>
+    `<button class="grp-chip" onclick="removeCurveGroup(${i})" style="background:${g.color};color:#000;">${g.label}${g.sessionLabel?' · '+shortName(g.sessionLabel):''} (${g.strokes.length}) ×</button>`
   ).join('');
-  _chipHost.querySelectorAll('[data-grpdel]').forEach(x=>{
-    x.onclick=e=>{e.stopPropagation();removeCurveGroup(+x.dataset.grpdel);};
-  });
-  _chipHost.querySelectorAll('[data-tplfocus]').forEach(c=>{
-    c.onclick=()=>{
-      const i=+c.dataset.tplfocus;
-      if(tplFocusIdx===i){tplExitFocus();return;}
-      if(!tplHasEntries(tplActive())){
-        toast('Load or create a stroke template first');
-        return;
-      }
-      tplFocusIdx=i;hideTooltip();buildCurveSection();
-    };
-  });
-
-  // Open template pills — body activates, right-edge cap closes
-  const _tplHost=document.getElementById('tplchips');
-  if(_tplHost){
-    _tplHost.innerHTML=tplOpen.map((t,i)=>
-      `<span class="tpl-chip${i===tplActiveIdx?' on':''}" data-tplsel="${i}" title="${i===tplActiveIdx?'Active template':'Tap to make this the active template'}">${escHtml(t.name||'Template')} \u00b7 ${t.entries.length}r${t.savedAt?'':' \u2022'}<span class="tpl-chip-x" data-tplclose="${i}" title="Close this template">\u00d7</span></span>`
-    ).join('');
-    _tplHost.querySelectorAll('[data-tplclose]').forEach(x=>{
-      x.onclick=e=>{e.stopPropagation();tplCloseOne(+x.dataset.tplclose);};
-    });
-    _tplHost.querySelectorAll('[data-tplsel]').forEach(c=>{
-      c.onclick=()=>{const i=+c.dataset.tplsel;if(i!==tplActiveIdx)tplSetActive(i);};
-    });
-  }
-
-  const _tplClose=document.getElementById('tplfocusclose');
-  if(_tplClose)_tplClose.style.display=(tplFocusIdx>=0)?'':'none';
-
-  if(!hasGroups){
-    document.getElementById('curvehint').textContent='';
-    return;
-  }
 
   buildCurveStats();
   drawCurvePanel();
@@ -4705,18 +3425,11 @@ function buildCurveSection(){
 
   // Hint
   const hasCurves=curveGroups.some(g=>g.strokes.some(s=>s.curve));
-  if(tplFocusIdx>=0){
-    const _g=curveGroups[tplFocusIdx];
-    document.getElementById('curvehint').textContent=(_g?_g.label:'Curve')+' shown on its own with '+((tplActive()||{}).name||'the template')+' overlaid at its own rate \u2014 tap its pill again, or \u201cShow all curves\u201d, to go back';
-    return;
-  }
   document.getElementById('curvehint').textContent=hasCurves
     ?(curvesAreForce()
       ?'Average PM5 drive force curve (N) \u00b7 x axis = drive time, catch at left'
       :'Average of normalized catch-to-catch IMU curves \u00b7 dashed line = drive/recovery boundary')
     :'No curve data in selected strokes \u2014 record with latest Metrics app';
-  if(hasCurves&&tplHasEntries(tplActive()))
-    document.getElementById('curvehint').textContent+=' \u00b7 tap a curve pill above to overlay '+((tplActive()||{}).name||'the template');
 }
 
 function drawCurvePanel(){
@@ -4731,12 +3444,7 @@ function drawCurvePanel(){
   canvas.style.width=W+'px';canvas.style.height=H+'px';
   const ctx=canvas.getContext('2d');ctx.scale(dpr,dpr);ctx.clearRect(0,0,W,H);
 
-  let curves=curveGroups.map((g,i)=>({...computeGroupCurve(g.strokes),color:g.color,label:g.label,gi:i})).filter(c=>c.data);
-  /* Focus mode: one curve on its own so the template sits over it cleanly. */
-  if(tplFocusIdx>=0){
-    const f=curves.filter(c=>c.gi===tplFocusIdx);
-    if(f.length)curves=f; else tplFocusIdx=-1;
-  }
+  const curves=curveGroups.map(g=>({...computeGroupCurve(g.strokes),color:g.color,label:g.label})).filter(c=>c.data);
   if(!curves.length){
     ctx.fillStyle=C.muted;ctx.font='11px -apple-system, BlinkMacSystemFont, Helvetica Neue, sans-serif';ctx.textAlign='center';
     ctx.fillText('No curve data available',W/2,H/2);return;
@@ -4766,15 +3474,6 @@ function drawCurvePanel(){
     return{...c,accelRot:c.data,catchFrac:0,finishFrac:c.driveFrac,speed:sp?sp.v:null,T:T,avgSpeedMS:(!FORCE&&c.avgPace)?500/c.avgPace:null};
   });
 
-  /* Template re-timed to the focused curve's own rate, drawn on the same time
-     base so catch, finish and next catch all line up. */
-  let tplOv=null;
-  const _atpl=tplActive();
-  if(tplFocusIdx>=0 && tplHasEntries(_atpl) && enriched.length===1){
-    const c0=enriched[0];
-    if(((_atpl.kind==='force')===FORCE) && c0.T && c0.avgRate) tplOv=tplResolve(_atpl,c0.avgRate);
-  }
-
   const maxT=Math.max(...enriched.map(c=>c.T||0));
   if(!maxT){
     ctx.fillStyle=C.muted;ctx.font='11px -apple-system, BlinkMacSystemFont, Helvetica Neue, sans-serif';ctx.textAlign='center';
@@ -4790,7 +3489,6 @@ function drawCurvePanel(){
   // Accel Y range
   let yMin=Infinity,yMax=-Infinity;
   enriched.forEach(c=>{c.accelRot.forEach(v=>{if(v<yMin)yMin=v;if(v>yMax)yMax=v;});});
-  if(tplOv)tplOv.data.forEach(v=>{if(v<yMin)yMin=v;if(v>yMax)yMax=v;});
   const yPad=(yMax-yMin)*0.12;yMin-=yPad;yMax+=yPad;
   const yRng=yMax-yMin||1;
   const toY=v=>accelTop+ph1-(v-yMin)/yRng*ph1;
@@ -4880,23 +3578,6 @@ function drawCurvePanel(){
     }
   });
 
-  // Stroke template overlay (focus mode only)
-  if(tplOv){
-    const c0=enriched[0];
-    const tn=tplOv.data.length, tstep=c0.T/(tn-1);
-    ctx.save();
-    ctx.setLineDash([0.5,9]);ctx.lineCap='round';ctx.lineJoin='round';
-    ctx.beginPath();
-    for(let i=0;i<tn;i++){const x=toPx(i*tstep),y=toY(tplOv.data[i]);i===0?ctx.moveTo(x,y):ctx.lineTo(x,y);}
-    ctx.strokeStyle=TPL_COLOR;ctx.lineWidth=6;ctx.stroke();
-    ctx.restore();
-    if(!FORCE&&tplOv.driveFrac>0&&tplOv.driveFrac<1){
-      const xT=toPx(tplOv.driveFrac*c0.T);
-      ctx.save();ctx.setLineDash([0.5,5]);ctx.lineCap='round';ctx.strokeStyle=TPL_COLOR;ctx.lineWidth=3;ctx.globalAlpha=.85;
-      ctx.beginPath();ctx.moveTo(xT,accelTop);ctx.lineTo(xT,accelTop+ph1);ctx.stroke();ctx.restore();
-    }
-  }
-
   // X axis ticks + labels
   const tickStep=maxT>2.5?0.5:maxT>1.2?0.25:0.1;
   for(let t=0;t<=maxT+0.001;t+=tickStep){
@@ -4919,35 +3600,18 @@ function drawCurvePanel(){
     ctx.fillText(txt,lx+13,ly);
     lx+=ctx.measureText(txt).width+22;
   });
-  if(tplOv){
-    ctx.fillStyle=TPL_COLOR;ctx.fillRect(lx,ly-4,10,3);
-    const txt2='TEMPLATE '+((_atpl&&_atpl.name)||'')+' @ '+f1(tplOv.rate)+'spm';
-    ctx.fillStyle=C.text;ctx.font='8px -apple-system, BlinkMacSystemFont, Helvetica Neue, sans-serif';ctx.textAlign='left';
-    ctx.fillText(txt2,lx+13,ly);
-  }
 
   // Panel borders
   ctx.strokeStyle=C.frameLn;ctx.lineWidth=1;
   ctx.strokeRect(PL,accelTop,pw,ph1);
   if(hasSpeeds)ctx.strokeRect(PL,speedTop,pw,ph2);
-  canvas._g={PL,pw,maxT,accelTop,ph1,speedTop,ph2,enriched,yMin,yMax,tplOv,tplT:(tplOv&&enriched[0])?enriched[0].T:null,tplName:(_atpl&&_atpl.name)||'Template'};
+  canvas._g={PL,pw,maxT,accelTop,ph1,speedTop,ph2,enriched};
 }
 function curveDeriv(arr,i,step){
   const n=arr.length;
   if(i<=0)return(arr[1]-arr[0])/step;
   if(i>=n-1)return(arr[n-1]-arr[n-2])/step;
   return(arr[i+1]-arr[i-1])/(2*step);
-}
-/* The template is drawn on the focused curve's own time base, so it samples
-   the same way the curves do — there is no speed trace to integrate from it. */
-function sampleTplOverlay(g,t){
-  if(!g||!g.tplOv||!g.tplT||t>g.tplT+1e-6)return null;
-  const d=g.tplOv.data,n=d.length,step=g.tplT/(n-1);
-  const idx=clamp(t/step,0,n-1);
-  const i0=Math.floor(idx),i1=Math.min(i0+1,n-1),frac=idx-i0;
-  const accel=d[i0]*(1-frac)+d[i1]*frac;
-  const rate=curveDeriv(d,i0,step)*(1-frac)+curveDeriv(d,i1,step)*frac;
-  return{accel,rate,speed:null};
 }
 function sampleCurve(c,t){
   if(!c.T||t>c.T+1e-6)return null;
@@ -4981,21 +3645,16 @@ function showCurveTooltip(clientX,clientY){
   ctx.restore();
 
   const samples=enriched.map(c=>sampleCurve(c,t));
-  const tplS=sampleTplOverlay(g,t);
-  if(!samples.some(s=>s)&&!tplS)return hideTooltip();
+  if(!samples.some(s=>s))return hideTooltip();
 
   let html=`<div class="tt-hd">t = ${f2(t)}s since catch</div><table class="tt-ctable"><tr><td></td>`;
   enriched.forEach(c=>{html+=`<td class="tt-dot"><span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:${c.color};"></span></td>`;});
-  if(g.tplOv)html+=`<td class="tt-dot" title="${g.tplName}"><span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:${TPL_COLOR};"></span></td>`;
   html+='</tr><tr><td class="tt-lbl">Speed (m/s)</td>';
   samples.forEach(s=>{html+=`<td class="tt-val">${s&&s.speed!=null?f2(s.speed):EM}</td>`;});
-  if(g.tplOv)html+='<td class="tt-val">\u2013</td>';
   html+='</tr><tr><td class="tt-lbl">'+(curvesAreForce()?'Force (N)':'Accel (m/s\u00B2)')+'</td>';
   samples.forEach(s=>{html+=`<td class="tt-val">${s?f2(s.accel):EM}</td>`;});
-  if(g.tplOv)html+=`<td class="tt-val">${tplS?f2(tplS.accel):EM}</td>`;
   html+='</tr><tr><td class="tt-lbl">'+(curvesAreForce()?'Rate of force (N/s)':'Rate of accel (m/s\u00B3)')+'</td>';
   samples.forEach(s=>{html+=`<td class="tt-val">${s?f1(s.rate):EM}</td>`;});
-  if(g.tplOv)html+=`<td class="tt-val">${tplS?f1(tplS.rate):EM}</td>`;
   html+='</tr></table>';
 
   document.getElementById('tooltip').innerHTML=html;
@@ -5023,20 +3682,6 @@ function shortName(label){
   return label.length>14?label.slice(0,11)+'…':label;
 }
 
-// Total distance and time spanned by a group of strokes. Pace and DPS are
-// reciprocal quantities, so a plain mean of per-stroke values is biased slow
-// (Jensen). Summing distance and time first gives the same answer the lap
-// summary reports. Returns null when the strokes carry no usable distance.
-function groupDistTime(a){
-  if(!a||a.length<2)return null;
-  const v=a.filter(s=>!isNaN(s.dist)&&s.dist!=null&&!isNaN(s.elapsed)&&s.elapsed!=null);
-  if(v.length<2)return null;
-  const metres=v[v.length-1].dist-v[0].dist;
-  const secs=v[v.length-1].elapsed-v[0].elapsed;
-  if(!(metres>0)||!(secs>0))return null;
-  return {metres,secs,gaps:v.length-1};
-}
-
 function buildCurveStats(){
   // Build rows from canonical METRIC_DEFS order
   const rows=[
@@ -5045,27 +3690,11 @@ function buildCurveStats(){
     {l:'Time',fn:g=>{const a=g.strokes;return a.length?fmtTime(a[a.length-1].elapsed-a[0].elapsed):EM;}},
   ];
   for(const m of METRIC_DEFS){
-    if(hid[m.k]||!metricFitsSession(m.k))continue;
+    if(hid[m.k]||(isErgSession()&&!ERG_TILE_KEYS.includes(m.k)))continue;
     if(m.k==='hr'){
       rows.push({l:'Avg '+m.l, c:m.c, fn:g=>{
         const arr=g.strokes.map(s=>nearestHRIn(g.hrT,g.hrBpm,s.ms)).filter(b=>b!=null&&b>40&&b<220);
         return arr.length?m.fmtAvg(arrMean(arr)):EM;
-      }});
-      continue;
-    }
-    if(m.k==='pace'||m.k==='dps'){
-      rows.push({l:'Avg '+m.l, c:m.c, fn:g=>{
-        const t=groupDistTime(g.strokes);
-        if(t){
-          if(m.k==='pace')return m.fmtAvg(500*t.secs/t.metres);
-          return m.fmtAvg(t.metres/t.gaps);
-        }
-        const arr=g.strokes.filter(m.filter).map(m.val);
-        return arr.length?m.fmtAvg(arrMean(arr)):EM;
-      }});
-      if(m.showBest) rows.push({l:'Best '+m.l, c:m.c, fn:g=>{
-        const arr=g.strokes.filter(m.filter).map(m.val);
-        return arr.length?m.fmtAvg(m.bestIsMin?arrMin(arr):arrMax(arr)):EM;
       }});
       continue;
     }
@@ -5418,7 +4047,7 @@ const TBL_COLS={
   hr:{h:()=>'HR bpm', cell:s=>{const b=nearestHRAt(s.ms);return `<td style="color:var(--mc-hr)">${b!=null?b:EM}</td>`;}},
 };
 function buildStrokeTable(){
-  const cols=METRIC_DEFS.filter(m=>!hid[m.k]&&metricFitsSession(m.k)).map(m=>TBL_COLS[m.k]).filter(Boolean);
+  const cols=METRIC_DEFS.filter(m=>!hid[m.k]&&(!isErgSession()||ERG_TILE_KEYS.includes(m.k))).map(m=>TBL_COLS[m.k]).filter(Boolean);
   document.getElementById('sth').innerHTML=`<tr><th>#</th><th>Lap</th><th>Dist m</th><th>Time</th><th>Consist σ</th>${cols.map(c=>`<th>${c.h()}</th>`).join('')}</tr>`;
   document.getElementById('stb').innerHTML=ST.slice(0,1000).map(s=>`<tr data-i="${s.n-1}">
     <td>${s.n}</td>
@@ -5632,10 +4261,8 @@ async function showStartup(){
 
   el.innerHTML=`<div class="sz-list">
     <div class="brpill-row">
-      <button class="dzbtn dzbtn-sec" id="sz-coach"><img src="icons/Import.svg"><span>Coach Sessions</span></button>
       <button class="dzbtn dzbtn-sec" id="sz-squad"><img src="icons/Import.svg"><span>From Squad</span></button>
       <button class="dzbtn dzbtn-sec" id="sz-openfile"><img src="icons/Open.svg"><span>Open file</span></button>
-      ${(localStorage.getItem('_ad_legacy_done') === '1' || localStorage.getItem('_ad_legacy_empty') === '1') ? '' : '<button class="dzbtn dzbtn-sec" id="sz-oldacct"><span>Import old sessions</span></button>'}
     </div>
     <div class="brpill">
       <div class="sz-lhd">Sessions<span class="sz-signout" id="sz-signout">Sign out</span></div>
@@ -5645,9 +4272,6 @@ async function showStartup(){
     </div>
   </div>`;
   document.getElementById('sz-signout').onclick=()=>{AnalyserDrive.signOut();showStartup();};
-  const _oldBtn=document.getElementById('sz-oldacct');
-  if(_oldBtn) _oldBtn.onclick=()=>{ if(AnalyserDrive.isLegacyLinked()){ runLegacyMigration(); return; } toast('Sign in with the same Google account'); AnalyserDrive.signInLegacy(); };
-  document.getElementById('sz-coach').onclick=loadCoachSessions;
   document.getElementById('sz-squad').onclick=loadFromSquad;
   document.getElementById('sz-openfile').onclick=()=>document.getElementById('fin').click();
   try{
@@ -5658,32 +4282,26 @@ async function showStartup(){
     let fileList=[...files];
     let searchQuery='';
     let favOnly=false;
-    let sortBy='date';
+    let sortBy=null;
     let sortDir='desc';
     const searchInput=document.getElementById('sz-search');
     if(searchInput) searchInput.oninput=()=>{searchQuery=searchInput.value.trim().toLowerCase();renderList();};
     const filterBar=document.getElementById('sz-filterbar');
     if(filterBar){
       filterBar.innerHTML='<button id="sz-fav-btn" class="filt-chip">★ Favourites</button>'
-        +'<button id="sz-sort-date" class="filt-chip">Date</button>'
         +'<button id="sz-sort-dist" class="filt-chip">Distance</button>'
         +'<button id="sz-sort-time" class="filt-chip">Time</button>';
       document.getElementById('sz-fav-btn').onclick=()=>{favOnly=!favOnly;renderList();};
-      document.getElementById('sz-sort-date').onclick=()=>{
-        if(sortBy!=='date'){sortBy='date';sortDir='desc';}
-        else {sortDir=sortDir==='desc'?'asc':'desc';}
-        renderList();
-      };
       document.getElementById('sz-sort-dist').onclick=()=>{
         if(sortBy!=='distance'){sortBy='distance';sortDir='desc';}
         else if(sortDir==='desc'){sortDir='asc';}
-        else {sortBy='date';sortDir='desc';}
+        else {sortBy=null;}
         renderList();
       };
       document.getElementById('sz-sort-time').onclick=()=>{
         if(sortBy!=='time'){sortBy='time';sortDir='desc';}
         else if(sortDir==='desc'){sortDir='asc';}
-        else {sortBy='date';sortDir='desc';}
+        else {sortBy=null;}
         renderList();
       };
     }
@@ -5774,12 +4392,6 @@ async function showStartup(){
       if(favBtn){
         favBtn.className='filt-chip'+(favOnly?' on':'');
       }
-      const dateBtn=document.getElementById('sz-sort-date');
-      if(dateBtn){
-        const on=sortBy==='date';
-        dateBtn.textContent='Date'+(on?(sortDir==='desc'?' ▼':' ▲'):'');
-        dateBtn.className='filt-chip'+(on?' on':'');
-      }
       const distBtn=document.getElementById('sz-sort-dist');
       if(distBtn){
         const on=sortBy==='distance';
@@ -5804,10 +4416,6 @@ async function showStartup(){
       if(sortBy){
         shown=[...shown].sort((a,b)=>{
           const pa=parseFn(a.name),pb=parseFn(b.name);
-          if(sortBy==='date'){
-            const ta=pa.approxTs||_fnTs(a.name),tb=pb.approxTs||_fnTs(b.name);
-            return sortDir==='desc'?tb-ta:ta-tb;
-          }
           const va=sortBy==='distance'?pa.distM:pa.durS;
           const vb=sortBy==='distance'?pb.distM:pb.durS;
           if(va==null&&vb==null) return 0;
@@ -5871,9 +4479,9 @@ async function showStartup(){
 
         const del=document.createElement('button');del.className='sz-del';del.innerHTML='<img src="icons/Delete.svg">';del.title='Delete from Drive';
         del.onclick=async()=>{
-          if(!confirm('Delete this session permanently?\n\nIt will be removed from Google Drive, and from every device on its next sync.\n\nThis cannot be undone.'))return;
+          if(!confirm('Delete from Drive?'))return;
           del.innerHTML='…';del.disabled=true;
-          try{await AnalyserDrive.deleteFile(f.id);await AnalyserDrive.tombstoneSession(f.name);fileList=fileList.filter(x=>x.id!==f.id);renderList();}
+          try{await AnalyserDrive.deleteFile(f.id);fileList=fileList.filter(x=>x.id!==f.id);renderList();}
           catch(e){toast('Delete failed: '+e.message);del.innerHTML='<img src="icons/Delete.svg">';del.disabled=false;}
         };
         row.appendChild(star);row.appendChild(btn);row.appendChild(del);
@@ -6220,7 +4828,7 @@ function showInfoModal(){
   document.getElementById('_info_close').onclick=()=>overlay.remove();
 }
 function showReorderModal(){
-  const order=METRIC_DEFS.map(m=>m.k).filter(metricFitsSession);
+  const order=isErgSession()?METRIC_DEFS.map(m=>m.k).filter(k=>ERG_TILE_KEYS.includes(k)):METRIC_DEFS.map(m=>m.k);
   const overlay=document.createElement('div');
   overlay.id='_reorder_modal';
   overlay.style.cssText='position:fixed;inset:0;background:rgba(0,0,0,.72);display:flex;align-items:center;justify-content:center;z-index:9999;padding:16px;';
@@ -6467,10 +5075,10 @@ function showPlanModal(msg){
   </div>
   ${msg?`<div style="font-size:12px;color:var(--text);margin-bottom:14px;">${msg}</div>`:''}
   <div style="display:flex;align-items:center;gap:8px;">
-  <div style="padding:8px 14px;border-radius:8px;background:${isCoach()?'#8e44ad':(pro?'var(--b)':'var(--s2)')};color:${isCoach()?'#fff':(pro?'#000':'var(--text)')};font-weight:700;">${isCoach()?'COACH':(pro?'PRO':'BASIC')}</div>
+  <div style="padding:8px 14px;border-radius:8px;background:${pro?'var(--b)':'var(--s2)'};color:${pro?'#000':'var(--text)'};font-weight:700;">${pro?'PRO':'BASIC'}</div>
   </div>
   <div style="font-size:11px;color:var(--muted);margin-top:12px;line-height:1.5;">Basic: full single-session replay, always free. Pro unlocks multi-session comparison and video overlay/sync — buy Pro in the BoatRun app while signed in to this same account, and it syncs here automatically.</div>
-  <div style="font-size:11px;color:var(--muted);margin-top:10px;line-height:1.5;">Coaching a squad? The Coach add-on lives in the BoatRun app (Account &amp; Plan → Upgrade to Coach) — it lets you push synced erg workouts and see live pace/rate for every connected rower. In the Analyser it adds stroke templates — create, edit and overlay them on video. Coach includes Pro.</div>
+  <div style="font-size:11px;color:var(--muted);margin-top:10px;line-height:1.5;">Coaching a squad? The Coach add-on lives in the BoatRun app (Account &amp; Plan → Upgrade to Coach) — it lets you push synced erg workouts and see live pace/rate for every connected rower. Coach includes Pro.</div>
   </div>`;
   overlay.appendChild(panel);
   overlay.onclick=e=>{if(e.target===overlay)overlay.remove();};
@@ -6511,12 +5119,6 @@ document.getElementById('addcompbtn').onclick=showAddComparePicker;
 document.getElementById('xmode').onchange=schedRender;
 document.getElementById('emaMode').onchange=schedRender;
 document.getElementById('clearcurvebtn').onclick=clearAllCurves;
-document.getElementById('tplbtn').onclick=openTemplateModal;
-document.getElementById('tplmenubtn').onclick=()=>{document.getElementById('filemenu').classList.remove('open');openTemplateModal();};
-document.getElementById('tplmenubtn').querySelector('span').textContent='Create / edit stroke template';
-tplLoadStored();
-document.getElementById('tplfocusclose').onclick=tplExitFocus;
-document.getElementById('tplloadbtn').onclick=tplImportPick;
 document.getElementById('cards').addEventListener('click',e=>{const c=e.target.closest('[data-vis]');if(c)window.toggleVis(c.dataset.vis);});
 
 const su=document.getElementById('startup');
@@ -6556,7 +5158,6 @@ const VID = {
     opacity: 0.82, curveOpacity: 0.82,
     vidWidth: 100, vidZoom: 1, vidPanX: 0, vidPanY: 0,
     curveAvg5: true, rate: 1,
-    showTpl: false, tplIdx: -1,
   }
 };
 
@@ -6819,21 +5420,6 @@ function vidRenderBody(){
   const cfg=VID.cfg;
   const tabs=VID.clips.map((c,i)=>`<div class="vid-clip-tab${i===VID.active?' on':''}" onclick="vidSetActive(${i})">${vidShort(c.name)}<span class="x" onclick="event.stopPropagation();vidRemoveClip(${i})">\u00D7</span></div>`).join('');
   const mchips=VID_METRIC_ORDER.filter(k=>!vidKeyHidden(k)).map(k=>`<div class="vid-mchip${cfg.metrics.includes(k)?' on':''}" onclick="vidToggleMetric('${k}')">${VID_METRICS[k].l}</div>`).join('');
-  let tplRowHtml='';
-  if(isCoach()){
-    const _tl = (typeof tplOpen!=='undefined' && tplOpen) ? tplOpen : [];
-    const _sel = (cfg.tplIdx>=0 && cfg.tplIdx<_tl.length) ? cfg.tplIdx : tplActiveIdx;
-    const _opts = _tl.map((t,i)=>`<option value="${i}"${i===_sel?' selected':''}>${escHtml(t.name||'Template')} \u00b7 ${t.entries.length}r</option>`).join('');
-    tplRowHtml =
-      '<div class="vid-row" style="margin-top:8px;">'+
-        `<label><input type="checkbox" id="vidShowTpl" ${cfg.showTpl?'checked':''}> show stroke template</label>`+
-        (_tl.length ? `<select class="vid-num" id="vidTplSel" style="width:auto;max-width:150px;">${_opts}</select>`
-                    : '<span class="vid-mini">no template open \u2014 load or create one from the menu</span>')+
-      '</div>'+
-      '<div class="vid-mini" style="margin-top:4px;">Coach only. Drawn dotted yellow, re-timed to each stroke\u2019s own rate.</div>';
-  } else {
-    tplRowHtml = '<div class="vid-mini" style="margin-top:8px;">Stroke template overlay is a Coach feature.</div>';
-  }
   const probe = a.probedMs ? ((a.probeSource==='filename'?'Coach clip start ':'capture \u2248 ')+new Date(a.probedMs).toLocaleTimeString()) : 'no capture/coach timestamp found';
 
   body.innerHTML=`
@@ -6911,7 +5497,6 @@ function vidRenderBody(){
         <div class="vid-slider"><span>opacity</span><input type="range" id="vidCurveOpacity" min="20" max="100" value="${Math.round(cfg.curveOpacity*100)}"></div>
       </div>
       <div class="vid-mini" style="margin-top:5px;">Drag the box or curve directly on the video to reposition.</div>
-      ${tplRowHtml}
     </div>
 
     <div class="vid-panel">
@@ -6961,11 +5546,6 @@ function vidRenderBody(){
   on('vidExportMp4Btn','onclick',vidExportMp4);
   on('vidExportCancel','onclick',vidCancelExport);
   on('vidCurveAvg5','onchange',e=>{ cfg.curveAvg5=e.target.checked; vidDraw(); });
-  on('vidShowTpl','onchange',e=>{
-    if(e.target.checked && !isCoach()){ e.target.checked=false; showPlanModal('Stroke template overlay is a Coach feature.'); return; }
-    cfg.showTpl=e.target.checked; vidDraw();
-  });
-  on('vidTplSel','onchange',e=>{ cfg.tplIdx=parseInt(e.target.value,10); if(isNaN(cfg.tplIdx))cfg.tplIdx=-1; vidDraw(); });
   on('vidSyncBtn','onclick',vidSyncToggle);
   on('vidBack5','onclick',()=>vidSeekBy(-5));
   on('vidFwd5','onclick',()=>vidSeekBy(5));
@@ -7295,29 +5875,6 @@ function vidDrawBox(ctx,W,H,st){
   });
 }
 
-/* Template chosen for the video overlay: the one picked in the Curve panel,
-   otherwise whichever template is active in the Curves section. */
-function vidTplPick(){
-  if(typeof tplOpen==='undefined' || !tplOpen || !tplOpen.length) return null;
-  const i=(VID.cfg.tplIdx>=0 && VID.cfg.tplIdx<tplOpen.length) ? VID.cfg.tplIdx : tplActiveIdx;
-  const t=(i>=0 && i<tplOpen.length) ? tplOpen[i] : null;
-  return tplHasEntries(t) ? t : null;
-}
-/* Resolves that template to this stroke's own rate, matching the way the
-   Curves panel and Metrics re-time it. Erg force templates are never drawn
-   over on-water accel curves, or the other way round. */
-function vidTplCurve(st){
-  if(!VID.cfg.showTpl || !isCoach() || !st) return null;
-  const t=vidTplPick(); if(!t) return null;
-  const FORCE=curvesAreForce();
-  if((t.kind==='force')!==FORCE) return null;
-  let rate=st.stroke && st.stroke.rate;
-  if(!(rate>0) && st.T>0) rate=60/st.T;
-  const r=tplResolve(t, rate||0);
-  if(!r || !r.data || r.data.length<2) return null;
-  return {data:r.data, driveFrac:r.driveFrac, rate:r.rate, name:t.name||'Template'};
-}
-
 function vidCurveRect(W,H){
   const sc=VID.cfg.curveScale;
   const cw=Math.min(W*0.42*sc, W*0.9);
@@ -7338,8 +5895,6 @@ function vidDrawCurve(ctx,W,H,st){
   }
   const hasAvg=avgData&&avgData.curve&&avgData.curve.length===CURVE_POINTS;
 
-  const tplD=vidTplCurve(st);
-
   // background panel
   ctx.fillStyle='rgba(4,14,28,0.72)';
   vidRoundRect(ctx,r.x,r.y,r.cw,r.ch,8); ctx.fill();
@@ -7349,7 +5904,7 @@ function vidDrawCurve(ctx,W,H,st){
   const pad=r.ch*0.12;
   const px=r.x+pad, py=r.y+pad, pw=r.cw-pad*2, ph=r.ch-pad*2;
 
-  if(!hasCur && !hasAvg && !tplD){
+  if(!hasCur && !hasAvg){
     ctx.fillStyle='rgba(200,210,225,0.7)';
     ctx.font='600 '+Math.round(r.ch*0.13)+'px -apple-system, BlinkMacSystemFont, Helvetica Neue, sans-serif';
     ctx.textAlign='center'; ctx.fillText('no curve', r.x+r.cw/2, r.y+r.ch/2);
@@ -7360,7 +5915,6 @@ function vidDrawCurve(ctx,W,H,st){
   let mn=0, mx=0;
   if(hasCur)  for(const v of cur.curve)   { if(v<mn)mn=v; if(v>mx)mx=v; }
   if(hasAvg)  for(const v of avgData.curve){ if(v<mn)mn=v; if(v>mx)mx=v; }
-  if(tplD)    for(const v of tplD.data)     { if(v<mn)mn=v; if(v>mx)mx=v; }
   const ypad=Math.max((mx-mn)*0.08, 0.1); mn-=ypad; mx+=ypad;
   // keep at least 25% of positive headroom so zero line isn't at bottom
   if(mx>0 && mn>-mx*0.25) mn=-mx*0.25;
@@ -7408,23 +5962,6 @@ function vidDrawCurve(ctx,W,H,st){
     }
   }
 
-  // stroke template — dotted yellow, over the fills but under the live stroke
-  if(tplD){
-    const tn=tplD.data.length;
-    ctx.save();
-    ctx.setLineDash([0.5,7]); ctx.lineCap='round'; ctx.lineJoin='round';
-    ctx.beginPath();
-    for(let i=0;i<tn;i++){ const x=px+i/(tn-1)*pw, y=toY(tplD.data[i]); i?ctx.lineTo(x,y):ctx.moveTo(x,y); }
-    ctx.strokeStyle=TPL_COLOR; ctx.lineWidth=Math.max(3,r.ch*0.035); ctx.stroke();
-    ctx.restore();
-    if(tplD.driveFrac>0 && tplD.driveFrac<1){
-      const bx=px+tplD.driveFrac*pw;
-      ctx.save(); ctx.setLineDash([0.5,5]); ctx.lineCap='round';
-      ctx.strokeStyle=TPL_COLOR; ctx.lineWidth=2; ctx.globalAlpha=.85;
-      ctx.beginPath(); ctx.moveTo(bx,py); ctx.lineTo(bx,py+ph); ctx.stroke(); ctx.restore();
-    }
-  }
-
   // current stroke drawn on top — blue, thicker, no fill (let green/red show through)
   if(hasCur){
     drawCurveData(cur.curve, '#0077cc', 3.5, false);
@@ -7459,14 +5996,8 @@ function vidDrawCurve(ctx,W,H,st){
     ctx.fillStyle='#c0392b'; ctx.fillRect(lx, ly-fs+1, fs*1.2, fs*0.6);
     lx+=fs*1.4;
     ctx.fillStyle='rgba(210,225,245,0.75)'; ctx.textAlign='left'; ctx.fillText('AVG '+avgN, lx, ly);
-    lx+=ctx.measureText('AVG '+avgN).width+fs*1.2;
   }
-  if(tplD){
-    ctx.fillStyle=TPL_COLOR; ctx.fillRect(lx, ly-fs+1, fs*1.2, fs*0.6);
-    lx+=fs*1.4;
-    const ltxt='TPL '+f1(tplD.rate)+'spm';
-    ctx.fillStyle='rgba(210,225,245,0.75)'; ctx.textAlign='left'; ctx.fillText(ltxt, lx, ly);
-  }
+  if(!hasCur && !hasAvg){ /* already returned */ }
 }
 
 function vidRoundRect(ctx,x,y,w,h,r){
