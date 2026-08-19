@@ -777,11 +777,24 @@ const AnalyserAuth = {
     toast('Signed out');
   },
   async _syncEntitlement() {
-    if (!this.user) return;
+    // Prefer the SDK's live user over the one captured at sign-in — a tab left
+    // open for hours can be holding a stale reference.
+    const u = (typeof fbAuth !== 'undefined' && fbAuth.currentUser) || this.user;
+    if (!u) return;
+    const read = async (force) => {
+      const idToken = await u.getIdToken(force);
+      return await fetch(`https://boatrun-default-rtdb.asia-southeast1.firebasedatabase.app/users/${u.uid}.json?auth=${encodeURIComponent(idToken)}`);
+    };
     try {
-      const idToken = await this.user.getIdToken();
-      const r = await fetch(`https://boatrun-default-rtdb.asia-southeast1.firebasedatabase.app/users/${this.user.uid}.json?auth=${idToken}`);
-      if (!r.ok) return;
+      let r = await read(false);
+      // RTDB answers 401 for BOTH an expired token and a rules denial, so mint
+      // a fresh token and ask again before believing it.
+      if (r.status === 401) r = await read(true);
+      if (r.status === 401) {
+        console.error('entitlement sync: RTDB refused a freshly issued token — check the .read rule on /users/$uid');
+        return;
+      }
+      if (!r.ok) { console.error('entitlement sync: HTTP ' + r.status); return; }
       const data = await r.json();
       setTier(data && data.tier ? data.tier : 'basic');
     } catch (e) { console.error('entitlement sync failed', e); }
