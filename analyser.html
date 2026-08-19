@@ -4769,6 +4769,20 @@ function shortName(label){
   return label.length>14?label.slice(0,11)+'…':label;
 }
 
+// Total distance and time spanned by a group of strokes. Pace and DPS are
+// reciprocal quantities, so a plain mean of per-stroke values is biased slow
+// (Jensen). Summing distance and time first gives the same answer the lap
+// summary reports. Returns null when the strokes carry no usable distance.
+function groupDistTime(a){
+  if(!a||a.length<2)return null;
+  const v=a.filter(s=>!isNaN(s.dist)&&s.dist!=null&&!isNaN(s.elapsed)&&s.elapsed!=null);
+  if(v.length<2)return null;
+  const metres=v[v.length-1].dist-v[0].dist;
+  const secs=v[v.length-1].elapsed-v[0].elapsed;
+  if(!(metres>0)||!(secs>0))return null;
+  return {metres,secs,gaps:v.length-1};
+}
+
 function buildCurveStats(){
   // Build rows from canonical METRIC_DEFS order
   const rows=[
@@ -4782,6 +4796,22 @@ function buildCurveStats(){
       rows.push({l:'Avg '+m.l, c:m.c, fn:g=>{
         const arr=g.strokes.map(s=>nearestHRIn(g.hrT,g.hrBpm,s.ms)).filter(b=>b!=null&&b>40&&b<220);
         return arr.length?m.fmtAvg(arrMean(arr)):EM;
+      }});
+      continue;
+    }
+    if(m.k==='pace'||m.k==='dps'){
+      rows.push({l:'Avg '+m.l, c:m.c, fn:g=>{
+        const t=groupDistTime(g.strokes);
+        if(t){
+          if(m.k==='pace')return m.fmtAvg(500*t.secs/t.metres);
+          return m.fmtAvg(t.metres/t.gaps);
+        }
+        const arr=g.strokes.filter(m.filter).map(m.val);
+        return arr.length?m.fmtAvg(arrMean(arr)):EM;
+      }});
+      if(m.showBest) rows.push({l:'Best '+m.l, c:m.c, fn:g=>{
+        const arr=g.strokes.filter(m.filter).map(m.val);
+        return arr.length?m.fmtAvg(m.bestIsMin?arrMin(arr):arrMax(arr)):EM;
       }});
       continue;
     }
