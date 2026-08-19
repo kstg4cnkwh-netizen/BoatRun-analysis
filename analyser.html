@@ -5688,6 +5688,8 @@ async function showStartup(){
     let fileList=[...files];
     let searchQuery='';
     let favOnly=false;
+    /* '' = everything, 'water' = on-water only, 'erg' = erg only. */
+    let modeFilter='';
     let sortBy='date';
     let sortDir='desc';
     const searchInput=document.getElementById('sz-search');
@@ -5695,10 +5697,14 @@ async function showStartup(){
     const filterBar=document.getElementById('sz-filterbar');
     if(filterBar){
       filterBar.innerHTML='<button id="sz-fav-btn" class="filt-chip">★ Favourites</button>'
+        +'<button id="sz-mode-water" class="filt-chip">Water</button>'
+        +'<button id="sz-mode-erg" class="filt-chip">Erg</button>'
         +'<button id="sz-sort-date" class="filt-chip">Date</button>'
         +'<button id="sz-sort-dist" class="filt-chip">Distance</button>'
         +'<button id="sz-sort-time" class="filt-chip">Time</button>';
       document.getElementById('sz-fav-btn').onclick=()=>{favOnly=!favOnly;renderList();};
+      document.getElementById('sz-mode-water').onclick=()=>{modeFilter=modeFilter==='water'?'':'water';renderList();};
+      document.getElementById('sz-mode-erg').onclick=()=>{modeFilter=modeFilter==='erg'?'':'erg';renderList();};
       document.getElementById('sz-sort-date').onclick=()=>{
         if(sortBy!=='date'){sortBy='date';sortDir='desc';}
         else {sortDir=sortDir==='desc'?'asc':'desc';}
@@ -5804,6 +5810,10 @@ async function showStartup(){
       if(favBtn){
         favBtn.className='filt-chip'+(favOnly?' on':'');
       }
+      const waterBtn=document.getElementById('sz-mode-water');
+      if(waterBtn) waterBtn.className='filt-chip'+(modeFilter==='water'?' on':'');
+      const ergBtn=document.getElementById('sz-mode-erg');
+      if(ergBtn) ergBtn.className='filt-chip'+(modeFilter==='erg'?' on':'');
       const dateBtn=document.getElementById('sz-sort-date');
       if(dateBtn){
         const on=sortBy==='date';
@@ -5827,6 +5837,8 @@ async function showStartup(){
       let shown=fileList.filter(f=>{
         const p=parseFn(f.name);
         if(favOnly&&!p.favourite) return false;
+        if(modeFilter==='erg'&&!p.erg) return false;
+        if(modeFilter==='water'&&p.erg) return false;
         if(!q) return true;
         const hay=[p.name,f.name,p.squadCode,p.axis,p.workout].filter(Boolean).join(' ').toLowerCase();
         return hay.includes(q);
@@ -5912,7 +5924,7 @@ async function showStartup(){
       if(!shown.length){
         const empty=document.createElement('div');
         empty.style.cssText='color:var(--muted);font-size:.85rem;padding:8px 0;';
-        empty.textContent=(q||favOnly)?'No sessions match your filters.':'No sessions on Drive.';
+        empty.textContent=(q||favOnly||modeFilter)?'No sessions match your filters.':'No sessions on Drive.';
         container.appendChild(empty);
       }
     }
