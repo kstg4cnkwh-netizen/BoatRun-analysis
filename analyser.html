@@ -957,6 +957,7 @@ const AnalyserDrive = {
     this._token = null; this._exp = 0; this._rtok = null; this._ltoken = null; this._legacyIds = new Set();
     sessionStorage.removeItem('_ad_token'); sessionStorage.removeItem('_ad_token_exp'); sessionStorage.removeItem('_ad_token_legacy');
     try { localStorage.removeItem('_ad_rtok'); } catch {}
+    this._invalidateFolder();
     this._updateBtn();
   },
   _tokFor(fileId) { return (this._legacyIds && this._legacyIds.has(fileId)) ? this._ltoken : this._token; },
@@ -1042,12 +1043,40 @@ const AnalyserDrive = {
         page = d.nextPageToken || null;
       } while (page);
       this._folderCache = { t: Date.now(), files: out };
+      this._writeCache(out);
       return out;
     })();
     try { return await this._folderPending; }
     finally { this._folderPending = null; }
   },
-  _invalidateFolder() { this._folderCache = null; },
+  /* The listing is also kept in localStorage so the picker can paint from the
+     last known folder contents the instant it opens, exactly like the Metrics
+     log. Drive is still re-listed in the background and the list repaints if
+     anything changed. Names carry distance, time, strokes and the favourite
+     flag, so no session body is ever downloaded to build the list. */
+  _CACHE_KEY: '_ad_folder_cache',
+  _readCache() {
+    try {
+      const j = JSON.parse(localStorage.getItem(this._CACHE_KEY) || 'null');
+      return (j && Array.isArray(j.files) && j.files.length) ? j.files : null;
+    } catch { return null; }
+  },
+  _writeCache(files) {
+    try { localStorage.setItem(this._CACHE_KEY, JSON.stringify({ t: Date.now(), files: files || [] })); } catch {}
+  },
+  cachedList(prefix) {
+    if (!this.isSignedIn()) return null;
+    const c = this._readCache();
+    if (!c) return null;
+    const out = c.filter(f => String(f.name || '').includes(prefix));
+    if (!out.length) return null;
+    out.sort(_byFnTsDesc);
+    return out;
+  },
+  _invalidateFolder() {
+    this._folderCache = null;
+    try { localStorage.removeItem(this._CACHE_KEY); } catch {}
+  },
   async list() {
     this._check();
     const mine = (await this._listFolder()).filter(f => String(f.name || '').includes('RowSess_'));
@@ -5651,7 +5680,8 @@ async function showStartup(){
   document.getElementById('sz-squad').onclick=loadFromSquad;
   document.getElementById('sz-openfile').onclick=()=>document.getElementById('fin').click();
   try{
-    const files=await AnalyserDrive.list();
+    const cached=AnalyserDrive.cachedList('RowSess_');
+    const files=cached||await AnalyserDrive.list();
     const container=document.getElementById('sz-files');
     if(!container)return;
     if(!files.length){container.innerHTML='<div class="sz-loading">No sessions on Drive</div>';return;}
@@ -5887,6 +5917,19 @@ async function showStartup(){
       }
     }
     renderList();
+    /* Painted from the cached listing, so re-list Drive quietly and repaint
+       only if the folder actually changed. */
+    if(cached){
+      AnalyserDrive.list().then(fresh=>{
+        if(document.getElementById('sz-files')!==container)return;
+        if(!fresh.length)return;
+        const a=fileList.map(f=>f.name).join('|');
+        const b=fresh.map(f=>f.name).join('|');
+        if(a===b)return;
+        fileList=[...fresh];
+        renderList();
+      }).catch(()=>{});
+    }
   }catch(err){
     if(!AnalyserDrive.isSignedIn()){showStartup();return;}
     const c=document.getElementById('sz-files');
