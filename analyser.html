@@ -3345,7 +3345,7 @@ function showDrivePicker(files, onSelect) {
       del.textContent='🗑';del.title='Delete from Drive';
       del.style.cssText='padding:9px 10px;background:rgba(192,57,43,.15);border:1px solid rgba(192,57,43,.4);border-radius:6px;color:#e74c3c;cursor:pointer;font-size:.85rem;flex-shrink:0;';
       del.onclick=async()=>{
-        if(!confirm('Delete from Drive?'))return;
+        if(!confirm('Delete this session permanently?\n\nIt will be removed from Google Drive, and from every device on its next sync.\n\nThis cannot be undone.'))return;
         del.textContent='…';del.disabled=true;
         try{await AnalyserDrive.deleteFile(f.id);await AnalyserDrive.tombstoneSession(f.name);fileList=fileList.filter(x=>x.id!==f.id);renderList();}
         catch(e){toast('Delete failed: '+e.message);del.textContent='🗑';del.disabled=false;}
@@ -5871,7 +5871,7 @@ async function showStartup(){
 
         const del=document.createElement('button');del.className='sz-del';del.innerHTML='<img src="icons/Delete.svg">';del.title='Delete from Drive';
         del.onclick=async()=>{
-          if(!confirm('Delete from Drive?'))return;
+          if(!confirm('Delete this session permanently?\n\nIt will be removed from Google Drive, and from every device on its next sync.\n\nThis cannot be undone.'))return;
           del.innerHTML='…';del.disabled=true;
           try{await AnalyserDrive.deleteFile(f.id);await AnalyserDrive.tombstoneSession(f.name);fileList=fileList.filter(x=>x.id!==f.id);renderList();}
           catch(e){toast('Delete failed: '+e.message);del.innerHTML='<img src="icons/Delete.svg">';del.disabled=false;}
