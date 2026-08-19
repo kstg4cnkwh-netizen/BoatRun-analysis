@@ -813,6 +813,37 @@ function _byFnTsDesc(a, b) {
   if (ta || tb) return tb - ta;
   return String(b.createdTime || '').localeCompare(String(a.createdTime || ''));
 }
+/* Session names used to be flattened to letters, digits and dashes, so ":)",
+   apostrophes, accents and emoji were silently thrown away. The name is now
+   base64'd into a _NM token instead, which keeps every character exactly as
+   typed. The alphabet is remapped so it can never contain "_" or "." and so
+   can never be confused with the other filename tokens or the .json ending.
+   _NAME is still read for sessions written by older builds. */
+function encSessName(s) {
+  try {
+    const bytes = new TextEncoder().encode(String(s == null ? '' : s).slice(0, 40));
+    let bin = '';
+    for (let i = 0; i < bytes.length; i++) bin += String.fromCharCode(bytes[i]);
+    return btoa(bin).replace(/\+/g, '-').replace(/\//g, '~').replace(/=+$/, '');
+  } catch { return ''; }
+}
+function decSessName(t) {
+  try {
+    let b = String(t || '').replace(/-/g, '+').replace(/~/g, '/');
+    while (b.length % 4) b += '=';
+    const bin = atob(b);
+    const bytes = new Uint8Array(bin.length);
+    for (let i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
+    return new TextDecoder().decode(bytes);
+  } catch { return ''; }
+}
+function nameFromFilename(n) {
+  const s = String(n || '');
+  const e = s.match(/_NM([A-Za-z0-9\-~]+)/);
+  if (e) { const d = decSessName(e[1]); if (d) return d; }
+  const m = s.match(/_NAME([a-zA-Z0-9\-]+)/);
+  return m ? m[1].replace(/-/g, ' ') : null;
+}
 const AnalyserDrive = {
   CLIENT_ID: '118760764612-4kbbha2t6ga218im3ut25l55q3uld32h.apps.googleusercontent.com',
   LEGACY_CLIENT_ID: '729480414852-kko8e7bi3r38tcg2rf6iiupptagoegpc.apps.googleusercontent.com',
@@ -1176,8 +1207,9 @@ const AnalyserDrive = {
     const mResp = await this._api(`https://www.googleapis.com/drive/v3/files/${fileId}?fields=name`, {}, 'Rename', null, fileId);
     this._ok(mResp, 'Rename');
     const { name: currentName } = await mResp.json();
-    const safe = newName.replace(/\s+/g,'-').replace(/[^a-zA-Z0-9-]/g,'').slice(0,30);
-    const newFilename = currentName.replace(/_NAME[a-zA-Z0-9-]*/,'').replace(/\.json$/, '_NAME'+safe+'.json');
+    const enc = encSessName(newName);
+    const stripped = currentName.replace(/_NAME[a-zA-Z0-9-]*/, '').replace(/_NM[A-Za-z0-9\-~]*/, '');
+    const newFilename = enc ? stripped.replace(/\.json$/, '_NM' + enc + '.json') : stripped;
     const content = await this.fetchSession(fileId);
     content.name = newName;
     const form = new FormData();
@@ -2642,7 +2674,7 @@ async function showAddComparePicker() {
                 function parseDA(name) {
                     const dist = name.match(/_(\d+)m_/);
                     const dur = name.match(/_(\d{2})h(\d{2})m(\d{2})s/);
-                    const nm = name.match(/_NAME([a-zA-Z0-9-]+)/);
+                    const nm = nameFromFilename(name);
                     const str = name.match(/_(\d+)str/);
                     const ts = name.match(/RowSess_(\d{4})-(\d{2})-(\d{2})_(\d{2})(\d{2})/);
                     const fav = /_FAV1/.test(name);
@@ -2650,7 +2682,7 @@ async function showAddComparePicker() {
                     return {
                         distM: dist ? parseInt(dist[1]) : null,
                         durS: dur ? +dur[1]*3600 + +dur[2]*60 + +dur[3] : null,
-                        name: nm ? nm[1].replace(/-/g,' ') : null,
+                        name: nm,
                         strokes: str ? parseInt(str[1]) : null,
                         favourite: fav,
                         erg: erg,
@@ -2884,12 +2916,12 @@ function coachParseFn(name){
   const d=name.match(/CoachSess_(\d{4})-(\d{2})-(\d{2})_(\d{2})(\d{2})/);
   const sq=name.match(/_SQ([A-Z0-9]{1,8})/);
   const ath=name.match(/_(\d+)ath/);
-  const nm=name.match(/_NAME([a-zA-Z0-9\-]+)/);
+  const nm=nameFromFilename(name);
   return {
     ts: d?new Date(+d[1],+d[2]-1,+d[3],+d[4],+d[5]).getTime():0,
     squadCode: sq?sq[1]:null,
     athletes: ath?parseInt(ath[1]):null,
-    name: nm?nm[1].replace(/-/g,' '):null
+    name: nm
   };
 }
 async function loadCoachSessions(){
@@ -2927,7 +2959,7 @@ function showCoachPicker(files){
     const btn=document.createElement('button');
     btn.style.cssText='background:var(--s2);border:1px solid var(--border);border-radius:6px;padding:10px 12px;text-align:left;cursor:pointer;color:var(--text);font-size:12px;line-height:1.6;flex:1;min-width:0;font-family:inherit;';
     const when=p.ts?new Date(p.ts).toLocaleDateString()+' '+new Date(p.ts).toLocaleTimeString([],{hour:'2-digit',minute:'2-digit'}):'';
-    btn.innerHTML='<span style="color:var(--b);font-weight:700">'+(p.name||('Squad '+(p.squadCode||'')))+'</span>  '+when+
+    btn.innerHTML='<span style="color:var(--b);font-weight:700">'+coachEsc(p.name||('Squad '+(p.squadCode||'')))+'</span>  '+when+
       '<br><span style="color:var(--muted)">'+(p.squadCode?('squad '+p.squadCode):'')+
       (p.athletes!=null?('  \u00b7 '+p.athletes+' athlete'+(p.athletes===1?'':'s')):'')+'</span>';
     btn.onclick=async()=>{
@@ -3280,7 +3312,7 @@ function showDrivePicker(files, onSelect) {
     const str=name.match(/_(\d+)str/);
     const ax=name.match(/_AX([A-Z])/);
     const wkt=name.match(/_WKT([a-zA-Z0-9\-]+)/);
-    const nm=name.match(/_NAME([a-zA-Z0-9\-]+)/);
+    const nm=nameFromFilename(name);
     const sq=name.match(/_SQ([A-Z0-9]{1,8})/);
     const fav=/_FAV1/.test(name);
     const erg=/_ERG(?:_|\.)/.test(name);
@@ -3291,7 +3323,7 @@ function showDrivePicker(files, onSelect) {
       strokes: str?parseInt(str[1]):null,
       axis: ax?ax[1]:null,
       workout: wkt?wkt[1].replace(/-/g,' '):null,
-      name: nm?nm[1].replace(/-/g,' '):null,
+      name: nm,
       squadCode: sq?sq[1]:null,
       favourite: fav,
       erg: erg,
@@ -3365,7 +3397,7 @@ function showDrivePicker(files, onSelect) {
       if(p.durS!=null) statsDiv.innerHTML+='<div><span class="asc-v">'+fmtTime(p.durS)+'</span><span class="asc-l">time</span></div>';
       if(pace!=null) statsDiv.innerHTML+='<div><span class="asc-v">'+fmtPace(pace)+'</span><span class="asc-l">avg pace</span></div>';
       if(p.strokes!=null) statsDiv.innerHTML+='<div><span class="asc-v">'+p.strokes+'</span><span class="asc-l">strokes</span></div>';
-      if(!p.distM&&!p.durS) statsDiv.innerHTML='<span style="color:var(--muted);font-size:.8rem;">'+f.name.replace('RowSess_','').replace('.json','').replace('_FAV1','')+'</span>';
+      if(!p.distM&&!p.durS) statsDiv.innerHTML='<span style="color:var(--muted);font-size:.8rem;">'+f.name.replace('RowSess_','').replace('.json','').replace('_FAV1','').replace(/_NM[A-Za-z0-9\-~]*/,'')+'</span>';
 
       if(p.name){const nameDiv=document.createElement('div');nameDiv.style.cssText='font-weight:700;font-size:.85rem;color:var(--text);margin-bottom:2px;';nameDiv.textContent=p.name;btn.appendChild(nameDiv);}
       btn.appendChild(dateDiv);btn.appendChild(statsDiv);
@@ -5730,7 +5762,7 @@ async function showStartup(){
       const str=name.match(/_(\d+)str/);
       const ax=name.match(/_AX([A-Z])/);
       const wkt=name.match(/_WKT([a-zA-Z0-9\-]+)/);
-      const nm=name.match(/_NAME([a-zA-Z0-9\-]+)/);
+      const nm=nameFromFilename(name);
       const sq=name.match(/_SQ([A-Z0-9]{1,8})/);
       const fav=/_FAV1/.test(name);
       const erg=/_ERG(?:_|\.)/.test(name);
@@ -5741,7 +5773,7 @@ async function showStartup(){
         strokes: str?parseInt(str[1]):null,
         axis: ax?ax[1]:null,
         workout: wkt?wkt[1].replace(/-/g,' '):null,
-        name: nm?nm[1].replace(/-/g,' '):null,
+        name: nm,
         squadCode: sq?sq[1]:null,
         favourite: fav,
         erg: erg,
@@ -5840,7 +5872,7 @@ async function showStartup(){
         if(modeFilter==='erg'&&!p.erg) return false;
         if(modeFilter==='water'&&p.erg) return false;
         if(!q) return true;
-        const hay=[p.name,f.name,p.squadCode,p.axis,p.workout].filter(Boolean).join(' ').toLowerCase();
+        const hay=[p.name,f.name.replace(/_NM[A-Za-z0-9\-~]*/,''),p.squadCode,p.axis,p.workout].filter(Boolean).join(' ').toLowerCase();
         return hay.includes(q);
       });
       if(sortBy){
@@ -5906,7 +5938,7 @@ async function showStartup(){
         if(p.durS!=null) statsDiv.innerHTML+='<div><span class="asc-v">'+fmtTime(p.durS)+'</span><span class="asc-l">time</span></div>';
         if(pace!=null) statsDiv.innerHTML+='<div><span class="asc-v">'+fmtPace(pace)+'</span><span class="asc-l">avg pace</span></div>';
         if(p.strokes!=null) statsDiv.innerHTML+='<div><span class="asc-v">'+p.strokes+'</span><span class="asc-l">strokes</span></div>';
-        if(!p.distM&&!p.durS) statsDiv.innerHTML='<span style="color:var(--muted);font-size:.8rem;">'+f.name.replace('RowSess_','').replace('.json','').replace('_FAV1','')+'</span>';
+        if(!p.distM&&!p.durS) statsDiv.innerHTML='<span style="color:var(--muted);font-size:.8rem;">'+f.name.replace('RowSess_','').replace('.json','').replace('_FAV1','').replace(/_NM[A-Za-z0-9\-~]*/,'')+'</span>';
 
         if(p.name){const nameDiv=document.createElement('div');nameDiv.style.cssText='font-weight:700;font-size:.85rem;color:var(--text);margin-bottom:2px;';nameDiv.textContent=p.name;btn.appendChild(nameDiv);}
         btn.appendChild(dateDiv);btn.appendChild(statsDiv);
