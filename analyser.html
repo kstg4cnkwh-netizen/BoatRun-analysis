@@ -1073,6 +1073,67 @@ const AnalyserDrive = {
     this._ok(resp, 'Session load');
     return resp.json();
   },
+  /* Shared session index, written by the Metrics app. Deleting a session here
+     removes the Drive file, but the phone keeps its own local copy — so a
+     tombstone goes into the index to tell it to drop that session on its next
+     sync. Best-effort throughout: a failed tombstone must never block a delete. */
+  MANIFEST_NAME: 'BoatRunIndex.json',
+  _manifestFid: null,
+  /* Matches the Metrics app: tombstones older than this are dropped, so the
+     index cannot grow without bound and a long-dead entry never blocks a
+     deliberate re-upload of the same session. */
+  TOMBSTONE_TTL_MS: 180 * 24 * 60 * 60 * 1000,
+  _pruneDeleted(deleted) {
+    const out = {}, cut = Date.now() - this.TOMBSTONE_TTL_MS;
+    for (const id of Object.keys(deleted || {})) {
+      const t = +deleted[id];
+      if (!t || isNaN(t) || t > cut) out[id] = deleted[id];
+    }
+    return out;
+  },
+  async _findManifest() {
+    if (this._manifestFid) return this._manifestFid;
+    const q = encodeURIComponent(`name='${this.MANIFEST_NAME}' and trashed=false`);
+    const r = await this._api(`https://www.googleapis.com/drive/v3/files?spaces=appDataFolder&q=${q}&fields=files(id)`, {}, 'Index', 15000);
+    if (!r.ok) return null;
+    const d = await r.json();
+    const id = (d.files && d.files[0] && d.files[0].id) || null;
+    if (id) this._manifestFid = id;
+    return id;
+  },
+  // Session id is the millisecond timestamp the filename was built from.
+  _idFromName(name) {
+    const m = String(name || '').match(/^RowSess_(\d{4})-(\d{2})-(\d{2})_(\d{2})(\d{2})/);
+    if (!m) return null;
+    const d = new Date(+m[1], +m[2] - 1, +m[3], +m[4], +m[5], 0, 0);
+    return isNaN(d.getTime()) ? null : d.getTime();
+  },
+  async tombstoneSession(fileName) {
+    try {
+      const fid = await this._findManifest();
+      if (!fid) return;                       // no index yet, nothing to mark
+      const r = await this._api(`https://www.googleapis.com/drive/v3/files/${fid}?alt=media`, {}, 'Index', 15000);
+      if (!r.ok) return;
+      const doc = await r.json();
+      const sessions = (doc && doc.sessions) || {};
+      const deleted = this._pruneDeleted((doc && doc.deleted) || {});
+      /* Filenames encode minutes, not milliseconds, so match the index entry
+         whose id falls in the same minute rather than trusting an exact value. */
+      const target = this._idFromName(fileName);
+      if (target == null) return;
+      let hit = null;
+      for (const id of Object.keys(sessions)) {
+        if (Math.abs(+id - target) < 60000) { hit = id; break; }
+      }
+      const mark = hit || String(target);
+      delete sessions[mark];
+      deleted[mark] = Date.now();
+      const form = new FormData();
+      form.append('metadata', new Blob([JSON.stringify({ name: this.MANIFEST_NAME, mimeType: 'application/json' })], { type: 'application/json' }));
+      form.append('file', new Blob([JSON.stringify({ v: 1, sessions, deleted })], { type: 'application/json' }));
+      await this._api(`https://www.googleapis.com/upload/drive/v3/files/${fid}?uploadType=multipart&fields=id`, { method: 'PATCH', body: form }, 'Index', 20000);
+    } catch {}
+  },
   async deleteFile(fileId) {
     this._check();
     const resp = await this._api(`https://www.googleapis.com/drive/v3/files/${fileId}`, { method: 'DELETE' }, 'Delete', null, fileId);
@@ -3286,7 +3347,7 @@ function showDrivePicker(files, onSelect) {
       del.onclick=async()=>{
         if(!confirm('Delete from Drive?'))return;
         del.textContent='…';del.disabled=true;
-        try{await AnalyserDrive.deleteFile(f.id);fileList=fileList.filter(x=>x.id!==f.id);renderList();}
+        try{await AnalyserDrive.deleteFile(f.id);await AnalyserDrive.tombstoneSession(f.name);fileList=fileList.filter(x=>x.id!==f.id);renderList();}
         catch(e){toast('Delete failed: '+e.message);del.textContent='🗑';del.disabled=false;}
       };
 
@@ -5812,7 +5873,7 @@ async function showStartup(){
         del.onclick=async()=>{
           if(!confirm('Delete from Drive?'))return;
           del.innerHTML='…';del.disabled=true;
-          try{await AnalyserDrive.deleteFile(f.id);fileList=fileList.filter(x=>x.id!==f.id);renderList();}
+          try{await AnalyserDrive.deleteFile(f.id);await AnalyserDrive.tombstoneSession(f.name);fileList=fileList.filter(x=>x.id!==f.id);renderList();}
           catch(e){toast('Delete failed: '+e.message);del.innerHTML='<img src="icons/Delete.svg">';del.disabled=false;}
         };
         row.appendChild(star);row.appendChild(btn);row.appendChild(del);
