@@ -925,7 +925,7 @@ const AnalyserDrive = {
   async _listLegacy(q) {
     if (!this._ltoken) return [];
     try {
-      const r = await fetch(`https://www.googleapis.com/drive/v3/files?spaces=appDataFolder&q=${q}&fields=files(id,name,createdTime,size)&orderBy=createdTime+desc&pageSize=200`, { headers: { Authorization: 'Bearer ' + this._ltoken } });
+      const r = await this._fetch(`https://www.googleapis.com/drive/v3/files?spaces=appDataFolder&q=${q}&fields=files(id,name,createdTime,size)&orderBy=createdTime+desc&pageSize=200`, { headers: { Authorization: 'Bearer ' + this._ltoken } }, 'Old account list', 10000);
       if (r.status === 401) { this._ltoken = null; sessionStorage.removeItem('_ad_token_legacy'); this._updateBtn(); return []; }
       if (!r.ok) return [];
       const d = await r.json();
@@ -938,14 +938,8 @@ const AnalyserDrive = {
   async list() {
     this._check();
     const q = encodeURIComponent("name contains 'RowSess_' and name contains '.json' and trashed=false");
-    const ac = new AbortController();
-    const timer = setTimeout(() => ac.abort(), 15000);
-    let resp;
-    try { resp = await fetch(`https://www.googleapis.com/drive/v3/files?spaces=appDataFolder&q=${q}&fields=files(id,name,createdTime,size)&orderBy=createdTime+desc&pageSize=200`, { headers: { Authorization: 'Bearer ' + this._token }, signal: ac.signal }); }
-    catch (e) { clearTimeout(timer); throw new Error(e.name === 'AbortError' ? 'Connection timed out — sign out and sign in again' : ('Network error — ' + e.message)); }
-    clearTimeout(timer);
-    if (resp.status === 401) { this._expire(); throw new Error('Session expired — sign out and sign in again'); }
-    if (!resp.ok) throw new Error('Drive error: HTTP ' + resp.status + ' — try signing out and in again');
+    const resp = await this._fetch(`https://www.googleapis.com/drive/v3/files?spaces=appDataFolder&q=${q}&fields=files(id,name,createdTime,size)&orderBy=createdTime+desc&pageSize=200`, { headers: { Authorization: 'Bearer ' + this._token } }, 'Session list');
+    this._ok(resp, 'Session list');
     const d = await resp.json();
     let all = (d.files || []).concat(await this._listLegacy(q));
     all.sort(_byFnTsDesc);
@@ -958,9 +952,8 @@ const AnalyserDrive = {
   async listCoachSessions() {
     this._check();
     const q = encodeURIComponent("name contains 'CoachSess_' and name contains '.json' and trashed=false");
-    const resp = await fetch(`https://www.googleapis.com/drive/v3/files?spaces=appDataFolder&q=${q}&fields=files(id,name,createdTime,size)&orderBy=createdTime+desc&pageSize=200`, { headers: { Authorization: 'Bearer ' + this._token } });
-    if (resp.status === 401) { this._expire(); throw new Error('Session expired — sign out and sign in again'); }
-    if (!resp.ok) throw new Error('Drive error: HTTP ' + resp.status);
+    const resp = await this._fetch(`https://www.googleapis.com/drive/v3/files?spaces=appDataFolder&q=${q}&fields=files(id,name,createdTime,size)&orderBy=createdTime+desc&pageSize=200`, { headers: { Authorization: 'Bearer ' + this._token } }, 'Coach list');
+    this._ok(resp, 'Coach list');
     const d = await resp.json();
     let all = (d.files || []).concat(await this._listLegacy(q));
     all.sort(_byFnTsDesc);
@@ -969,21 +962,21 @@ const AnalyserDrive = {
   },
   async fetchSession(fileId) {
     this._check();
-    const resp = await fetch(`https://www.googleapis.com/drive/v3/files/${fileId}?alt=media`, { headers: { Authorization: 'Bearer ' + this._tokFor(fileId) } });
-    if (resp.status === 401) { this._expire(); throw new Error('Session expired — please sign in again'); }
-    if (!resp.ok) throw new Error('Drive fetch failed: HTTP ' + resp.status);
+    const resp = await this._fetch(`https://www.googleapis.com/drive/v3/files/${fileId}?alt=media`, { headers: { Authorization: 'Bearer ' + this._tokFor(fileId) } }, 'Session load', 45000);
+    this._ok(resp, 'Session load');
     return resp.json();
   },
   async deleteFile(fileId) {
     this._check();
-    const resp = await fetch(`https://www.googleapis.com/drive/v3/files/${fileId}`, { method: 'DELETE', headers: { Authorization: 'Bearer ' + this._tokFor(fileId) } });
-    if (!resp.ok && resp.status !== 204) throw new Error('Delete failed: HTTP ' + resp.status);
+    const resp = await this._fetch(`https://www.googleapis.com/drive/v3/files/${fileId}`, { method: 'DELETE', headers: { Authorization: 'Bearer ' + this._tokFor(fileId) } }, 'Delete');
+    // 404 means it is already gone — treat that as success so the row clears.
+    if (resp.status === 404) return;
+    this._ok(resp, 'Delete');
   },
   async patchName(fileId, newName) {
     this._check();
-    const mResp = await fetch(`https://www.googleapis.com/drive/v3/files/${fileId}?fields=name`, { headers: { Authorization: 'Bearer ' + this._tokFor(fileId) } });
-    if (mResp.status===401) { this._expire(); throw new Error('Session expired'); }
-    if (!mResp.ok) throw new Error('Metadata fetch failed: HTTP ' + mResp.status);
+    const mResp = await this._fetch(`https://www.googleapis.com/drive/v3/files/${fileId}?fields=name`, { headers: { Authorization: 'Bearer ' + this._tokFor(fileId) } }, 'Rename');
+    this._ok(mResp, 'Rename');
     const { name: currentName } = await mResp.json();
     const safe = newName.replace(/\s+/g,'-').replace(/[^a-zA-Z0-9-]/g,'').slice(0,30);
     const newFilename = currentName.replace(/_NAME[a-zA-Z0-9-]*/,'').replace(/\.json$/, '_NAME'+safe+'.json');
@@ -992,10 +985,10 @@ const AnalyserDrive = {
     const form = new FormData();
     form.append('metadata', new Blob([JSON.stringify({name: newFilename})], {type:'application/json'}));
     form.append('file', new Blob([JSON.stringify(content)], {type:'application/json'}));
-    const r = await fetch(`https://www.googleapis.com/upload/drive/v3/files/${fileId}?uploadType=multipart`, {
+    const r = await this._fetch(`https://www.googleapis.com/upload/drive/v3/files/${fileId}?uploadType=multipart`, {
       method: 'PATCH', headers: { Authorization: 'Bearer ' + this._tokFor(fileId) }, body: form
-    });
-    if (!r.ok) throw new Error('Patch failed: HTTP ' + r.status);
+    }, 'Rename', 45000);
+    this._ok(r, 'Rename');
   },
   async patchVidSync(fileId, vidSync) {
     this._check();
@@ -1004,24 +997,23 @@ const AnalyserDrive = {
     const form=new FormData();
     form.append('metadata',new Blob([JSON.stringify({})],{type:'application/json'}));
     form.append('file',new Blob([JSON.stringify(content)],{type:'application/json'}));
-    const r=await fetch(`https://www.googleapis.com/upload/drive/v3/files/${fileId}?uploadType=multipart`,{
-      method:'PATCH',headers:{Authorization:'Bearer '+this._tokFor(fileId)},body:form});
-    if(!r.ok) throw new Error('Sync save failed: HTTP '+r.status);
+    const r=await this._fetch(`https://www.googleapis.com/upload/drive/v3/files/${fileId}?uploadType=multipart`,{
+      method:'PATCH',headers:{Authorization:'Bearer '+this._tokFor(fileId)},body:form}, 'Sync save', 45000);
+    this._ok(r, 'Sync save');
   },
   async patchFavourite(fileId, isFav) {
     this._check();
-    const mResp = await fetch(`https://www.googleapis.com/drive/v3/files/${fileId}?fields=name`, { headers: { Authorization: 'Bearer ' + this._tokFor(fileId) } });
-    if (mResp.status===401) { this._expire(); throw new Error('Session expired'); }
-    if (!mResp.ok) throw new Error('Metadata fetch failed: HTTP ' + mResp.status);
+    const mResp = await this._fetch(`https://www.googleapis.com/drive/v3/files/${fileId}?fields=name`, { headers: { Authorization: 'Bearer ' + this._tokFor(fileId) } }, 'Favourite');
+    this._ok(mResp, 'Favourite');
     const { name: currentName } = await mResp.json();
     let newName = currentName.replace(/_FAV1/,'');
     if (isFav) newName = newName.replace(/\.json$/, '_FAV1.json');
-    const r = await fetch(`https://www.googleapis.com/drive/v3/files/${fileId}`, {
+    const r = await this._fetch(`https://www.googleapis.com/drive/v3/files/${fileId}`, {
       method: 'PATCH',
       headers: { Authorization: 'Bearer ' + this._tokFor(fileId), 'Content-Type': 'application/json' },
       body: JSON.stringify({ name: newName })
-    });
-    if (!r.ok) throw new Error('Favourite save failed: HTTP ' + r.status);
+    }, 'Favourite');
+    this._ok(r, 'Favourite');
     return newName;
   },
   async pullPrefs() {
@@ -1030,13 +1022,13 @@ const AnalyserDrive = {
       let fid = localStorage.getItem('_ad_prefs_fid');
       if (!fid) {
         const q = encodeURIComponent("name='BoatRunPrefs.json' and trashed=false");
-        const r = await fetch(`https://www.googleapis.com/drive/v3/files?spaces=appDataFolder&q=${q}&fields=files(id)`, { headers: { Authorization: 'Bearer ' + this._token } });
+        const r = await this._fetch(`https://www.googleapis.com/drive/v3/files?spaces=appDataFolder&q=${q}&fields=files(id)`, { headers: { Authorization: 'Bearer ' + this._token } }, 'Prefs', 10000);
         if (!r.ok) return null;
         const d = await r.json();
         if (d.files && d.files.length) { fid = d.files[0].id; localStorage.setItem('_ad_prefs_fid', fid); }
       }
       if (!fid) return null;
-      const r2 = await fetch(`https://www.googleapis.com/drive/v3/files/${fid}?alt=media`, { headers: { Authorization: 'Bearer ' + this._token } });
+      const r2 = await this._fetch(`https://www.googleapis.com/drive/v3/files/${fid}?alt=media`, { headers: { Authorization: 'Bearer ' + this._token } }, 'Prefs', 10000);
       if (!r2.ok) return null;
       return await r2.json();
     } catch { return null; }
@@ -1054,12 +1046,35 @@ const AnalyserDrive = {
       const url = fid
         ? `https://www.googleapis.com/upload/drive/v3/files/${fid}?uploadType=multipart&fields=id`
         : 'https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart&fields=id';
-      const r = await fetch(url, { method: fid ? 'PATCH' : 'POST', headers: { Authorization: 'Bearer ' + this._token }, body: form });
+      const r = await this._fetch(url, { method: fid ? 'PATCH' : 'POST', headers: { Authorization: 'Bearer ' + this._token }, body: form }, 'Prefs', 15000);
       if (!r.ok) return false;
       const rd = await r.json();
       if (rd && rd.id) localStorage.setItem('_ad_prefs_fid', rd.id);
       return true;
     } catch { return false; }
+  },
+  // Every Drive request goes through here. appDataFolder queries are unindexed
+  // and can stall with no response at all, so each call gets its own abort
+  // timer instead of hanging the UI forever.
+  DRIVE_TIMEOUT_MS: 20000,
+  async _fetch(url, opts, label, ms) {
+    const ac = new AbortController();
+    const timer = setTimeout(() => ac.abort(), ms || this.DRIVE_TIMEOUT_MS);
+    try {
+      return await fetch(url, { ...(opts || {}), signal: ac.signal });
+    } catch (e) {
+      throw new Error(e.name === 'AbortError'
+        ? (label || 'Drive') + ' timed out \u2014 check your connection and try again'
+        : (label || 'Drive') + ' network error \u2014 ' + e.message);
+    } finally { clearTimeout(timer); }
+  },
+  // Shared response check. A 401 means the hour-long Google token has died, so
+  // clear it and flip the button back to signed-out rather than throwing a bare
+  // HTTP code that leaves the UI looking signed in.
+  _ok(resp, label) {
+    if (resp.status === 401) { this._expire(); throw new Error('Session expired \u2014 sign in to Google again'); }
+    if (!resp.ok && resp.status !== 204) throw new Error((label || 'Drive') + ' failed: HTTP ' + resp.status);
+    return resp;
   },
   _check() { if (!this._token && !this._ltoken) throw new Error('Not signed in to Drive'); },
   _expire() { this._token = null; sessionStorage.removeItem('_ad_token'); this._updateBtn(); },
@@ -4769,6 +4784,20 @@ function shortName(label){
   return label.length>14?label.slice(0,11)+'…':label;
 }
 
+// Total distance and time spanned by a group of strokes. Pace and DPS are
+// reciprocal quantities, so a plain mean of per-stroke values is biased slow
+// (Jensen). Summing distance and time first gives the same answer the lap
+// summary reports. Returns null when the strokes carry no usable distance.
+function groupDistTime(a){
+  if(!a||a.length<2)return null;
+  const v=a.filter(s=>!isNaN(s.dist)&&s.dist!=null&&!isNaN(s.elapsed)&&s.elapsed!=null);
+  if(v.length<2)return null;
+  const metres=v[v.length-1].dist-v[0].dist;
+  const secs=v[v.length-1].elapsed-v[0].elapsed;
+  if(!(metres>0)||!(secs>0))return null;
+  return {metres,secs,gaps:v.length-1};
+}
+
 function buildCurveStats(){
   // Build rows from canonical METRIC_DEFS order
   const rows=[
@@ -4782,6 +4811,22 @@ function buildCurveStats(){
       rows.push({l:'Avg '+m.l, c:m.c, fn:g=>{
         const arr=g.strokes.map(s=>nearestHRIn(g.hrT,g.hrBpm,s.ms)).filter(b=>b!=null&&b>40&&b<220);
         return arr.length?m.fmtAvg(arrMean(arr)):EM;
+      }});
+      continue;
+    }
+    if(m.k==='pace'||m.k==='dps'){
+      rows.push({l:'Avg '+m.l, c:m.c, fn:g=>{
+        const t=groupDistTime(g.strokes);
+        if(t){
+          if(m.k==='pace')return m.fmtAvg(500*t.secs/t.metres);
+          return m.fmtAvg(t.metres/t.gaps);
+        }
+        const arr=g.strokes.filter(m.filter).map(m.val);
+        return arr.length?m.fmtAvg(arrMean(arr)):EM;
+      }});
+      if(m.showBest) rows.push({l:'Best '+m.l, c:m.c, fn:g=>{
+        const arr=g.strokes.filter(m.filter).map(m.val);
+        return arr.length?m.fmtAvg(m.bestIsMin?arrMin(arr):arrMax(arr)):EM;
       }});
       continue;
     }
