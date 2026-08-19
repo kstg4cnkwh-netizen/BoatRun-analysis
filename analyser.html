@@ -4,6 +4,20 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
 <title>BoatRun Analyser</title>
+<script>
+// OAuth popup bootstrap. Google redirects back to this same page with ?code=,
+// so when we are the popup we hand the code to the opener and close before the
+// rest of the Analyser boots — otherwise a second full copy of the app loads.
+(function(){try{
+  var q=new URLSearchParams(location.search);
+  var c=q.get('code');
+  if(!c||q.get('state')!=='main')return;
+  if(window.opener&&!window.opener.closed){
+    try{window.opener.postMessage({type:'ad_oauth_code',code:c},location.origin);}catch{}
+    window.close();
+  }
+}catch{}})();
+</script>
 <style>
   /* system font */
 
@@ -790,10 +804,40 @@ const AnalyserDrive = {
   CLIENT_ID: '118760764612-4kbbha2t6ga218im3ut25l55q3uld32h.apps.googleusercontent.com',
   LEGACY_CLIENT_ID: '729480414852-kko8e7bi3r38tcg2rf6iiupptagoegpc.apps.googleusercontent.com',
   SCOPE: 'https://www.googleapis.com/auth/drive.appdata',
+  // Same Worker and client the Metrics app uses. The authorization-code flow
+  // returns a refresh token, so the Analyser no longer dies after one hour.
+  WORKER: 'https://boatrun-drive-auth.davidmacready74.workers.dev',
+  REDIRECT: 'https://boatrun.au/analyser.html',
   _token: null,
+  _exp: 0,
+  _rtok: null,
   _ltoken: null,
   _legacyIds: new Set(),
   init() {
+    try {
+      const rt = localStorage.getItem('_ad_rtok');
+      if (rt) this._rtok = rt;
+      const ex = sessionStorage.getItem('_ad_token_exp');
+      if (ex) this._exp = parseInt(ex) || 0;
+    } catch {}
+    // Full-page redirect fallback: the code lands here in the query string.
+    const qs = new URLSearchParams(location.search);
+    const acode = qs.get('code');
+    if (acode && qs.get('state') === 'main') {
+      history.replaceState({}, '', location.pathname);
+      const keepL = sessionStorage.getItem('_ad_token_legacy');
+      if (keepL) this._ltoken = keepL;
+      sessionStorage.removeItem('_ad_pending');
+      this._updateBtn();
+      this.exchangeCode(acode).then(ok => {
+        if (!ok) { toast('Google sign-in failed — please try again'); return; }
+        toast('Signed in with Google');
+        pullPrefsAndApply().catch(() => {});
+        if (typeof showStartup === 'function') showStartup();
+      });
+      this._bindMessages();
+      return;
+    }
     const hash = new URLSearchParams(location.hash.slice(1));
     const token = hash.get('access_token');
     if (token && hash.get('state') === 'legacy') {
@@ -835,8 +879,23 @@ const AnalyserDrive = {
       }
     }
     this._updateBtn();
+    this._bindMessages();
+  },
+  _bindMessages() {
+    if (this._msgBound) return;
+    this._msgBound = true;
     window.addEventListener('message', (ev) => {
       if (ev.origin !== location.origin) return;
+      // Authorization code handed back by the sign-in popup.
+      if (ev.data && ev.data.type === 'ad_oauth_code' && ev.data.code) {
+        this.exchangeCode(ev.data.code).then(ok => {
+          if (!ok) { toast('Google sign-in failed — please try again'); return; }
+          toast('Signed in with Google');
+          pullPrefsAndApply().catch(() => {});
+          if (typeof showStartup === 'function') showStartup();
+        });
+        return;
+      }
       if (ev.data && ev.data.type === 'ad_oauth_token' && ev.data.token) {
         if (ev.data.state === 'legacy') {
           this._ltoken = ev.data.token;
@@ -855,11 +914,18 @@ const AnalyserDrive = {
       }
     });
   },
-  isSignedIn() { return !!this._token; },
+  // A stored refresh token counts as signed in — the access token is fetched
+  // on demand, so there is no reason to show the user a signed-out button.
+  isSignedIn() { return !!this._token || !!this._rtok; },
   isLegacyLinked() { return !!this._ltoken; },
   _authUrl(which) {
-    const legacy = which === 'legacy';
-    const p = new URLSearchParams({ client_id: legacy ? this.LEGACY_CLIENT_ID : this.CLIENT_ID, redirect_uri: location.origin + location.pathname, response_type: 'token', scope: this.SCOPE, state: legacy ? 'legacy' : 'main' });
+    // The old account stays on the implicit flow. It is only ever read once to
+    // migrate files across, so it never needs a refresh token.
+    if (which === 'legacy') {
+      const lp = new URLSearchParams({ client_id: this.LEGACY_CLIENT_ID, redirect_uri: location.origin + location.pathname, response_type: 'token', scope: this.SCOPE, state: 'legacy' });
+      return 'https://accounts.google.com/o/oauth2/v2/auth?' + lp;
+    }
+    const p = new URLSearchParams({ client_id: this.CLIENT_ID, redirect_uri: this.REDIRECT, response_type: 'code', scope: this.SCOPE, include_granted_scopes: 'true', access_type: 'offline', prompt: 'consent', state: 'main' });
     return 'https://accounts.google.com/o/oauth2/v2/auth?' + p;
   },
   signIn(which) {
@@ -874,14 +940,19 @@ const AnalyserDrive = {
     sessionStorage.setItem('_ad_pending', '1');
     window.location.href = this._authUrl(which);
   },
-  signOut() { this._token = null; this._ltoken = null; this._legacyIds = new Set(); sessionStorage.removeItem('_ad_token'); sessionStorage.removeItem('_ad_token_legacy'); this._updateBtn(); },
+  signOut() {
+    this._token = null; this._exp = 0; this._rtok = null; this._ltoken = null; this._legacyIds = new Set();
+    sessionStorage.removeItem('_ad_token'); sessionStorage.removeItem('_ad_token_exp'); sessionStorage.removeItem('_ad_token_legacy');
+    try { localStorage.removeItem('_ad_rtok'); } catch {}
+    this._updateBtn();
+  },
   _tokFor(fileId) { return (this._legacyIds && this._legacyIds.has(fileId)) ? this._ltoken : this._token; },
   dropLegacy() { this._ltoken = null; this._legacyIds = new Set(); sessionStorage.removeItem('_ad_token_legacy'); this._updateBtn(); },
   async _listAllPaged(tok, q) {
     let out = [], page = null;
     do {
       const url = `https://www.googleapis.com/drive/v3/files?spaces=appDataFolder&q=${q}&fields=nextPageToken,files(id,name,size)&pageSize=200` + (page ? '&pageToken=' + encodeURIComponent(page) : '');
-      const r = await fetch(url, { headers: { Authorization: 'Bearer ' + tok } });
+      const r = await this._fetch(url, { headers: { Authorization: 'Bearer ' + tok } }, 'Migration list', 20000);
       if (!r.ok) throw new Error('List failed: HTTP ' + r.status);
       const d = await r.json();
       out = out.concat(d.files || []);
@@ -893,7 +964,7 @@ const AnalyserDrive = {
   // into the current one. Files already present (matched by name) are skipped,
   // so re-running is safe and never duplicates.
   async migrateLegacy(onProgress) {
-    if (!this._token) throw new Error('Sign in to Google Drive first');
+    if (!(await this.ensureToken())) throw new Error('Sign in to Google Drive first');
     if (!this._ltoken) throw new Error('Old account not connected');
     const q = encodeURIComponent("(name contains 'RowSess_' or name contains 'CoachSess_') and trashed=false");
     const oldFiles = await this._listAllPaged(this._ltoken, q);
@@ -905,16 +976,16 @@ const AnalyserDrive = {
       if (onProgress) onProgress(i, oldFiles.length);
       if (have.has(f.name)) { skipped++; continue; }
       try {
-        const dl = await fetch(`https://www.googleapis.com/drive/v3/files/${f.id}?alt=media`, { headers: { Authorization: 'Bearer ' + this._ltoken } });
+        const dl = await this._fetch(`https://www.googleapis.com/drive/v3/files/${f.id}?alt=media`, { headers: { Authorization: 'Bearer ' + this._ltoken } }, 'Migration download', 45000);
         if (!dl.ok) throw new Error('HTTP ' + dl.status);
         const blob = await dl.blob();
         const meta = { name: f.name, mimeType: 'application/json', parents: ['appDataFolder'] };
         const form = new FormData();
         form.append('metadata', new Blob([JSON.stringify(meta)], { type: 'application/json' }));
         form.append('file', blob);
-        const up = await fetch('https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart&fields=id', {
-          method: 'POST', headers: { Authorization: 'Bearer ' + this._token }, body: form
-        });
+        const up = await this._api('https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart&fields=id', {
+          method: 'POST', body: form
+        }, 'Migration upload', 45000);
         if (!up.ok) throw new Error('HTTP ' + up.status);
         have.add(f.name);
         copied++;
@@ -926,6 +997,7 @@ const AnalyserDrive = {
     if (!this._ltoken) return [];
     try {
       const r = await this._fetch(`https://www.googleapis.com/drive/v3/files?spaces=appDataFolder&q=${q}&fields=files(id,name,createdTime,size)&orderBy=createdTime+desc&pageSize=200`, { headers: { Authorization: 'Bearer ' + this._ltoken } }, 'Old account list', 10000);
+      // Never let a stalled old-account query take the main list down with it.
       if (r.status === 401) { this._ltoken = null; sessionStorage.removeItem('_ad_token_legacy'); this._updateBtn(); return []; }
       if (!r.ok) return [];
       const d = await r.json();
@@ -938,7 +1010,7 @@ const AnalyserDrive = {
   async list() {
     this._check();
     const q = encodeURIComponent("name contains 'RowSess_' and name contains '.json' and trashed=false");
-    const resp = await this._fetch(`https://www.googleapis.com/drive/v3/files?spaces=appDataFolder&q=${q}&fields=files(id,name,createdTime,size)&orderBy=createdTime+desc&pageSize=200`, { headers: { Authorization: 'Bearer ' + this._token } }, 'Session list');
+    const resp = await this._api(`https://www.googleapis.com/drive/v3/files?spaces=appDataFolder&q=${q}&fields=files(id,name,createdTime,size)&orderBy=createdTime+desc&pageSize=200`, {}, 'Session list');
     this._ok(resp, 'Session list');
     const d = await resp.json();
     let all = (d.files || []).concat(await this._listLegacy(q));
@@ -952,7 +1024,7 @@ const AnalyserDrive = {
   async listCoachSessions() {
     this._check();
     const q = encodeURIComponent("name contains 'CoachSess_' and name contains '.json' and trashed=false");
-    const resp = await this._fetch(`https://www.googleapis.com/drive/v3/files?spaces=appDataFolder&q=${q}&fields=files(id,name,createdTime,size)&orderBy=createdTime+desc&pageSize=200`, { headers: { Authorization: 'Bearer ' + this._token } }, 'Coach list');
+    const resp = await this._api(`https://www.googleapis.com/drive/v3/files?spaces=appDataFolder&q=${q}&fields=files(id,name,createdTime,size)&orderBy=createdTime+desc&pageSize=200`, {}, 'Coach list');
     this._ok(resp, 'Coach list');
     const d = await resp.json();
     let all = (d.files || []).concat(await this._listLegacy(q));
@@ -962,20 +1034,20 @@ const AnalyserDrive = {
   },
   async fetchSession(fileId) {
     this._check();
-    const resp = await this._fetch(`https://www.googleapis.com/drive/v3/files/${fileId}?alt=media`, { headers: { Authorization: 'Bearer ' + this._tokFor(fileId) } }, 'Session load', 45000);
+    const resp = await this._api(`https://www.googleapis.com/drive/v3/files/${fileId}?alt=media`, {}, 'Session load', 45000, fileId);
     this._ok(resp, 'Session load');
     return resp.json();
   },
   async deleteFile(fileId) {
     this._check();
-    const resp = await this._fetch(`https://www.googleapis.com/drive/v3/files/${fileId}`, { method: 'DELETE', headers: { Authorization: 'Bearer ' + this._tokFor(fileId) } }, 'Delete');
+    const resp = await this._api(`https://www.googleapis.com/drive/v3/files/${fileId}`, { method: 'DELETE' }, 'Delete', null, fileId);
     // 404 means it is already gone — treat that as success so the row clears.
     if (resp.status === 404) return;
     this._ok(resp, 'Delete');
   },
   async patchName(fileId, newName) {
     this._check();
-    const mResp = await this._fetch(`https://www.googleapis.com/drive/v3/files/${fileId}?fields=name`, { headers: { Authorization: 'Bearer ' + this._tokFor(fileId) } }, 'Rename');
+    const mResp = await this._api(`https://www.googleapis.com/drive/v3/files/${fileId}?fields=name`, {}, 'Rename', null, fileId);
     this._ok(mResp, 'Rename');
     const { name: currentName } = await mResp.json();
     const safe = newName.replace(/\s+/g,'-').replace(/[^a-zA-Z0-9-]/g,'').slice(0,30);
@@ -985,9 +1057,9 @@ const AnalyserDrive = {
     const form = new FormData();
     form.append('metadata', new Blob([JSON.stringify({name: newFilename})], {type:'application/json'}));
     form.append('file', new Blob([JSON.stringify(content)], {type:'application/json'}));
-    const r = await this._fetch(`https://www.googleapis.com/upload/drive/v3/files/${fileId}?uploadType=multipart`, {
-      method: 'PATCH', headers: { Authorization: 'Bearer ' + this._tokFor(fileId) }, body: form
-    }, 'Rename', 45000);
+    const r = await this._api(`https://www.googleapis.com/upload/drive/v3/files/${fileId}?uploadType=multipart`, {
+      method: 'PATCH', body: form
+    }, 'Rename', 45000, fileId);
     this._ok(r, 'Rename');
   },
   async patchVidSync(fileId, vidSync) {
@@ -997,44 +1069,44 @@ const AnalyserDrive = {
     const form=new FormData();
     form.append('metadata',new Blob([JSON.stringify({})],{type:'application/json'}));
     form.append('file',new Blob([JSON.stringify(content)],{type:'application/json'}));
-    const r=await this._fetch(`https://www.googleapis.com/upload/drive/v3/files/${fileId}?uploadType=multipart`,{
-      method:'PATCH',headers:{Authorization:'Bearer '+this._tokFor(fileId)},body:form}, 'Sync save', 45000);
+    const r=await this._api(`https://www.googleapis.com/upload/drive/v3/files/${fileId}?uploadType=multipart`,{
+      method:'PATCH',body:form}, 'Sync save', 45000, fileId);
     this._ok(r, 'Sync save');
   },
   async patchFavourite(fileId, isFav) {
     this._check();
-    const mResp = await this._fetch(`https://www.googleapis.com/drive/v3/files/${fileId}?fields=name`, { headers: { Authorization: 'Bearer ' + this._tokFor(fileId) } }, 'Favourite');
+    const mResp = await this._api(`https://www.googleapis.com/drive/v3/files/${fileId}?fields=name`, {}, 'Favourite', null, fileId);
     this._ok(mResp, 'Favourite');
     const { name: currentName } = await mResp.json();
     let newName = currentName.replace(/_FAV1/,'');
     if (isFav) newName = newName.replace(/\.json$/, '_FAV1.json');
-    const r = await this._fetch(`https://www.googleapis.com/drive/v3/files/${fileId}`, {
+    const r = await this._api(`https://www.googleapis.com/drive/v3/files/${fileId}`, {
       method: 'PATCH',
-      headers: { Authorization: 'Bearer ' + this._tokFor(fileId), 'Content-Type': 'application/json' },
+      headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ name: newName })
-    }, 'Favourite');
+    }, 'Favourite', null, fileId);
     this._ok(r, 'Favourite');
     return newName;
   },
   async pullPrefs() {
-    if (!this._token) return null;
+    if (!(await this.ensureToken())) return null;
     try {
       let fid = localStorage.getItem('_ad_prefs_fid');
       if (!fid) {
         const q = encodeURIComponent("name='BoatRunPrefs.json' and trashed=false");
-        const r = await this._fetch(`https://www.googleapis.com/drive/v3/files?spaces=appDataFolder&q=${q}&fields=files(id)`, { headers: { Authorization: 'Bearer ' + this._token } }, 'Prefs', 10000);
+        const r = await this._api(`https://www.googleapis.com/drive/v3/files?spaces=appDataFolder&q=${q}&fields=files(id)`, {}, 'Prefs', 10000);
         if (!r.ok) return null;
         const d = await r.json();
         if (d.files && d.files.length) { fid = d.files[0].id; localStorage.setItem('_ad_prefs_fid', fid); }
       }
       if (!fid) return null;
-      const r2 = await this._fetch(`https://www.googleapis.com/drive/v3/files/${fid}?alt=media`, { headers: { Authorization: 'Bearer ' + this._token } }, 'Prefs', 10000);
+      const r2 = await this._api(`https://www.googleapis.com/drive/v3/files/${fid}?alt=media`, {}, 'Prefs', 10000);
       if (!r2.ok) return null;
       return await r2.json();
     } catch { return null; }
   },
   async pushPrefs(patch) {
-    if (!this._token) return false;
+    if (!(await this.ensureToken())) return false;
     try {
       const cur = (await this.pullPrefs()) || {};
       const merged = { ...cur, ...patch, updatedAt: Date.now() };
@@ -1046,7 +1118,7 @@ const AnalyserDrive = {
       const url = fid
         ? `https://www.googleapis.com/upload/drive/v3/files/${fid}?uploadType=multipart&fields=id`
         : 'https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart&fields=id';
-      const r = await this._fetch(url, { method: fid ? 'PATCH' : 'POST', headers: { Authorization: 'Bearer ' + this._token }, body: form }, 'Prefs', 15000);
+      const r = await this._api(url, { method: fid ? 'PATCH' : 'POST', body: form }, 'Prefs', 15000);
       if (!r.ok) return false;
       const rd = await r.json();
       if (rd && rd.id) localStorage.setItem('_ad_prefs_fid', rd.id);
@@ -1068,6 +1140,68 @@ const AnalyserDrive = {
         : (label || 'Drive') + ' network error \u2014 ' + e.message);
     } finally { clearTimeout(timer); }
   },
+  async _workerPost(path, bodyObj) {
+    const r = await this._fetch(this.WORKER + path, {
+      method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(bodyObj)
+    }, 'Google sign-in', 20000);
+    const txt = await r.text();
+    let d = {}; try { d = JSON.parse(txt); } catch {}
+    return { ok: r.ok, status: r.status, data: d };
+  },
+  _injectToken(t, secs, rtok) {
+    this._token = t;
+    this._exp = Date.now() + (secs || 3600) * 1000;
+    try {
+      sessionStorage.setItem('_ad_token', t);
+      sessionStorage.setItem('_ad_token_exp', String(this._exp));
+    } catch {}
+    if (rtok) { this._rtok = rtok; try { localStorage.setItem('_ad_rtok', rtok); } catch {} }
+    this._updateBtn();
+  },
+  async exchangeCode(code) {
+    try {
+      const res = await this._workerPost('/exchange', { code, redirect_uri: this.REDIRECT });
+      if (!res.ok || !res.data.access_token) return false;
+      this._injectToken(res.data.access_token, res.data.expires_in, res.data.refresh_token || null);
+      return true;
+    } catch { return false; }
+  },
+  async refreshViaWorker() {
+    if (!this._rtok) return false;
+    try {
+      const res = await this._workerPost('/refresh', { refresh_token: this._rtok });
+      if (!res.ok || !res.data.access_token) {
+        // Google revokes refresh tokens when access is removed or the password
+        // changes. Drop it so the button offers a fresh sign-in.
+        if (res.status === 400 || res.status === 401) {
+          this._rtok = null;
+          try { localStorage.removeItem('_ad_rtok'); } catch {}
+          this._updateBtn();
+        }
+        return false;
+      }
+      this._injectToken(res.data.access_token, res.data.expires_in);
+      return true;
+    } catch { return false; }
+  },
+  // Renews a minute early so a long upload never starts on a dying token.
+  async ensureToken() {
+    if (this._token && Date.now() < this._exp - 60000) return true;
+    return await this.refreshViaWorker();
+  },
+  // All Drive traffic goes through here: it picks the right account's token,
+  // renews it if stale, and retries once if Google still says 401.
+  async _api(url, opts, label, ms, fileId) {
+    const o = opts || {};
+    const legacy = fileId != null && this._legacyIds && this._legacyIds.has(fileId);
+    if (!legacy) await this.ensureToken();
+    const withAuth = () => ({ ...o, headers: { ...(o.headers || {}), Authorization: 'Bearer ' + (legacy ? this._ltoken : this._token) } });
+    let resp = await this._fetch(url, withAuth(), label, ms);
+    if (resp.status === 401 && !legacy && await this.refreshViaWorker()) {
+      resp = await this._fetch(url, withAuth(), label, ms);
+    }
+    return resp;
+  },
   // Shared response check. A 401 means the hour-long Google token has died, so
   // clear it and flip the button back to signed-out rather than throwing a bare
   // HTTP code that leaves the UI looking signed in.
@@ -1076,8 +1210,14 @@ const AnalyserDrive = {
     if (!resp.ok && resp.status !== 204) throw new Error((label || 'Drive') + ' failed: HTTP ' + resp.status);
     return resp;
   },
-  _check() { if (!this._token && !this._ltoken) throw new Error('Not signed in to Drive'); },
-  _expire() { this._token = null; sessionStorage.removeItem('_ad_token'); this._updateBtn(); },
+  _check() { if (!this._token && !this._rtok && !this._ltoken) throw new Error('Not signed in to Drive'); },
+  // Clears the access token but keeps the refresh token — the next call just
+  // fetches a new one rather than making the user sign in again.
+  _expire() {
+    this._token = null; this._exp = 0;
+    sessionStorage.removeItem('_ad_token'); sessionStorage.removeItem('_ad_token_exp');
+    this._updateBtn();
+  },
   _updateBtn() {
     const dot = document.getElementById('gdrivedot');
     const label = document.getElementById('gdrivelabel');
