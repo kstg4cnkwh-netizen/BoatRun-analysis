@@ -1008,8 +1008,11 @@ const AnalyserDrive = {
   },
   async _listLegacy(q) {
     if (!this._ltoken) return [];
+    // Once the old account is known to hold nothing, stop paying for the query
+    // on every single list.
+    try { if (localStorage.getItem('_ad_legacy_empty') === '1') return []; } catch {}
     try {
-      const r = await this._fetch(`https://www.googleapis.com/drive/v3/files?spaces=appDataFolder&q=${q}&fields=files(id,name,createdTime,size)&orderBy=createdTime+desc&pageSize=200`, { headers: { Authorization: 'Bearer ' + this._ltoken } }, 'Old account list', 10000);
+      const r = await this._fetch(`https://www.googleapis.com/drive/v3/files?spaces=appDataFolder&q=${q}&fields=files(id,name,createdTime,size)&pageSize=1000`, { headers: { Authorization: 'Bearer ' + this._ltoken } }, 'Old account list', 10000);
       // Never let a stalled old-account query take the main list down with it.
       if (r.status === 401) { this._ltoken = null; sessionStorage.removeItem('_ad_token_legacy'); this._updateBtn(); return []; }
       if (!r.ok) return [];
@@ -1022,8 +1025,11 @@ const AnalyserDrive = {
   },
   async list() {
     this._check();
-    const q = encodeURIComponent("name contains 'RowSess_' and name contains '.json' and trashed=false");
-    const resp = await this._api(`https://www.googleapis.com/drive/v3/files?spaces=appDataFolder&q=${q}&fields=files(id,name,createdTime,size)&orderBy=createdTime+desc&pageSize=200`, {}, 'Session list');
+    // 'name contains' is unindexed on appDataFolder, so each extra clause costs
+    // real time. The '.json' test is redundant (every RowSess_ file is JSON) and
+    // orderBy is wasted work because _byFnTsDesc re-sorts below anyway.
+    const q = encodeURIComponent("name contains 'RowSess_' and trashed=false");
+    const resp = await this._api(`https://www.googleapis.com/drive/v3/files?spaces=appDataFolder&q=${q}&fields=nextPageToken,files(id,name,createdTime,size)&pageSize=1000`, {}, 'Session list');
     this._ok(resp, 'Session list');
     const d = await resp.json();
     let all = (d.files || []).concat(await this._listLegacy(q));
@@ -1036,8 +1042,8 @@ const AnalyserDrive = {
   // session list.
   async listCoachSessions() {
     this._check();
-    const q = encodeURIComponent("name contains 'CoachSess_' and name contains '.json' and trashed=false");
-    const resp = await this._api(`https://www.googleapis.com/drive/v3/files?spaces=appDataFolder&q=${q}&fields=files(id,name,createdTime,size)&orderBy=createdTime+desc&pageSize=200`, {}, 'Coach list');
+    const q = encodeURIComponent("name contains 'CoachSess_' and trashed=false");
+    const resp = await this._api(`https://www.googleapis.com/drive/v3/files?spaces=appDataFolder&q=${q}&fields=nextPageToken,files(id,name,createdTime,size)&pageSize=1000`, {}, 'Coach list');
     this._ok(resp, 'Coach list');
     const d = await resp.json();
     let all = (d.files || []).concat(await this._listLegacy(q));
