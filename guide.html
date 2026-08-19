@@ -125,7 +125,7 @@ img.inline{display:inline;margin:0 3px;vertical-align:-.32em;height:1.45em;width
 
 .back{display:inline-block;margin-top:36px;font-family:var(--sans);font-size:14px;}
 
-@media (max-width:660px){
+media (max-width:660px){
   body{font-size:16px;}
   .wrap{padding:22px 16px 70px;}
   .fr,.fl{float:none;margin:12px 0 16px;max-width:100%;}
@@ -143,18 +143,18 @@ img.inline{display:inline;margin:0 3px;vertical-align:-.32em;height:1.45em;width
 
 <h1 class="doc-title">BoatRun - User Guide</h1>
 
-<p>One native app for rowing, coxing and coaching. Two web tools for afterwards.</p>
+<p>One native app for rowing, coxing, coaching and erging. Two web tools for afterwards.</p>
 
 <div class="tblwrap">
 <table class="lead">
 <tr><th></th><th>What it is</th><th>Where you use it</th></tr>
-<tr><td>BoatRun</td><td>The app. Row, Cox and Coach modes in one.</td><td>iPhone, in the boat or in the coach launch</td></tr>
+<tr><td>BoatRun</td><td>The app. Row, Cox, Coach and Erg modes in one.</td><td>iPhone or Android phone, in the boat, in the coach launch or on the erg</td></tr>
 <tr><td>Analyser</td><td>Post-session analysis in a browser</td><td>PC (best) or tablet</td></tr>
 <tr><td>Viewer</td><td>Live spectator map</td><td>Any browser, any device</td></tr>
 </table>
 </div>
 
-<p>BoatRun is downloaded from the App Store or Google Play. Analyser and Viewer stay as web pages you just bookmark.</p>
+<p>BoatRun is downloaded from the App Store on iPhone or Google Play on Android. Both versions are the same app with the same features. Analyser and Viewer stay as web pages you just bookmark, on any device.</p>
 
 <hr/>
 
@@ -162,23 +162,24 @@ img.inline{display:inline;margin:0 3px;vertical-align:-.32em;height:1.45em;width
 <ol>
 <li><a href="#s1">Quick Start</a></li>
 <li><a href="#s2">Mounting the phone</a></li>
-<li><a href="#s3">Roles - Row, Cox, Coach</a></li>
-<li><a href="#s4">Signing in - Drive, Account, Apple</a></li>
-<li><a href="#s5">What happens to your data</a></li>
-<li><a href="#s6">Basic, trial and Pro</a></li>
-<li><a href="#s7">Heart rate monitor</a></li>
-<li><a href="#s8">Recording a session</a></li>
-<li><a href="#s9">Layouts and tiles</a></li>
-<li><a href="#s10">Workouts</a></li>
-<li><a href="#s11">Connect to coach</a></li>
-<li><a href="#s12">Coach mode</a></li>
-<li><a href="#s13">Demo modes</a></li>
-<li><a href="#s14">Session log, exports and Restore from Drive</a></li>
-<li><a href="#s15">Analyser</a></li>
-<li><a href="#s16">Viewer</a></li>
-<li><a href="#s17">Metrics reference</a></li>
-<li><a href="#s18">Limitations and warnings</a></li>
-<li><a href="#s19">Troubleshooting</a></li>
+<li><a href="#s3">Roles - Row, Cox, Coach, Erg</a></li>
+<li><a href="#s4">Erg mode</a></li>
+<li><a href="#s5">Signing in - Drive, Account, Apple</a></li>
+<li><a href="#s6">What happens to your data</a></li>
+<li><a href="#s7">Basic, trial and Pro</a></li>
+<li><a href="#s8">Heart rate monitor</a></li>
+<li><a href="#s9">Recording a session</a></li>
+<li><a href="#s10">Layouts and tiles</a></li>
+<li><a href="#s11">Workouts</a></li>
+<li><a href="#s12">Connect to coach</a></li>
+<li><a href="#s13">Coach mode</a></li>
+<li><a href="#s14">Demo modes</a></li>
+<li><a href="#s15">Session log, exports and Restore from Drive</a></li>
+<li><a href="#s16">Analyser</a></li>
+<li><a href="#s17">Viewer</a></li>
+<li><a href="#s18">Metrics reference</a></li>
+<li><a href="#s19">Limitations and warnings</a></li>
+<li><a href="#s20">Troubleshooting</a></li>
 </ol>
 
 <hr/>
@@ -189,15 +190,18 @@ img.inline{display:inline;margin:0 3px;vertical-align:-.32em;height:1.45em;width
 <p>Everything you need to be recording, in about five minutes.</p>
 
 <h2>Step 1 - Install</h2>
-<p>Install BoatRun from the App Store (or from your TestFlight invitation if you are a beta tester). Open it once while you still have signal and Wi-Fi.</p>
+<p><strong>iPhone</strong> - install BoatRun from the App Store, or from your TestFlight invitation if you are a beta tester.</p>
+<p><strong>Android</strong> - install BoatRun from Google Play, or accept the invite link if you are on the closed beta. Android 10 or newer.</p>
+<p>Either way, open it once while you still have signal and Wi-Fi.</p>
 
 <h2>Step 2 - Pick your role</h2>
-<img class="fr w-sm" src="screenshots/qs-launch.png" alt="Launch screen with ROW, COX and COACH buttons" loading="lazy"/>
-<p>The first thing you see is the launch screen. Three buttons:</p>
+<img class="fr w-sm" src="screenshots/qs-launch.png" alt="Launch screen with ROW, COX, COACH and ERG buttons" loading="lazy"/>
+<p>The first thing you see is the launch screen. Four buttons:</p>
 <ul>
 <li><strong>ROW</strong> - you are rowing, phone in the boat</li>
 <li><strong>COX</strong> - you are coxing, phone facing the other way</li>
 <li><strong>COACH</strong> - you are following the squad, phone in your hand</li>
+<li><strong>ERG</strong> - you are on a Concept2 with a PM5, phone reading the monitor over Bluetooth</li>
 </ul>
 <p>Tap one. The app asks for motion and location access the first time - allow both. You can change role any time in <strong>HOME → SETTINGS → ROLE</strong>.</p>
 
@@ -252,11 +256,11 @@ img.inline{display:inline;margin:0 3px;vertical-align:-.32em;height:1.45em;width
 <tr><th>Symptom</th><th>Fix</th></tr>
 <tr><td>AX pill stays orange</td><td>Recalibrate with the phone in the mount and the boat still</td></tr>
 <tr><td>CAL pill red</td><td>Restart the app and allow access to motion and orientation</td></tr>
-<tr><td>GPS pill red</td><td>iOS Settings → Privacy &amp; Security → Location Services → BoatRun → While Using, Precise Location <strong>on</strong></td></tr>
+<tr><td>GPS pill red</td><td><strong>iPhone:</strong> Settings → Privacy &amp; Security → Location Services → BoatRun → While Using, Precise Location <strong>on</strong>.<br/><strong>Android:</strong> Settings → Apps → BoatRun → Permissions → Location → Allow while using, and turn <strong>Use precise location</strong> on</td></tr>
 <tr><td>Nothing uploads</td><td>Tap the <img class="inline" src="screenshots/btn-connect-drive.png" alt="CONNECT TO DRIVE"/> button in the top bar and connect Google Drive</td></tr>
-<tr><td>Recording stops at 5 minutes</td><td>You're on Basic. See <a href="#s6">Basic, trial and Pro</a></td></tr>
-<tr><td>Screen goes dark mid-row</td><td>Shouldn't happen - the app holds the screen awake. If it does, check iOS Low Power Mode</td></tr>
-<tr><td>Water splash changes screens</td><td>Use the LOCK button to reduce errant touch detection. You will need to unlock to press LAP, change screens or end the session. For further protection, triple click the power button (iPhone) to start guided access.</td></tr>
+<tr><td>Recording stops at 5 minutes</td><td>You're on Basic. See <a href="#s7">Basic, trial and Pro</a></td></tr>
+<tr><td>Screen goes dark mid-row</td><td>Shouldn't happen - the app holds the screen awake. If it does, check Low Power Mode (iPhone) or Battery Saver and any adaptive battery setting (Android)</td></tr>
+<tr><td>Water splash changes screens</td><td>Use the LOCK button to reduce errant touch detection. You will need to unlock to press LAP, change screens or end the session. For further protection, use Guided Access on iPhone (triple-click the side button) or Screen Pinning on Android</td></tr>
 </table>
 </div>
 
@@ -267,7 +271,7 @@ img.inline{display:inline;margin:0 3px;vertical-align:-.32em;height:1.45em;width
 
 <h2>Orientation</h2>
 <img class="fr w-sm" src="screenshots/mount-system-settings.png" alt="System settings - surge axis and units" loading="lazy"/>
-<p><strong>Portrait or landscape both work.</strong> What matters is that the phone is <strong>flat, screen up</strong>, and rigidly attached to the hull. The newer phones (iPhone 15 and newer) have dual band GPS which are significantly better at tracking. Due to the reflection of signal from water, carbon fibre and metal components, placing a rubber foam mat under the mount increases performance, particularly on older phones.</p>
+<p><strong>Portrait or landscape both work.</strong> What matters is that the phone is <strong>flat, screen up</strong>, and rigidly attached to the hull. The newer phones (iPhone 15 and newer, and most recent flagship Android handsets) have dual-band GPS which is significantly better at tracking. Due to the reflection of signal from water, carbon fibre and metal components, placing a rubber foam mat under the mount increases performance, particularly on older phones.</p>
 <ul>
 <li><strong>Portrait</strong> - the app uses the Y axis for surge</li>
 <li><strong>Landscape</strong> - the app uses the X axis for surge</li>
@@ -294,9 +298,9 @@ img.inline{display:inline;margin:0 3px;vertical-align:-.32em;height:1.45em;width
 <hr/>
 
 <!-- ==================== 3 ==================== -->
-<h1 id="s3">3. Roles - Row, Cox, Coach</h1>
+<h1 id="s3">3. Roles - Row, Cox, Coach, Erg</h1>
 
-<p>One app, three modes. Set at launch, changeable in <strong>HOME → SETTINGS → ROLE</strong>.</p>
+<p>One app, four modes. Set at launch, changeable in <strong>HOME → SETTINGS → ROLE</strong>.</p>
 
 <div class="tblwrap">
 <table class="lead">
@@ -304,16 +308,81 @@ img.inline{display:inline;margin:0 3px;vertical-align:-.32em;height:1.45em;width
 <tr><td>ROW</td><td>LIVE · CURVE · INTERVALS · HOME</td><td>Full recording, all metrics, stroke curve</td></tr>
 <tr><td>COX</td><td>LIVE · CURVE · INTERVALS · HOME</td><td>Same as Row, with the accelerometer sign flipped for a bow-facing cox</td></tr>
 <tr><td>COACH</td><td>COACH · HOME</td><td>Live squad map and rower tiles. No recording of your own.</td></tr>
+<tr><td>ERG</td><td>ERG · CURVE · SQUAD · INTERVALS · HOME</td><td>Reads a Concept2 PM5 over Bluetooth. No GPS, no accelerometer - every figure comes from the erg. See <a href="#s4">Erg mode</a>.</td></tr>
 </table>
 </div>
 
 <p>You cannot change role while a recording is running - stop first.</p>
-<p>Row and Cox both broadcast to a squad if a squad code is set. Coach mode receives.</p>
+<p>Row, Cox and Erg all broadcast to a squad if a squad code is set. Coach mode receives.</p>
+<p>The SQUAD tab only appears in Erg role, and only once you have actually joined a squad.</p>
 
 <hr/>
 
 <!-- ==================== 4 ==================== -->
-<h1 id="s4">4. Signing in - your account and your storage</h1>
+<h1 id="s4">4. Erg mode</h1>
+
+<p>BoatRun talks to a <strong>Concept2 PM5</strong> over Bluetooth. The phone is a second screen and a recorder - it is not measuring anything itself. No GPS, no accelerometer, no calibration. Every number you see comes off the monitor.</p>
+<img class="fr w-sm" src="screenshots/erg-live.png" alt="ERG tab with live PM5 metrics" loading="lazy"/>
+<p class="note"><strong>Governing principle:</strong> wherever the PM5 supplies a value, BoatRun displays it as-is. It does not recalculate pace, power or anything else. If your erg screen and your phone screen disagree, that is a bug worth reporting.</p>
+
+<h2 class="clear">Connecting</h2>
+<p><strong>HOME → SETTINGS → ERGOMETER (CONCEPT2 PM5) → CONNECT TO ERG</strong>, or the <strong>CONNECT ERG</strong> button on the erg live screen.</p>
+<img class="w-md" src="screenshots/erg-settings-connect.png" alt="Ergometer settings card with CONNECT TO ERG" loading="lazy"/>
+<ol>
+<li>Wake the PM5 first - press any key or take a stroke. A sleeping monitor does not advertise and will not be found.</li>
+<li>Tap <strong>CONNECT TO ERG</strong> and pick your PM5 from the list.</li>
+<li>Once connected the card shows live rate, watts and drag factor.</li>
+</ol>
+<p><strong>CONNECT ERG</strong> and <strong>CONNECT SQUAD</strong> both stay on the erg screen for the whole session. Connected ones turn green and become disconnect controls, so there is always a way back without going into Settings.</p>
+
+<h2>Heart rate - pair the strap to the erg, not the phone</h2>
+<p>Two Bluetooth links from one phone fight each other, and the strap always loses. So on the erg go to <strong>Menu → More Options → Utilities → Heart Rate</strong> and select your strap there. BoatRun then reads heart rate through the erg connection it already has, and everything downstream - session HR, TCX export, squad sync - works exactly as it would with a phone-paired strap.</p>
+<p>The HR button is removed from the erg live screen for this reason. Once the PM5 has seen your belt once, BoatRun remembers the belt ID and asks the erg to re-pair itself on later connects.</p>
+<p>PM5 heart rate updates about once a second, slightly coarser than a direct strap. Fine for erg work.</p>
+
+<h2>What is on screen</h2>
+<p>Distance is always in <strong>whole metres</strong> in erg mode regardless of your km/mi preference, because that is what the monitor shows. <strong>DF 124</strong> beside the header distance is the drag factor - a setup reference, not a live metric.</p>
+<p>Erg tiles are instantaneous values: pace, rate, watts, drive length, peak force, calories, DPS, drive time, work per stroke, cal/hr, speed, recovery time, HR. Cumulative and averaged figures - split pace, average watts, average force, projected time, projected distance, last split, drag factor - live behind the <strong>selectable tile</strong> rather than taking permanent slots.</p>
+<img class="w-lg" src="screenshots/erg-tiles.png" alt="Erg tile grid with selectable tile open" loading="lazy"/>
+
+<h2>The CURVE tab on the erg</h2>
+<p>The erg curve is the PM5's own <strong>drive force curve</strong> in newtons - the drive phase only. It is a completely different quantity from the on-water acceleration curve, on different axes, so the two never mix. An erg stroke template will only draw over an erg curve, and an on-water template only over an on-water curve.</p>
+<p>Force curve data is only requested while the CURVE tab is actually open. Polling it every stroke starves the Bluetooth connection and makes every other figure lag, so it is deliberately gated.</p>
+<img class="w-lg" src="screenshots/erg-curve.png" alt="Erg force curve with a template drawn behind it" loading="lazy"/>
+
+<h2>Workouts</h2>
+<p>Load a BoatRun workout the usual way and it is <strong>pushed onto the monitor</strong>. From then on the PM5 owns the timing - there is no 5-4-3-2-1 countdown screen, no lap summary card, no splash. The erg prompts you, and BoatRun follows along in the INTERVALS panel.</p>
+<p>Workouts programmed on the erg itself are mirrored the other way: BoatRun reads the current interval's target off the monitor the moment the workout is armed, and tracks it. It cannot read the <em>total</em> number of reps for an erg-programmed piece, only the interval you are on, so it infers the pattern from the splits you have completed.</p>
+<p class="note"><strong>Limitation:</strong> a new workout programmed on the erg is only picked up when the monitor has returned to its ready state. Program a new piece without going back to ready and the old interval table may hang around.</p>
+<p>Not every shape can be pushed. If a workout will not go across you get an explicit message naming the reason rather than silence.</p>
+
+<h2>The SQUAD tab - racing</h2>
+<p>Join a squad in <strong>HOME → SETTINGS → COACH’S SQUAD CODE</strong> exactly as an on-water rower would. A <strong>SQUAD</strong> tab then appears alongside CURVE.</p>
+<img class="fr w-sm" src="screenshots/erg-squad-tab.png" alt="Erg SQUAD tab with race track and rower list" loading="lazy"/>
+<p>How a squad piece runs:</p>
+<ol>
+<li>Your coach pushes a piece. Your phone shows <strong>WARMUP - waiting for the coach</strong>.</li>
+<li>Warm up however you like. When you are done, press <strong>Menu</strong> on the erg to come out of your warmup.</li>
+<li>The moment the flywheel is genuinely stopped and your hands are off, BoatRun quietly loads the piece onto your monitor and tells you to sit ready. It keeps trying, so it does not matter whether the coach armed the piece before or after you finished warming up.</li>
+<li>The coach starts everyone together with a count-in of about 17 seconds.</li>
+</ol>
+<p>The piece is loaded while the erg is idle deliberately. A PM5 starts a programmed workout the instant the wheel turns, so a piece landing on a coasting erg would start itself.</p>
+<p>During the race the SQUAD tab shows a simulated track with every rower's boat, plus name, pace, rate and the gap in metres ahead (+) or behind (−) you. Everyone resets to 0m during rest.</p>
+<ul>
+<li><strong>Relative position needs a coach online and a comparable piece.</strong> Time intervals compare metre for metre; distance and calorie pieces cannot, so those fall back to pace and rate only.</li>
+<li><strong>Tap your own name to hide yourself.</strong> It is a two-way trade - the squad loses sight of you, and you lose sight of their positions and gaps. Your coach still sees everything. Tap again to rejoin.</li>
+</ul>
+
+<h2 class="clear">Erg data afterwards</h2>
+<p>Erg sessions save, sync and export like any other session. The Analyser converts the PM5 force curves onto its normal curve grid at load time, so curve comparison, group averages and the video overlay all work - the axis simply reads force in newtons instead of acceleration. Speed integration is skipped, because integrating newtons would produce nothing meaningful.</p>
+
+<h2>If something looks wrong</h2>
+<p>Beta builds have <strong>SETTINGS → ERGOMETER → RAW PACKETS</strong>, which shows every incoming packet with its byte length, hex and decoded values. If a tile reads oddly, open that, compare against what the erg’s own screen says, and send the dump with the feedback - hex plus two known values is enough to pin the problem exactly.</p>
+
+<hr/>
+
+<!-- ==================== 5 ==================== -->
+<h1 id="s5">5. Signing in - your account and your storage</h1>
 
 <p>There are two of these and they do genuinely different jobs. Once you see the difference it stops being confusing:</p>
 <ul>
@@ -357,14 +426,14 @@ img.inline{display:inline;margin:0 3px;vertical-align:-.32em;height:1.45em;width
 
 <hr/>
 
-<!-- ==================== 5 ==================== -->
-<h1 id="s5">5. What happens to your data</h1>
+<!-- ==================== 6 ==================== -->
+<h1 id="s6">6. What happens to your data</h1>
 
 <div class="tblwrap">
 <table class="lead">
 <tr><th>Where</th><th>What's there</th><th>Who can see it</th></tr>
 <tr><td>Your phone</td><td>Every session, full detail. Raw motion and GPS traces in a local database.</td><td>You</td></tr>
-<tr><td>Your Google Drive</td><td>A copy of each session, in a private hidden app folder</td><td>You. BoatRun can write there and recover sessions from there. It can also delete the entire drive via SETTINGS → YOUR DATA. Analyser can read from there and delete individual sessions.</td></tr>
+<tr><td>Your Google Drive</td><td>A copy of each session, plus a small index of them, in a private hidden app folder</td><td>You. BoatRun can write there and recover sessions from there. It can also delete the entire drive via SETTINGS → YOUR DATA. Analyser can read from there and delete individual sessions.</td></tr>
 <tr><td>Squad cloud (while connected)</td><td>Live rate, pace, position, and the metrics your coach has enabled</td><td>Your coach and anyone with the squad code</td></tr>
 <tr><td>Squad cloud (if you tap Send to coach)</td><td>The full session file</td><td>Your coach and anyone with the squad code, until pruned</td></tr>
 <tr><td>Strava (Pro, if linked)</td><td>The activity, as a TCX upload</td><td>Per your Strava privacy settings</td></tr>
@@ -382,6 +451,16 @@ img.inline{display:inline;margin:0 3px;vertical-align:-.32em;height:1.45em;width
 <li><strong>Per-session Drive delete</strong> - Analyser only. See below.</li>
 </ul>
 
+<h2>How sessions are stored on the phone</h2>
+<p>A full session - every stroke, every acceleration curve, the GPS track - is around three quarters of a megabyte. A season of rowing is tens of megabytes, which is far more than the small, fast store the session list is drawn from can hold.</p>
+<p>So BoatRun splits each session in two:</p>
+<ul>
+<li>A <strong>summary</strong> - date, distance, time, average pace, stroke count. A couple of hundred bytes. This is what the LOG list draws, and every session you have ever recorded keeps one.</li>
+<li>The <strong>full session</strong> - all the stroke and GPS detail. Held separately, and loaded the moment you open that session.</li>
+</ul>
+<p>You should never notice this. The log opens instantly however many sessions you have, and tapping one loads the detail straight from the phone - no network needed, so it works mid-river with no signal.</p>
+<p>The newest few sessions are kept whole either way, so your most recent rows are always immediately to hand.</p>
+
 <h2>Running out of space on the phone</h2>
 <p>Your phone's storage is finite, and BoatRun will not let it block a session from saving. If the app can't fit a finished session, it works through these steps automatically, in order:</p>
 <ol>
@@ -391,17 +470,18 @@ img.inline{display:inline;margin:0 3px;vertical-align:-.32em;height:1.45em;width
 </ol>
 <p><strong>Unsynced sessions are never removed automatically.</strong> If a session hasn't backed up to Drive yet, it stays on the phone no matter how full storage gets - that copy is the only one that exists. Connect Drive and keep it syncing so this process always has something safe to clear.</p>
 
-<h2>Deleting on the phone does not delete from Drive once synced</h2>
+<h2>Deleting a session</h2>
 <img class="fr w-sm" src="screenshots/data-restore-log.png" alt="Session log showing Restore from Drive and Synced badges" loading="lazy"/>
-<p>This one catches everyone.</p>
-<p>Deleting a session in <strong>HOME → LOG</strong> removes it from the phone only once the green Synced button is displayed. The Drive copy stays exactly where it is. The app also remembers that you deleted it, so it won't quietly re-download next time you sync - which is what you want, but it does mean the file is now invisible to you from the phone while still occupying your Drive. You can use RESTORE FROM DRIVE to bring the session back to the phone.</p>
-<p><strong>To actually delete a session from Drive, use the Analyser.</strong> Open the Analyser, find the session in the list, and tap the trash icon next to it.</p>
-<p>The only exception is the <strong>DELETE MY DRIVE DATA</strong> button in the SETTINGS – YOUR DATA tab of the app, which wipes everything at once. There is no per-session Drive delete in the app.</p>
+<p>Deleting a session in <strong>HOME → LOG</strong> removes it from the phone. The Drive copy stays exactly where it is, and the app remembers the deletion so it won't quietly re-download next time you sync. The session is then invisible from the phone while still sitting in your Drive.</p>
+<p><strong>To delete a session from Drive, use the Analyser.</strong> Open the Analyser, find the session in the list, and tap the trash icon next to it. The phone picks that up on its next sync and removes its own copy too, so one delete is enough - you no longer have to do it in both places.</p>
+<p>The reverse holds as well: deleting on the phone stops the Analyser bringing it back. Whichever end you delete from, the other end follows.</p>
+<p><strong>To bring a deleted session back</strong>, tap the Drive button in the top bar, choose <em>More options</em>, then <em>Restore everything from Drive</em>. This ignores past deletions and pulls back everything still held in your Drive. A normal sync deliberately will not do this - otherwise sessions you meant to delete would keep reappearing.</p>
+<p>The <strong>DELETE MY DRIVE DATA</strong> button in SETTINGS – YOUR DATA wipes every session in your Drive at once. There is no per-session Drive delete in the app itself.</p>
 
 <hr class="clear"/>
 
-<!-- ==================== 6 ==================== -->
-<h1 id="s6">6. Basic, trial and Pro</h1>
+<!-- ==================== 7 ==================== -->
+<h1 id="s7">7. Basic, trial and Pro</h1>
 
 <h2>Free trial</h2>
 <p>Every new install gets <strong>30 days of full Pro</strong>, granted by the app. No card, no sign-up, nothing to cancel. The Settings → SUBSCRIPTION card counts down the days.</p>
@@ -444,8 +524,8 @@ img.inline{display:inline;margin:0 3px;vertical-align:-.32em;height:1.45em;width
 
 <hr/>
 
-<!-- ==================== 7 ==================== -->
-<h1 id="s7">7. Heart rate monitor</h1>
+<!-- ==================== 8 ==================== -->
+<h1 id="s8">8. Heart rate monitor</h1>
 
 <img class="fr w-sm" src="screenshots/hr-zones.png" alt="Heart rate zone settings" loading="lazy"/>
 <p>BoatRun connects directly to a Bluetooth heart rate strap - Polar H10, Garmin HRM, Wahoo, anything speaking standard BLE heart rate. Connect on the live screen prior to start, or in the settings menu.</p>
@@ -455,8 +535,8 @@ img.inline{display:inline;margin:0 3px;vertical-align:-.32em;height:1.45em;width
 
 <hr class="clear"/>
 
-<!-- ==================== 8 ==================== -->
-<h1 id="s8">8. Recording a session</h1>
+<!-- ==================== 9 ==================== -->
+<h1 id="s9">9. Recording a session</h1>
 
 <h2>The LIVE tab</h2>
 <p>Your main display of user selectable metrics. The layouts menu defines the variables displayed here.</p>
@@ -473,14 +553,57 @@ img.inline{display:inline;margin:0 3px;vertical-align:-.32em;height:1.45em;width
 <p>Four tiles underneath. Tap on each one to bring up a selection of available metrics.</p>
 <img class="w-lg" src="screenshots/curve-tab.png" alt="CURVE tab showing the stroke acceleration curve" loading="lazy"/>
 
+<h2>Stroke templates on the live curve</h2>
+<p>A template is a target stroke shape built in the Analyser - see <a href="#s16">section 15</a> for how to make one. On the phone it is drawn as a dashed line behind your live curve, continuously re-timed to whatever rate you are actually rowing, so you are always comparing like with like.</p>
+<img class="w-lg" src="screenshots/curve-template-live.png" alt="CURVE tab with a dashed stroke template drawn behind the live curve and template pills bottom right" loading="lazy"/>
+
+<h3>Getting templates onto the phone</h3>
+<p><strong>HOME → SETTINGS → STROKE TEMPLATES → IMPORT TEMPLATE…</strong>, or the button in the bottom-right corner of the stroke curve itself. Pick the JSON file the Analyser exported. Each one lists its kind (on-water or erg force), the rates it holds and how much storage it uses. Rename with ✎, delete with ×. Templates live on the phone only - they are not synced - so delete any you no longer use if the total starts getting large.</p>
+<img class="w-md" src="screenshots/settings-templates.png" alt="Settings stroke templates list with USE, rename and delete buttons" loading="lazy"/>
+
+<h3>Showing them</h3>
+<p>Tap the button in the bottom-right of the stroke curve to open <strong>TEMPLATES</strong>. Pick up to three. Each one gets a coloured pill on the curve - tap a pill to draw that template, tap it again to take it off. This works without leaving the live screen, so you can switch targets mid-piece.</p>
+<img class="fr w-sm" src="screenshots/tpl-multi-modal.png" alt="TEMPLATES modal, picking up to three templates to show as pills" loading="lazy"/>
+<p>The app only ever draws templates of the matching kind: on-water templates on the Row and Cox curve, erg force templates on the Erg curve. Anything of the wrong kind is simply not drawn.</p>
+
+<h3>Reading it</h3>
+<p>Between the rates in the template the shape is interpolated. Above the highest rate it holds, the drive keeps its recorded length and only the recovery is compressed to fit - so a template built at 18-30 still gives you something sensible at 34.</p>
+
+<h3>Templates from your coach</h3>
+<p>If you are connected to a squad, your coach can push a template to your phone. It arrives as a fourth pill labelled <strong>COACH</strong> in purple. Tap it off if you do not want it on screen - your coach sees that you have hidden it. The coach can also hide it remotely.</p>
+<img class="clear w-lg" src="screenshots/coach-tpl-bar.png" alt="Coach view with armed template pills under the squad map" loading="lazy"/>
+<p><strong>Templates are boat-class specific.</strong> A single scull template means nothing in a quad or an eight.</p>
+
 <h2>The INTERVALS tab</h2>
 <p>Shows the step sequence and per-interval metrics as you complete them.</p>
 <img class="w-lg" src="screenshots/intervals-tab.png" alt="INTERVALS tab with the interval table" loading="lazy"/>
 
 <h2>Laps</h2>
-<p>Tap <strong>LAP</strong> to mark a split. Each lap records time, distance, pace, rate and max HR.</p>
-<p>Tapping Lap while stopped pauses the lap timer and it resumes when the boat moves again (<strong>READY MODE</strong>). Useful for lining up to start an interval without the stationary time polluting the next work lap.</p>
-<p>With a workout loaded, pressing Lap ends open steps (for example, warmup or open rest periods). Timed and distance steps advance on their own (for example, work for 1000m or rest for 4 minutes).</p>
+<p>Tap <strong>LAP</strong> to mark a split. Each lap records time, distance, pace, rate and HR.</p>
+
+<h3>The lap button changes colour</h3>
+<div class="tblwrap">
+<table class="lead">
+<tr><td>Blue - <strong>LAP</strong></td><td>Normal split, or advance to the next workout step. Takes effect the instant you press it.</td></tr>
+<tr><td>Light blue - <strong>LAP READY</strong></td><td>Pressing will split <em>and</em> arm ready mode instead of just splitting. The button offers this whenever the boat is sitting still (no workout loaded), or when the next workout step is a row-when-ready step.</td></tr>
+<tr><td>Light green - <strong>READY</strong></td><td>Ready mode is armed. The lap clock is held and waiting for you to start rowing.</td></tr>
+</table>
+</div>
+<div class="shots three">
+  <img src="screenshots/lap-btn-lap.png" alt="Lap button in normal blue LAP state" loading="lazy"/>
+  <img src="screenshots/lap-btn-lapready.png" alt="Lap button in light blue LAP READY state" loading="lazy"/>
+  <img src="screenshots/lap-btn-ready.png" alt="Lap button in green READY state, ready mode armed" loading="lazy"/>
+</div>
+
+<h3>Ready mode</h3>
+<p>Press the light blue <strong>LAP READY</strong> button while sitting at the start. The previous lap closes there and then, and the new lap does not begin. Sit as long as you like, back the boat down, line up on the buoy - none of that stationary time lands in your work piece.</p>
+<p>The new lap starts on its own after <strong>two strokes</strong> at a real rate. It backdates itself by about 2 seconds so the very first stroke of the piece belongs to the piece, not to the sitting-around before it. A single bump - the boat rocking, catching the pontoon, shifting on the seat - will not trigger it; the first 2 seconds after arming are ignored entirely, and if the rate is very low it waits for four strokes rather than two.</p>
+<p>If you would rather not wait for the detection, press the green <strong>READY</strong> button and the lap starts immediately. It then goes straight back to light blue, because the boat is still stationary and ready mode is on offer again.</p>
+
+<h3>With a workout loaded</h3>
+<p>Timed and distance steps advance on their own - work for 1000m, rest for 4 minutes. Open-ended steps do not, so press <strong>LAP</strong> to end a warmup or an open rest period.</p>
+<p>If the next step is set to start when rowing, the button shows <strong>LAP READY</strong> and the same two-stroke gate applies: the step waits, the workout bar reads <strong>READY / ROW!</strong>, and the countdown only begins once you are actually rowing. Press the green <strong>READY</strong> button to force it to start.</p>
+<img class="w-lg" src="screenshots/workout-bar-ready.png" alt="Workout bar showing READY and ROW! while the step waits for the first strokes" loading="lazy"/>
 
 <h2>Stopping and finishing</h2>
 <p><strong>STOP</strong> pauses, <strong>RESUME</strong> continues, <strong>FINISH</strong> ends and saves.</p>
@@ -492,8 +615,8 @@ img.inline{display:inline;margin:0 3px;vertical-align:-.32em;height:1.45em;width
 
 <hr/>
 
-<!-- ==================== 9 ==================== -->
-<h1 id="s9">9. Layouts and tiles</h1>
+<!-- ==================== 10 ==================== -->
+<h1 id="s10">10. Layouts and tiles</h1>
 
 <p><strong>HOME → LAYOUTS</strong></p>
 <p>A layout profile stores a grid size and a metric per slot, held separately for portrait and landscape for each grid size. Rotate the phone and the layout swaps automatically.</p>
@@ -544,14 +667,14 @@ img.inline{display:inline;margin:0 3px;vertical-align:-.32em;height:1.45em;width
 
 <hr/>
 
-<!-- ==================== 10 ==================== -->
-<h1 id="s10">10. Workouts</h1>
+<!-- ==================== 11 ==================== -->
+<h1 id="s11">11. Workouts</h1>
 
 <p><strong>HOME → WORKOUTS</strong></p>
 
 <h2>Built in</h2>
 <p><strong>Race 1000m</strong> - open warmup until LAP pressed → 1000m work (starts when you start rowing) → open cooldown until you press STOP.</p>
-<p><strong>Baseline: Rate Ladder</strong> - open warmup → 4 × [1 min @24, 1 min @26, 1 min @28, 1 min @30, 4 min rest] → open cooldown. The last rest is skipped.</p>
+<p><strong>Baseline: Rate Ladder</strong> - open warmup → 4 × [1 min 24, 1 min 26, 1 min 28, 1 min 30, 4 min rest] → open cooldown. The last rest is skipped.</p>
 <img class="w-md" src="screenshots/workout-editor.png" alt="Workouts screen with the Race 1000m editor open" loading="lazy"/>
 
 <h2>Building your own</h2>
@@ -579,8 +702,8 @@ img.inline{display:inline;margin:0 3px;vertical-align:-.32em;height:1.45em;width
 
 <hr/>
 
-<!-- ==================== 11 ==================== -->
-<h1 id="s11">11. Connect to coach</h1>
+<!-- ==================== 12 ==================== -->
+<h1 id="s12">12. Connect to coach</h1>
 
 <h2>Connect to a squad</h2>
 <p><strong>HOME → SETTINGS → COACH'S SQUAD CODE</strong></p>
@@ -599,8 +722,8 @@ img.inline{display:inline;margin:0 3px;vertical-align:-.32em;height:1.45em;width
 
 <hr/>
 
-<!-- ==================== 12 ==================== -->
-<h1 id="s12">12. Coach mode</h1>
+<!-- ==================== 13 ==================== -->
+<h1 id="s13">13. Coach mode</h1>
 
 <p>Set role to <strong>COACH</strong> at launch or in Settings.</p>
 
@@ -620,6 +743,28 @@ img.inline{display:inline;margin:0 3px;vertical-align:-.32em;height:1.45em;width
 <p><strong>Squad map</strong> - every connected rower as a labelled dot, with your own position shown separately. Tap a dot or the individual's tile to open that rower's detailed view (PRO only).</p>
 <p><strong>Rower tiles</strong> - one per rower: name, big stroke rate, big pace, plus whichever secondary metrics you've enabled in layouts. A tile greys out when no data has arrived recently. Use the <strong>+ / −</strong> buttons to scale the grid. Use the arrow buttons in the top left of each tile to swap the order.</p>
 <p><strong>LAP - ALL BOATS</strong> sends a simultaneous lap to every connected rower. This is useful for starting an interval for everyone at the same time.</p>
+
+<h2 class="clear">FREE ROW and RACE</h2>
+<p>A two-way switch at the top of the COACH tab decides what the screen is for. The header turns blue in FREE ROW and red in RACE.</p>
+<div class="shots">
+  <img class="w-sm" src="screenshots/coach-free-row.png" alt="Coach tab in FREE ROW with map and rower tiles" loading="lazy"/>
+  <img class="w-sm" src="screenshots/coach-race.png" alt="Coach tab in RACE with the squad race panel" loading="lazy"/>
+</div>
+<p><strong>FREE ROW</strong> is the on-water view described above - map on top, individual rower tiles below, drag the handle between them to resize.</p>
+<p><strong>RACE</strong> gives that lower area to the squad race panel instead: a ranked list of every rower with pace, rate and relative metres, and the simulated race track when a piece is running. The map keeps the same strip and the same drag handle. Tap a name to open that rower’s detail view.</p>
+<p>The switch is a display choice - it does not change the role of anyone else, and it is remembered between sessions.</p>
+
+<h2 class="clear">Running a squad erg race <span class="light">(Coach add-on)</span></h2>
+<p>The buttons above the map change depending on what your squad is actually doing. All erg rowers get <strong>SQUAD WORKOUT</strong>; all boats get <strong>LAP - ALL BOATS</strong>; a mixed squad gets neither, because neither command would reach everybody.</p>
+<ol>
+<li><strong>SQUAD WORKOUT</strong> - build the piece. A single distance or time piece, a repeated interval, or a variable set.</li>
+<li>Push it. Every connected erg is armed with the same piece. Nothing starts yet - rowers warm up in their own time and the piece loads itself onto each monitor as that rower finishes.</li>
+<li>The button becomes <strong>START - n/n LOADED</strong> so you can see how many monitors are actually ready. It stays amber until all of them are.</li>
+<li>Tap it to start everyone together with a count-in of about 17 seconds.</li>
+</ol>
+<img class="w-lg" src="screenshots/coach-squad-race.png" alt="Coach race panel mid-piece with rowers ranked and gaps shown" loading="lazy"/>
+<p>Relative position - metres ahead or behind - works on time-based pieces. Distance and calorie pieces cannot be compared metre for metre, so those show pace and rate only.</p>
+<p>A coach sitting on an erg themselves gets the same controls without leaving the coach screens: pushing arms your own machine too, and starting starts you with everyone else.</p>
 
 <h2 class="clear">Rower detail</h2>
 <img class="fr w-sm" src="screenshots/coach-rower-detail.png" alt="Rower detail with live curve and metrics" loading="lazy"/>
@@ -654,8 +799,8 @@ img.inline{display:inline;margin:0 3px;vertical-align:-.32em;height:1.45em;width
 
 <hr/>
 
-<!-- ==================== 13 ==================== -->
-<h1 id="s13">13. Demo modes</h1>
+<!-- ==================== 14 ==================== -->
+<h1 id="s14">14. Demo modes</h1>
 
 <img class="fr w-sm" src="screenshots/demo-mode.png" alt="Demo mode settings - OFF, ROW, COACH" loading="lazy"/>
 <p><strong>HOME → SETTINGS → ROLE → DEMO</strong></p>
@@ -684,8 +829,8 @@ img.inline{display:inline;margin:0 3px;vertical-align:-.32em;height:1.45em;width
 
 <hr/>
 
-<!-- ==================== 14 ==================== -->
-<h1 id="s14">14. Session log, exports and Restore from Drive</h1>
+<!-- ==================== 15 ==================== -->
+<h1 id="s15">15. Session log, exports and Restore from Drive</h1>
 
 <p><strong>HOME → LOG</strong></p>
 <p>Every session, newest first, with distance, duration, pace and a <strong>synced</strong> badge if the Drive copy is confirmed. Tap one to open it.</p>
@@ -724,7 +869,7 @@ img.inline{display:inline;margin:0 3px;vertical-align:-.32em;height:1.45em;width
 <li>You deleted them to free up space</li>
 <li>You got a new phone</li>
 <li>You reinstalled the app</li>
-<li>iOS evicted the app's storage under extreme pressure</li>
+<li>The phone evicted the app's storage under extreme pressure</li>
 </ul>
 <p>Restore lists everything in your Drive folder that isn't currently on the phone. Tap one to pull it back. Already-present sessions are skipped.</p>
 <p><strong>What comes back:</strong> the summary, all the charts, the lap and interval tables, and everything needed to re-export as JSON, TCX or FIT.</p>
@@ -737,8 +882,8 @@ img.inline{display:inline;margin:0 3px;vertical-align:-.32em;height:1.45em;width
 
 <hr/>
 
-<!-- ==================== 15 ==================== -->
-<h1 id="s15">15. Analyser</h1>
+<!-- ==================== 16 ==================== -->
+<h1 id="s16">16. Analyser</h1>
 
 <p>The Analyser is a web page. Bookmark it, open it on a desktop for preference or an iPad at a pinch. There's nothing to install.</p>
 <p>It reads directly from the same Google Drive folder the app writes to, so anything you've synced is already there.</p>
@@ -806,12 +951,30 @@ img.inline{display:inline;margin:0 3px;vertical-align:-.32em;height:1.45em;width
 <p><strong>Cross-session comparison is the point.</strong> Load two sessions, pin a group from each, and compare. The curve shape is derived from the accelerometer and is <strong>not affected by wind, tide or current</strong> - so unlike pace, curve comparison between two different days is always valid. If the shape changed, your mechanics changed.</p>
 
 <h2>Stroke Templates</h2>
-<p>Create or edit stroke templates for consistent comparison.</p>
+<p>A stroke template is a set of averaged stroke curves - one per stroke rate - saved as a small JSON file. It becomes a target shape you can draw behind any other curve, in the Analyser or live on the water.</p>
 <img src="screenshots/create-curve-template.png" alt="Create curve templates" loading="lazy"/>
-<p><strong>Create Template</strong> by dragging a selection on the chart → <strong>＋ Add to curves</strong> for multiple stroke rates then Click on <strong>Create / edit template</strong>, name your template, add the different stroke rate sectors and save. You can drag across the slider to see the curves at various stroke rates. Note that above or below your highest or lowest stroke rates, the drive portion of the shape stays the same and the recovery portion is scaled.</p>
-<p>Once a template is created, you can use it in analyser or on the live stroke curve on the rower's curve tab or the coach's stroke curve.</p>
-<p>In analyser, load the template (or multiple), click on the applicable template (it turns yellow), then click on the stroke curve coloured pill to compare. Re-click the pill or click on Show all curves to reset.</p>
-<p><strong>Note that stroke templates are particular to boat class. You cannot compare across different types of boat using the same template.</strong></p>
+
+<h3>Building one <span class="light">(Coach)</span></h3>
+<p>Creating and editing templates is a Coach feature. Loading and using them is not.</p>
+<ol>
+<li>Drag a selection on the chart over a block of strokes at one steady rate → <strong>＋ Add to curves</strong>. Repeat for each rate you want in the template - e.g. 18, 22, 26, 30, 34.</li>
+<li>Click <strong>Create / edit template</strong>, give it a name.</li>
+<li>Add each pinned curve group in turn. Each one becomes a rate entry showing its rate, its drive percentage and how many strokes it averaged.</li>
+<li>Drag the preview slider to see the template re-timed across the whole rate range before you save.</li>
+<li><strong>Export</strong> writes the JSON file.</li>
+</ol>
+<p>Between the rates you supplied the shape is interpolated. Above your highest rate or below your lowest, the drive portion keeps its recorded length and only the recovery is stretched or shortened to fill the stroke - which is what actually happens on the water.</p>
+
+<h3>Two kinds of template</h3>
+<p>Templates are either <strong>on-water</strong> (normalised catch-to-catch acceleration curves, from the phone's accelerometer) or <strong>erg force</strong> (PM5 drive-force curves). They are different shapes on different axes and never mix. A template built from on-water data will only ever draw over on-water curves, and an erg one only over erg curves.</p>
+
+<h3>Using one in the Analyser</h3>
+<p><strong>Load stroke template</strong> opens one or more template files. Click a template chip to make it active - it turns yellow. Then click a curve group's coloured pill to view that group on its own with the active template dotted over it. Click the pill again, or <strong>Show all curves</strong>, to go back to the normal all-curves view.</p>
+
+<h3>Using one in the app</h3>
+<p>See <a href="#s9">Stroke templates on the live curve</a> in section 8.</p>
+
+<p><strong>Templates are particular to boat class. A single scull template will not tell you anything useful about a quad or an eight - the hull acceleration signature is completely different. Build one per boat type.</strong></p>
 
 <h2>Video overlay <span class="light">(Pro)</span></h2>
 <p>If your coach recorded clips in Coach mode, select the cloud drive where the videos were saved.</p>
@@ -828,10 +991,10 @@ img.inline{display:inline;margin:0 3px;vertical-align:-.32em;height:1.45em;width
 <h2>Video format</h2>
 <p><strong>Best: H.264 MP4</strong> - plays everywhere, including desktop Chrome/Firefox/Safari and export via QuickTime.</p>
 <p><strong>Also fine:</strong> standard MOV/WebM if H.264-encoded.</p>
-<p><strong>Avoid:</strong> iPhone HEVC (.mov) - Chrome can't decode it. Safari can, but for reliable overlay work across browsers you're best converting HEVC clips to H.264 MP4 first (e.g. via QuickTime "Export As" or HandBrake).</p>
+<p><strong>Avoid:</strong> iPhone HEVC (.mov) - Chrome can't decode it. Android clips are usually already H.264 MP4 and give no trouble. Safari can, but for reliable overlay work across browsers you're best converting HEVC clips to H.264 MP4 first (e.g. via QuickTime "Export As" or HandBrake).</p>
 <p>The Coach mode camera picks the best format your device's MediaRecorder supports, in this priority order:</p>
 <ol>
-<li><code>video/mp4;codecs=h264,aac</code> - H.264 MP4 (preferred, what iOS gives you)</li>
+<li><code>video/mp4;codecs=h264,aac</code> - H.264 MP4 (preferred, and what most iPhone and Android devices give you)</li>
 <li><code>video/mp4</code> (generic)</li>
 <li><code>video/webm</code> variants (vp9/vp8, with/without opus audio) - fallback for devices without MP4 recording support</li>
 </ol>
@@ -847,8 +1010,8 @@ img.inline{display:inline;margin:0 3px;vertical-align:-.32em;height:1.45em;width
 
 <hr/>
 
-<!-- ==================== 16 ==================== -->
-<h1 id="s16">16. Viewer</h1>
+<!-- ==================== 17 ==================== -->
+<h1 id="s17">17. Viewer</h1>
 
 <p>For spectators, parents, and athletes waiting their turn. No install, no account, no cost - just a link.</p>
 <ol>
@@ -865,8 +1028,8 @@ img.inline{display:inline;margin:0 3px;vertical-align:-.32em;height:1.45em;width
 
 <hr/>
 
-<!-- ==================== 17 ==================== -->
-<h1 id="s17">17. Metrics reference</h1>
+<!-- ==================== 18 ==================== -->
+<h1 id="s18">18. Metrics reference</h1>
 
 <p>Metrics are colour-coded by what influences them:</p>
 <ul>
@@ -973,8 +1136,8 @@ img.inline{display:inline;margin:0 3px;vertical-align:-.32em;height:1.45em;width
 
 <hr/>
 
-<!-- ==================== 18 ==================== -->
-<h1 id="s18">18. Limitations and warnings</h1>
+<!-- ==================== 19 ==================== -->
+<h1 id="s19">19. Limitations and warnings</h1>
 
 <h2>GPS metrics measure over the ground, not through the water</h2>
 <p>Pace and DPS measure motion relative to the ground. On a tidal river a 0.3 m/s following current improves your displayed pace by roughly 10 seconds per 500m at a 2:00 baseline. DPS is inflated downstream and deflated upstream for exactly the same reason.</p>
@@ -1008,8 +1171,8 @@ img.inline{display:inline;margin:0 3px;vertical-align:-.32em;height:1.45em;width
 
 <hr/>
 
-<!-- ==================== 19 ==================== -->
-<h1 id="s19">19. Troubleshooting</h1>
+<!-- ==================== 20 ==================== -->
+<h1 id="s20">20. Troubleshooting</h1>
 
 <p><strong>Stroke detection not triggering</strong> Recalibrate with the phone in the mount and the boat still. If the AX pill stays orange for more than a minute the signal is too weak on every axis - check the mount is rigid and flat.</p>
 
@@ -1036,6 +1199,10 @@ img.inline{display:inline;margin:0 3px;vertical-align:-.32em;height:1.45em;width
 <p><strong>Rower tiles going grey</strong> No recent data. Check that rower is actually recording and not paused. Intermittent grey under bridges is normal.</p>
 
 <p><strong>Battery draining fast</strong> You're probably connected to a squad. See the battery notes.</p>
+
+<p><strong>Android: recording stops when the screen is off or the app is in the background</strong> Settings → Apps → BoatRun → Battery → <strong>Unrestricted</strong>. Samsung phones also need BoatRun removed from <strong>Sleeping apps</strong> in Device care → Battery → Background usage limits.</p>
+
+<p><strong>Android: HR strap won't pair</strong> Android needs Nearby devices permission as well as Bluetooth. Settings → Apps → BoatRun → Permissions → Nearby devices → Allow. Location must also be on — Android ties Bluetooth scanning to it.</p>
 
 <p><strong>Analyser chart looks empty</strong> All series may be toggled off - click any summary card to bring one back. Or you're zoomed into a gap; double-click the chart to reset.</p>
 
