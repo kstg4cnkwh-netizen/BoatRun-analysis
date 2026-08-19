@@ -174,7 +174,7 @@ img.inline{display:inline;margin:0 3px;vertical-align:-.32em;height:1.45em;width
 <li><a href="#s12">Connect to coach</a></li>
 <li><a href="#s13">Coach mode</a></li>
 <li><a href="#s14">Demo modes</a></li>
-<li><a href="#s15">Session log, exports and Restore from Drive</a></li>
+<li><a href="#s15">Session log, exports and Sync with Drive</a></li>
 <li><a href="#s16">Analyser</a></li>
 <li><a href="#s17">Viewer</a></li>
 <li><a href="#s18">Metrics reference</a></li>
@@ -451,6 +451,11 @@ img.inline{display:inline;margin:0 3px;vertical-align:-.32em;height:1.45em;width
 <li><strong>Per-session Drive delete</strong> - Analyser only. See below.</li>
 </ul>
 
+<h2>Sync with Drive</h2>
+<p>The <strong>☁ Sync with Drive</strong> button at the top of the session log brings down every session in your Drive that this phone doesn't already have. That's how you set up a new phone, or recover after reinstalling the app.</p>
+<p>The first sync on a new device has to fetch every session in full and can take several minutes on a large archive - it will tell you how many it's about to download and let you back out. Do it on wifi and leave the app open while it runs. Afterwards it's near-instant, because the app keeps a small index in your Drive and only fetches what's actually new.</p>
+<p>Your Drive copy is the one that always survives. Phones reclaim storage when they get full, and iOS can clear an app's cached data - if that happens, the session detail is simply fetched back from Drive when you open it. As long as you're signed in and syncing, nothing is lost.</p>
+
 <h2>How sessions are stored on the phone</h2>
 <p>A full session - every stroke, every acceleration curve, the GPS track - is around three quarters of a megabyte. A season of rowing is tens of megabytes, which is far more than the small, fast store the session list is drawn from can hold.</p>
 <p>So BoatRun splits each session in two:</p>
@@ -471,12 +476,12 @@ img.inline{display:inline;margin:0 3px;vertical-align:-.32em;height:1.45em;width
 <p><strong>Unsynced sessions are never removed automatically.</strong> If a session hasn't backed up to Drive yet, it stays on the phone no matter how full storage gets - that copy is the only one that exists. Connect Drive and keep it syncing so this process always has something safe to clear.</p>
 
 <h2>Deleting a session</h2>
-<img class="fr w-sm" src="screenshots/data-restore-log.png" alt="Session log showing Restore from Drive and Synced badges" loading="lazy"/>
-<p>Deleting a session in <strong>HOME → LOG</strong> removes it from the phone. The Drive copy stays exactly where it is, and the app remembers the deletion so it won't quietly re-download next time you sync. The session is then invisible from the phone while still sitting in your Drive.</p>
-<p><strong>To delete a session from Drive, use the Analyser.</strong> Open the Analyser, find the session in the list, and tap the trash icon next to it. The phone picks that up on its next sync and removes its own copy too, so one delete is enough - you no longer have to do it in both places.</p>
-<p>The reverse holds as well: deleting on the phone stops the Analyser bringing it back. Whichever end you delete from, the other end follows.</p>
-<p><strong>To bring a deleted session back</strong>, tap the Drive button in the top bar, choose <em>More options</em>, then <em>Restore everything from Drive</em>. This ignores past deletions and pulls back everything still held in your Drive. A normal sync deliberately will not do this - otherwise sessions you meant to delete would keep reappearing.</p>
-<p>The <strong>DELETE MY DRIVE DATA</strong> button in SETTINGS – YOUR DATA wipes every session in your Drive at once. There is no per-session Drive delete in the app itself.</p>
+<img class="fr w-sm" src="screenshots/data-restore-log.png" alt="Session log showing Sync with Drive and Synced badges" loading="lazy"/>
+<p><strong>Deleting anywhere deletes everywhere.</strong> Delete a session in <strong>HOME → LOG</strong>, or with the trash icon in the Analyser, and it goes from that device, from your Google Drive, and from every other device on its next sync.</p>
+<p>There is no undo. The file is removed from the hidden app folder in your Drive, which is not the same as Drive's normal bin - it cannot be recovered from there afterwards. Both apps therefore ask you to confirm first, and the phone names the session in the confirmation so a mis-swipe is caught before it does any damage.</p>
+<p>If you delete while offline, the session goes from the phone immediately and the Drive copy is removed the next time you sync. The app tells you which of the two happened.</p>
+<p>The <strong>DELETE MY DRIVE DATA</strong> button in SETTINGS – YOUR DATA wipes every session in your Drive at once, and is the only bulk delete.</p>
+<p>Export anything you want to keep before deleting it. <strong>Raw data export is free forever</strong> - TCX, FIT, CSV and JSON - so a session you export is yours regardless of what happens to your Drive or your subscription.</p>
 
 <hr class="clear"/>
 
@@ -830,7 +835,7 @@ img.inline{display:inline;margin:0 3px;vertical-align:-.32em;height:1.45em;width
 <hr/>
 
 <!-- ==================== 15 ==================== -->
-<h1 id="s15">15. Session log, exports and Restore from Drive</h1>
+<h1 id="s15">15. Session log, exports and Sync with Drive</h1>
 
 <p><strong>HOME → LOG</strong></p>
 <p>Every session, newest first, with distance, duration, pace and a <strong>synced</strong> badge if the Drive copy is confirmed. Tap one to open it.</p>
@@ -862,15 +867,16 @@ img.inline{display:inline;margin:0 3px;vertical-align:-.32em;height:1.45em;width
 <p>All exports are free on every tier. Recording it means owning it.</p>
 <p><strong>Strava</strong> - Pro users who have linked Strava in Settings get automatic upload after every session. No manual step.</p>
 
-<h2>Restore from Drive</h2>
-<p>At the top of the log list: <strong>Restore from Drive</strong>.</p>
+<h2>Sync with Drive</h2>
+<p>At the top of the log list: <strong>☁ Sync with Drive</strong>. It pulls down every session in your Drive this phone doesn't already have.</p>
 <p>You need this because the phone is not the safe copy. Reasons sessions go missing locally:</p>
 <ul>
-<li>You deleted them to free up space</li>
 <li>You got a new phone</li>
 <li>You reinstalled the app</li>
-<li>The phone evicted the app's storage under extreme pressure</li>
+<li>The phone reclaimed the app's storage under pressure</li>
 </ul>
+<p>Sessions you deleted deliberately will <em>not</em> come back - deleting removes the Drive copy as well, so there is nothing left to fetch.</p>
+<p>The first sync on a new phone downloads everything and can take a few minutes; it warns you first and tells you how many sessions are coming. Later syncs are near-instant.</p>
 <p>Restore lists everything in your Drive folder that isn't currently on the phone. Tap one to pull it back. Already-present sessions are skipped.</p>
 <p><strong>What comes back:</strong> the summary, all the charts, the lap and interval tables, and everything needed to re-export as JSON, TCX or FIT.</p>
 <p>If restore fails with a storage message, delete some old local sessions first - their Drive copies are unaffected.</p>
@@ -1186,11 +1192,11 @@ img.inline{display:inline;margin:0 3px;vertical-align:-.32em;height:1.45em;width
 
 <p><strong>Drive sync failing</strong> Check Drive is connected (<img class="inline" src="screenshots/btn-drive-linked.png" alt="DRIVE LINKED"/>). Pending sessions retry automatically when the connection comes back. Export JSON as a backup if it keeps failing.</p>
 
-<p><strong>Session missing from the phone</strong> HOME → LOG → Restore from Drive.</p>
+<p><strong>Session missing from the phone</strong> HOME → LOG → Sync with Drive.</p>
 
-<p><strong>Deleted a session and want it back</strong> If it had synced, it's still in Drive. Restore from Drive.</p>
+<p><strong>Deleted a session and want it back</strong> You can't. Deleting removes it from Drive and every device at once, which is why both apps ask you to confirm. Export sessions you might want later - raw data export is free forever.</p>
 
-<p><strong>Session still showing in the Analyser after deleting it on the phone</strong> Working as designed. Phone deletion is local only - delete it from Drive using the trash icon in the Analyser's session list.</p>
+<p><strong>Session still showing in the Analyser after deleting it on the phone</strong> Reload the Analyser. The Drive file is deleted straight away, so a refresh clears it - unless you deleted while offline, in which case it goes on your next sync.</p>
 
 <p><strong>HR strap won't connect</strong> Wet the contacts, put it on before connecting, and make sure no watch or other app has already claimed it.</p>
 
