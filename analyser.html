@@ -4244,12 +4244,69 @@ window.removeCurveGroup=removeCurveGroup;
 
 function clearAllCurves(){curveGroups=[];tplFocusIdx=-1;buildCurveSection();updateMapGroups();applyGroupHighlights();schedRender();}
 
+/* Catch Duration is measured on the raw samples: from the point the catch
+   deceleration reaches 30% of its peak depth, until acceleration crosses back
+   through zero. The averaged curve is resampled onto a fixed 80-point grid, so
+   that crossing drifts off the measured value. This re-times the curve so it
+   crosses zero exactly at t30 + catchDuration. Everything before the 30% point
+   is untouched; the check itself is stretched or squeezed to fit, and the rest
+   of the stroke absorbs the difference so the total period stays the same. */
+function retimeCatchDuration(avg,T,targetMs,driveFrac){
+  const n=avg.length;
+  const out={data:avg,driveFrac:driveFrac};
+  if(!(T>0)||!(targetMs>0))return out;
+  const step=T/(n-1);
+  // deepest negative (the check) in the first 60% of the stroke
+  const lim=Math.max(2,Math.round(n*0.6));
+  let pk=0,pki=-1;
+  for(let i=0;i<lim;i++){if(avg[i]<pk){pk=avg[i];pki=i;}}
+  if(pki<1||!(pk<0))return out;
+  // t30: where the trace first passes 30% of peak depth on the way down
+  const thr=pk*0.30;
+  let i30=-1;
+  for(let i=0;i<=pki;i++){if(avg[i]<=thr){i30=i;break;}}
+  if(i30<1)return out;
+  const a30=avg[i30-1],b30=avg[i30];
+  const t30=(i30-1+(thr-a30)/((b30-a30)||1))*step;
+  // tz: where it crosses back up through zero after the check
+  let iz=-1;
+  for(let i=pki+1;i<n;i++){if(avg[i]>=0){iz=i;break;}}
+  if(iz<1)return out;
+  const az=avg[iz-1],bz=avg[iz];
+  const tz=(iz-1+(0-az)/((bz-az)||1))*step;
+  const cur=tz-t30,tgt=targetMs/1000;
+  if(!(cur>0.001))return out;
+  const newTz=t30+tgt;
+  if(!(newTz>t30+0.001)||newTz>T-0.02)return out;
+  const post=T-tz,newPost=T-newTz;
+  if(!(post>0.001))return out;
+  // plotted time -> original time, so we can resample onto a uniform grid
+  const inv=tp=>{
+    if(tp<=t30)return tp;
+    if(tp<=newTz)return t30+(tp-t30)/tgt*cur;
+    return tz+(tp-newTz)/newPost*post;
+  };
+  const data=new Array(n);
+  for(let i=0;i<n;i++){
+    const to=clamp(inv(i*step),0,T);
+    const f=to/step,i0=Math.floor(f),i1=Math.min(i0+1,n-1);
+    data[i]=avg[i0]+(avg[i1]-avg[i0])*(f-i0);
+  }
+  // move the finish marker with the same warp
+  let df=driveFrac;
+  if(df>0&&df<1){
+    const tf=df*T;
+    const tf2=tf<=t30?tf:(tf<=tz?t30+(tf-t30)/cur*tgt:newTz+(tf-tz)/post*newPost);
+    df=clamp(tf2/T,0,1);
+  }
+  return{data:data,driveFrac:df};
+}
 function computeGroupCurve(strokes){
   const valid=strokes.filter(s=>s.curve&&s.curve.length===CURVE_POINTS);
   if(!valid.length)return null;
   const FORCE=curvesAreForce();
-  const avg=new Array(CURVE_POINTS).fill(0);
-  let dfSum=0,rateSum=0,rateN=0,dpsSum=0,dpsN=0,paceSum=0,paceN=0,drvSum=0,drvN=0;
+  let avg=new Array(CURVE_POINTS).fill(0);
+  let dfSum=0,rateSum=0,rateN=0,dpsSum=0,dpsN=0,paceSum=0,paceN=0,drvSum=0,drvN=0,cdSum=0,cdN=0;
   for(const s of valid){
     for(let i=0;i<CURVE_POINTS;i++)avg[i]+=s.curve[i];
     dfSum+=(s.curveDriveFrac||0.5);
@@ -4257,6 +4314,7 @@ function computeGroupCurve(strokes){
     if(s.dps>1&&s.dps<25){dpsSum+=s.dps;dpsN++;}
     if(s.pace>50&&s.pace<500){paceSum+=s.pace;paceN++;}
     if(s.driveTimeMs>50&&s.driveTimeMs<3000){drvSum+=s.driveTimeMs;drvN++;}
+    if(s.catchDuration>0&&s.catchDuration<1500){cdSum+=s.catchDuration;cdN++;}
   }
   for(let i=0;i<CURVE_POINTS;i++)avg[i]/=valid.length;
   let df=dfSum/valid.length;
@@ -4270,9 +4328,16 @@ function computeGroupCurve(strokes){
     const thr=pk*0.25;
     for(let i=pki+1;i<CURVE_POINTS;i++){if(avg[i]<thr){df=i/(CURVE_POINTS-1);break;}}
   }
+  const avgRate=rateN?rateSum/rateN:null;
+  const avgCatchMs=cdN?cdSum/cdN:null;
+  /* Force curves have no accel zero crossing to anchor, so leave them alone. */
+  if(!FORCE&&avgRate&&avgCatchMs){
+    const rt=retimeCatchDuration(avg,60/avgRate,avgCatchMs,df);
+    avg=rt.data;df=rt.driveFrac;
+  }
   return{data:avg,driveFrac:df,n:valid.length,total:strokes.length,
-    avgRate:rateN?rateSum/rateN:null,avgDPS:dpsN?dpsSum/dpsN:null,avgPace:paceN?paceSum/paceN:null,
-    avgDriveMs:drvN?drvSum/drvN:null};
+    avgRate:avgRate,avgDPS:dpsN?dpsSum/dpsN:null,avgPace:paceN?paceSum/paceN:null,
+    avgDriveMs:drvN?drvSum/drvN:null,avgCatchMs:avgCatchMs};
 }
 
 
