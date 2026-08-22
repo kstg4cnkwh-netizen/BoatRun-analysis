@@ -357,16 +357,14 @@ img.inline{display:inline;margin:0 3px;vertical-align:-.32em;height:1.45em;width
 <p>Not every shape can be pushed. If a workout will not go across you get an explicit message naming the reason rather than silence.</p>
 
 <h2>The SQUAD tab - racing</h2>
-<p>Join a squad in <strong>HOME → SETTINGS → COACH’S SQUAD CODE</strong> exactly as an on-water rower would. A <strong>SQUAD</strong> tab then appears alongside CURVE.</p>
+<p>Join a squad on the erg page or <strong>HOME → SETTINGS → SQUAD CODE</strong> exactly as an on-water rower would. A <strong>SQUAD</strong> tab then appears alongside CURVE.</p>
 <img class="fr w-sm" src="screenshots/erg-squad-tab.png" alt="Erg SQUAD tab with race track and rower list" loading="lazy"/>
 <p>How a squad piece runs:</p>
 <ol>
-<li>Your coach pushes a piece. Your phone shows <strong>WARMUP - waiting for the coach</strong>.</li>
-<li>Warm up however you like. When you are done, press <strong>Menu</strong> on the erg to come out of your warmup.</li>
-<li>The moment the flywheel is genuinely stopped and your hands are off, BoatRun quietly loads the piece onto your monitor and tells you to sit ready. It keeps trying, so it does not matter whether the coach armed the piece before or after you finished warming up.</li>
-<li>The coach starts everyone together with a count-in of about 17 seconds.</li>
+<li>Warm up however you like. When you are done, press menu to finish your warmup session. <strong>You MUST be on MENU to receive the workout</strong></li>
+<li>Your phone shows <strong>WORKOUT RECEIVED</strong>. Your workout is now ready to go.</li>
+<li>The coach starts everyone together with a count-in of about 15 seconds.</li>
 </ol>
-<p>The piece is loaded while the erg is idle deliberately. A PM5 starts a programmed workout the instant the wheel turns, so a piece landing on a coasting erg would start itself.</p>
 <p>During the race the SQUAD tab shows a simulated track with every rower's boat, plus name, pace, rate and the gap in metres ahead (+) or behind (−) you. Everyone resets to 0m during rest.</p>
 <ul>
 <li><strong>Relative position needs a coach online and a comparable piece.</strong> Time intervals compare metre for metre; distance and calorie pieces cannot, so those fall back to pace and rate only.</li>
@@ -386,7 +384,7 @@ img.inline{display:inline;margin:0 3px;vertical-align:-.32em;height:1.45em;width
 
 <p>There are two of these and they do genuinely different jobs. Once you see the difference it stops being confusing:</p>
 <ul>
-<li><strong>Your BoatRun account</strong> - <em>who you are.</em> Carries your Pro subscription.</li>
+<li><strong>Your BoatRun account</strong> - <em>who you are.</em> Carries your subscription.</li>
 <li><strong>Your Google Drive</strong> - <em>where your files go.</em> Storage, not a login.</li>
 </ul>
 <p>You can have one, both, or neither.</p>
@@ -400,10 +398,10 @@ img.inline{display:inline;margin:0 3px;vertical-align:-.32em;height:1.45em;width
 </ul>
 <p>Pick whichever you prefer. What the account is for:</p>
 <ul>
-<li>It carries your Pro subscription between the app and the Analyser</li>
-<li>It's how the Analyser knows you've paid to unlock the Pro features</li>
+<li>It carries your subscription between the app and the Analyser</li>
+<li>It's how the Analyser knows you've paid to unlock the features</li>
 </ul>
-<p>Without linking your account, a Pro subscription bought on your phone stays on that phone and the Analyser won't recognise it.</p>
+<p>Without linking your account, a subscription bought on your phone stays on that phone and the Analyser won't recognise it.</p>
 <p><strong>Adding the second provider.</strong> Once you're signed in, the panel offers to link the other one - Apple if you signed in with Google, Google if you signed in with Apple. Optional, and it takes one tap. Worth doing: it's a spare key to the same account if you ever lose access to the first.</p>
 <p>Do it deliberately, because your Apple ID and your Google account almost certainly use different email addresses, so they are <strong>not</strong> recognised as the same person automatically.</p>
 
@@ -563,11 +561,11 @@ img.inline{display:inline;margin:0 3px;vertical-align:-.32em;height:1.45em;width
 <img class="w-lg" src="screenshots/curve-template-live.png" alt="CURVE tab with a dashed stroke template drawn behind the live curve and template pills bottom right" loading="lazy"/>
 
 <h3>Getting templates onto the phone</h3>
-<p><strong>HOME → SETTINGS → STROKE TEMPLATES → IMPORT TEMPLATE…</strong>, or the button in the bottom-right corner of the stroke curve itself. Pick the JSON file the Analyser exported. Each one lists its kind (on-water or erg force), the rates it holds and how much storage it uses. Rename with ✎, delete with ×. Templates live on the phone only - they are not synced - so delete any you no longer use if the total starts getting large.</p>
+<p><strong>HOME → SETTINGS → STROKE TEMPLATES → IMPORT TEMPLATE…</strong>. Pick the JSON file the Analyser exported. Each one lists its kind (on-water or erg force), the rates it holds and how much storage it uses. Rename with ✎, delete with ×. Templates live on the phone only - they are not synced - so delete any you no longer use if the total starts getting large.</p>
 <img class="w-md" src="screenshots/settings-templates.png" alt="Settings stroke templates list with USE, rename and delete buttons" loading="lazy"/>
 
 <h3>Showing them</h3>
-<p>Tap the button in the bottom-right of the stroke curve to open <strong>TEMPLATES</strong>. Pick up to three. Each one gets a coloured pill on the curve - tap a pill to draw that template, tap it again to take it off. This works without leaving the live screen, so you can switch targets mid-piece.</p>
+<p>Tap the <strong>TEMPLATES</strong> button at the top of the curve to arm up to 3 templates. Each one gets a coloured pill on the curve - tap a pill to draw that template, tap it again to take it off. This works without leaving the live screen, so you can switch targets mid-piece.</p>
 <img class="fr w-sm" src="screenshots/tpl-multi-modal.png" alt="TEMPLATES modal, picking up to three templates to show as pills" loading="lazy"/>
 <p>The app only ever draws templates of the matching kind: on-water templates on the Row and Cox curve, erg force templates on the Erg curve. Anything of the wrong kind is simply not drawn.</p>
 
@@ -576,7 +574,6 @@ img.inline{display:inline;margin:0 3px;vertical-align:-.32em;height:1.45em;width
 
 <h3>Templates from your coach</h3>
 <p>If you are connected to a squad, your coach can push a template to your phone. It arrives as a fourth pill labelled <strong>COACH</strong> in purple. Tap it off if you do not want it on screen - your coach sees that you have hidden it. The coach can also hide it remotely.</p>
-<img class="clear w-lg" src="screenshots/coach-tpl-bar.png" alt="Coach view with armed template pills under the squad map" loading="lazy"/>
 <p><strong>Templates are boat-class specific.</strong> A single scull template means nothing in a quad or an eight.</p>
 
 <h2>The INTERVALS tab</h2>
