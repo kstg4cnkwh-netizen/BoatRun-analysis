@@ -1,0 +1,292 @@
+<!doctype html>
+<html lang="en-AU">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1"/>
+<meta name="theme-color" content="#081226"/>
+<title>BoatRun — Stroke Curve Interpretation</title>
+<meta name="description" content="How to read a rowing stroke acceleration curve — catch duration, catch depth, catch slopes, common errors and drills, by BoatRun."/>
+<link rel="icon" href="./icons/icon-192.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&family=Inter:wght@400;500;600;700&family=Roboto+Mono:wght@500;600&display=swap" rel="stylesheet">
+<style>
+:root{
+  --navy:#081226;
+  --navy-2:#0E1B38;
+  --panel:#0F1C3A;
+  --panel-2:#101E3E;
+  --line:rgba(255,255,255,.10);
+  --ink:#EFF3FA;
+  --ink-dim:rgba(239,243,250,.62);
+  --ink-faint:rgba(239,243,250,.38);
+  --coral:#FF5A3C;
+  --coral-dim:rgba(255,90,60,.14);
+  --teal:#2FD3C6;
+  --amber:#FFB648;
+  --radius:14px;
+}
+*{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent;}
+html{scroll-behavior:smooth;}
+body{
+  font-family:'Inter',-apple-system,system-ui,sans-serif;
+  background:var(--navy);
+  color:var(--ink);
+  line-height:1.65;
+  -webkit-font-smoothing:antialiased;
+}
+.mono{font-family:'Roboto Mono',monospace;}
+.disp{font-family:'Space Grotesk',sans-serif;}
+a{color:inherit;}
+.wrap{max-width:820px;margin:0 auto;padding:0 24px;}
+.eyebrow{
+  display:inline-flex;align-items:center;gap:8px;
+  font-family:'Roboto Mono',monospace;font-size:11px;font-weight:600;
+  letter-spacing:.14em;text-transform:uppercase;
+  padding:6px 12px;border-radius:100px;
+  border:1px solid var(--line);
+  color:var(--coral);border-color:rgba(255,90,60,.35);background:var(--coral-dim);
+}
+
+/* ===== NAV ===== */
+header{
+  position:sticky;top:0;z-index:40;
+  background:rgba(8,18,38,.9);backdrop-filter:blur(10px);
+  border-bottom:1px solid rgba(255,255,255,.08);
+}
+.nav{display:flex;align-items:center;justify-content:space-between;height:64px;color:var(--ink);max-width:1120px;margin:0 auto;padding:0 24px;}
+.brand{display:flex;align-items:center;gap:10px;font-family:'Space Grotesk',sans-serif;font-weight:700;font-size:18px;letter-spacing:-.01em;text-decoration:none;}
+.brand img{width:26px;height:26px;border-radius:7px;display:block;}
+.navlinks{display:flex;gap:24px;font-size:14px;font-weight:500;}
+.navlinks a{text-decoration:none;color:var(--ink-dim);transition:color .15s;}
+.navlinks a:hover{color:var(--ink);}
+@media(max-width:640px){.navlinks{display:none;}}
+
+/* ===== TITLE ===== */
+.doc-hero{padding:56px 0 36px;background:radial-gradient(ellipse 900px 420px at 20% -10%, #142a56 0%, transparent 60%);}
+.doc-badge{display:flex;align-items:center;gap:12px;margin-bottom:18px;}
+.doc-badge img{width:40px;height:40px;border-radius:10px;box-shadow:0 8px 20px -8px rgba(0,0,0,.6);}
+.doc-badge span{font-family:'Roboto Mono',monospace;font-size:11px;letter-spacing:.1em;text-transform:uppercase;color:var(--ink-faint);}
+h1.doc-title{font-family:'Space Grotesk',sans-serif;font-weight:700;font-size:clamp(28px,5vw,42px);line-height:1.08;letter-spacing:-.02em;margin:16px 0 12px;}
+.doc-sub{font-size:16px;color:var(--ink-dim);max-width:600px;}
+
+/* ===== CONTENT ===== */
+.doc-body{padding:8px 0 90px;}
+h2{font-family:'Space Grotesk',sans-serif;color:var(--coral);font-size:23px;font-weight:700;letter-spacing:-.01em;margin:44px 0 14px;scroll-margin-top:80px;}
+h3{font-family:'Space Grotesk',sans-serif;color:var(--ink);font-size:17px;font-weight:700;margin:26px 0 10px;}
+h4{font-family:'Roboto Mono',monospace;color:var(--teal);font-size:12px;font-weight:600;letter-spacing:.06em;text-transform:uppercase;margin:20px 0 8px;}
+p{font-size:15px;color:var(--ink-dim);margin:0 0 14px;}
+strong{color:var(--ink);font-weight:700;}
+em{color:var(--amber);font-style:normal;}
+ul,ol{margin:0 0 14px;padding-left:22px;color:var(--ink-dim);font-size:15px;}
+li{margin:0 0 8px;}
+.rule{border:0;border-top:1px solid var(--line);margin:36px 0;}
+.panel{background:var(--panel);border:1px solid var(--line);border-radius:var(--radius);padding:20px 22px;margin:0 0 18px;}
+.panel p:last-child{margin-bottom:0;}
+.callout{border-left:3px solid var(--coral);background:var(--coral-dim);border-radius:0 10px 10px 0;padding:14px 18px;margin:0 0 18px;}
+.callout p{color:var(--ink);margin:0;font-size:14.5px;}
+.checklist{list-style:none;padding:0;display:flex;flex-direction:column;gap:9px;}
+.checklist li{display:flex;gap:10px;align-items:flex-start;font-size:14.5px;color:var(--ink-dim);}
+.checklist li:before{content:"";flex:0 0 auto;width:16px;height:16px;margin-top:2px;border-radius:5px;background:var(--coral-dim);border:1px solid rgba(255,90,60,.4);}
+.drills{background:var(--panel-2);border:1px solid var(--line);border-radius:10px;padding:14px 18px;margin:0 0 18px;}
+.drills h4{margin-top:0;}
+.drills ul{margin-bottom:0;}
+.toc{background:var(--panel);border:1px solid var(--line);border-radius:var(--radius);padding:18px 22px;margin:28px 0 0;}
+.toc h4{color:var(--ink-faint);margin-top:0;}
+.toc ol{columns:2;column-gap:24px;font-size:13.5px;margin:0;padding-left:18px;}
+.toc a{text-decoration:none;color:var(--ink-dim);}
+.toc a:hover{color:var(--coral);}
+@media(max-width:600px){.toc ol{columns:1;}}
+
+.fig{margin:0 0 18px;}
+.fig img{display:block;width:100%;height:auto;border-radius:12px;background:#fff;border:1px solid var(--line);padding:8px;}
+.fig figcaption{font-size:12px;color:var(--ink-faint);text-align:center;margin-top:8px;}
+.fig-narrow{max-width:340px;margin-left:auto;margin-right:auto;}
+.fig-grid{display:grid;gap:10px;margin:0 0 18px;}
+.fig-grid .fig{margin-bottom:0;}
+.fig-grid-3{grid-template-columns:repeat(3,1fr);}
+.fig-grid-2{grid-template-columns:repeat(2,1fr);}
+@media(max-width:600px){.fig-grid-3,.fig-grid-2{grid-template-columns:1fr 1fr;}}
+@media(max-width:420px){.fig-grid-3,.fig-grid-2{grid-template-columns:1fr;}}
+
+footer{background:var(--navy-2);color:var(--ink-faint);border-top:1px solid rgba(255,255,255,.08);padding:34px 0;}
+.foot-row{display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:14px;font-size:13px;}
+.foot-brand{display:flex;align-items:center;gap:8px;font-family:'Space Grotesk',sans-serif;font-weight:700;font-size:14px;color:var(--ink);}
+.foot-brand img{width:20px;height:20px;border-radius:5px;}
+footer a{color:var(--ink-dim);text-decoration:none;}
+footer a:hover{color:var(--ink);}
+</style>
+</head>
+<body>
+
+<header>
+  <div class="nav">
+    <a class="brand" href="./index.html"><img src="./icons/icon-192.png" alt="BoatRun icon"/>BoatRun</a>
+    <nav class="navlinks">
+      <a href="./index.html">Home</a>
+      <a href="./guide.html">Guide</a>
+      <a href="./analyser.html">Analyser</a>
+    </nav>
+  </div>
+</header>
+
+<section class="doc-hero">
+  <div class="wrap">
+    <div class="doc-badge">
+      <img src="./icons/icon-192.png" alt="BoatRun icon"/>
+      <span>A BoatRun Technique Reference</span>
+    </div>
+    <span class="eyebrow">Reading the curve</span>
+    <h1 class="doc-title">Stroke Curve Interpretation</h1>
+    <p class="doc-sub">How to read the boat's acceleration curve, what BoatRun's catch metrics actually measure, and how to spot and correct the most common technique errors.</p>
+  </div>
+</section>
+
+<div class="wrap doc-body">
+
+<div class="toc">
+  <h4 class="mono">On this page</h4>
+  <ol>
+    <li><a href="#stroke">The Stroke</a></li>
+    <li><a href="#definitions">BoatRun Definitions</a></li>
+    <li><a href="#variations">Variations</a></li>
+    <li><a href="#errors">Errors</a></li>
+    <li><a href="#summary">Summary</a></li>
+  </ol>
+</div>
+
+<h2 id="stroke">The Stroke</h2>
+<p>As with all aspects of rowing, there is no single perfect stroke curve, but there are clearly inefficient ones. Curves vary by boat type and by each athlete's strength, fitness, flexibility, and technique. Even elite rowers and crews can produce very different curves while achieving similar results, so copying an Olympic gold medallist's curve is unlikely to make you row at your fastest possible speed.</p>
+
+<h3>The Recovery</h3>
+<p>Hands away, body rock, and the initial pressure through the feet can each create small boat accelerations.</p>
+<div class="fig-grid fig-grid-3">
+<figure class="fig"><img src="assets/stroke-curve/recovery-1.png" alt="Recovery phase stroke figure and curve, panel 1"/></figure>
+<figure class="fig"><img src="assets/stroke-curve/recovery-2.png" alt="Recovery phase stroke figure and curve, panel 2"/></figure>
+<figure class="fig"><img src="assets/stroke-curve/recovery-3.png" alt="Recovery phase stroke figure and curve, panel 3"/></figure>
+</div>
+<p>The pull into the catch should create positive acceleration during the recovery. In elite crews at race rates, this recovery acceleration is similar in size to drive acceleration. As the rower approaches front chocks, the oar should enter the water <strong>as the final part of the recovery</strong>. A short catch duration comes from timing the entry well, not from violently lifting the arms.</p>
+<div class="fig-grid fig-grid-3">
+<figure class="fig"><img src="assets/stroke-curve/recovery-4.png" alt="Recovery phase stroke figure and curve, panel 4"/></figure>
+<figure class="fig"><img src="assets/stroke-curve/recovery-5.png" alt="Recovery phase stroke figure and curve, panel 5"/></figure>
+<figure class="fig"><img src="assets/stroke-curve/recovery-6.png" alt="Recovery phase stroke figure and curve, panel 6"/></figure>
+</div>
+
+<h3>The Drive</h3>
+<div class="fig-grid fig-grid-3">
+<figure class="fig"><img src="assets/stroke-curve/drive-1.png" alt="Drive phase stroke figure and curve, panel 1"/></figure>
+<figure class="fig"><img src="assets/stroke-curve/drive-2.png" alt="Drive phase stroke figure and curve, panel 2"/></figure>
+<figure class="fig"><img src="assets/stroke-curve/drive-3.png" alt="Drive phase stroke figure and curve, panel 3"/></figure>
+</div>
+<p>Once the oars are engaged, acceleration increases sharply. As the line crosses zero acceleration, the boat is going at its slowest speed. The first drive hump is a result of the bow wave re-forming on the hull, the bubble forming in front of the oar, the bend being absorbed by the oar and the strain being taken by your body. As you continue to drive with the legs, the boat continues to accelerate.</p>
+<div class="fig-grid fig-grid-2">
+<figure class="fig"><img src="assets/stroke-curve/drive-4.png" alt="Drive phase stroke figure and curve, panel 4"/></figure>
+<figure class="fig"><img src="assets/stroke-curve/drive-5.png" alt="Drive phase stroke figure and curve, panel 5"/></figure>
+</div>
+<p>The body opening and arm pull should complete the drive phase. It is important to continue the oar speed to the finish to aid oar extraction. Keeping the body still at the finish helps maintain momentum in the direction you have worked to create. At race rates, elite small boat rowers produce drive acceleration above 5 m/s³.</p>
+
+<h2 id="definitions">BoatRun Definitions</h2>
+<figure class="fig"><img src="assets/stroke-curve/definitions-curve.png" alt="Annotated stroke curve showing drive acceleration, recovery acceleration, catch acceleration, catch duration, negative slope and positive slope"/></figure>
+
+<h3>The Catch Duration</h3>
+<p>Catch duration is the time from the rapid deceleration in boat speed, as the body stops moving forward and the oars enter the water, until the blades are engaged and the boat begins accelerating again. The longer the catch duration, the longer the boat decelerates and the more speed is lost.</p>
+<p>The greater the combined mass of the boat, crew, and coxswain, the longer it takes to re-accelerate. An elite single typically has a catch duration of about 300 ms, while an elite eight is closer to 400 ms. Catch duration changes little across stroke rates and boat speeds, although the curve's shape and depth do change.</p>
+
+<h3>Catch Depth (Catch Acceleration)</h3>
+<p>At race rates, elite small boats typically reach a catch depth of about 10 m/s², roughly <strong>double the drive acceleration</strong>. A large depth shows that the boat decelerates rapidly as the rower reaches the catch. If catch duration remains short, the effect on boat speed is minimal. In one study of elite rowers, the fastest athletes had the deepest catch acceleration.</p>
+
+<h3>Catch Slopes</h3>
+<p>BoatRun measures the <em>negative slope</em> and <em>positive slope</em> of the curve. Steeper slopes on both sides are desirable because they shorten catch duration. The positive catch slope is especially important because it shows how quickly the boat begins accelerating out of the catch.</p>
+
+<h2 id="variations">Variations</h2>
+
+<h3>Rate</h3>
+<p>At lower rates during steady state work, the pull into the catch is not as pronounced, the first drive hump is more of a reduction in angle, and the body and arm pull is not as pronounced — creating more of a smooth bubble shape than a table. Due to less boat speed, the catch acceleration is not as strong.</p>
+<div class="fig-grid fig-grid-3">
+<figure class="fig"><img src="assets/stroke-curve/rate-template-1.png" alt="Stroke template screen previewing a curve at 20.0 spm"/></figure>
+<figure class="fig"><img src="assets/stroke-curve/rate-template-2.png" alt="Stroke template screen previewing a curve at 26.0 spm"/></figure>
+<figure class="fig"><img src="assets/stroke-curve/rate-template-3.png" alt="Stroke template screen previewing a curve at 14.5 spm"/></figure>
+</div>
+<div class="callout"><p>BoatRun will dynamically overlay a template on your stroke curve at any rate. In the template builder, strokes are all drawn the same length, so it can look like catch duration is longer at higher stroke rates — it is actually steady.</p></div>
+
+<h3>Small Boats vs Large Boats</h3>
+<p>As mentioned previously, the catch duration will be slightly longer in a larger boat due to the momentum. The more people rowing the boat, the higher the likelihood of different technique and therefore micro decelerations. An elite mixed eight at 42spm typically shows a 400ms catch duration, with a strong pull into the catch.</p>
+<figure class="fig"><img src="assets/stroke-curve/elite-8-curve.png" alt="Stroke curve of an elite mixed eight at 41.8spm with a 400ms catch duration"/><figcaption>Elite mixed eight, 41.8spm — 400ms catch duration, strong pull into the catch</figcaption></figure>
+
+<h2 id="errors">Errors</h2>
+
+<h3>Recovery Errors</h3>
+
+<h4>Sequencing Errors</h4>
+<p>The feet are your lowest connection point to the boat. Sequencing the recovery well — arms away, then body over — transfers weight from the seat to the footplate as early as possible. This helps balance the boat and creates a steadier platform into the catch.</p>
+<div class="drills"><h4>Drill to correct</h4><ul><li>Pause rowing (arms away – body over, or arms away – ¼ slide)</li></ul></div>
+
+<h4>Weak Leg Pull to the Catch</h4>
+<figure class="fig fig-narrow"><img src="assets/stroke-curve/weak-leg-pull.png" alt="Diagram of a weak leg pull to the catch showing an early drop in acceleration on the stroke curve"/><figcaption>Drifting into the catch — an early drop in acceleration and a longer catch duration</figcaption></figure>
+<p>Usually as a result of erg training, athletes are used to drifting into the catch. Even the weight of an eight with a cox is significantly less than the weight of the athletes pulling the boat under them. Failing to pull the boat towards you results in an early drop in acceleration and a longer catch duration.</p>
+<div class="drills"><h4>Drills to correct</h4><ul><li>Practice a positive pull on an inclined erg</li><li>On the water, practice a positive pull with a light drive so the boat is not moving too fast between strokes</li></ul></div>
+
+<h4>Lunge and Late Catch</h4>
+<figure class="fig fig-narrow"><img src="assets/stroke-curve/lunge-late-catch.png" alt="Diagram of a lunge and late catch showing the resulting double-bump stroke curve"/><figcaption>A lunge or late catch produces a double bump and a longer catch duration</figcaption></figure>
+<p>Both a lunge and a late catch, or "rowing it in," create a double bump in the stroke curve. This delays the catch and increases the time spent decelerating.</p>
+<p>A lunge adds deceleration because the body moves farther toward the stern than necessary and then stops late. It also pushes the stern downward, increasing drag. As the body moves forward, the arms tend to follow downward, which can cause the oars to sky at the catch and delay the time to oar engagement.</p>
+<p>Rowing it in creates a similar effect. If you push against the footplate before the oar is in the water or fully engaged, you push the lighter boat away from you and create a second negative acceleration until the oars grab and the boat accelerates in the correct direction. By this time, all that leg drive has been wasted pushing the boat the wrong way, leaving less leg extension remaining to drive correctly.</p>
+
+<h4>Rushing the Slide</h4>
+<p>Rowing the oar in and skying the oar both delay the time to oar entry. Athletes will often compensate by "rushing the slide" to arrive earlier at the catch. <strong>Rushing the slide is a symptom of a lunge and/or rowing it in.</strong> Once the catch is corrected, the athlete no longer feels the need to rush forward.</p>
+<div class="drills"><h4>Drill to correct</h4><ul><li>Front ¼ rowing — ideally in a crewed boat with only half the crew rowing. Practice steady body angle, hands up approaching the catch to generate back-splash. Don't grab the oars too hard.</li></ul></div>
+
+<h3>Drive Errors</h3>
+
+<h4>Incorrect Sequence</h4>
+<p>The most common drive error is poor sequencing. Opening the back too early produces high power at the start of the drive but leaves little power for the later stages because the body opening has already occurred. The result is a front-heavy curve that tapers early toward the release. Opposite to the lunge at the catch, the arms raise as the body opens, driving the oars deep. Incorrect erg training often exacerbates this issue.</p>
+<figure class="fig fig-narrow"><img src="assets/stroke-curve/incorrect-sequence.png" alt="Diagram of the back opening too early, driving the oars deep, with the resulting front-heavy stroke curve"/><figcaption>Back opens too early — power peaks early and the curve tapers off toward the finish</figcaption></figure>
+
+<h4>Deep Oars</h4>
+<p>Deep oars usually have two main causes: opening the back too early, and rowing the catch in.</p>
+<p>As noted above, opening the back raises the arms and buries the oars.</p>
+<p>The second, often overlooked cause is rowing the oar in. Without a positive check at the catch, the oar initially has little resistance, so the athlete may open their back to create power and "feel" the oar. This raises the arms and buries the blade.</p>
+<p>A deeply buried oar creates extra drag on the system and is more difficult to extract cleanly.</p>
+<div class="drills"><h4>Drills to correct</h4><ul>
+<li>Front ¼ rowing as previously described</li>
+<li>Legs-only rowing — as per front ¼, but continue the drive until legs straight, release the oar and return to the catch using square blades. Body angle should not change during this drill.</li>
+<li>Legs and body — as per legs-only but introduce the body pivot with legs straight and square blades. Progress to full stroke, then feathering.</li>
+</ul></div>
+
+<h3>Washing Out</h3>
+<p>Washing out the oars occurs when the hands drop in the late part of the stroke. This is generally caused by not maintaining posture at the finish or getting too much layback.</p>
+<p>It is also much more difficult to recover posture during the recovery from a slump, generally resulting in sloppy oar control during the recovery.</p>
+<ul>
+<li>Tense glutes at the finish</li>
+<li>Push belly button out</li>
+<li>Sit up straight</li>
+</ul>
+
+<h2 id="summary">Summary</h2>
+<div class="panel">
+<ul class="checklist">
+<li>Sequence oar release, arms, then body, then legs</li>
+<li>Pull the boat towards you on the recovery</li>
+<li>Keep body angle the same for the entire recovery</li>
+<li>Hands up as the last action in the recovery, not the first action of the drive</li>
+<li>Drive using the same body angle out of the catch as you did going in</li>
+<li>Drive legs, then body, then arms</li>
+</ul>
+</div>
+
+</div>
+
+<footer>
+  <div class="wrap foot-row">
+    <div class="foot-brand"><img src="./icons/icon-192.png" alt="BoatRun icon"/>BoatRun</div>
+    <div>
+      <a href="./index.html">Home</a> &nbsp;·&nbsp;
+      <a href="./guide.html">User Guide</a> &nbsp;·&nbsp;
+      <a href="./analyser.html">Analyser</a>
+    </div>
+    <span>© 2026 BoatRun</span>
+  </div>
+</footer>
+
+</body>
+</html>
