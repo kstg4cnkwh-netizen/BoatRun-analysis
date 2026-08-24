@@ -4194,6 +4194,16 @@ function updateStatsStrip(){
   for(const m of METRIC_DEFS){
     if(hid[m.k]||!metricFitsSession(m.k))continue;
     const arr=strokes.filter(m.filter).map(m.val);
+    if(m.k==='pace'||m.k==='dps'){
+      const gv=(m.k==='pace')?groupAvgPace(strokes):groupAvgDPS(strokes);
+      if(gv==null&&!arr.length)continue;
+      html+=sp('Avg '+m.l,m.fmtAvg(gv!=null?gv:arrMean(arr)),m.c);
+      if(m.showBest){
+        const bv=(m.k==='pace')?groupBestPace(strokes):(arr.length?(m.bestIsMin?arrMin(arr):arrMax(arr)):null);
+        if(bv!=null) html+=sp('Best '+m.l,m.fmtAvg(bv),m.c);
+      }
+      continue;
+    }
     if(!arr.length)continue;
     html+=sp('Avg '+m.l,m.fmtAvg(arrMean(arr)),m.c);
     if(m.showBest) html+=sp('Best '+m.l,m.fmtAvg(m.bestIsMin?arrMin(arr):arrMax(arr)),m.c);
@@ -5154,14 +5164,76 @@ function shortName(label){
 // reciprocal quantities, so a plain mean of per-stroke values is biased slow
 // (Jensen). Summing distance and time first gives the same answer the lap
 // summary reports. Returns null when the strokes carry no usable distance.
+const MAX_BOAT_MS=7;   // no rowing boat sustains this; anything above it is a
+                       // distance-accumulator step correction, not rowing.
 function groupDistTime(a){
   if(!a||a.length<2)return null;
   const v=a.filter(s=>!isNaN(s.dist)&&s.dist!=null&&!isNaN(s.elapsed)&&s.elapsed!=null);
   if(v.length<2)return null;
-  const metres=v[v.length-1].dist-v[0].dist;
-  const secs=v[v.length-1].elapsed-v[0].elapsed;
+  // Sum stroke-to-stroke gaps rather than differencing the endpoints, so a
+  // single GPS distance-floor top-up (a +10 to +40 m step landing in one sample)
+  // can be dropped instead of silently inflating the whole span.
+  let metres=0,secs=0,gaps=0;
+  for(let i=1;i<v.length;i++){
+    const dt=v[i].elapsed-v[i-1].elapsed, dm=v[i].dist-v[i-1].dist;
+    if(!(dt>0)||dm<0||dm/dt>MAX_BOAT_MS)continue;
+    metres+=dm;secs+=dt;gaps++;
+  }
   if(!(metres>0)||!(secs>0))return null;
-  return {metres,secs,gaps:v.length-1};
+  return {metres,secs,gaps};
+}
+
+// Single source of truth for group Avg Pace / Avg DPS, used by BOTH the
+// selection stats strip and the pinned-curve stats table so the two can never
+// disagree. Pace = total time / total distance over the span (the same way the
+// lap summary does it), DPS = total distance / stroke gaps. Falls back to the
+// per-stroke mean only when the strokes carry no usable distance. No clamping
+// against the best stroke — that used to force Avg to print equal to Best.
+function groupAvgPace(a){
+  const t=groupDistTime(a);
+  if(t)return 500*t.secs/t.metres;
+  const arr=(a||[]).filter(s=>s.pace>50&&s.pace<500).map(s=>s.pace);
+  return arr.length?arrMean(arr):null;
+}
+function groupAvgDPS(a){
+  const t=groupDistTime(a);
+  if(t)return t.metres/t.gaps;
+  const arr=(a||[]).filter(s=>s.dps>1&&s.dps<25).map(s=>s.dps);
+  return arr.length?arrMean(arr):null;
+}
+// Best pace, from the SAME distance/time source as the average so the two can
+// never contradict each other. Scans the shortest window at each stroke that
+// spans at least 5 strokes and 10 seconds, and takes the fastest. Single-stroke
+// pace_s500 is a 5-12 s smoothed GPS figure that drifts against the distance
+// accumulator — on steady pieces it can read SLOWER than the piece average,
+// which is why it is only used as a fallback when no distance is available.
+function groupBestPace(a){
+  const v=(a||[]).filter(s=>!isNaN(s.dist)&&s.dist!=null&&!isNaN(s.elapsed)&&s.elapsed!=null);
+  // Flag gaps that carry a distance step correction. A window containing one
+  // would otherwise report a best pace no boat ever rowed.
+  const bad=[];
+  for(let i=1;i<v.length;i++){
+    const dt=v[i].elapsed-v[i-1].elapsed, dm=v[i].dist-v[i-1].dist;
+    bad.push(!(dt>0)||dm<0||dm/dt>MAX_BOAT_MS);
+  }
+  let best=null;
+  for(let i=0;i<v.length-1;i++){
+    for(let j=i+4;j<v.length;j++){
+      const secs=v[j].elapsed-v[i].elapsed;
+      if(secs<10)continue;
+      let clean=true;
+      for(let k=i;k<j;k++){if(bad[k]){clean=false;break;}}
+      const metres=v[j].dist-v[i].dist;
+      if(clean&&metres>0){
+        const p=500*secs/metres;
+        if(p>=500/MAX_BOAT_MS&&p<=600&&(best==null||p<best))best=p;
+      }
+      break;
+    }
+  }
+  if(best!=null)return best;
+  const arr=(a||[]).filter(s=>s.pace>50&&s.pace<500).map(s=>s.pace);
+  return arr.length?arrMin(arr):null;
 }
 
 function buildCurveStats(){
@@ -5182,21 +5254,11 @@ function buildCurveStats(){
     }
     if(m.k==='pace'||m.k==='dps'){
       rows.push({l:'Avg '+m.l, c:m.c, fn:g=>{
-        const t=groupDistTime(g.strokes);
-        if(t){
-          if(m.k==='pace'){
-            const bestArr=g.strokes.filter(m.filter).map(m.val);
-            const bestP=bestArr.length?arrMin(bestArr):null;
-            let gp=500*t.secs/t.metres;
-            if(bestP!=null&&gp<bestP)gp=bestP;
-            return m.fmtAvg(gp);
-          }
-          return m.fmtAvg(t.metres/t.gaps);
-        }
-        const arr=g.strokes.filter(m.filter).map(m.val);
-        return arr.length?m.fmtAvg(arrMean(arr)):EM;
+        const gv=(m.k==='pace')?groupAvgPace(g.strokes):groupAvgDPS(g.strokes);
+        return gv!=null?m.fmtAvg(gv):EM;
       }});
       if(m.showBest) rows.push({l:'Best '+m.l, c:m.c, fn:g=>{
+        if(m.k==='pace'){const bp=groupBestPace(g.strokes);return bp!=null?m.fmtAvg(bp):EM;}
         const arr=g.strokes.filter(m.filter).map(m.val);
         return arr.length?m.fmtAvg(m.bestIsMin?arrMin(arr):arrMax(arr)):EM;
       }});
