@@ -5184,7 +5184,13 @@ function buildCurveStats(){
       rows.push({l:'Avg '+m.l, c:m.c, fn:g=>{
         const t=groupDistTime(g.strokes);
         if(t){
-          if(m.k==='pace')return m.fmtAvg(500*t.secs/t.metres);
+          if(m.k==='pace'){
+            const bestArr=g.strokes.filter(m.filter).map(m.val);
+            const bestP=bestArr.length?arrMin(bestArr):null;
+            let gp=500*t.secs/t.metres;
+            if(bestP!=null&&gp<bestP)gp=bestP;
+            return m.fmtAvg(gp);
+          }
           return m.fmtAvg(t.metres/t.gaps);
         }
         const arr=g.strokes.filter(m.filter).map(m.val);
