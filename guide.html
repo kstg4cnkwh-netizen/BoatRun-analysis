@@ -1114,13 +1114,14 @@ img.inline{display:inline;margin:0 3px;vertical-align:-.32em;height:1.45em;width
 <p><strong>Use:</strong> the clearest sign of a hurried stroke. If ratio collapses as rate climbs, you're shortening the recovery instead of quickening the drive.</p>
 
 <h3>🟢 Stroke Char (%)</h3>
-<p>Where in the drive the peak acceleration lands. 0% = at the catch, 100% = at the finish.</p>
+<p>Where the drive force is centred in time. 0% = all at the catch, 100% = all at the finish. It is the impulse centroid - every sample of the drive acceleration curve is weighted by how much force it carried, rather than reading off the single biggest sample. That makes it far steadier stroke to stroke, because a good drive has a broad flat top where the exact peak sample wanders.</p>
 <ul>
-<li>30–45% - front-loaded</li>
-<li>50–60% - mid-drive</li>
-<li>65%+ - back-loaded (or soft/late catch)</li>
+<li>Under 45% - front-loaded</li>
+<li>45–55% - mid-drive</li>
+<li>Over 55% - back-loaded (or soft/late catch)</li>
 </ul>
 <p><strong>Use:</strong> rising Char through a session means the catch is going under fatigue. Pair it with Positive Catch Slope as high slope with low Char is clean front-end loading.</p>
+<p><strong>Note:</strong> earlier versions used the single peak acceleration sample instead of the centroid. Values from older sessions read lower and are noisier - don't compare the two directly.</p>
 
 <h3>🟢 Recovery Loss</h3>
 <p>Speed lost to deceleration during the recovery, normalised per second of recovery so the number is comparable across stroke rates. Accelerometer-derived, condition-independent. Lower is better.</p>
