@@ -3652,7 +3652,11 @@ function zoomAnchorIdx(){
 function scrollZoom(canvas, deltaY, cx) {
   if(!ST.length)return;
   const centerIdx=getMainIdx(cx-canvas.getBoundingClientRect().left)+viewS;
-  zoomAround(centerIdx,(viewE-viewS)*(deltaY>0?1.3:0.77));
+  /* Scale with how far the wheel actually moved rather than a fixed step per
+     event. A Mac trackpad fires a stream of tiny deltas where a mouse wheel
+     fires one big notch, so the old fixed 1.3x per event ran away on the
+     trackpad while feeling right on a wheel. */
+  zoomAround(centerIdx,(viewE-viewS)*Math.exp(clamp(deltaY,-160,160)*0.0035));
 }
 
 window.zoomChart=function(dir){
@@ -4147,11 +4151,17 @@ function setupMainEvents(canvas){
        1 finger up/down  = page scroll, handled natively by touch-action:pan-y;
                            the browser fires touchcancel and we drop the drag,
                            so scrolling past the chart no longer grabs it.
-       2 fingers         = pinch zoom anchored between the fingers, so the
-                           stretch under your fingers stays under your fingers.
+       2 fingers         = pinch to zoom AND drag to scroll, together. The
+                           stroke that started under the midpoint of the two
+                           fingers stays under it, so spreading zooms, sliding
+                           pans sideways, and doing both at once works too.
        double tap        = reset zoom. */
-  let pinchD0=0,pinchSpan0=0,pinchAnchor=0,pinchFrac=0.5,isPinch=false,lastTapT=0;
+  let pinchD0=0,pinchSpan0=0,pinchAnchor=0,isPinch=false,lastTapT=0;
   const touchDist=t=>Math.hypot(t[0].clientX-t[1].clientX,t[0].clientY-t[1].clientY);
+  const touchMidX=t=>(t[0].clientX+t[1].clientX)/2-canvas.getBoundingClientRect().left;
+  /* Where a canvas x sits across the plot area, 0 at the left edge, 1 at the
+     right — this is what turns midpoint movement into a pan. */
+  const plotFrac=cx=>{const g=canvas._g;return (g&&g.pw>0)?clamp((cx-g.PL)/g.pw,0,1):0.5;};
 
   canvas.addEventListener('touchstart',e=>{
     if(e.touches.length>=2){
@@ -4161,9 +4171,7 @@ function setupMainEvents(canvas){
       selS=-1;selE=-1;hlRows([]);
       pinchD0=touchDist(e.touches)||1;
       pinchSpan0=viewE-viewS;
-      const midX=(e.touches[0].clientX+e.touches[1].clientX)/2-canvas.getBoundingClientRect().left;
-      pinchAnchor=viewS+getMainIdx(midX);
-      pinchFrac=pinchSpan0>0?clamp((pinchAnchor-viewS)/pinchSpan0,0,1):0.5;
+      pinchAnchor=viewS+getMainIdx(touchMidX(e.touches));
       schedRender();
       return;
     }
@@ -4178,7 +4186,9 @@ function setupMainEvents(canvas){
     if(isPinch&&e.touches.length>=2){
       e.preventDefault();
       const d=touchDist(e.touches)||1;
-      zoomToSpanAt(pinchAnchor,pinchFrac,pinchSpan0*(pinchD0/d));
+      /* Span from the finger spread, position from where the fingers now are:
+         holding the spread constant and sliding is a pure left/right scroll. */
+      zoomToSpanAt(pinchAnchor,plotFrac(touchMidX(e.touches)),pinchSpan0*(pinchD0/d));
       return;
     }
     if(!isDragMain||!e.touches.length)return;
@@ -4226,13 +4236,19 @@ function setupMainEvents(canvas){
   canvas.addEventListener('mouseleave',hideTooltip);
   canvas.addEventListener('wheel',e=>{
     e.preventDefault();
-    if(Math.abs(e.deltaX)>Math.abs(e.deltaY)){
+    /* Firefox reports lines and pages instead of pixels — normalise first so
+       the zoom rate is the same speed on every browser. */
+    const k=e.deltaMode===1?16:(e.deltaMode===2?400:1);
+    const dx=e.deltaX*k, dy=e.deltaY*k;
+    /* ctrlKey means a trackpad pinch, which must always zoom even though the
+       browser delivers it as a vertical scroll. */
+    if(!e.ctrlKey&&Math.abs(dx)>Math.abs(dy)){
       if(mainCanvas&&mainCanvas._g){
         const{pw,N}=mainCanvas._g;
-        if(pw>0) panBy(Math.round(e.deltaX/pw*N));
+        if(pw>0) panBy(Math.round(dx/pw*N));
       }
     } else {
-      scrollZoom(canvas,e.deltaY,e.clientX);
+      scrollZoom(canvas,dy,e.clientX);
     }
   },{passive:false});
 }
