@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>BoatRun - Privacy Policy</title>
+<title>BoatRun — Privacy Policy</title>
 <style>
   body {
     font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
@@ -25,30 +25,30 @@
 </head>
 <body>
 
-<h1>BoatRun - Privacy Policy</h1>
-<p class="updated">Last updated: 17 August 2026</p>
+<h1>BoatRun — Privacy Policy</h1>
+<p class="updated">Last updated: 25 August 2026</p>
 
 <p>BoatRun is a set of personal rowing performance tools (Metrics, Analyser, Coach). This page explains what data BoatRun collects, how it's used, and how to delete it.</p>
 
 <h2>What data is collected</h2>
 <ul>
-  <li><strong>GPS location</strong> - recorded only while a session is actively running, to calculate speed, pace and distance.</li>
-  <li><strong>Motion sensor data</strong> - phone accelerometer, used on-device to detect stroke timing and technique metrics. Raw sensor data never leaves your device.</li>
-  <li><strong>Heart rate</strong> - if you connect a heart rate strap, or import a Garmin FIT/TCX/GPX file.</li>
-  <li><strong>Username</strong> - you set your own display name in the app. It is not set by a coach, and is the only identifying label attached to your live or uploaded session data.</li>
-  <li><strong>Session data you create</strong> - stroke rate, pace, distance, and related rowing metrics generated from the above.</li>
+  <li><strong>GPS location</strong> — recorded only while a session is actively running, to calculate speed, pace and distance.</li>
+  <li><strong>Motion sensor data</strong> — phone accelerometer, used on-device to detect stroke timing and technique metrics. Raw sensor data never leaves your device.</li>
+  <li><strong>Heart rate</strong> — if you connect a heart rate strap, or import a Garmin FIT/TCX/GPX file.</li>
+  <li><strong>Session data you create</strong> — stroke rate, pace, distance, and related rowing metrics generated from the above.</li>
+  <li><strong>Account details (optional)</strong> — if you sign in with Google or Apple, BoatRun stores the account identifier supplied by that provider, together with your subscription tier, so Pro features can be unlocked on your devices. No password is ever created or held by BoatRun.</li>
 </ul>
 
 <h2>Where data is stored</h2>
 <ul>
-  <li><strong>On your device</strong> - all session data is saved locally in your browser first.</li>
-  <li><strong>Your Google Drive (optional)</strong> - if you sign in, sessions are backed up to a hidden app-data folder in your own Google Drive. This folder is private to BoatRun and not visible in your normal Drive view. No one else can access it.</li>
-  <li><strong>Firebase - live broadcast</strong> - while connected to a squad session, your live stroke rate, pace and username are broadcast to your coach's and squadmates' screens in real time. This live broadcast is not stored permanently. All Firebase traffic is encrypted in transit (TLS) and encrypted at rest by Google's infrastructure.</li>
-  <li><strong>Firebase - sent-to-coach sessions</strong> - if you are connected to a coach in Coach mode, your full session file is automatically uploaded to the squad's cloud storage when the session ends, along with your username only. This storage can optionally be password protected by the coach, and is only accessible to squad members at the "coach" role level. Files stay there until your coach prunes them (records older than 21 days are removed automatically) or you request earlier deletion.</li>
+  <li><strong>On your device</strong> — all session data is saved locally in your browser first.</li>
+  <li><strong>Your Google Drive (optional)</strong> — if you sign in, sessions are backed up to a hidden app-data folder in your own Google Drive. This folder is private to BoatRun and not visible in your normal Drive view. No one else can access it.</li>
+  <li><strong>Firebase (Coach mode only)</strong> — if you join a squad session, your live stroke rate, pace and name are broadcast to your coach's screen in real time via Firebase, for the duration of the session. This is not stored permanently.</li>
+  <li><strong>Firebase (account record)</strong> — if you sign in, a single record holding your account identifier and subscription tier is kept so Pro access follows you across devices.</li>
 </ul>
 
 <h2>Strava integration</h2>
-<p>If you choose to connect Strava, BoatRun requests permission to upload activities on your behalf. We use this only to create a Strava activity from a session you choose to export - nothing is uploaded automatically or without your action.</p>
+<p>If you choose to connect Strava, BoatRun requests permission to upload activities on your behalf. We use this only to create a Strava activity from a session you choose to export — nothing is uploaded automatically or without your action.</p>
 <ul>
   <li>BoatRun does not read, store, or analyse your existing Strava activities or profile data beyond what's needed to complete the upload.</li>
   <li>You can revoke access at any time from BoatRun's settings, or directly at <code>strava.com/settings/apps</code>.</li>
@@ -61,20 +61,23 @@
   <li>No ads.</li>
 </ul>
 
-<h2>Children & schools</h2>
-<p>BoatRun is not designed or marketed for children to use unsupervised. Where BoatRun is used by junior rowers through a school or club program, we rely on the school, club, or a parent/guardian to obtain any consent required by applicable law before a minor uses the app, and to supervise the minor's access to squad codes and shared data accordingly.</p>
+<h2>Deleting your account</h2>
+<p>You can delete your BoatRun account and its associated data at any time, directly in the app: open <strong>Metrics → Settings → Your Data → Account</strong> and tap <strong>Delete My Account</strong>. You will be asked to confirm twice, and the action cannot be undone.</p>
+<p>Deleting your account permanently removes:</p>
 <ul>
-  <li>No account or personal profile is required - a squad code identifies a rower's device within a session, not the individual.</li>
-  <li>The rower sets their own display name; we recommend schools instruct junior rowers to use first name or initials only, not full names.</li>
-  <li>We do not use any user's data, including a minor's, for advertising, marketing, or profiling.</li>
+  <li>Your BoatRun sign-in (the Google or Apple linked account record held by BoatRun).</li>
+  <li>Your subscription tier / entitlement record stored in Firebase.</li>
+  <li>Your live squad membership entry, so you no longer appear on any coach's screen.</li>
+  <li>All BoatRun session files stored in your Google Drive app-data folder, if Drive is linked at the time of deletion.</li>
 </ul>
+<p>Sessions saved locally on your own device are not touched by account deletion — delete those separately from the in-app session log if you want them gone. Purchase and billing records held by Apple or Google are retained by those companies under their own policies and for the period required by law; BoatRun cannot delete them. Deleting your account does not cancel an active subscription — cancel that in the App Store or Google Play subscriptions screen.</p>
+<p>If you can no longer sign in, email <strong>bigwig.91mash@icloud.com</strong> from the address linked to your account and deletion will be carried out manually within 30 days.</p>
 
-<h2>Deleting your data</h2>
+<h2>Deleting individual data</h2>
 <ul>
-  <li><strong>Local data</strong> - clear it from BoatRun's in-app settings, or by clearing your browser's site data for this page.</li>
-  <li><strong>Google Drive data</strong> - use the "Delete my Drive data" button in Metrics settings (while signed in) to permanently delete all session files from your Drive app folder. Revoking access at <code>myaccount.google.com/permissions</code> stops BoatRun from reading or writing the folder, but does not delete files already stored there - deletion must be done from within the app while signed in, since BoatRun has no separate server access to your Drive.</li>
-  <li><strong>Sent-to-coach data</strong> - your coach can prune squad cloud records from Settings, or records are removed automatically after 21 days.</li>
-  <li><strong>Strava connection</strong> - disconnect from BoatRun settings or from Strava directly; this also deletes the stored access token.</li>
+  <li><strong>Local data</strong> — clear it from BoatRun's in-app settings, or by clearing your browser's site data for this page.</li>
+  <li><strong>Google Drive data</strong> — use the "Delete my Drive data" button in Metrics settings (while signed in) to permanently delete all session files from your Drive app folder. Revoking access at <code>myaccount.google.com/permissions</code> stops BoatRun from reading or writing the folder, but does not delete files already stored there — deletion must be done from within the app while signed in, since BoatRun has no separate server access to your Drive.</li>
+  <li><strong>Strava connection</strong> — disconnect from BoatRun settings or from Strava directly; this also deletes the stored access token. Activities already uploaded to Strava remain in your Strava account and must be deleted there.</li>
 </ul>
 
 <h2>Contact</h2>
