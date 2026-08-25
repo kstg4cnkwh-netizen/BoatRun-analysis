@@ -4,6 +4,7 @@
 <meta charset="UTF-8"/>
 <meta name="viewport" content="width=device-width,initial-scale=1"/>
 <title>BoatRun — User Guide</title>
+<link rel="icon" type="image/png" href="icons/icon-192.png">
 <style>
 :root{
   --blue:#2e74b5;
@@ -431,7 +432,7 @@ img.inline{display:inline;margin:0 3px;vertical-align:-.32em;height:1.45em;width
 <table class="lead">
 <tr><th>Where</th><th>What's there</th><th>Who can see it</th></tr>
 <tr><td>Your phone</td><td>Every session, full detail. Raw motion and GPS traces in a local database.</td><td>You</td></tr>
-<tr><td>Your Google Drive</td><td>A copy of each session, plus a small index of them, in a private hidden app folder</td><td>You. BoatRun can write there and recover sessions from there. It can also delete the entire drive via SETTINGS → YOUR DATA. Analyser can read from there and delete individual sessions.</td></tr>
+<tr><td>Your Google Drive</td><td>A copy of each session, plus a small index of them, in a private hidden app folder</td><td>You. BoatRun writes there, recovers sessions from there, and deletes from there - one session at a time from the LOG, or the lot via SETTINGS → YOUR DATA. The Analyser reads the same folder and can delete individual sessions too.</td></tr>
 <tr><td>Squad cloud (while connected)</td><td>Live rate, pace, position, and the metrics your coach has enabled</td><td>Your coach and anyone with the squad code</td></tr>
 <tr><td>Squad cloud (if you tap Send to coach)</td><td>The full session file</td><td>Your coach and anyone with the squad code, until pruned</td></tr>
 <tr><td>Strava (Pro, if linked)</td><td>The activity, as a TCX upload</td><td>Per your Strava privacy settings</td></tr>
@@ -443,11 +444,14 @@ img.inline{display:inline;margin:0 3px;vertical-align:-.32em;height:1.45em;width
 <p>Only sent while you have a squad code set and connected. Disconnect in Settings and nothing leaves the phone. Position and metrics are sent - treat a squad code like a shared password.</p>
 
 <h2>Clearing things out</h2>
+<p>Everything lives under <strong>HOME → SETTINGS → YOUR DATA</strong>.</p>
 <ul>
-<li><strong>DELETE MY DRIVE DATA</strong> - Settings → YOUR DATA. Permanently deletes every BoatRun session in your Drive. Local sessions are untouched.</li>
-<li><strong>PRUNE SQUAD SESSIONS (Coach mode only)</strong> - Settings → YOUR DATA. Removes squad cloud records older than 21 days for the squad code you are connected to.</li>
-<li><strong>Per-session Drive delete</strong> - Analyser only. See below.</li>
+<li><strong>STORAGE…</strong> - the safe one. Reports what BoatRun is using and offers to free space without deleting anything. Full detail below.</li>
+<li><strong>DELETE MY DRIVE DATA</strong> - permanently deletes every BoatRun session in your Drive. Sessions on the phone are untouched.</li>
+<li><strong>PRUNE SQUAD SESSIONS (Coach mode only)</strong> - removes squad cloud records older than 21 days for the squad code you are connected to.</li>
+<li><strong>Deleting one session</strong> - swipe it left in the LOG, or use the trash icon in the Analyser. This deletes it <em>everywhere</em>. See below.</li>
 </ul>
+<p class="note">Deleting and freeing space are now two different things. <strong>STORAGE… frees space and loses nothing. DELETE removes the session for good, on every device.</strong> If all you want is room on the phone, never use DELETE.</p>
 
 <h2>Sync with Drive</h2>
 <p>The <strong>☁ Sync with Drive</strong> button at the top of the session log brings down every session in your Drive that this phone doesn't already have. That's how you set up a new phone, or recover after reinstalling the app.</p>
@@ -455,27 +459,40 @@ img.inline{display:inline;margin:0 3px;vertical-align:-.32em;height:1.45em;width
 <p>Your Drive copy is the one that always survives. Phones reclaim storage when they get full, and iOS can clear an app's cached data - if that happens, the session detail is simply fetched back from Drive when you open it. As long as you're signed in and syncing, nothing is lost.</p>
 
 <h2>How sessions are stored on the phone</h2>
-<p>A full session - every stroke, every acceleration curve, the GPS track - is around three quarters of a megabyte. A season of rowing is tens of megabytes, which is far more than the small, fast store the session list is drawn from can hold.</p>
-<p>So BoatRun splits each session in two:</p>
+<p>A full session - every stroke, every acceleration curve, the GPS track - is around three quarters of a megabyte. A season of rowing is tens of megabytes, far more than the small, fast store the session list is drawn from can hold.</p>
+<p>So BoatRun splits every session in two the moment it is saved:</p>
 <ul>
-<li>A <strong>summary</strong> - date, distance, time, average pace, stroke count. A couple of hundred bytes. This is what the LOG list draws, and every session you have ever recorded keeps one.</li>
-<li>The <strong>full session</strong> - all the stroke and GPS detail. Held separately, and loaded the moment you open that session.</li>
+<li>A <strong>summary</strong> - date, distance, time, average pace, stroke count. A couple of hundred bytes. This is what the LOG list draws, and every session you have ever recorded keeps one, forever.</li>
+<li>The <strong>full session</strong> - all the stroke and GPS detail, held in a separate database on the phone and loaded the moment you open that session.</li>
 </ul>
-<p>You should never notice this. The log opens instantly however many sessions you have, and tapping one loads the detail straight from the phone - no network needed, so it works mid-river with no signal.</p>
-<p>The newest few sessions are kept whole either way, so your most recent rows are always immediately to hand.</p>
+<p>You should never notice this. The log opens instantly however many sessions you have, and tapping one loads the detail straight off the phone - no network needed, so it works mid-river with no signal.</p>
 
-<h2>Running out of space on the phone</h2>
-<p>Your phone's storage is finite, and BoatRun will not let it block a session from saving. If the app can't fit a finished session, it works through these steps automatically, in order:</p>
+<h2>Freeing up space - SETTINGS → YOUR DATA → STORAGE…</h2>
+<p>This is the one button to know about. It first reports what BoatRun is actually using:</p>
+<ul>
+<li>Total in use, and what share of the space the phone is willing to give the app</li>
+<li>How many sessions are in the log, and how many of those still have their full copy on the phone</li>
+<li>How many of those full copies are <strong>backed up on Drive</strong>, and how many are the <strong>only copy on this phone</strong></li>
+<li>Raw sensor traces and export data held separately, and leftovers from older versions of the app</li>
+</ul>
+<p>Then it offers to free space. It removes the on-phone copy of sessions that are <strong>older than 30 days</strong> <em>and</em> confirmed present in your Drive, and tells you roughly how much that will save before you agree to it.</p>
+<p><strong>Nothing is deleted.</strong> Every one of those sessions stays in your log exactly as before. Open one and it downloads again from Drive - which does mean you need signal and a linked Drive to reopen an older row. Anything from the last 30 days is left whole on the phone, because that is the stretch you are most likely to want at the shed with no reception.</p>
+<p><strong>A session that is not on Drive is never touched</strong>, however old it is - for those the phone holds the only copy. If the report warns you that some sessions exist only on this phone, sync before freeing space.</p>
+<p>If there is nothing old enough to free, it simply says so.</p>
+
+<h2>If the phone fills up anyway</h2>
+<p>BoatRun will not let full storage cost you a session. If it can't fit one when you press FINISH, it works through these steps on its own, in order:</p>
 <ol>
-<li>Strips the raw GPS/IMU trace data from stored sessions - the CSV/JSON export and every displayed metric are unaffected, this only removes the debug-level trace.</li>
-<li>If that isn't enough, removes synced sessions from the phone, <strong>oldest to newest</strong>, one at a time, stopping as soon as there's room. A session is only removed here once its Drive copy is confirmed, so nothing is lost - it works exactly like the manual LOG delete below, just automatic.</li>
-<li>If every session on the phone has synced and there's still no room, the current session is kept safe in an autosave slot instead of being lost, and you're prompted to sync and delete old sessions before finishing again.</li>
+<li>Strips the raw GPS/IMU trace data from stored sessions - every displayed metric and every export is unaffected; this only drops the debug-level trace.</li>
+<li>Removes the on-phone copy of already-synced sessions, oldest first, stopping as soon as there is room. Those sessions stay in the log and come back from Drive when opened.</li>
+<li>If there is still no room, the session is kept safe in an autosave slot rather than being lost, and you are told to free space and press Finish again. Do not close the app at that point.</li>
 </ol>
-<p><strong>Unsynced sessions are never removed automatically.</strong> If a session hasn't backed up to Drive yet, it stays on the phone no matter how full storage gets - that copy is the only one that exists. Connect Drive and keep it syncing so this process always has something safe to clear.</p>
+<p><strong>Unsynced sessions are never removed automatically.</strong> Connect Drive and keep it syncing, so this process always has something safe to clear.</p>
 
 <h2>Deleting a session</h2>
 <img class="fr w-sm" src="screenshots/data-restore-log.png" alt="Session log showing Sync with Drive and Synced badges" loading="lazy"/>
-<p><strong>Deleting anywhere deletes everywhere.</strong> Delete a session in <strong>HOME → LOG</strong>, or with the trash icon in the Analyser, and it goes from that device, from your Google Drive, and from every other device on its next sync.</p>
+<p><strong>Deleting anywhere deletes everywhere.</strong> Swipe a card left in <strong>HOME → LOG</strong> and tap the red DELETE, or use the trash icon in the Analyser, and it goes from that device, from your Google Drive, and from every other device on its next sync.</p>
+<p>Use this only when you genuinely want the session gone. To make room on the phone, use <strong>STORAGE…</strong> above instead - it frees the same space and keeps every session.</p>
 <p>There is no undo. The file is removed from the hidden app folder in your Drive, which is not the same as Drive's normal bin - it cannot be recovered from there afterwards. Both apps therefore ask you to confirm first, and the phone names the session in the confirmation so a mis-swipe is caught before it does any damage.</p>
 <p>If you delete while offline, the session goes from the phone immediately and the Drive copy is removed the next time you sync. The app tells you which of the two happened.</p>
 <p>The <strong>DELETE MY DRIVE DATA</strong> button in SETTINGS – YOUR DATA wipes every session in your Drive at once, and is the only bulk delete.</p>
@@ -561,13 +578,15 @@ img.inline{display:inline;margin:0 3px;vertical-align:-.32em;height:1.45em;width
 <img class="w-lg" src="screenshots/curve-template-live.png" alt="CURVE tab with a dashed stroke template drawn behind the live curve and template pills bottom right" loading="lazy"/>
 
 <h3>Getting templates onto the phone</h3>
-<p><strong>HOME → SETTINGS → STROKE TEMPLATES → IMPORT TEMPLATE…</strong>. Pick the JSON file the Analyser exported. Each one lists its kind (on-water or erg force), the rates it holds and how much storage it uses. Rename with ✎, delete with ×. Templates live on the phone only - they are not synced - so delete any you no longer use if the total starts getting large.</p>
-<img class="w-md" src="screenshots/settings-templates.png" alt="Settings stroke templates list with USE, rename and delete buttons" loading="lazy"/>
+<p><strong>HOME → SETTINGS → STROKE TEMPLATES → IMPORT TEMPLATE…</strong>. Pick the JSON file the Analyser exported. Re-importing a file you already have replaces it rather than making a duplicate.</p>
+<p>The list underneath is split into <strong>ON-WATER</strong> and <strong>ERG</strong>, each headed with how many are armed - <strong>2/3 ARMED</strong>, for instance. Each row shows a colour chip, the name, and how many rates it holds, their range, and its size. Rename with ✎, delete with ×. The running total sits at the bottom and turns orange once the library gets large. Templates live on the phone only - they are not synced.</p>
+<img class="w-md" src="screenshots/settings-templates.png" alt="Settings stroke templates list, split into ON-WATER and ERG with armed counts" loading="lazy"/>
 
-<h3>Showing them</h3>
-<p>Tap the <strong>TEMPLATES</strong> button at the top of the curve to arm up to 3 templates. Each one gets a coloured pill on the curve - tap a pill to draw that template, tap it again to take it off. This works without leaving the live screen, so you can switch targets mid-piece.</p>
-<img class="fr w-sm" src="screenshots/tpl-multi-modal.png" alt="TEMPLATES modal, picking up to three templates to show as pills" loading="lazy"/>
-<p>The app only ever draws templates of the matching kind: on-water templates on the Row and Cox curve, erg force templates on the Erg curve. Anything of the wrong kind is simply not drawn.</p>
+<h3>Arming and showing them</h3>
+<p>You get <strong>three on-water slots and three erg slots</strong>, kept separately - arming three on-water templates never crowds out your erg ones. Arm a template either by tapping its row in that Settings list, or by tapping the <strong>TEMPLATES</strong> button at the top of the curve and picking from there. Both lists are the same set of slots.</p>
+<img class="fr w-sm" src="screenshots/tpl-multi-modal.png" alt="TEMPLATES modal, picking up to three on-water and three erg templates" loading="lazy"/>
+<p>Each armed template gets a coloured pill in the corner of the curve, and its dashed line is drawn in the same colour as its pill. Tap a pill to draw that template, tap it again to take it off. This works without leaving the live screen, so you can switch targets mid-piece.</p>
+<p>Only the matching kind is ever shown: on-water templates on the Row and Cox curve, erg force templates on the Erg curve. The other set stays armed, waiting for the mode it belongs to.</p>
 
 <h3>Reading it</h3>
 <p>Between the rates in the template the shape is interpolated. Above the highest rate it holds, the drive keeps its recorded length and only the recovery is compressed to fit - so a template built at 18-30 still gives you something sensible at 34.</p>
@@ -604,7 +623,8 @@ img.inline{display:inline;margin:0 3px;vertical-align:-.32em;height:1.45em;width
 
 <h3>With a workout loaded</h3>
 <p>Timed and distance steps advance on their own - work for 1000m, rest for 4 minutes. Open-ended steps do not, so press <strong>LAP</strong> to end a warmup or an open rest period.</p>
-<p>If the next step is set to start when rowing, the button shows <strong>LAP READY</strong> and the same two-stroke gate applies: the step waits, the workout bar reads <strong>READY / ROW!</strong>, and the countdown only begins once you are actually rowing. Press the green <strong>READY</strong> button to force it to start.</p>
+<p>How the <em>first</em> work step begins is one choice made on the workout itself, not on the step - see <a href="#s11">section 11</a>. Set to <strong>AFTER 5 SEC</strong>, pressing LAP at the end of the warmup runs a 5-4-3-2-1 countdown into the piece. Set to <strong>WHEN ROWING</strong>, the button shows <strong>LAP READY</strong> and the same two-stroke gate applies: the step waits, the workout bar reads <strong>READY / ROW!</strong>, and the countdown only begins once you are actually rowing. Press the green <strong>READY</strong> button to force it to start.</p>
+<p>Everything after that first step runs straight through without waiting.</p>
 <img class="w-lg" src="screenshots/workout-bar-ready.png" alt="Workout bar showing READY and ROW! while the step waits for the first strokes" loading="lazy"/>
 
 <h2>Stopping and finishing</h2>
@@ -674,25 +694,52 @@ img.inline{display:inline;margin:0 3px;vertical-align:-.32em;height:1.45em;width
 
 <p><strong>HOME → WORKOUTS</strong></p>
 
+<h2>On-water and erg are two separate sets</h2>
+<p>Every workout belongs to one venue or the other, and you only ever see the set that matches what you're doing - on-water workouts in Row and Cox, erg workouts in Erg mode. Erg ones carry a red <strong>ERG</strong> badge. Coach mode sees both and switches between them with the <strong>ON WATER / ERG</strong> buttons at the top of the list, because a coach sends to both halves of a squad.</p>
+<p>A new workout is created in whichever set is on screen at the time.</p>
+
 <h2>Built in</h2>
-<p><strong>Race 1000m</strong> - open warmup until LAP pressed → 1000m work (starts when you start rowing) → open cooldown until you press STOP.</p>
+<p><strong>Race 1000m</strong> - open warmup until LAP pressed → 1000m work → open cooldown until you press STOP.</p>
 <p><strong>Baseline: Rate Ladder</strong> - open warmup → 4 × [1 min 24, 1 min 26, 1 min 28, 1 min 30, 4 min rest] → open cooldown. The last rest is skipped.</p>
+<p><strong>Erg: 6 × 500m / 3min</strong> - the erg-set default, pushed straight to the PM5.</p>
 <img class="w-md" src="screenshots/workout-editor.png" alt="Workouts screen with the Race 1000m editor open" loading="lazy"/>
 
 <h2>Building your own</h2>
-<p><strong>+ NEW WORKOUT</strong> → name it → add steps.</p>
-<ul>
-<li><strong>Warmup / Cooldown</strong> - run until you tap Lap</li>
-<li><strong>Work</strong> - time or distance, with an optional target rate and/or pace</li>
-<li><strong>Rest</strong> - time or distance</li>
-</ul>
-<p>Select two or more adjacent steps and tap <strong>REPEATS</strong> to group them, then set the repeat count and whether to skip the final rest.</p>
+<p><strong>+ NEW WORKOUT</strong> → name it → add steps with the coloured buttons underneath.</p>
+<p>An on-water workout always opens with a <strong>WARMUP</strong> and always ends with a <strong>COOLDOWN</strong>. They are fixed bookends - no tick box, no delete, no arrows - so nothing can be dragged outside them. Erg workouts have neither, because the PM5 has no equivalent and there is no lap button on the erg to end an open-ended step with.</p>
+<div class="tblwrap">
+<table class="lead">
+<tr><th>Step</th><th>What you set</th></tr>
+<tr><td><strong>WARMUP</strong></td><td>Nothing. Runs until you press LAP.</td></tr>
+<tr><td><strong>WORK</strong></td><td><strong>TIME</strong> or <strong>DIST</strong>, then the value. Optional targets underneath - tap <strong>SPM</strong> and/or <strong>PACE</strong> to switch each one on, then set it with the − and + buttons.</td></tr>
+<tr><td><strong>REST</strong></td><td><strong>TIME</strong>, <strong>DIST</strong>, or <strong>LAP</strong> for an open rest that only ends when you press LAP.</td></tr>
+<tr><td><strong>COOLDOWN</strong></td><td>Nothing. Runs until you press STOP to finish the session.</td></tr>
+</table>
+</div>
+<p>Every value can be nudged with the big − and + buttons or typed straight into the box - <strong>m:ss</strong> for times, plain metres for distances. The ▲▼ arrows beside a step move it up or down the list; <strong>×</strong> deletes it.</p>
+
+<h3>Start - one choice for the whole workout</h3>
+<p>Directly under the warmup is a single <strong>Start:</strong> row. This replaces the old per-step ready-mode toggle, which is gone.</p>
+<div class="tblwrap">
+<table class="lead">
+<tr><td><strong>AFTER 5 SEC</strong> <span class="light">(blue)</span></td><td>Press LAP at the end of the warmup and a 5-4-3-2-1 countdown starts the first work step.</td></tr>
+<tr><td><strong>WHEN ROWING</strong> <span class="light">(green)</span></td><td>Ready mode. The lap button offers <strong>LAP READY</strong> during the warmup, then sits on green <strong>READY</strong> and the first work step waits until you are actually rowing.</td></tr>
+</table>
+</div>
+<p>The two buttons are coloured to match the LAP button you will be pressing, so you are picking the button, not a setting. After the first work step the piece runs straight through on its own.</p>
+
+<h3>Repeats</h3>
+<p>Tick two or more adjacent steps and the <strong>↻ REPEATS</strong> button appears. Tap it, give it a count, and they become a repeat block. Set the count in the box on the block header, and tick <strong>Skip last rest</strong> if you don't want the final rest to run. Skip-last-rest is on-water only - the PM5 always counts down every rest it was armed with, including the last.</p>
 <div class="shots three">
   <img class="w-sm" src="screenshots/workout-steps.png" alt="Workout step list with steps selected" loading="lazy"/>
   <img class="w-sm" src="screenshots/workout-repeats.png" alt="How many repeats prompt" loading="lazy"/>
   <img class="w-sm" src="screenshots/workout-grouped.png" alt="Grouped repeat block with skip last rest" loading="lazy"/>
 </div>
-<p><img class="inline" src="screenshots/icon-ready-mode.png" alt="Ready mode icon"/> <strong>Start when rowing (READY MODE)</strong> - tap a work or rest step to enable. The step holds until you're actually rowing (two strokes at 12 spm or more). Good for racing starts once you're paused at the start.</p>
+<p><strong>SAVE</strong> keeps it in the list; <strong>CANCEL</strong> drops it. Tapping a workout card opens it - <strong>EDIT</strong> reopens the builder, <strong>DEL</strong> removes it.</p>
+
+<h2>Building one mid-session</h2>
+<p>You don't have to go back to HOME. The <strong>Load Workout</strong> button on the live screen opens a quick builder: a straight distance, a straight time, a set of identical intervals with rest, or a list of different intervals. Give it a name to save it to your library, or leave the name blank to just run it once. On the water it gets the same <strong>START</strong> choice, and warmup and cooldown are added around it automatically.</p>
+<p>The same screen lists your saved workouts, so this is also the quickest way to load one you already have. In Coach mode the button reads <strong>SEND TO SQUAD</strong> instead.</p>
 
 <h2>During the workout</h2>
 <p>The INTERVALS tab counts down. The workout tile shows the current step and time or distance remaining. The step is also displayed in the top left corner of the display and on the coach's app (if connected). A 5-second countdown overlay appears before each work interval along with a tone (ensure the phone volume in control centre is at maximum and the phone is not on silent). At the end of the work interval, a tone will sound and a lap summary will appear.</p>
@@ -835,7 +882,7 @@ img.inline{display:inline;margin:0 3px;vertical-align:-.32em;height:1.45em;width
 <h1 id="s15">15. Session log, exports and Sync with Drive</h1>
 
 <p><strong>HOME → LOG</strong></p>
-<p>Every session, newest first, with distance, duration, pace and a <strong>synced</strong> badge if the Drive copy is confirmed. Tap one to open it.</p>
+<p>Every session, newest first, with distance, duration, pace and a badge reading <strong>Synced</strong> once the Drive copy is confirmed, or <strong>Awaiting Sync</strong> until it is. A second badge tracks squad upload if the session belongs to one. Tap a card to open it; swipe it left to reveal DELETE.</p>
 
 <h2>Session detail</h2>
 <p>Summary cards, colour-coded by what affects them - green independent, blue boat-dependent, red condition-dependent. Then lap tables, workout interval breakdown if there was one, and charts for every metric.</p>
@@ -857,7 +904,7 @@ img.inline{display:inline;margin:0 3px;vertical-align:-.32em;height:1.45em;width
 <tr><td>TCX Export</td><td>Standard training file. Uploads to Strava, Garmin Connect, TrainingPeaks. GPS track plus heart rate.</td></tr>
 <tr><td>FIT Export (Recommended)</td><td>Same destinations as TCX, better fidelity - this is the format Garmin and Strava handle most cleanly. Use this one unless something specifically wants TCX. Garmin Connect on Safari sometimes has difficulty importing FIT files. <strong>Recommend using Chrome to import FIT to Garmin Connect</strong>.</td></tr>
 <tr><td>JSON</td><td>The complete session - every stroke, every metric, raw traces where present. This is the full-fidelity format and the one the Analyser prefers.</td></tr>
-<tr><td>Delete</td><td>Removes it from <strong>that device only</strong>. See below.</td></tr>
+<tr><td>Delete</td><td>Removes it from this phone, from your Drive, and from every other device. Permanent. See below.</td></tr>
 </table>
 </div>
 
@@ -876,12 +923,13 @@ img.inline{display:inline;margin:0 3px;vertical-align:-.32em;height:1.45em;width
 <p>The first sync on a new phone downloads everything and can take a few minutes; it warns you first and tells you how many sessions are coming. Later syncs are near-instant.</p>
 <p>Restore lists everything in your Drive folder that isn't currently on the phone. Tap one to pull it back. Already-present sessions are skipped.</p>
 <p><strong>What comes back:</strong> the summary, all the charts, the lap and interval tables, and everything needed to re-export as JSON, TCX or FIT.</p>
-<p>If restore fails with a storage message, delete some old local sessions first - their Drive copies are unaffected.</p>
+<p>If restore fails with a storage message, run <strong>SETTINGS → YOUR DATA → STORAGE…</strong> and free up space first. Don't delete sessions to make room - deleting removes the Drive copy too, which is the thing you are trying to restore from.</p>
 
 <h2>Deleting</h2>
-<p>Deleting in the log removes the session <strong>from the phone only</strong>. The Drive copy survives untouched, and the app remembers the deletion so it won't reappear on the next sync.</p>
-<p><strong>Per-session Drive deletion happens in the Analyser</strong>, using the trash icon beside each session in its list. The app's only Drive delete is the all-or-nothing <strong>DELETE MY DRIVE DATA</strong> in Settings.</p>
-<p>This is deliberate: it makes deleting from the phone completely safe. You can free up space aggressively knowing nothing is actually lost.</p>
+<p><strong>Deleting anywhere deletes everywhere.</strong> Swipe a card left in the log and tap the red <strong>DELETE</strong>, or use the trash icon in the Analyser, and the session goes from that device, from your Google Drive, and from every other device on its next sync. The confirmation names the session, so a mis-swipe is caught before it does any damage.</p>
+<p>There is no undo. The hidden app folder is not Drive's normal bin, so the file cannot be recovered from there afterwards. Delete while offline and the phone copy goes immediately, with the Drive copy removed on your next sync - the app tells you which of the two happened.</p>
+<p class="note"><strong>Don't delete to free up space.</strong> Use <strong>SETTINGS → YOUR DATA → STORAGE…</strong> instead. That drops only the on-phone copy of sessions already confirmed on Drive - they stay in your log, and download again the moment you open them. See <a href="#s6">section 6</a>.</p>
+<p>The all-or-nothing <strong>DELETE MY DRIVE DATA</strong> in SETTINGS → YOUR DATA is the only bulk delete.</p>
 
 <hr/>
 
@@ -1190,6 +1238,10 @@ img.inline{display:inline;margin:0 3px;vertical-align:-.32em;height:1.45em;width
 <p><strong>Drive sync failing</strong> Check Drive is connected (<img class="inline" src="screenshots/btn-drive-linked.png" alt="DRIVE LINKED"/>). Pending sessions retry automatically when the connection comes back. Export JSON as a backup if it keeps failing.</p>
 
 <p><strong>Session missing from the phone</strong> HOME → LOG → Sync with Drive.</p>
+
+<p><strong>Phone says storage is full</strong> HOME → SETTINGS → YOUR DATA → <strong>STORAGE…</strong>. It reports what BoatRun is using and offers to free space by dropping the on-phone copy of sessions older than 30 days that are already backed up on Drive. Nothing is deleted - they stay in your log and download again when opened.</p>
+
+<p><strong>A session opens slowly, or says it needs signal</strong> Its full copy has been freed off the phone and is being fetched from Drive. Anything from the last 30 days is always held whole on the phone, so this only affects older rows.</p>
 
 <p><strong>Deleted a session and want it back</strong> You can't. Deleting removes it from Drive and every device at once, which is why both apps ask you to confirm. Export sessions you might want later - raw data export is free forever.</p>
 
