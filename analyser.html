@@ -142,11 +142,12 @@
   .zoom-btn { background: var(--s2); border: 1px solid var(--border); color: var(--muted); width: 24px; height: 24px; border-radius: 6px; font-size: 14px; line-height: 1; cursor: pointer; display: flex; align-items: center; justify-content: center; padding: 0; transition: border-color .15s, color .15s; }
   .zoom-btn:hover { border-color: var(--g); color: var(--g); }
   .cbox { background: var(--s1); border: 1px solid var(--border); border-radius: 12px; padding: 12px 12px 5px; position: relative; box-shadow: var(--sh); }
-  .cbox canvas { display: block; width: 100% !important; touch-action: none; cursor: crosshair; -webkit-touch-callout: none; -webkit-user-select: none; user-select: none; }
+  .cbox canvas { display: block; width: 100% !important; touch-action: pan-y; cursor: crosshair; -webkit-touch-callout: none; -webkit-user-select: none; user-select: none; }
   #vidLineC { position: absolute; top: 12px; left: 12px; pointer-events: none; }
   .hint { text-align: center; font-size: 9px; color: var(--faint); margin-top: 4px; }
 
   /* ── Selection controls (rendered inside stats strip) ── */
+  #zoomselbtn { background: var(--s3); color: var(--text); border: 1px solid var(--border); padding: 5px 13px; border-radius: 6px; font-family: -apple-system, BlinkMacSystemFont, Helvetica Neue, sans-serif; font-size: 10px; font-weight: 700; cursor: pointer; margin-left: 6px; }
   #addcurvebtn { background: var(--b); color: #000; border: none; padding: 5px 13px; border-radius: 6px; font-family: -apple-system, BlinkMacSystemFont, Helvetica Neue, sans-serif; font-size: 10px; font-weight: 700; cursor: pointer; transition: opacity .15s; }
   #addcurvebtn:hover { opacity: .85; }
   #selclear { margin-left: auto; font-size: 10px; color: var(--muted); background: none; border: 1px solid var(--border); padding: 4px 10px; border-radius: 6px; cursor: pointer; font-family: -apple-system, BlinkMacSystemFont, Helvetica Neue, sans-serif; transition: color .15s, border-color .15s; }
@@ -154,7 +155,7 @@
 
   /* ── Overview ── */
   .ovbox { background: var(--s1); border: 1px solid var(--border); border-radius: 10px; padding: 5px 8px 2px; box-shadow: var(--sh); }
-  .ovbox canvas { display: block; width: 100% !important; touch-action: none; cursor: crosshair; -webkit-touch-callout: none; -webkit-user-select: none; user-select: none; }
+  .ovbox canvas { display: block; width: 100% !important; touch-action: pan-y; cursor: crosshair; -webkit-touch-callout: none; -webkit-user-select: none; user-select: none; }
   .zlegend { display: flex; gap: 8px; flex-wrap: wrap; margin-left: auto; }
   .zl { font-size: 9px; color: var(--muted); }
 
@@ -2151,6 +2152,19 @@ function loadFiles(fileList, replace) {
   Array.from(fileList).forEach((f,i)=>loadFile(f, replace&&i===0));
 }
 
+/* Personal bests need a cumulative distance-vs-time trace. On-water that is the
+   GPS track, but an erg session has no GPS at all, so its gpsTrace is empty and
+   every best-effort scan returned nothing. Build the equivalent trace from the
+   PM5 stroke list instead: elapsed seconds -> ms, cumulative session distance. */
+function recordsTrace(d) {
+  if (!d) return [];
+  const erg = !!(d.sum && d.sum.session_mode === 'erg');
+  if (!erg) return d.gpsTrace || [];
+  return (d.strokes || [])
+    .filter(s => s.dist != null && !isNaN(s.dist) && s.elapsed != null && !isNaN(s.elapsed))
+    .map(s => ({ t: s.elapsed * 1000, dist: s.dist }))
+    .sort((a, b) => a.t - b.t);
+}
 function addSessionFromData(d, label, replace, fileId, squadCode) {
   if (!replace && SESSIONS.length) {
     const curErg = !!(SESSIONS[0].d.sum && SESSIONS[0].d.sum.session_mode === 'erg');
@@ -2163,7 +2177,7 @@ function addSessionFromData(d, label, replace, fileId, squadCode) {
   if (replace) { SESSIONS=[]; curveGroups=[]; activeSessionIdx=-1; }
   const idx=SESSIONS.length;
   SESSIONS.push({label, d, fileId: fileId||null, squadCode: squadCode || d.squadCode || null});
-  updateRecords(d.gpsTrace, label, d.sum&&d.sum.start_time, fileId, (d.sum&&d.sum.session_mode==='erg')?'erg':'water');
+  updateRecords(recordsTrace(d), label, d.sum&&d.sum.start_time, fileId, (d.sum&&d.sum.session_mode==='erg')?'erg':'water');
   switchSession(idx);
 }
 function bestEffortForDistance(pts, targetDist) {
@@ -3610,40 +3624,62 @@ function schedRender() {
 // ── Zoom helpers ────────────────────────────────────────────────────────────
 function resetZoom(){viewS=0;viewE=ST.length-1;selS=-1;selE=-1;hlRows([]);schedRender();}
 
-function scrollZoom(canvas, deltaY, cx) {
+/* Every zoom keeps one chosen stroke pinned to the same spot on screen instead
+   of snapping the view back to its own centre. The old centre-snap was why
+   zooming in always drifted away from the part you were actually looking at. */
+function zoomToSpanAt(anchorIdx, frac, newSpan){
   const n=ST.length;
-  const centerIdx=getMainIdx(cx-canvas.getBoundingClientRect().left)+viewS;
-  const span=viewE-viewS;
-  const factor=deltaY>0?1.3:0.77;
-  const newSpan=Math.round(clamp(span*factor,4,n-1));
-  const half=Math.round(newSpan/2);
-  viewS=clamp(centerIdx-half,0,n-1-newSpan);
-  viewE=clamp(viewS+newSpan,newSpan,n-1);
+  if(n<2)return;
+  newSpan=Math.round(clamp(newSpan,4,n-1));
+  let s=Math.round(anchorIdx-clamp(frac,0,1)*newSpan);
+  s=clamp(s,0,Math.max(0,n-1-newSpan));
+  viewS=s;viewE=s+newSpan;
   schedRender();
+}
+function zoomAround(anchorIdx, newSpan){
+  const span=viewE-viewS;
+  const frac=span>0?clamp((anchorIdx-viewS)/span,0,1):0.5;
+  zoomToSpanAt(anchorIdx, frac, newSpan);
+}
+/* Anchor for the +/- buttons and the zoom slider: the middle of the current
+   selection if there is one, else the pinned stroke, else the view centre. */
+function zoomAnchorIdx(){
+  if(selS>=0&&selE>=0&&selS!==selE)return viewS+Math.round((selS+selE)/2);
+  if(_pinnedStrokeIdx>=0&&_pinnedStrokeIdx>=viewS&&_pinnedStrokeIdx<=viewE)return _pinnedStrokeIdx;
+  return Math.round((viewS+viewE)/2);
+}
+
+function scrollZoom(canvas, deltaY, cx) {
+  if(!ST.length)return;
+  const centerIdx=getMainIdx(cx-canvas.getBoundingClientRect().left)+viewS;
+  zoomAround(centerIdx,(viewE-viewS)*(deltaY>0?1.3:0.77));
 }
 
 window.zoomChart=function(dir){
   if(!ST.length)return;
+  zoomAround(zoomAnchorIdx(),(viewE-viewS)*(dir>0?0.65:1.5));
+};
+
+/* Drag a band on the chart, then zoom straight to it — the reliable way to get
+   to an exact stretch on a phone, where pinching to a precise range is fiddly. */
+window.zoomToSelection=function(){
+  if(!ST.length||selS<0||selE<0||selS===selE)return;
+  const vlen=viewE-viewS+1;
+  const s2=clamp(Math.min(selS,selE),0,vlen-1),e2=clamp(Math.max(selS,selE),0,vlen-1);
+  const a=viewS+s2,b=viewS+e2;
   const n=ST.length;
-  const center=Math.round((viewS+viewE)/2);
-  const span=viewE-viewS;
-  const newSpan=Math.round(clamp(span*(dir>0?0.65:1.5),4,n-1));
-  const half=Math.round(newSpan/2);
-  viewS=clamp(center-half,0,n-1-newSpan);
-  viewE=clamp(viewS+newSpan,newSpan,n-1);
-  schedRender();
+  const span=Math.round(clamp(b-a,4,n-1));
+  const st=clamp(a,0,Math.max(0,n-1-span));
+  viewS=st;viewE=st+span;
+  selS=clamp(a-viewS,0,span);selE=clamp(b-viewS,0,span);
+  schedRender();updateSel(false);
 };
 
 window.zoomSlide=function(val){
   if(!ST.length)return;
   const n=ST.length;
   const pct=parseFloat(val)/100;
-  const center=Math.round((viewS+viewE)/2);
-  const newSpan=Math.round(clamp(4+pct*(n-5),4,n-1));
-  const half=Math.round(newSpan/2);
-  viewS=clamp(center-half,0,n-1-newSpan);
-  viewE=clamp(viewS+newSpan,newSpan,n-1);
-  schedRender();
+  zoomAround(zoomAnchorIdx(),4+pct*(n-5));
 };
 
 function updateZoomSlider(){
@@ -4030,11 +4066,15 @@ function drawOv(){
 // HOVER TOOLTIP
 // ══════════════════════════════════════════════════════════════════════════
 function ttRow(lbl,val,col){if(!val||val===EM)return'';return`<div class="tt-row"><span class="tt-lbl">${lbl}</span><span class="tt-val"${col?` style="color:${col}"`:''}>${val}</span></div>`;}
-function showTooltip(e){
-  if(isDragMain||!currentView.length)return;
+/* Coordinate-driven so touch can drive it too. `force` bypasses the drag guard
+   (a finger scrub IS the mobile equivalent of a hover) and `above` lifts the
+   tip clear of the fingertip, which would otherwise sit on top of it. */
+function showTooltip(e){ showTooltipAt(e.clientX, e.clientY, false, false); }
+function showTooltipAt(clientX, clientY, force, above){
+  if((isDragMain&&!force)||!currentView.length)return;
   const canvas=document.getElementById('mainC');
   const rect=canvas.getBoundingClientRect();
-  const idx=getMainIdx(e.clientX-rect.left);
+  const idx=getMainIdx(clientX-rect.left);
   if(idx<0||idx>=currentView.length)return;
   const s=currentView[idx];const C=pal();
   const TT_BUILDERS={
@@ -4066,8 +4106,9 @@ function showTooltip(e){
   const tip=document.getElementById('tooltip');
   tip.style.display='block';
   const tw=tip.offsetWidth||160,th=tip.offsetHeight||180;
-  let left=e.clientX+18,top=e.clientY-th/2;
-  if(left+tw>window.innerWidth-12)left=e.clientX-tw-12;
+  let left=clientX+18,top=above?(clientY-th-28):(clientY-th/2);
+  if(left+tw>window.innerWidth-12)left=clientX-tw-12;
+  if(left<8)left=8;
   if(top<8)top=8;if(top+th>window.innerHeight-8)top=window.innerHeight-th-8;
   tip.style.left=left+'px';tip.style.top=top+'px';
 }
@@ -4100,23 +4141,86 @@ function setupMainEvents(canvas){
     else showTooltip(e);
   });
 
-  // Touch: tap=pin stroke, drag=select
+  /* Touch model:
+       1 finger sideways = scrub — moves the selection AND shows the readout
+                           tooltip, the mobile stand-in for hover.
+       1 finger up/down  = page scroll, handled natively by touch-action:pan-y;
+                           the browser fires touchcancel and we drop the drag,
+                           so scrolling past the chart no longer grabs it.
+       2 fingers         = pinch zoom anchored between the fingers, so the
+                           stretch under your fingers stays under your fingers.
+       double tap        = reset zoom. */
+  let pinchD0=0,pinchSpan0=0,pinchAnchor=0,pinchFrac=0.5,isPinch=false,lastTapT=0;
+  const touchDist=t=>Math.hypot(t[0].clientX-t[1].clientX,t[0].clientY-t[1].clientY);
+
   canvas.addEventListener('touchstart',e=>{
+    if(e.touches.length>=2){
+      e.preventDefault();
+      isDragMain=false;isPinch=true;
+      hideTooltip();
+      selS=-1;selE=-1;hlRows([]);
+      pinchD0=touchDist(e.touches)||1;
+      pinchSpan0=viewE-viewS;
+      const midX=(e.touches[0].clientX+e.touches[1].clientX)/2-canvas.getBoundingClientRect().left;
+      pinchAnchor=viewS+getMainIdx(midX);
+      pinchFrac=pinchSpan0>0?clamp((pinchAnchor-viewS)/pinchSpan0,0,1):0.5;
+      schedRender();
+      return;
+    }
+    isPinch=false;
     hideTooltip();isDragMain=true;
     _clickStartX=e.touches[0].clientX-canvas.getBoundingClientRect().left;
     _clickStartTime=Date.now();
     selS=selE=getMainIdx(_clickStartX);schedRender();
-  },{passive:true});
-  canvas.addEventListener('touchmove',e=>{if(isDragMain){selE=getMainIdx(e.touches[0].clientX-canvas.getBoundingClientRect().left);schedRender();}},{passive:true});
+  },{passive:false});
+
+  canvas.addEventListener('touchmove',e=>{
+    if(isPinch&&e.touches.length>=2){
+      e.preventDefault();
+      const d=touchDist(e.touches)||1;
+      zoomToSpanAt(pinchAnchor,pinchFrac,pinchSpan0*(pinchD0/d));
+      return;
+    }
+    if(!isDragMain||!e.touches.length)return;
+    const t=e.touches[0];
+    if(e.cancelable)e.preventDefault();
+    selE=getMainIdx(t.clientX-canvas.getBoundingClientRect().left);
+    schedRender();
+    showTooltipAt(t.clientX,t.clientY,true,true);
+  },{passive:false});
+
+  /* Fired when the browser takes the gesture over as a vertical page scroll. */
+  canvas.addEventListener('touchcancel',()=>{
+    isDragMain=false;isPinch=false;
+    selS=-1;selE=-1;hideTooltip();hlRows([]);schedRender();
+  });
+
   canvas.addEventListener('touchend',e=>{
+    if(isPinch){ if(e.touches.length===0){isPinch=false;isDragMain=false;} return; }
+    if(!isDragMain)return;
     isDragMain=false;
     const _tcx=e.changedTouches[0].clientX-canvas.getBoundingClientRect().left;
     if(Math.abs(_tcx-_clickStartX)<10&&Date.now()-_clickStartTime<400){
+      const now=Date.now();
+      if(now-lastTapT<330){
+        lastTapT=0;
+        _pinnedStrokeIdx=-1;
+        hideTooltip();updatePinHighlight();updateMapPin();
+        resetZoom();
+        return;
+      }
+      lastTapT=now;
       const _absIdx=viewS+getMainIdx(_tcx);
       _pinnedStrokeIdx=(_pinnedStrokeIdx===_absIdx)?-1:_absIdx;
       selS=-1;selE=-1;
       hlRows([]);updatePinHighlight();schedRender();updateMapPin();
-    }else{updateSel(false);}
+      if(_pinnedStrokeIdx>=0)showTooltipAt(e.changedTouches[0].clientX,e.changedTouches[0].clientY,true,true);
+      else hideTooltip();
+    }else{
+      updateSel(false);
+      /* Leave the readout up briefly so the last value can still be read. */
+      setTimeout(hideTooltip,2200);
+    }
   });
   canvas.addEventListener('dblclick',()=>resetZoom());
   canvas.addEventListener('mouseleave',hideTooltip);
@@ -4187,6 +4291,9 @@ function updateStatsStrip(){
   let html='';
   if(curveGroups.length<8){
     html+='<button id="addcurvebtn" onclick="pinSelection()">＋ Add to curves</button>';
+  }
+  if(strokes.length>1){
+    html+='<button id="zoomselbtn" onclick="zoomToSelection()">⤢ Zoom to selection</button>';
   }
     if(strokes.length){
     const dur=strokes[strokes.length-1].elapsed-strokes[0].elapsed;
@@ -6627,7 +6734,7 @@ async function showSummaryModal(){
           const session=await AnalyserDrive.fetchSession(f.id);
           applySessionUnits(session);
           const conv=sessionToAnalyserFmt(session);
-          updateRecords(conv.gpsTrace, f.name||conv.name||'Session', conv.sum&&conv.sum.start_time, f.id, (conv.sum&&conv.sum.session_mode==='erg')?'erg':'water');
+          updateRecords(recordsTrace(conv), f.name||conv.name||'Session', conv.sum&&conv.sum.start_time, f.id, (conv.sum&&conv.sum.session_mode==='erg')?'erg':'water');
         }catch(err){}
       }
       render();
