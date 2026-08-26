@@ -4558,7 +4558,7 @@ function tplCloseOne(i){
   renderTemplateModal();
 }
 function tplNew(){
-  if (!isCoach()){ showPlanModal('Creating stroke templates is a Coach feature.'); return; }
+  if (!isPro()){ showPlanModal('Creating stroke templates is a Pro feature.'); return; }
   tplOpen.push(tplBlank(curvesAreForce() ? 'force' : 'accel'));
   tplActiveIdx = tplOpen.length-1;
   _tplPreviewRate = null;
@@ -4617,7 +4617,7 @@ function tplResolve(tpl, rate){
 }
 
 function tplAddCurrentGroup(gi){
-  if (!isCoach()){ showPlanModal('Creating stroke templates is a Coach feature.'); return; }
+  if (!isPro()){ showPlanModal('Creating stroke templates is a Pro feature.'); return; }
   const g = curveGroups[gi];
   if (!g) return;
   const c = computeGroupCurve(g.strokes);
@@ -4723,7 +4723,7 @@ function tplImportPick(){
 
 /* ── Editor ─────────────────────────────────────────────────────────────── */
 function openTemplateModal(){
-  if (!isCoach()){ showPlanModal('Creating and editing stroke templates is a Coach feature.'); return; }
+  if (!isPro()){ showPlanModal('Creating and editing stroke templates is a Pro feature.'); return; }
   const old = document.getElementById('_tplmodal');
   if (old) old.remove();
   const overlay = document.createElement('div');
@@ -4913,7 +4913,7 @@ function buildCurveSection(){
 
   // Entitlement gating on the two template buttons
   const _mk=document.getElementById('tplbtn');
-  if(_mk)_mk.style.display=isCoach()?'':'none';
+  if(_mk)_mk.style.display=isPro()?'':'none';
   const _ld=document.getElementById('tplloadbtn');
   if(_ld)_ld.style.display=(isPro()||isCoach())?'':'none';
 
@@ -6830,15 +6830,14 @@ function showPlanModal(msg){
     <div style="font-size:11px;font-weight:700;color:var(--text);margin-bottom:4px;">Pro — subscription</div>
     <div style="font-size:11px;color:var(--muted);line-height:1.6;margin-bottom:10px;">
       Everything in Basic, plus:<br/>
-      Analyser: multi-session comparison, video overlay of curve and metrics.<br/>
+      Analyser: multi-session comparison, video overlay of curve and metrics, create, edit, load and view stroke templates, stroke template on the video overlay, open a whole squad at once.<br/>
       App: unlimited session length; live stroke acceleration curve on the water and the erg; catch, drive, finish and recovery metrics; ideal stroke template overlays on the water and the erg; custom workouts on the water and the erg; squad erg mode with live race track*; automatic Strava sync.
     </div>
 
     <div style="font-size:11px;font-weight:700;color:var(--text);margin-bottom:4px;">Coach — subscription (includes Pro)</div>
     <div style="font-size:11px;color:var(--muted);line-height:1.6;">
       Everything in Pro, plus:<br/>
-      Analyser: create, edit and overlay stroke templates; open a whole squad at once.<br/>
-      App: live multi-athlete squad dashboard; tap-to-open crew detail with curve and map; create and push workouts to the whole squad; create erg races and squad training events; in-app video recording and overlay; collate and export all squad sessions; password-protected squad codes.
+      App: create squad codes and share by QR; live squad map with every rower as a labelled dot; rower tiles with name, rate, pace and your chosen secondary metrics; FREE ROW / RACE display switch; tap-to-open rower detail with live stroke curve, full metrics and mini-map; REQUEST CURVE to pull any rower's live stroke curve on demand; LAP &mdash; ALL BOATS to mark an interval on every boat at once; create and push workouts to the whole squad; set up squad erg races with readiness count and synchronised count-in, live ranked leaderboard and relative metres; push a stroke template to the squad or one rower mid-session; in-app video recording tagged to a rower and moment, straight into the Analyser overlay; collate and export every rower's session; password-protected squad codes.
     </div>
 
     <div style="font-size:10px;color:var(--muted);line-height:1.5;margin-top:10px;">* Coach is required to set up erg squad races and training events. Pro can take part in one.</div>
@@ -7193,7 +7192,7 @@ function vidRenderBody(){
   const tabs=VID.clips.map((c,i)=>`<div class="vid-clip-tab${i===VID.active?' on':''}" onclick="vidSetActive(${i})">${vidShort(c.name)}<span class="x" onclick="event.stopPropagation();vidRemoveClip(${i})">\u00D7</span></div>`).join('');
   const mchips=VID_METRIC_ORDER.filter(k=>!vidKeyHidden(k)).map(k=>`<div class="vid-mchip${cfg.metrics.includes(k)?' on':''}" onclick="vidToggleMetric('${k}')">${VID_METRICS[k].l}</div>`).join('');
   let tplRowHtml='';
-  if(isCoach()){
+  if(isPro()){
     const _tl = (typeof tplOpen!=='undefined' && tplOpen) ? tplOpen : [];
     const _sel = (cfg.tplIdx>=0 && cfg.tplIdx<_tl.length) ? cfg.tplIdx : tplActiveIdx;
     const _opts = _tl.map((t,i)=>`<option value="${i}"${i===_sel?' selected':''}>${escHtml(t.name||'Template')} \u00b7 ${t.entries.length}r</option>`).join('');
@@ -7203,9 +7202,9 @@ function vidRenderBody(){
         (_tl.length ? `<select class="vid-num" id="vidTplSel" style="width:auto;max-width:150px;">${_opts}</select>`
                     : '<span class="vid-mini">no template open \u2014 load or create one from the menu</span>')+
       '</div>'+
-      '<div class="vid-mini" style="margin-top:4px;">Coach only. Drawn dotted yellow, re-timed to each stroke\u2019s own rate.</div>';
+      '<div class="vid-mini" style="margin-top:4px;">Drawn dotted yellow, re-timed to each stroke\u2019s own rate.</div>';
   } else {
-    tplRowHtml = '<div class="vid-mini" style="margin-top:8px;">Stroke template overlay is a Coach feature.</div>';
+    tplRowHtml = '<div class="vid-mini" style="margin-top:8px;">Stroke template overlay is a Pro feature.</div>';
   }
   const probe = a.probedMs ? ((a.probeSource==='filename'?'Coach clip start ':'capture \u2248 ')+new Date(a.probedMs).toLocaleTimeString()) : 'no capture/coach timestamp found';
 
@@ -7335,7 +7334,7 @@ function vidRenderBody(){
   on('vidExportCancel','onclick',vidCancelExport);
   on('vidCurveAvg5','onchange',e=>{ cfg.curveAvg5=e.target.checked; vidDraw(); });
   on('vidShowTpl','onchange',e=>{
-    if(e.target.checked && !isCoach()){ e.target.checked=false; showPlanModal('Stroke template overlay is a Coach feature.'); return; }
+    if(e.target.checked && !isPro()){ e.target.checked=false; showPlanModal('Stroke template overlay is a Pro feature.'); return; }
     cfg.showTpl=e.target.checked; vidDraw();
   });
   on('vidTplSel','onchange',e=>{ cfg.tplIdx=parseInt(e.target.value,10); if(isNaN(cfg.tplIdx))cfg.tplIdx=-1; vidDraw(); });
@@ -7680,7 +7679,7 @@ function vidTplPick(){
    Curves panel and Metrics re-time it. Erg force templates are never drawn
    over on-water accel curves, or the other way round. */
 function vidTplCurve(st){
-  if(!VID.cfg.showTpl || !isCoach() || !st) return null;
+  if(!VID.cfg.showTpl || !isPro() || !st) return null;
   const t=vidTplPick(); if(!t) return null;
   const FORCE=curvesAreForce();
   if((t.kind==='force')!==FORCE) return null;
