@@ -6816,6 +6816,34 @@ function showPlanModal(msg){
   </div>
   <div style="font-size:11px;color:var(--muted);margin-top:12px;line-height:1.5;">Basic: full single-session replay, always free. Pro unlocks multi-session comparison and video overlay/sync — buy Pro in the BoatRun app while signed in to this same account, and it syncs here automatically.</div>
   <div style="font-size:11px;color:var(--muted);margin-top:10px;line-height:1.5;">Coaching a squad? The Coach add-on lives in the BoatRun app (Account &amp; Plan → Upgrade to Coach) — it lets you push synced erg workouts and see live pace/rate for every connected rower. In the Analyser it adds stroke templates — create, edit and overlay them on video. Coach includes Pro.</div>
+  <div style="border:1px solid var(--border);border-radius:8px;padding:12px;margin-top:14px;">
+    <div style="font-size:12px;font-weight:700;color:var(--text);margin-bottom:10px;">What each level includes</div>
+
+    <div style="font-size:11px;font-weight:700;color:var(--text);margin-bottom:4px;">Basic — free</div>
+    <div style="font-size:11px;color:var(--muted);line-height:1.6;margin-bottom:10px;">
+      Analyser: full single-session replay, all charts, stroke curve, map, lap splits.<br/>
+      App: live pace, split, stroke rate, distance, distance per stroke, heart rate, GPS track and mini-map. Sessions saved to your own Google Drive. Raw JSON, CSV, TCX and FIT export.<br/>
+      Limits: <b>20 minute recording cap per session</b>, no live stroke acceleration curve, no stroke templates or workouts, no Strava sync.<br/>
+      Viewer: free for everyone, always — no account needed.
+    </div>
+
+    <div style="font-size:11px;font-weight:700;color:var(--text);margin-bottom:4px;">Pro — subscription</div>
+    <div style="font-size:11px;color:var(--muted);line-height:1.6;margin-bottom:10px;">
+      Everything in Basic, plus:<br/>
+      Analyser: multi-session comparison, video overlay of curve and metrics.<br/>
+      App: unlimited session length; live stroke acceleration curve on the water and the erg; catch, drive, finish and recovery metrics; ideal stroke template overlays on the water and the erg; custom workouts on the water and the erg; squad erg mode with live race track*; automatic Strava sync.
+    </div>
+
+    <div style="font-size:11px;font-weight:700;color:var(--text);margin-bottom:4px;">Coach — subscription (includes Pro)</div>
+    <div style="font-size:11px;color:var(--muted);line-height:1.6;">
+      Everything in Pro, plus:<br/>
+      Analyser: create, edit and overlay stroke templates; open a whole squad at once.<br/>
+      App: live multi-athlete squad dashboard; tap-to-open crew detail with curve and map; create and push workouts to the whole squad; create erg races and squad training events; in-app video recording and overlay; collate and export all squad sessions; password-protected squad codes.
+    </div>
+
+    <div style="font-size:10px;color:var(--muted);line-height:1.5;margin-top:10px;">* Coach is required to set up erg squad races and training events. Pro can take part in one.</div>
+    <div style="font-size:10px;color:var(--muted);line-height:1.5;margin-top:6px;">Every new account gets one month of full Pro and Coach access. Raw data export is always free on every level.</div>
+  </div>
   </div>`;
   overlay.appendChild(panel);
   overlay.onclick=e=>{if(e.target===overlay)overlay.remove();};
