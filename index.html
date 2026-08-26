@@ -222,6 +222,23 @@ footer{background:var(--navy);color:var(--ink-faint);border-top:1px solid rgba(2
 .foot-col a{display:block;font-size:13.5px;color:var(--ink-dim);text-decoration:none;margin-bottom:9px;}
 .foot-col a:hover{color:var(--ink);}
 .foot-bottom{display:flex;justify-content:space-between;flex-wrap:wrap;gap:10px;font-size:12px;border-top:1px solid rgba(255,255,255,.08);padding-top:22px;}
+
+/* tiers */
+.tier-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:16px;align-items:start;}
+@media(max-width:860px){.tier-grid{grid-template-columns:1fr;}}
+.tier-card{background:#fff;border:1px solid rgba(14,20,32,.08);border-radius:16px;padding:26px 24px;display:flex;flex-direction:column;gap:10px;}
+.tier-card.feat{border-color:rgba(255,90,60,.55);box-shadow:0 18px 40px -22px rgba(255,90,60,.55);}
+.tier-tag{font-family:'Roboto Mono',monospace;font-size:10.5px;letter-spacing:.1em;text-transform:uppercase;color:rgba(14,20,32,.42);}
+.tier-card.feat .tier-tag{color:var(--coral);}
+.tier-card h3{font-family:'Space Grotesk',sans-serif;font-size:22px;font-weight:700;}
+.tier-price{font-family:'Space Grotesk',sans-serif;font-size:17px;font-weight:700;color:rgba(14,20,32,.55);margin-bottom:4px;}
+.tier-list{list-style:none;display:flex;flex-direction:column;gap:9px;}
+.tier-list li{display:flex;gap:10px;align-items:flex-start;font-size:14px;color:rgba(14,20,32,.75);}
+.tier-list li:before{flex:0 0 auto;width:17px;height:17px;margin-top:2px;border-radius:5px;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:700;line-height:1;}
+.tier-list li.yes:before{content:"✓";background:rgba(47,211,198,.16);border:1px solid rgba(47,211,198,.5);color:#12867E;}
+.tier-list li.no{color:rgba(14,20,32,.42);}
+.tier-list li.no:before{content:"–";background:rgba(14,20,32,.05);border:1px solid rgba(14,20,32,.14);color:rgba(14,20,32,.4);}
+.tier-note{margin-top:22px;font-size:13px;color:rgba(14,20,32,.5);max-width:640px;}
 </style>
 </head>
 <body>
@@ -234,6 +251,7 @@ footer{background:var(--navy);color:var(--ink-faint);border-top:1px solid rgba(2
       <a href="#coaches">For Coaches</a>
       <a href="#analysis">Analysis</a>
       <a href="#spectator">Spectator</a>
+      <a href="#pricing">Plans</a>
       <a href="./quickstart.html">Quick Start</a>
       <a href="./guide.html">Guide</a>
     </nav>
@@ -406,6 +424,69 @@ footer{background:var(--navy);color:var(--ink-faint);border-top:1px solid rgba(2
         <a class="app-link" href="https://viewer.boatrun.au/">Open Viewer</a>
       </div>
     </div>
+  </div>
+</section>
+
+<!-- TIERS -->
+<section id="pricing" style="background:#EFEDE6;">
+  <div class="wrap">
+    <div class="section-head">
+      <span class="eyebrow section-eyebrow">Plans</span>
+      <h2 class="section-h">Basic, Pro and Coach</h2>
+      <p class="section-p">Every new account gets one month of full Pro and Coach access. After that you keep Basic forever — no hard paywall, and your raw data is always yours to export.</p>
+    </div>
+    <div class="tier-grid">
+      <div class="tier-card">
+        <span class="tier-tag">Free forever</span>
+        <h3>Basic</h3>
+        <p class="tier-price">$0</p>
+        <ul class="tier-list">
+          <li class="yes">Live pace, split, stroke rate, distance</li>
+          <li class="yes">Distance per stroke and heart rate</li>
+          <li class="yes">GPS track and mini-map</li>
+          <li class="yes">Sessions saved to your own Google Drive</li>
+          <li class="yes">Raw JSON, CSV and TCX export</li>
+          <li class="yes">Full single-session Web Analyser</li>
+          <li class="yes">Viewer for spectators ashore</li>
+          <li class="no">15 minute recording cap per session</li>
+          <li class="no">No live stroke acceleration curve</li>
+          <li class="no">No stroke templates or workouts</li>
+          <li class="no">No Strava sync</li>
+        </ul>
+      </div>
+      <div class="tier-card feat">
+        <span class="tier-tag">Most popular</span>
+        <h3>Pro</h3>
+        <p class="tier-price">Subscription</p>
+        <ul class="tier-list">
+          <li class="yes">Everything in Basic</li>
+          <li class="yes">Unlimited session length</li>
+          <li class="yes">Live stroke acceleration curve</li>
+          <li class="yes">Catch, drive, finish and recovery metrics</li>
+          <li class="yes">Ideal stroke template overlays</li>
+          <li class="yes">Custom workouts, on water and on the erg</li>
+          <li class="yes">Squad erg mode with live race track</li>
+          <li class="yes">Automatic Strava sync</li>
+          <li class="yes">Multi-session comparison in the Analyser</li>
+          <li class="yes">Video overlay of curve and metrics</li>
+        </ul>
+      </div>
+      <div class="tier-card">
+        <span class="tier-tag">For clubs and schools</span>
+        <h3>Coach</h3>
+        <p class="tier-price">Subscription</p>
+        <ul class="tier-list">
+          <li class="yes">Everything in Pro</li>
+          <li class="yes">Live multi-athlete squad dashboard</li>
+          <li class="yes">Tap-to-open crew detail with curve and map</li>
+          <li class="yes">Push workouts to the whole squad</li>
+          <li class="yes">In-app video recording and overlay</li>
+          <li class="yes">Collate and export all squad sessions</li>
+          <li class="yes">Password-protected squad codes</li>
+        </ul>
+      </div>
+    </div>
+    <p class="tier-note">Existing subscribers are grandfathered at their original price. The Viewer is free for everyone, always — no account needed.</p>
   </div>
 </section>
 
