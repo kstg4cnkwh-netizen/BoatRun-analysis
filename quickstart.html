@@ -1,0 +1,380 @@
+<!doctype html>
+<html lang="en-AU">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1"/>
+<meta name="theme-color" content="#081226"/>
+<title>BoatRun — Quick Start</title>
+<meta name="description" content="First time using BoatRun? A short step-by-step quick start for rowers, coxes, coaches and erg users."/>
+<link rel="icon" href="./icons/icon-192.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&family=Inter:wght@400;500;600;700&family=Roboto+Mono:wght@500;600&display=swap" rel="stylesheet">
+<style>
+:root{
+  --navy:#081226;
+  --navy-2:#0E1B38;
+  --panel:#0F1C3A;
+  --panel-2:#101E3E;
+  --line:rgba(255,255,255,.10);
+  --ink:#EFF3FA;
+  --ink-dim:rgba(239,243,250,.62);
+  --ink-faint:rgba(239,243,250,.38);
+  --coral:#FF5A3C;
+  --coral-dim:rgba(255,90,60,.14);
+  --teal:#2FD3C6;
+  --amber:#FFB648;
+  --radius:14px;
+}
+*{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent;}
+html{scroll-behavior:smooth;}
+body{
+  font-family:'Inter',-apple-system,system-ui,sans-serif;
+  background:var(--navy);
+  color:var(--ink);
+  line-height:1.65;
+  -webkit-font-smoothing:antialiased;
+}
+a{color:inherit;}
+.wrap{max-width:820px;margin:0 auto;padding:0 24px;}
+.eyebrow{
+  display:inline-flex;align-items:center;gap:8px;
+  font-family:'Roboto Mono',monospace;font-size:11px;font-weight:600;
+  letter-spacing:.14em;text-transform:uppercase;
+  padding:6px 12px;border-radius:100px;
+  border:1px solid var(--line);
+  color:var(--coral);border-color:rgba(255,90,60,.35);background:var(--coral-dim);
+}
+
+/* ===== NAV ===== */
+header{
+  position:sticky;top:0;z-index:40;
+  background:rgba(8,18,38,.9);backdrop-filter:blur(10px);
+  border-bottom:1px solid rgba(255,255,255,.08);
+}
+.nav{display:flex;align-items:center;justify-content:space-between;height:64px;color:var(--ink);max-width:1120px;margin:0 auto;padding:0 24px;}
+.brand{display:flex;align-items:center;gap:10px;font-family:'Space Grotesk',sans-serif;font-weight:700;font-size:18px;letter-spacing:-.01em;text-decoration:none;}
+.brand img{width:26px;height:26px;border-radius:7px;display:block;}
+.navlinks{display:flex;gap:24px;font-size:14px;font-weight:500;}
+.navlinks a{text-decoration:none;color:var(--ink-dim);transition:color .15s;}
+.navlinks a:hover{color:var(--ink);}
+@media(max-width:640px){.navlinks{display:none;}}
+
+/* ===== TITLE ===== */
+.doc-hero{padding:56px 0 36px;background:radial-gradient(ellipse 900px 420px at 20% -10%, #142a56 0%, transparent 60%);}
+.doc-badge{display:flex;align-items:center;gap:12px;margin-bottom:18px;}
+.doc-badge img{width:40px;height:40px;border-radius:10px;box-shadow:0 8px 20px -8px rgba(0,0,0,.6);}
+.doc-badge span{font-family:'Roboto Mono',monospace;font-size:11px;letter-spacing:.1em;text-transform:uppercase;color:var(--ink-faint);}
+h1.doc-title{font-family:'Space Grotesk',sans-serif;font-weight:700;font-size:clamp(28px,5vw,42px);line-height:1.08;letter-spacing:-.02em;margin:16px 0 12px;}
+.doc-sub{font-size:16px;color:var(--ink-dim);max-width:600px;}
+
+/* ===== CONTENT ===== */
+.doc-body{padding:8px 0 90px;}
+h2{font-family:'Space Grotesk',sans-serif;color:var(--coral);font-size:23px;font-weight:700;letter-spacing:-.01em;margin:44px 0 14px;scroll-margin-top:80px;}
+h3{font-family:'Space Grotesk',sans-serif;color:var(--ink);font-size:17px;font-weight:700;margin:26px 0 10px;}
+p{font-size:15px;color:var(--ink-dim);margin:0 0 14px;}
+strong{color:var(--ink);font-weight:700;}
+em{color:var(--amber);font-style:normal;}
+.rule{border:0;border-top:1px solid var(--line);margin:36px 0;}
+.callout{border-left:3px solid var(--coral);background:var(--coral-dim);border-radius:0 10px 10px 0;padding:14px 18px;margin:0 0 18px;}
+.callout p{color:var(--ink);margin:0;font-size:14.5px;}
+.callout p + p{margin-top:8px;}
+
+/* ===== STEPS ===== */
+ol.steps{list-style:none;counter-reset:s;padding:0;margin:0 0 18px;}
+ol.steps > li{
+  counter-increment:s;
+  position:relative;
+  padding:0 0 18px 44px;
+  border-left:1px solid var(--line);
+  margin-left:14px;
+}
+ol.steps > li:last-child{border-left-color:transparent;padding-bottom:0;}
+ol.steps > li:before{
+  content:counter(s);
+  position:absolute;left:-14px;top:0;
+  width:28px;height:28px;border-radius:9px;
+  background:var(--coral-dim);border:1px solid rgba(255,90,60,.45);
+  color:var(--coral);
+  font-family:'Roboto Mono',monospace;font-size:12px;font-weight:600;
+  display:flex;align-items:center;justify-content:center;
+}
+ol.steps .st{display:block;font-size:15.5px;font-weight:700;color:var(--ink);line-height:1.35;margin-bottom:3px;}
+ol.steps .sd{display:block;font-size:14px;color:var(--ink-dim);}
+ol.steps .sd + .sd{margin-top:4px;}
+
+kbd{
+  font-family:'Roboto Mono',monospace;font-size:12px;font-weight:600;
+  background:#16264c;border:1px solid var(--line);border-bottom-width:2px;
+  border-radius:6px;padding:2px 7px;color:var(--ink);white-space:nowrap;
+}
+
+/* ===== CARDS ===== */
+.panel{background:var(--panel);border:1px solid var(--line);border-radius:var(--radius);padding:20px 22px;margin:0 0 18px;}
+.panel p:last-child{margin-bottom:0;}
+.mode-head{display:flex;align-items:center;gap:10px;margin:0 0 4px;}
+.tag{font-family:'Roboto Mono',monospace;font-size:11px;font-weight:600;letter-spacing:.1em;text-transform:uppercase;padding:4px 10px;border-radius:100px;border:1px solid var(--line);color:var(--teal);border-color:rgba(47,211,198,.35);background:rgba(47,211,198,.12);}
+
+.btnrow{display:flex;flex-wrap:wrap;gap:10px;margin:0 0 8px;}
+.btn{display:inline-flex;align-items:center;gap:8px;text-decoration:none;font-size:14px;font-weight:600;padding:11px 18px;border-radius:10px;transition:transform .12s,filter .12s;}
+.btn:active{transform:translateY(1px);}
+.btn-coral{background:var(--coral);color:#fff;}
+.btn-ghost{background:transparent;color:var(--ink);border:1px solid var(--line);}
+.btn:hover{filter:brightness(1.08);}
+
+.toc{background:var(--panel);border:1px solid var(--line);border-radius:var(--radius);padding:18px 22px;margin:28px 0 0;}
+.toc h4{font-family:'Roboto Mono',monospace;font-size:12px;font-weight:600;letter-spacing:.06em;text-transform:uppercase;color:var(--ink-faint);margin:0 0 8px;}
+.toc ol{columns:2;column-gap:24px;font-size:13.5px;margin:0;padding-left:18px;color:var(--ink-dim);}
+.toc li{margin:0 0 6px;}
+.toc a{text-decoration:none;color:var(--ink-dim);}
+.toc a:hover{color:var(--coral);}
+@media(max-width:600px){.toc ol{columns:1;}}
+
+footer{background:var(--navy-2);color:var(--ink-faint);border-top:1px solid rgba(255,255,255,.08);padding:34px 0;}
+.foot-row{display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:14px;font-size:13px;}
+.foot-brand{display:flex;align-items:center;gap:8px;font-family:'Space Grotesk',sans-serif;font-weight:700;font-size:14px;color:var(--ink);}
+.foot-brand img{width:20px;height:20px;border-radius:5px;}
+footer a{color:var(--ink-dim);text-decoration:none;}
+footer a:hover{color:var(--ink);}
+</style>
+</head>
+<body>
+
+<header>
+  <div class="nav">
+    <a class="brand" href="./index.html"><img src="./icons/icon-192.png" alt="BoatRun icon"/>BoatRun</a>
+    <nav class="navlinks">
+      <a href="./index.html">Home</a>
+      <a href="./guide.html">Full Guide</a>
+      <a href="./analyser.html">Analyser</a>
+    </nav>
+  </div>
+</header>
+
+<section class="doc-hero">
+  <div class="wrap">
+    <div class="doc-badge">
+      <img src="./icons/icon-192.png" alt="BoatRun icon"/>
+      <span>First time using BoatRun</span>
+    </div>
+    <span class="eyebrow">5 minutes</span>
+    <h1 class="doc-title">Quick Start</h1>
+    <p class="doc-sub">The short version. Follow the steps for whichever role you are. Everything is already set to sensible defaults — you don't need to change any settings.</p>
+
+    <div class="toc">
+      <h4>On this page</h4>
+      <ol>
+        <li><a href="#install">Install the app</a></li>
+        <li><a href="#setup">First-time setup</a></li>
+        <li><a href="#row">Row or Cox</a></li>
+        <li><a href="#erg">Erg</a></li>
+        <li><a href="#coach">Coach</a></li>
+        <li><a href="#log">Reviewing a session</a></li>
+        <li><a href="#analyser">Analyser</a></li>
+      </ol>
+    </div>
+  </div>
+</section>
+
+<section class="doc-body">
+<div class="wrap">
+
+<h2 id="install">1. Install the app</h2>
+<div class="btnrow">
+  <a class="btn btn-coral" href="https://testflight.apple.com/join/U1VQeYdz" target="_blank" rel="noopener">Get for iPhone — TestFlight</a>
+  <a class="btn btn-ghost" href="mailto:bigwig.91mash@icloud.com?subject=BoatRun%20Android%20beta%20request&amp;body=Please%20add%20me%20to%20the%20BoatRun%20Android%20beta.%20My%20Google%20account%20email%20address%20is%3A%20">Get for Android — email request</a>
+</div>
+<p>iPhone users install TestFlight first, then tap the link again to install BoatRun. Android users email their Google account address and get an invite back.</p>
+
+<hr class="rule"/>
+
+<h2 id="setup">2. First-time setup</h2>
+<ol class="steps">
+  <li>
+    <span class="st">Open the app and pick a role</span>
+    <span class="sd">You'll see <kbd>ROW</kbd> <kbd>COX</kbd> <kbd>COACH</kbd> <kbd>ERG</kbd>. Tap whichever you are. You can change it later, and it doesn't lock you out of anything.</span>
+    <span class="sd">Not ready to go rowing? Tap one of the <kbd>TRY A DEMO</kbd> buttons instead — it replays a real session so you can look around.</span>
+  </li>
+  <li>
+    <span class="st">Allow the permissions it asks for</span>
+    <span class="sd">Sensors, location and Bluetooth. The app can't measure anything without them.</span>
+  </li>
+  <li>
+    <span class="st">Go to HOME</span>
+    <span class="sd">This is the tab you start and finish from.</span>
+  </li>
+  <li>
+    <span class="st">Connect Google Drive</span>
+    <span class="sd">Tap <kbd>☁ Connect to Drive</kbd> at the top right of HOME and sign in. Your sessions save to your own Drive, so they survive a new phone and can be opened in the Analyser.</span>
+  </li>
+  <li>
+    <span class="st">Check your role in Settings</span>
+    <span class="sd"><kbd>HOME</kbd> → <kbd>SETTINGS</kbd> → <kbd>ROLE</kbd>. That's the only setting you need to touch. Leave everything else alone for now.</span>
+  </li>
+</ol>
+
+<hr class="rule"/>
+
+<h2 id="row">3. Row or Cox</h2>
+<div class="panel">
+  <div class="mode-head"><span class="tag">On the water</span></div>
+  <p>Do the connecting on land, before you push off.</p>
+</div>
+<ol class="steps">
+  <li>
+    <span class="st">Tap LIVE</span>
+  </li>
+  <li>
+    <span class="st">Connect to your squad — only if a coach is out with you</span>
+    <span class="sd">Tap <kbd>Connect Squad</kbd> and enter the code your coach gives you. Skip this if you're on your own.</span>
+  </li>
+  <li>
+    <span class="st">Connect your heart rate strap — if you wear one</span>
+    <span class="sd">Put the strap on first (it needs skin contact to wake up), then tap <kbd>Connect HR</kbd>.</span>
+  </li>
+  <li>
+    <span class="st">Get the boat on the water and mount the phone</span>
+    <span class="sd">The phone must be lying flat in its mount, <strong>screen up, top of the phone pointing at the stern</strong> (the back of the boat — the way you're facing when you row). Firmly mounted, not loose.</span>
+  </li>
+  <li>
+    <span class="st">Tap START CALIBRATION</span>
+    <span class="sd">Sit still, hands off, boat settled, for 8 seconds. The <kbd>Start</kbd> button stays greyed out until calibration finishes — that's normal.</span>
+  </li>
+  <li>
+    <span class="st">Tap Start</span>
+    <span class="sd">You're recording. Row.</span>
+  </li>
+  <li>
+    <span class="st">Use Lap to split up your session</span>
+    <span class="sd">Tap <kbd>Lap</kbd> while moving and it just marks a split there and then.</span>
+    <span class="sd">Tap <kbd>Lap</kbd> while sitting still and the button turns green and says <kbd>READY</kbd> — the new lap is armed but the clock is paused. It starts by itself once you take a couple of strokes, or you can tap the green <kbd>READY</kbd> button to start it immediately.</span>
+  </li>
+  <li>
+    <span class="st">Tap Lock if you're worried about stray taps</span>
+    <span class="sd">Locks the screen against splashes and knees. Slide to unlock.</span>
+  </li>
+  <li>
+    <span class="st">Finishing up</span>
+    <span class="sd"><kbd>Stop</kbd> → <kbd>Finish Session</kbd> → give it a name and save. It uploads to your Drive on its own.</span>
+  </li>
+</ol>
+
+<hr class="rule"/>
+
+<h2 id="erg">4. Erg</h2>
+<div class="panel">
+  <div class="mode-head"><span class="tag">Concept2 PM5</span></div>
+  <p>No calibration and no phone mounting — the erg supplies the numbers. Set your role to <kbd>ERG</kbd> first.</p>
+</div>
+<ol class="steps">
+  <li>
+    <span class="st">Wake the PM5, then tap Connect Erg</span>
+    <span class="sd">Press a button on the monitor so it's awake, then connect from the <kbd>LIVE</kbd> tab.</span>
+  </li>
+  <li>
+    <span class="st">Heart rate — pair the strap to the erg, not the phone</span>
+    <span class="sd">On the PM5: <kbd>More Options</kbd> → <kbd>Utilities</kbd> → pick your strap. BoatRun reads it through the erg.</span>
+  </li>
+  <li>
+    <span class="st">Connect to your squad — if your coach is running one</span>
+    <span class="sd">Tap <kbd>Connect Squad</kbd> and enter the code.</span>
+  </li>
+  <li>
+    <span class="st">Either load a workout, or just row</span>
+    <span class="sd">Tap <kbd>Load Workout</kbd> and push it to the erg — the monitor then ends the piece for you.</span>
+    <span class="sd">Or start rowing with no workout loaded, and when you're done press <kbd>Menu</kbd> on the PM5 to end the piece.</span>
+  </li>
+  <li>
+    <span class="st">Finish Session and save</span>
+  </li>
+</ol>
+
+<hr class="rule"/>
+
+<h2 id="coach">5. Coach</h2>
+<div class="panel">
+  <div class="mode-head"><span class="tag">Launch or bank</span></div>
+  <p>Your crews send their live data to a squad code. You watch it. Set your role to <kbd>COACH</kbd> first.</p>
+</div>
+<ol class="steps">
+  <li>
+    <span class="st">Get a squad code</span>
+    <span class="sd"><kbd>HOME</kbd> → <kbd>SETTINGS</kbd> → <kbd>CREATE SQUAD</kbd> for your own code, or just use the shared testing code <kbd>AAAAAAA</kbd> for a first try.</span>
+  </li>
+  <li>
+    <span class="st">Connect to it, and give the code to your rowers</span>
+    <span class="sd">Everyone in the squad — you included — must be on the same code. There's a QR code in Settings if that's easier than reading letters out.</span>
+  </li>
+  <li>
+    <span class="st">COACH tab — one boat at a time</span>
+    <span class="sd">Tap a boat to open its detail view.</span>
+  </li>
+  <li>
+    <span class="st">SQUAD tab, phone upright — every boat listed</span>
+  </li>
+  <li>
+    <span class="st">SQUAD tab, phone turned sideways — race mode</span>
+    <span class="sd">Boats shown side by side with the gaps between them. This is the one for pieces.</span>
+  </li>
+  <li>
+    <span class="st">INTERVALS tab — the results table</span>
+    <span class="sd">Every piece each crew has done, so you can compare them afterwards. <kbd>LAP ALL BOATS</kbd> splits the whole squad at once.</span>
+  </li>
+</ol>
+
+<hr class="rule"/>
+
+<h2 id="log">6. Reviewing a session</h2>
+<p><kbd>HOME</kbd> → <kbd>LOG</kbd>. Tap any session to see its detail — splits, rate, distance, heart rate, stroke curve and map.</p>
+<div class="callout">
+  <p>Session missing after changing phones? Tap <kbd>☁ Sync with Drive</kbd> at the top of the LOG list to pull everything back down.</p>
+</div>
+
+<hr class="rule"/>
+
+<h2 id="analyser">7. Analyser — the bigger screen version</h2>
+<div class="btnrow">
+  <a class="btn btn-coral" href="https://boatrun.au/analyser.html">Open the Analyser</a>
+</div>
+<p>Open it in a browser on a laptop or tablet. Nothing to install.</p>
+<ol class="steps">
+  <li>
+    <span class="st">Tap Connect Google Drive</span>
+    <span class="sd">Use the same Google account you signed into on the phone.</span>
+  </li>
+  <li>
+    <span class="st">Open a session</span>
+    <span class="sd">Pick it from the list.</span>
+  </li>
+  <li>
+    <span class="st">Tap any tile to see that metric</span>
+    <span class="sd">The tiles across the top switch what the chart is showing.</span>
+  </li>
+  <li>
+    <span class="st">Drag across a section of the chart, then tap ＋ Add to curves</span>
+    <span class="sd">That averages the stroke curve for just that bit of the row. Do it again on another section and you can compare them side by side — start of the piece against the end, before a change against after.</span>
+  </li>
+</ol>
+
+<hr class="rule"/>
+
+<h2>Stuck?</h2>
+<p>The <a href="./guide.html" style="color:var(--coral);">full User Guide</a> covers everything in detail, and <a href="./support.html" style="color:var(--coral);">Support</a> has the common problems. Anything else, email <a href="mailto:bigwig.91mash@icloud.com?subject=BoatRun%20support" style="color:var(--coral);">bigwig.91mash@icloud.com</a>.</p>
+
+</div>
+</section>
+
+<footer>
+  <div class="wrap foot-row">
+    <div class="foot-brand"><img src="./icons/icon-192.png" alt="BoatRun icon"/>BoatRun</div>
+    <div>
+      <a href="./index.html">Home</a> &nbsp;·&nbsp;
+      <a href="./guide.html">Full Guide</a> &nbsp;·&nbsp;
+      <a href="./support.html">Support</a> &nbsp;·&nbsp;
+      <a href="./privacy.html">Privacy</a>
+    </div>
+  </div>
+</footer>
+
+</body>
+</html>
