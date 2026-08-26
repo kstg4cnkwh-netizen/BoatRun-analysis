@@ -167,7 +167,7 @@ img.inline{display:inline;margin:0 3px;vertical-align:-.32em;height:1.45em;width
 <li><a href="#s4">Erg mode</a></li>
 <li><a href="#s5">Signing in - Drive, Account, Apple</a></li>
 <li><a href="#s6">What happens to your data</a></li>
-<li><a href="#s7">Basic, trial and Pro</a></li>
+<li><a href="#s7">Basic, Pro and Coach</a></li>
 <li><a href="#s8">Heart rate monitor</a></li>
 <li><a href="#s9">Recording a session</a></li>
 <li><a href="#s10">Layouts and tiles</a></li>
@@ -219,7 +219,7 @@ img.inline{display:inline;margin:0 3px;vertical-align:-.32em;height:1.45em;width
 <tr><td>CAL pill red</td><td>Restart the app and allow access to motion and orientation</td></tr>
 <tr><td>GPS pill red</td><td><strong>iPhone:</strong> Settings → Privacy &amp; Security → Location Services → BoatRun → While Using, Precise Location <strong>on</strong>.<br/><strong>Android:</strong> Settings → Apps → BoatRun → Permissions → Location → Allow while using, and turn <strong>Use precise location</strong> on</td></tr>
 <tr><td>Nothing uploads</td><td>Tap the <img class="inline" src="screenshots/btn-connect-drive.png" alt="CONNECT TO DRIVE"/> button in the top bar and connect Google Drive</td></tr>
-<tr><td>Recording stops at 5 minutes</td><td>You're on Basic. See <a href="#s7">Basic, trial and Pro</a></td></tr>
+<tr><td>Recording stops at 20 minutes</td><td>You're on Basic. See <a href="#s7">Basic, Pro and Coach</a></td></tr>
 <tr><td>Screen goes dark mid-row</td><td>Shouldn't happen - the app holds the screen awake. If it does, check Low Power Mode (iPhone) or Battery Saver and any adaptive battery setting (Android)</td></tr>
 <tr><td>Water splash changes screens</td><td>Use the LOCK button to reduce errant touch detection. You will need to unlock to press LAP, change screens or end the session. For further protection, use Guided Access on iPhone (triple-click the side button) or Screen Pinning on Android</td></tr>
 </table>
@@ -461,7 +461,7 @@ img.inline{display:inline;margin:0 3px;vertical-align:-.32em;height:1.45em;width
 <hr class="clear"/>
 
 <!-- ==================== 7 ==================== -->
-<h1 id="s7">7. Basic, trial and Pro</h1>
+<h1 id="s7">7. Basic, Pro and Coach</h1>
 
 <h2>Free trial</h2>
 <p>Every new install gets <strong>30 days of full Pro</strong>, granted by the app. No card, no sign-up, nothing to cancel. The Settings → SUBSCRIPTION card counts down the days.</p>
@@ -471,7 +471,7 @@ img.inline{display:inline;margin:0 3px;vertical-align:-.32em;height:1.45em;width
 <ul>
 <li><strong>Pace, Stroke Rate, DPS and Heart Rate</strong> tiles</li>
 <li>All the selectable-tile fields (time of day, elapsed, lap time, distances, average and lap pace)</li>
-<li><strong>5 minute recording limit</strong> per session</li>
+<li><strong>20 minute recording limit</strong> per session - you get a warning with 2 minutes left, then the session finishes and saves itself</li>
 <li>Full session log, full Drive sync, full restore</li>
 <li><strong>Every export - JSON, TCX, FIT - always free</strong></li>
 <li>Analyser: single-session analysis, always free</li>
@@ -480,26 +480,42 @@ img.inline{display:inline;margin:0 3px;vertical-align:-.32em;height:1.45em;width
 <p>Raw data is never held hostage. If you recorded it, you can export it.</p>
 
 <h2>What Pro adds</h2>
+<p>Pro lifts the recording cap and unlocks every stroke metric, the live curve, workouts and Strava. It also unlocks multi-session comparison and video overlay in the Analyser, on the same account.</p>
+
+<h2>What Coach adds</h2>
+<p>Coach is the add-on for anyone running a crew or a squad. <strong>Coach includes Pro</strong>, so you don't buy both. It adds the live squad dashboard with every connected rower's pace, rate and relative metres, tap-to-open rower detail with stroke curve and mini-map, workout push to the whole squad, in-app video recording, squad session collation and export, password-protected squad codes, and stroke template creation and overlay in the Analyser.</p>
+
+<h2>The three levels side by side</h2>
 <div class="tblwrap">
 <table class="centre">
-<tr><th></th><th>Basic</th><th>Pro</th></tr>
-<tr><td>Recording length</td><td>5 min</td><td>Unlimited</td></tr>
-<tr><td>Pace, Rate, DPS, HR</td><td>✓</td><td>✓</td></tr>
-<tr><td>Pos / Neg Catch Slope, Catch Accel, Catch Dur, Drive Time</td><td>-</td><td>✓</td></tr>
-<tr><td>Impulse, Drive Accel, Recovery Accel</td><td>-</td><td>✓</td></tr>
-<tr><td>Recovery Loss, Vel Efficiency</td><td>-</td><td>✓</td></tr>
-<tr><td>Stroke Char, Stroke Ratio</td><td>-</td><td>✓</td></tr>
-<tr><td>Live stroke curve (CURVE tab)</td><td>-</td><td>✓</td></tr>
-<tr><td>Workout tile and interval countdown</td><td>-</td><td>✓</td></tr>
-<tr><td>Strava auto-sync</td><td>-</td><td>✓</td></tr>
-<tr><td>Coach: full squad monitoring, video, workout push</td><td>pace + rate only</td><td>✓</td></tr>
-<tr><td>Analyser: multi-session comparison, video overlay</td><td>-</td><td>✓</td></tr>
-<tr><td>All exports (JSON / TCX / FIT / CSV)</td><td>✓</td><td>✓</td></tr>
-<tr><td>Drive sync and restore</td><td>✓</td><td>✓</td></tr>
+<tr><th></th><th>Basic</th><th>Pro</th><th>Coach</th></tr>
+<tr><td>Price</td><td>Free forever</td><td>Subscription</td><td>Subscription</td></tr>
+<tr><td>Recording length</td><td>20 min</td><td>Unlimited</td><td>Unlimited</td></tr>
+<tr><td>Pace, Rate, DPS, HR</td><td>✓</td><td>✓</td><td>✓</td></tr>
+<tr><td>Selectable tiles (time, elapsed, lap, distances, avg pace)</td><td>✓</td><td>✓</td><td>✓</td></tr>
+<tr><td>Pos / Neg Catch Slope, Catch Accel, Catch Dur, Drive Time</td><td>-</td><td>✓</td><td>✓</td></tr>
+<tr><td>Impulse, Drive Accel, Recovery Accel</td><td>-</td><td>✓</td><td>✓</td></tr>
+<tr><td>Recovery Loss, Vel Efficiency</td><td>-</td><td>✓</td><td>✓</td></tr>
+<tr><td>Stroke Char, Stroke Ratio</td><td>-</td><td>✓</td><td>✓</td></tr>
+<tr><td>Live stroke curve (CURVE tab)</td><td>-</td><td>✓</td><td>✓</td></tr>
+<tr><td>Stroke template overlay on the live curve</td><td>-</td><td>✓</td><td>✓</td></tr>
+<tr><td>Workout tile and interval countdown</td><td>-</td><td>✓</td><td>✓</td></tr>
+<tr><td>Squad erg mode and race display</td><td>-</td><td>✓</td><td>✓</td></tr>
+<tr><td>Strava auto-sync</td><td>-</td><td>✓</td><td>✓</td></tr>
+<tr><td>Analyser: single-session analysis</td><td>✓</td><td>✓</td><td>✓</td></tr>
+<tr><td>Analyser: multi-session comparison, video overlay</td><td>-</td><td>✓</td><td>✓</td></tr>
+<tr><td>Analyser: create and edit stroke templates</td><td>-</td><td>-</td><td>✓</td></tr>
+<tr><td>Coach tab: live squad monitoring</td><td>pace + rate only</td><td>pace + rate only</td><td>✓ full</td></tr>
+<tr><td>Rower detail, video, workout push to squad</td><td>-</td><td>-</td><td>✓</td></tr>
+<tr><td>Collate and export all squad sessions</td><td>-</td><td>-</td><td>✓</td></tr>
+<tr><td>Password-protected squad codes</td><td>-</td><td>-</td><td>✓</td></tr>
+<tr><td>All exports (JSON / TCX / FIT / CSV)</td><td>✓</td><td>✓</td><td>✓</td></tr>
+<tr><td>Drive sync and restore</td><td>✓</td><td>✓</td><td>✓</td></tr>
+<tr><td>Viewer (spectators ashore)</td><td>✓</td><td>✓</td><td>✓</td></tr>
 </table>
 </div>
 
-<p>One subscription covers the app and the Analyser on the same account. Monthly or yearly. Buy it from Settings → SUBSCRIPTION → <strong>UPGRADE TO PRO</strong>, or from the Account &amp; Plan panel.</p>
+<p>One subscription covers the app and the Analyser on the same account. Monthly or yearly. Buy it from Settings → SUBSCRIPTION → <strong>UPGRADE TO PRO</strong> or <strong>UPGRADE TO COACH</strong>, or from the Account &amp; Plan panel.</p>
 <p>Locked tiles show <strong>PRO - Upgrade to unlock</strong> rather than disappearing, so you can see what you're missing.</p>
 
 <hr/>
@@ -1192,7 +1208,7 @@ img.inline{display:inline;margin:0 3px;vertical-align:-.32em;height:1.45em;width
 
 <p><strong>Pace high, or dropping out</strong> GPS accuracy must be better than 25m. Under bridges and near tall buildings it will drop out briefly. On tidal water pace is over-ground speed - that's expected, not a fault.</p>
 
-<p><strong>Recording stopped at 5 minutes</strong> Basic tier limit. Upgrade to Pro for unlimited recording.</p>
+<p><strong>Recording stopped at 20 minutes</strong> Basic tier limit. Upgrade to Pro for unlimited recording.</p>
 
 <p><strong>Tiles say PRO - Upgrade to unlock</strong> That metric is Pro-only. The tile stays visible so you can see what's there.</p>
 
