@@ -21,28 +21,44 @@
   li { margin-bottom: 6px; }
   .contact { background: #f0f0f0; padding: 14px 16px; border-radius: 8px; margin-top: 8px; }
   a { color: #1a5276; }
+  .foot { margin-top: 36px; font-size: 0.85rem; color: #666; }
 </style>
 </head>
 <body>
 
 <h1>BoatRun — Support</h1>
-<p class="updated">Last updated: 19 July 2026</p>
+<p class="updated">Last updated: 26 August 2026</p>
 
-<p>BoatRun is a set of rowing performance tools: Metrics, Analyser, Coach and Viewer. If something isn't working, or you have a question, this page will help.</p>
+<p>BoatRun is a set of rowing performance tools: <strong>Metrics</strong> (the app you record with, including all coach and squad features), <strong>Analyser</strong> (web-based post-session analysis) and <strong>Viewer</strong> (live squad spectator view). If something isn't working, or you have a question, this page will help.</p>
 
 <h2>Getting started</h2>
 <ul>
-  <li>Full setup and usage instructions are in the in-app <strong>Guide</strong>, accessible from the About tab of any app.</li>
-  <li>Metrics must be installed to the home screen (Add to Home Screen on iOS, Install app on Android) to record sessions reliably in the background.</li>
-  <li>On iPhone, Metrics needs Precise Location enabled: Settings → Privacy & Security → Location Services → Safari Websites → Allow Location Access While Using the App → Precise Location.</li>
+  <li>Full setup and usage instructions are in the in-app <strong>Guide</strong>, accessible from the About tab.</li>
+  <li>Install Metrics from the App Store or Google Play. Analyser and Viewer run in any browser at <a href="https://boatrun.au">boatrun.au</a> — nothing to install.</li>
+  <li><strong>Mount the phone facing the stern</strong> (the back of the boat), held firmly in line with the hull. A loose or angled mount is the most common cause of poor stroke data.</li>
+  <li>Sit still in the boat while the 8-second calibration runs. This sets the tilt reference for the session.</li>
+  <li>Allow <strong>Location</strong> (While Using the App, with Precise Location on) and <strong>Motion &amp; Fitness</strong> when prompted. Metrics can't record speed or stroke data without them.</li>
+  <li>For heart rate, allow <strong>Bluetooth</strong> and pair your strap from Settings inside the app.</li>
 </ul>
 
 <h2>Common issues</h2>
 <ul>
-  <li><strong>Recording won't start</strong> — make sure the 8-second calibration has finished; the Start button stays disabled until it completes.</li>
-  <li><strong>Missing session after recording</strong> — check the app's storage settings; sessions are saved locally first, then optionally backed up to your own Google Drive if you've signed in.</li>
-  <li><strong>Strava upload not showing up</strong> — check that Strava is still connected in Settings; you may need to reconnect if the connection has expired.</li>
-  <li><strong>Live squad view not updating</strong> — confirm the rower and coach are using the same session code, and that both have a working internet connection.</li>
+  <li><strong>Recording won't start</strong> — the Start button stays disabled until the 8-second calibration finishes. Keep the boat still until it clears.</li>
+  <li><strong>Stroke curve looks wrong or flat</strong> — check the phone is facing the stern and the mount isn't flexing. Re-run calibration if the phone was moved after the session started.</li>
+  <li><strong>Heart rate drops out</strong> — wet the strap contacts, keep the phone within a couple of metres, and make sure the strap isn't already connected to a watch or another app.</li>
+  <li><strong>Screen sleeps mid-session</strong> — Metrics keeps the screen awake while recording. If it still sleeps, check Low Power Mode and any battery optimisation settings for the app (Android).</li>
+  <li><strong>Missing session after recording</strong> — sessions save to the phone first, then back up to your own Google Drive if you've signed in. Check the Sessions list before assuming it's lost.</li>
+  <li><strong>Strava upload not showing up</strong> — check Strava is still connected in Settings; you may need to reconnect if the authorisation has expired.</li>
+  <li><strong>Live squad view not updating</strong> — confirm everyone is using the same squad code, and that each device has a working internet connection. Squad sync needs mobile data on the water.</li>
+  <li><strong>Subscription not recognised</strong> — tap <strong>Restore Purchases</strong> in Settings, and make sure you're signed in with the same Apple or Google account used to subscribe.</li>
+</ul>
+
+<h2>Subscriptions</h2>
+<ul>
+  <li>New users get a 1-month free trial of all features. After that the app stays usable on a free tier — there's no hard paywall.</li>
+  <li>Pro unlocks unlimited session length, the full metric set including the stroke curve, and Strava sync.</li>
+  <li>Raw data export (JSON, CSV, TCX) is always free, on any tier.</li>
+  <li>Manage or cancel your subscription in your Apple or Google account settings, not in the app.</li>
 </ul>
 
 <h2>Contact</h2>
@@ -50,6 +66,8 @@
   For bugs, feature requests, or anything not covered above, email:
   <strong><a href="mailto:bigwig.91mash@icloud.com?subject=BoatRun%20support">bigwig.91mash@icloud.com</a></strong>
 </div>
+
+<p class="foot"><a href="privacy.html">Privacy Policy</a> &nbsp;·&nbsp; <a href="terms.html">Terms of Use</a></p>
 
 </body>
 </html>
