@@ -803,27 +803,18 @@ img.inline{display:inline;margin:0 3px;vertical-align:-.32em;height:1.45em;width
 <p><strong>Rower tiles</strong> - one per rower: name, big stroke rate, big pace, plus whichever secondary metrics you've enabled in layouts. A tile greys out when no data has arrived recently. Use the <strong>+ / −</strong> buttons to scale the grid. Use the arrow buttons in the top left of each tile to swap the order.</p>
 <p><strong>LAP - ALL BOATS</strong> sends a simultaneous lap to every connected rower. This is useful for starting an interval for everyone at the same time.</p>
 
-<h2 class="clear">FREE ROW and RACE</h2>
-<p>A two-way switch at the top of the COACH tab decides what the screen is for. The header turns blue in FREE ROW and red in RACE.</p>
+<h2 class="clear">The SQUAD tab</h2>
+<p>Rotating the coach's device from portrait to landscape mode changes the layout from free row to race view.</p>
+
+<p><strong>FREE ROW</strong> is a tabulated view of the coach tab which only display name, pace and stroke rate. Order of rowers can be changed via the arrows on the right which replicates the order on the coach tab.</p>
 <div class="shots">
   <img class="w-sm" src="screenshots/coach-free-row.png" alt="Coach tab in FREE ROW with map and rower tiles" loading="lazy"/>
+</div>
+<p><strong>RACE MODE</strong> is ideal for monitoring and managing races and interval sessions. This display also shows the lap distance and is rodered by furthest ahead. The relative position is reset to zero between intervals so coach can see if relative results change between intervals.</p>
+<div class="shots">
   <img class="w-sm" src="screenshots/coach-race.png" alt="Coach tab in RACE with the squad race panel" loading="lazy"/>
 </div>
-<p><strong>FREE ROW</strong> is the on-water view described above - map on top, individual rower tiles below, drag the handle between them to resize.</p>
-<p><strong>RACE</strong> gives that lower area to the squad race panel instead: a ranked list of every rower with pace, rate and relative metres, and the simulated race track when a piece is running. The map keeps the same strip and the same drag handle. Tap a name to open that rower’s detail view.</p>
-<p>The switch is a display choice - it does not change the role of anyone else, and it is remembered between sessions.</p>
-
-<h2 class="clear">Running a squad erg race <span class="light">(Coach add-on)</span></h2>
-<p>The buttons above the map change depending on what your squad is actually doing. All erg rowers get <strong>SQUAD WORKOUT</strong>; all boats get <strong>LAP - ALL BOATS</strong>; a mixed squad gets neither, because neither command would reach everybody.</p>
-<ol>
-<li><strong>SQUAD WORKOUT</strong> - build the piece. A single distance or time piece, a repeated interval, or a variable set.</li>
-<li>Push it. Every connected erg is armed with the same piece. Nothing starts yet - rowers warm up in their own time and the piece loads itself onto each monitor as that rower finishes.</li>
-<li>The button becomes <strong>START - n/n LOADED</strong> so you can see how many monitors are actually ready. It stays amber until all of them are.</li>
-<li>Tap it to start everyone together with a count-in of about 17 seconds.</li>
-</ol>
-<img class="w-lg" src="screenshots/coach-squad-race.png" alt="Coach race panel mid-piece with rowers ranked and gaps shown" loading="lazy"/>
-<p>Relative position - metres ahead or behind - works on time-based pieces. Distance and calorie pieces cannot be compared metre for metre, so those show pace and rate only.</p>
-<p>A coach sitting on an erg themselves gets the same controls without leaving the coach screens: pushing arms your own machine too, and starting starts you with everyone else.</p>
+<p>The detailed view of any crew can be entered by tapping their tile.</p>
 
 <h2 class="clear">Rower detail</h2>
 <img class="fr w-sm" src="screenshots/coach-rower-detail.png" alt="Rower detail with live curve and metrics" loading="lazy"/>
@@ -831,8 +822,25 @@ img.inline{display:inline;margin:0 3px;vertical-align:-.32em;height:1.45em;width
 <p><strong>REQUEST CURVE</strong> asks that rower's phone to start streaming its stroke curve. It streams for as long as you've set in <strong>STROKE CURVE REQUEST LENGTH</strong> (5–60 seconds). Longer is smoother but costs battery on the rower's phone, so it's a request rather than something always on.</p>
 <p><strong>VIDEO</strong> records a clip through the phone camera, tagged to that rower and that moment. The clip can be dropped onto the session later in the Analyser's video overlay. Alternatively, you can just record videos from your phone and import them into the Analyser, however they won't be specifically linked to that rower's file. The save folder can be set in SETTINGS → SYSTEM SETTINGS when in coach mode. <strong>The recommended video folder is a cloud synced folder so videos can easily be accessed from the Analyser.</strong></p>
 
-<h2 class="clear">Pushing workouts</h2>
-<p><strong>HOME → WORKOUTS</strong> → tap a workout → <strong>PUSH TO SQUAD</strong>. It loads on every connected rower. They get a confirmation prompt if they're mid-session.</p>
+<h2 class="clear">Running a squad erg workout/race</h2>
+<p>All rowers in your squad can see their relative position on their <strong>SQUAD</strong> tab when they are pushed the same workout by the coach.</p>
+<ol>
+<li>Rowers do their own warmup. <strong>All rowers must have stopped warming up and be on the erg screen main menu to receive the squad workout.</strong></li>
+<li><strong>LOAD WORKOUT</strong> - build the piece. A single distance or time piece, a repeated interval, a variable set or your own saved workouts.</li>
+<li><strong>PUSH TO SQUAD</strong> Every connected erg is armed with the same piece. Nothing starts yet but the piece loads itself onto each monitor.</li>
+<li>The button becomes <strong>START - n/n LOADED</strong> so you can see how many monitors are actually ready. It stays amber until all of them are ready.</li>
+<li>Tap <strong>START</strong> to start everyone together with a count-in of about 17 seconds.</li>
+</ol>
+<p>Rowers signed up to the coach plan can also push workouts to their squad via the <strong>SQUAD PIECE</strong> button using the same controls as the coach</p>
+
+<h2 class="clear">Running a squad erg workout/race</h2>
+<p>Running a squad workout on the water is the same process as running it on the erg. The difference is that the workouts all contain a warmup step.</p>
+<p>When building workouts, choose to start <strong>AFTER 5 SEC</strong> or <strong>WHEN ROWING</strong>. <strong> After 5 seconds</strong> is ideal for a running start where you don't want to stop the entire squad.<strong> WHEN ROWING</strong> is ideal for practising race starts where you want everyone to be stationary at the start.</p>
+<p>When you want to finish the warmup and start the piece, tap the <strong>LAP ALL BOATS</strong> button. Note that if you have selected the <strong>WHEN ROWING</strong> option, all crews must be stationary for at least 10 seconds before pressing lap or the lap will start immediately.</p>
+
+<h2 class="clear">The INTERVALS tab</h2>
+<p>The coach's interval tab receives the intervals from all connected rowers as they complete each lap and finish their session. The data is updated every 30 seconds but can be refreshed earlier via the refresh button. Results from individual rowers can be removed from the interval tab via the x button. Deleting data from the tab <strong>does not delete the data. It is only removed from the display.</strong> Your log will automatically collate the information into a session log which can be viewed on the menu - log tab.</p>
+<p>New sessions are generated after a break of more than 3 hours or if the type changes. Eg. On-water to erg session. Squad session data can be opened via the analyser's open <strong>COACH SESSIONS</strong> option.</p>
 
 <h2>Battery - read this</h2>
 <p><strong>Connecting to a squad costs a lot of battery.</strong> It keeps a live network connection open for the whole session, on top of GPS, the accelerometer, and a screen that never sleeps.</p>
