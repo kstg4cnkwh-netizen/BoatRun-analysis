@@ -2164,6 +2164,7 @@ function recordsTrace(d) {
     .filter(s => s.dist != null && !isNaN(s.dist) && s.elapsed != null && !isNaN(s.elapsed))
     .map(s => ({ t: s.elapsed * 1000, dist: s.dist }))
     .sort((a, b) => a.t - b.t);
+  if (pts.length && pts[0].t > 0) pts.unshift({ t: 0, dist: 0 });
   const totalT = (+d.sum.duration_s || 0) * 1000;
   const totalD = +d.sum.distance_m || 0;
   const lastPt = pts[pts.length - 1];
