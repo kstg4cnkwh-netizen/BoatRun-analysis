@@ -2160,10 +2160,17 @@ function recordsTrace(d) {
   if (!d) return [];
   const erg = !!(d.sum && d.sum.session_mode === 'erg');
   if (!erg) return d.gpsTrace || [];
-  return (d.strokes || [])
+  const pts = (d.strokes || [])
     .filter(s => s.dist != null && !isNaN(s.dist) && s.elapsed != null && !isNaN(s.elapsed))
     .map(s => ({ t: s.elapsed * 1000, dist: s.dist }))
     .sort((a, b) => a.t - b.t);
+  const totalT = (+d.sum.duration_s || 0) * 1000;
+  const totalD = +d.sum.distance_m || 0;
+  const lastPt = pts[pts.length - 1];
+  if (totalT > 0 && totalD > 0 && (!lastPt || totalT > lastPt.t)) {
+    pts.push({ t: totalT, dist: Math.max(totalD, lastPt ? lastPt.dist : 0) });
+  }
+  return pts;
 }
 function addSessionFromData(d, label, replace, fileId, squadCode) {
   if (!replace && SESSIONS.length) {
