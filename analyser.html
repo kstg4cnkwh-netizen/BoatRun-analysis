@@ -3,6 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<meta name="color-scheme" content="light dark"/>
 <title>BoatRun Analyser</title>
 <link rel="icon" type="image/png" href="icons/icon-192.png">
 <script>
@@ -23,6 +24,7 @@
   /* system font */
 
   :root {
+  color-scheme:dark;
     --bg: #030d1e; --s1: #061727; --s2: #0b1f38; --s3: #112848;
     --border: #173358; --dim: #08121f;
     --g: #3cbe4f; --b: #1a68d4; --y: #e9e05d; --r: #cd2020;
@@ -39,6 +41,7 @@
     --sh-h: 0 6px 28px rgba(0,0,0,.55),0 2px 8px rgba(0,0,0,.4);
   }
   body.light {
+    color-scheme:light;
     --bg: #edf1f8; --s1: #ffffff; --s2: #f4f7fc; --s3: #e8eef8;
     --border: #c8d4e8; --dim: #dde6f2;
     --g: #3cbe4f; --b: #1a68d4; --y: #e9e05d; --r: #cd2020;
@@ -1560,41 +1563,6 @@ function pctBounds(arr,lo=0.03,hi=0.97,pad=0.08){if(!arr.length)return[0,1];cons
 function clamp(v,a,b){return v<a?a:v>b?b:v;}
 const EM='—';
 function fmtPace(s){if(!s||isNaN(s)||s<50||s>600)return EM;const r=Math.round(s);const m=Math.floor(r/60),sec=r%60;return m+':'+(sec<10?'0':'')+sec;}
-/* Erg pace is read off the PM5, which reports to 0.1s — rounding to whole
-   seconds throws away real detail on a piece, so erg sessions show m:ss.s. */
-function fmtPace1(s){if(!s||isNaN(s)||s<50||s>600)return EM;const m=Math.floor(s/60);let sec=s-m*60;if(sec>=59.95)return (m+1)+':00.0';return m+':'+(sec<10?'0':'')+sec.toFixed(1);}
-/* Metrics should describe the work, not the rests. When a session carries typed
-   laps (an erg workout with work/rest intervals, or an on-water piece plan),
-   every session-level average is taken over the work strokes alone. A plain row
-   with no workout has no typed laps, so the whole session counts. */
-function hasTypedLaps(){
-  try{ return LAPS.some(l=>('stroke_rate_spm' in l)&&l.type&&l.type!=='work'); }catch{ return false; }
-}
-function workStrokes(arr){
-  if(!hasTypedLaps())return arr||[];
-  const useLaps=LAPS.filter(l=>'stroke_rate_spm' in l);
-  return (arr||[]).filter(s=>{
-    const l=s.lapNum!=null?useLaps[s.lapNum-1]:null;
-    return !l||!l.type||l.type==='work';
-  });
-}
-function workHRWindows(){
-  const ws=workStrokes(ST);
-  if(!hasTypedLaps()||!ws.length)return ()=>true;
-  const spans=[];
-  let run=null;
-  for(const s of ws){
-    const t=s.ms;
-    if(!run||s.lapNum!==run.lap){ if(run)spans.push(run); run={lap:s.lapNum,t0:t,t1:t}; }
-    else run.t1=t;
-  }
-  if(run)spans.push(run);
-  return h=>{
-    const t=new Date(h.ts).getTime();
-    if(isNaN(t))return true;
-    return spans.some(sp=>t>=sp.t0-3000&&t<=sp.t1+3000);
-  };
-}
 function fmtTime(s){if(!s||isNaN(s))return'0:00';const h=Math.floor(s/3600),m=Math.floor((s%3600)/60),sec=Math.round(s%60);if(h>0)return h+':'+(m<10?'0':'')+m+':'+(sec<10?'0':'')+sec;return m+':'+(sec<10?'0':'')+sec;}
 function f1(v){return isNaN(v)?EM:v.toFixed(1);}
 function f2(v){return isNaN(v)?EM:v.toFixed(2);}
@@ -1622,36 +1590,15 @@ function applySessionUnits(rawSession) {
   }
 }
 function isErgSession() { return !!(_lastSum && _lastSum.session_mode === 'erg'); }
-/* Converted paces run well past the 600s sanity cap that guards a raw /500m
-   split — a mile pace is always ~3.2x the /500m figure, and /1km is 2x. The
-   source value is range-checked once here, so the converted value is formatted
-   without re-applying that cap or it silently blanks on slower paces. */
-function fmtPaceRaw(s) {
-  if (!s || isNaN(s) || s <= 0) return EM;
-  const r = Math.round(s);
-  const h = Math.floor(r / 3600);
-  const m = Math.floor((r % 3600) / 60), sec = r % 60;
-  if (h > 0) return h + ':' + (m < 10 ? '0' : '') + m + ':' + (sec < 10 ? '0' : '') + sec;
-  return m + ':' + (sec < 10 ? '0' : '') + sec;
-}
-function fmtPace1Raw(s) {
-  if (!s || isNaN(s) || s <= 0) return EM;
-  const m = Math.floor(s / 60);
-  const sec = s - m * 60;
-  if (sec >= 59.95) return (m + 1) + ':00.0';
-  return m + ':' + (sec < 10 ? '0' : '') + sec.toFixed(1);
-}
 function fmtPaceU(s500) {
   if (!s500 || isNaN(s500) || s500 < 50 || s500 > 700) return EM;
-  const _erg = isErgSession();
-  const _f = v => _erg ? fmtPace1Raw(v) : fmtPaceRaw(v);
   switch (unitSettings.paceUnit) {
-    case 'pace500':  return _f(s500);
-    case 'pace1000': return _f(s500 * 2);
-    case 'pacemile': return _f(s500 * 3.21868);
+    case 'pace500':  return fmtPace(s500);
+    case 'pace1000': return fmtPace(s500 * 2);
+    case 'pacemile': return fmtPace(s500 * 3.21868);
     case 'kph':      return (1800 / s500).toFixed(1);
     case 'mph':      return (1118.47 / s500).toFixed(1);
-    default:         return _f(s500);
+    default:         return fmtPace(s500);
   }
 }
 function paceULabel() {
@@ -1679,24 +1626,13 @@ function dpsULabelU() {
     default:   return 'm';
   }
 }
-/* Below a full km (or mile) the major unit is useless — "0.35km" reads worse
-   than "350m". Anything short of one whole major unit drops to the sub-unit.
-   Erg is always whole metres regardless of distance. */
-function distULabelU(m) {
-  if (isErgSession()) return 'm';
-  const v = Math.abs(+m || 0);
-  if (unitSettings.distUnit === 'mi') return v >= 804.67 ? 'mi' : 'ft';
-  return v >= 1000 ? 'km' : 'm';
-}
 function fmtDistU(m) {
-  if (!m || isNaN(+m)) return isErgSession() ? '0' : '0';
-  const v = +m;
-  if (isErgSession()) return String(Math.round(v));
-  if (unitSettings.distUnit === 'mi') {
-    return Math.abs(v) >= 804.67 ? (v / 1609.34).toFixed(2) : String(Math.round(v * 3.28084));
-  }
-  return Math.abs(v) >= 1000 ? (v / 1000).toFixed(2) : String(Math.round(v));
+  if (!m || isNaN(+m)) return isErgSession() ? '0' : '0.00';
+  if (isErgSession()) return String(Math.round(+m));
+  if (unitSettings.distUnit === 'mi') return (+m / 1609.34).toFixed(2);
+  return (+m / 1000).toFixed(2);
 }
+function distULabelU() { if (isErgSession()) return 'm'; return unitSettings.distUnit === 'mi' ? 'mi' : 'km'; }
 function fmtRunLossU(pct) {
   if (isNaN(pct) || pct == null) return EM;
   return pct.toFixed(1) + '%';
@@ -3593,7 +3529,7 @@ function buildMeta(fname,sum) {
   const date=dObj?dObj.toLocaleDateString():'';
   const time=dObj?dObj.toLocaleTimeString([],{hour:'2-digit',minute:'2-digit'}):'';
   const dur=fmtTime(+sum.duration_s);
-  const dist=fmtDistU(+sum.distance_m||0)+distULabelU(+sum.distance_m||0);
+  const dist=fmtDistU(+sum.distance_m||0)+distULabelU();
   const safe=fname.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
   const sq=SESSIONS[activeSessionIdx]?.squadCode;
   const sqBadge=sq?' <span style="font-size:8px;background:var(--s3);border:1px solid var(--border);border-radius:3px;padding:1px 5px;color:var(--b);letter-spacing:.07em;vertical-align:middle;">'+sq+'</span>':'';
@@ -3624,16 +3560,14 @@ function sessionStats() {
 }
 function buildCards(sum) {
   const distDisp=fmtDistU(+sum.distance_m||0);
-  const distLbl=distULabelU(+sum.distance_m||0);
+  const distLbl=distULabelU();
   const dur=fmtTime(+sum.duration_s);
-  const _hasTyped=hasTypedLaps();
-  const movPace=_hasTyped?0:(+sum.avg_moving_pace_s_per_500m||0);
-  const avgPace=_hasTyped?0:(+sum.avg_pace_s_per_500m||0);
+  const movPace=+sum.avg_moving_pace_s_per_500m||0;
+  const avgPace=+sum.avg_pace_s_per_500m||0;
   // Session-level per-metric averages
   const vals={};
-  const _WST=workStrokes(ST);
-  for(const m of METRIC_DEFS){const arr=_WST.filter(m.filter).map(m.val);vals[m.k]=arr.length?{mean:arrMean(arr),min:arrMin(arr),max:arrMax(arr),n:arr.length}:null;}
-  {const _hrOK=workHRWindows();const hb=HR.filter(h=>_hrOK(h)).map(h=>h.bpm).filter(b=>b>40&&b<220);vals.hr=hb.length?{mean:arrMean(hb),min:arrMin(hb),max:arrMax(hb),n:hb.length}:null;}
+  for(const m of METRIC_DEFS){const arr=ST.filter(m.filter).map(m.val);vals[m.k]=arr.length?{mean:arrMean(arr),min:arrMin(arr),max:arrMax(arr),n:arr.length}:null;}
+  {const hb=HR.map(h=>h.bpm).filter(b=>b>40&&b<220);vals.hr=hb.length?{mean:arrMean(hb),min:arrMin(hb),max:arrMax(hb),n:hb.length}:null;}
   const tipOf=k=>{const m=METRIC_DEFS.find(d=>d.k===k);return m?m.tip:'';};
   const card=(cls,lbl,val,sub,k,tip)=>`<div class="card ${cls}${k?' clickable':''}${k&&!vis[k]?' dim':''}"${k?` id="card-${k}" data-vis="${k}"`:''}${tip?` title="${tip}"`:''}>` +
     `<div class="lbl">${lbl}</div><div class="val">${val}</div><div class="sub">${sub}</div></div>`;
@@ -4395,7 +4329,7 @@ function updateStatsStrip(){
     const dur=strokes[strokes.length-1].elapsed-strokes[0].elapsed;
     html+=sp('Time',fmtTime(dur));
     const dsel=(strokes[strokes.length-1].dist||0)-(strokes[0].dist||0);
-    if(!isNaN(dsel)) html+=sp('Distance',fmtDistU(dsel)+distULabelU(dsel));
+    if(!isNaN(dsel)) html+=sp('Distance',fmtDistU(dsel)+distULabelU());
   }
   for(const m of METRIC_DEFS){
     if(hid[m.k]||!metricFitsSession(m.k))continue;
@@ -5448,7 +5382,7 @@ function buildCurveStats(){
     {l:'Strokes',fn:g=>String(g.strokes.length)},
     {l:'w/ curves',fn:g=>String(g.strokes.filter(s=>s.curve&&s.curve.length).length)},
     {l:'Time',fn:g=>{const a=g.strokes;return a.length?fmtTime(a[a.length-1].elapsed-a[0].elapsed):EM;}},
-    {l:'Distance',fn:g=>{const a=g.strokes;if(!a.length)return EM;const d=(a[a.length-1].dist||0)-(a[0].dist||0);return isNaN(d)?EM:fmtDistU(d)+distULabelU(d);}},
+    {l:'Distance',fn:g=>{const a=g.strokes;if(!a.length)return EM;const d=(a[a.length-1].dist||0)-(a[0].dist||0);return isNaN(d)?EM:fmtDistU(d)+distULabelU();}},
   ];
   for(const m of METRIC_DEFS){
     if(hid[m.k]||!metricFitsSession(m.k))continue;
@@ -5759,7 +5693,7 @@ function buildLaps(){
   document.querySelector('#laptbl tbody').innerHTML=showLaps.map((l,i)=>`<tr data-lap="${i+1}" data-type="${l.type||''}" style="cursor:pointer">
     ${hasType?`<td>${lapTypeChip(l.type)}</td>`:''}
     <td>Lap ${i+1}</td>
-    <td>${fmtDistU(+l.distance_m||0)+distULabelU(+l.distance_m||0)}</td>
+    <td>${(+l.distance_m||0).toFixed(0)}m</td>
     <td>${fmtTime(+l.time_s)}</td>
     <td style="color:var(--mc-pace)">${fmtPaceU(+l.pace_s_per_500m)}</td>
     <td style="color:var(--mc-rate)">${l.avg_spm||l.stroke_rate_spm||EM}</td>
