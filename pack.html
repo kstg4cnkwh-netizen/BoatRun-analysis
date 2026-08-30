@@ -1,0 +1,382 @@
+<!doctype html>
+<html lang="en-AU">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1"/>
+<meta name="theme-color" content="#081226"/>
+<title>BoatRun — Your Club Pack</title>
+<link rel="icon" type="image/png" href="icons/icon-192.png">
+<meta name="robots" content="noindex">
+<meta name="description" content="Redeem your BoatRun club code, or manage the codes for a pack you have bought."/>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&family=Inter:wght@400;500;600;700&family=Roboto+Mono:wght@500;600&display=swap" rel="stylesheet">
+<style>
+:root{
+  --navy:#081226; --navy-2:#0E1B38;
+  --line:rgba(255,255,255,.10);
+  --ink:#EFF3FA; --ink-dim:rgba(239,243,250,.62); --ink-faint:rgba(239,243,250,.38);
+  --coral:#FF5A3C; --coral-dim:rgba(255,90,60,.14);
+  --teal:#2FD3C6; --amber:#FFB648;
+  --paper:#F6F5F1; --paper-ink:#0E1420;
+  --radius:14px;
+}
+*{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent;}
+body{font-family:'Inter',-apple-system,system-ui,sans-serif;background:var(--paper);color:var(--paper-ink);line-height:1.6;-webkit-font-smoothing:antialiased;}
+.mono{font-family:'Roboto Mono',monospace;}
+a{color:inherit;}
+.wrap{max-width:900px;margin:0 auto;padding:0 24px;}
+.eyebrow{display:inline-flex;align-items:center;gap:8px;font-family:'Roboto Mono',monospace;font-size:11px;font-weight:600;letter-spacing:.14em;text-transform:uppercase;padding:6px 12px;border-radius:100px;border:1px solid var(--line);}
+
+header{position:sticky;top:0;z-index:40;background:rgba(8,18,38,.86);backdrop-filter:blur(10px);border-bottom:1px solid rgba(255,255,255,.08);}
+.nav{display:flex;align-items:center;justify-content:space-between;height:64px;color:var(--ink);max-width:1120px;margin:0 auto;padding:0 24px;}
+.brand{display:flex;align-items:center;gap:9px;font-family:'Space Grotesk',sans-serif;font-weight:700;font-size:18px;text-decoration:none;}
+.brand .dot{width:9px;height:9px;border-radius:2px;background:var(--coral);transform:rotate(45deg);}
+.nav a.plain{color:var(--ink-dim);text-decoration:none;font-size:14px;font-weight:500;}
+
+.hero{background:radial-gradient(ellipse 900px 500px at 20% -10%, #142a56 0%, transparent 60%),linear-gradient(180deg,var(--navy) 0%, var(--navy-2) 100%);color:var(--ink);padding:52px 0 58px;}
+h1{font-family:'Space Grotesk',sans-serif;font-weight:700;font-size:clamp(28px,4vw,42px);line-height:1.06;letter-spacing:-.02em;margin:16px 0 14px;}
+h1 em{font-style:normal;color:var(--coral);}
+.hero-sub{font-size:16px;color:var(--ink-dim);max-width:560px;}
+.hero-eyebrow{color:var(--coral);border-color:rgba(255,90,60,.35);background:var(--coral-dim);}
+
+section{padding:52px 0;}
+h2{font-family:'Space Grotesk',sans-serif;font-size:24px;font-weight:700;letter-spacing:-.015em;margin-bottom:8px;}
+.sub{color:#4B5565;font-size:15px;margin-bottom:22px;}
+
+.card{background:#fff;border:1px solid #E3E1D9;border-radius:var(--radius);padding:24px;}
+.card.dark{background:#0F1C3A;border-color:var(--line);color:var(--ink);}
+
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:9px;text-decoration:none;font-size:14.5px;font-weight:700;padding:13px 20px;border-radius:10px;border:1px solid transparent;cursor:pointer;font-family:inherit;transition:transform .1s ease,opacity .15s;}
+.btn:active{transform:scale(.98);}
+.btn:disabled{opacity:.45;cursor:default;box-shadow:none;}
+.btn-coral{background:var(--coral);color:#fff;box-shadow:0 8px 24px -8px rgba(255,90,60,.55);}
+.btn-dark{background:#000;color:#fff;}
+.btn-wire{background:#fff;color:#111;border-color:#D6D3C9;}
+.btn-ghostlight{background:transparent;color:var(--ink);border-color:rgba(255,255,255,.22);}
+
+label.fld{display:block;font-size:12px;font-weight:600;letter-spacing:.04em;text-transform:uppercase;color:#6A7383;margin:0 0 7px;}
+input.code{width:100%;padding:15px 14px;border-radius:10px;border:1px solid #D6D3C9;background:#FAF9F6;color:#111;font-family:'Roboto Mono',monospace;font-size:20px;font-weight:600;letter-spacing:.10em;text-align:center;text-transform:uppercase;}
+input.code:focus{outline:none;border-color:var(--coral);background:#fff;}
+
+.msg{border-radius:10px;padding:13px 15px;font-size:14px;margin-top:16px;display:none;line-height:1.5;}
+.msg.err{background:#FFECE7;border:1px solid #FFC3B4;color:#8A2B14;}
+.msg.ok{background:#E6F8F5;border:1px solid #A9E6DD;color:#0C5148;}
+.msg.info{background:#FFF6E5;border:1px solid #FFE0A8;color:#7A5311;}
+
+.who{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;background:#F1EFE8;border:1px solid #E3E1D9;border-radius:10px;padding:12px 14px;font-size:14px;margin-bottom:18px;}
+.who b{font-weight:600;}
+.who button{background:none;border:none;color:#6A7383;text-decoration:underline;cursor:pointer;font-family:inherit;font-size:13px;}
+
+table{width:100%;border-collapse:collapse;margin-top:6px;}
+th{text-align:left;font-family:'Roboto Mono',monospace;font-size:10.5px;letter-spacing:.12em;text-transform:uppercase;color:var(--ink-faint);font-weight:600;padding:0 0 10px;}
+td{padding:11px 0;border-top:1px solid var(--line);font-size:14.5px;vertical-align:middle;}
+td.c{font-family:'Roboto Mono',monospace;font-size:16px;font-weight:600;letter-spacing:.08em;}
+.tag{display:inline-block;font-size:10.5px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;padding:3px 9px;border-radius:100px;}
+.tag.coach{background:rgba(255,182,72,.16);color:var(--amber);}
+.tag.pro{background:rgba(47,211,198,.16);color:var(--teal);}
+.tag.used{background:rgba(255,255,255,.09);color:var(--ink-faint);}
+.tag.spare{background:rgba(255,90,60,.16);color:var(--coral);}
+td button.copy{background:rgba(255,255,255,.08);border:1px solid rgba(255,255,255,.18);color:var(--ink-dim);border-radius:7px;padding:5px 11px;font-size:12px;cursor:pointer;font-family:inherit;}
+td button.copy:hover{color:var(--ink);}
+.summary{display:flex;gap:26px;flex-wrap:wrap;margin-bottom:20px;}
+.summary div b{display:block;font-family:'Space Grotesk',sans-serif;font-size:22px;font-weight:700;}
+.summary div span{font-size:12px;color:var(--ink-faint);letter-spacing:.03em;}
+
+.hint{font-size:13px;color:#6A7383;line-height:1.55;margin-top:14px;}
+.hidden{display:none !important;}
+
+footer{background:var(--navy);color:var(--ink);padding:40px 0 28px;}
+.foot-links{display:flex;gap:20px;flex-wrap:wrap;font-size:13px;margin-bottom:20px;}
+.foot-links a{color:var(--ink-dim);text-decoration:none;}
+.foot-bottom{font-size:12.5px;color:var(--ink-faint);}
+</style>
+</head>
+<body>
+
+<header>
+  <div class="nav">
+    <a class="brand" href="./index.html"><span class="dot"></span>BoatRun</a>
+    <a class="plain" href="./clubs.html">Club packs</a>
+  </div>
+</header>
+
+<div class="hero">
+  <div class="wrap">
+    <span class="eyebrow hero-eyebrow" id="hero-tag">Redeem</span>
+    <h1 id="hero-h">Activate your <em>club seat</em>.</h1>
+    <p class="hero-sub" id="hero-sub">Sign in with the same account you use in the BoatRun app, paste the code your club sent you, and you're done. Your plan appears next time you open the app.</p>
+  </div>
+</div>
+
+<!-- ── BUYER VIEW: the codes for a pack ─────────────────────────────────── -->
+<section id="pack-section" class="hidden" style="background:#EFEDE6;">
+  <div class="wrap">
+    <h2>Your codes</h2>
+    <p class="sub">Bookmark this page. It's the only place these codes live, and it updates as people redeem them.</p>
+    <div class="card dark">
+      <div class="summary" id="pack-summary"></div>
+      <div id="pack-body"></div>
+      <div style="display:flex;gap:10px;flex-wrap:wrap;margin-top:20px;">
+        <button class="btn btn-ghostlight" id="copy-all">Copy all unused codes</button>
+        <button class="btn btn-ghostlight" id="refresh">Refresh</button>
+      </div>
+    </div>
+    <p class="hint">Send each person one code plus a link to this page. They redeem it below. A code works exactly once, and the 12 months starts on the day they redeem, not the day you bought.</p>
+  </div>
+</section>
+
+<!-- ── REDEEM ───────────────────────────────────────────────────────────── -->
+<section id="redeem-section">
+  <div class="wrap">
+    <h2>Redeem a code</h2>
+    <p class="sub">One code, one account, twelve months.</p>
+
+    <div class="card">
+      <!-- signed out -->
+      <div id="signed-out">
+        <p style="font-size:15px;margin-bottom:18px;">First, sign in with the account you use in the BoatRun app. If you're not sure which one, open the app, go to Settings, and look at the top of the Plan panel.</p>
+        <div style="display:flex;gap:10px;flex-wrap:wrap;">
+          <button class="btn btn-dark" id="in-apple">&#63743;&nbsp; Continue with Apple</button>
+          <button class="btn btn-wire" id="in-google">Continue with Google</button>
+        </div>
+        <p class="hint">Signing in with a different provider than you used in the app creates a second, separate account — and your club seat would land on the wrong one.</p>
+      </div>
+
+      <!-- signed in -->
+      <div id="signed-in" class="hidden">
+        <div class="who">
+          <span>Signed in as <b id="who-email"></b></span>
+          <button id="signout">Not you? Sign out</button>
+        </div>
+        <label class="fld" for="code">Your code</label>
+        <input class="code" id="code" type="text" inputmode="latin" autocomplete="off" spellcheck="false" placeholder="BR-XXXX-XXXX" maxlength="12">
+        <button class="btn btn-coral" id="redeem" style="width:100%;margin-top:14px;">Redeem code</button>
+      </div>
+
+      <div class="msg" id="msg"></div>
+    </div>
+
+    <p class="hint">Already paying through the App Store or Google Play? Cancel that subscription before redeeming, or you'll be paying for the same thing twice. Redeeming does not cancel a store subscription for you.</p>
+  </div>
+</section>
+
+<footer>
+  <div class="wrap">
+    <div class="foot-links">
+      <a href="./index.html">Home</a>
+      <a href="./clubs.html">Club packs</a>
+      <a href="./guide.html">User Guide</a>
+      <a href="./privacy.html">Privacy</a>
+      <a href="./terms.html">Terms</a>
+      <a href="./support.html">Support</a>
+      <a href="mailto:bigwig.91mash@icloud.com?subject=BoatRun%20club%20code%20help">Email us</a>
+    </div>
+    <div class="foot-bottom">© 2026 BoatRun</div>
+  </div>
+</footer>
+
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-auth-compat.js"></script>
+<script>
+/* ============================================================
+   EDIT THIS to your deployed Worker URL.
+   ============================================================ */
+const API = 'https://boatrun-packs.davidmacready74.workers.dev';
+
+/* Same project as the app. This has to match or the uid the Worker writes
+   against will not be the uid the app reads. */
+const firebaseConfig = {
+  apiKey: "AIzaSyBXpkmVnRzp6a-FqWmjxqrjzxdHtKiwP7I",
+  authDomain: "boatrun.firebaseapp.com",
+  databaseURL: "https://boatrun-default-rtdb.asia-southeast1.firebasedatabase.app",
+  projectId: "boatrun",
+  storageBucket: "boatrun.firebasestorage.app",
+  messagingSenderId: "118760764612",
+  appId: "1:118760764612:web:d9810245caed9744768591"
+};
+
+let fbAuth = null;
+try{ firebase.initializeApp(firebaseConfig); fbAuth = firebase.auth(); }
+catch(e){ console.error('Firebase init failed', e); }
+
+const $ = id => document.getElementById(id);
+
+function msg(kind, text){
+  const el = $('msg');
+  el.className = 'msg ' + kind;
+  el.innerHTML = text;
+  el.style.display = text ? 'block' : 'none';
+}
+
+// ── AUTH ────────────────────────────────────────────────────────────────────
+if(fbAuth){
+  fbAuth.onAuthStateChanged(u => {
+    $('signed-out').classList.toggle('hidden', !!u);
+    $('signed-in').classList.toggle('hidden', !u);
+    if(u){
+      $('who-email').textContent = u.email || u.uid;
+      $('code').focus();
+    }
+  });
+}
+
+async function signIn(which){
+  if(!fbAuth){ msg('err', 'Sign-in is unavailable right now. Please try again shortly.'); return; }
+  msg('', '');
+  try{
+    const provider = (which === 'apple')
+      ? new firebase.auth.OAuthProvider('apple.com')
+      : new firebase.auth.GoogleAuthProvider();
+    if(which === 'apple'){ provider.addScope('email'); provider.addScope('name'); }
+    await fbAuth.signInWithPopup(provider);
+  }catch(e){
+    const code = (e && e.code) || '';
+    if(code === 'auth/popup-closed-by-user' || code === 'auth/cancelled-popup-request') return;
+    if(code === 'auth/account-exists-with-different-credential'){
+      msg('err', 'You already have a BoatRun account using the other sign-in provider. Use that one instead, or your club seat will land on a second, empty account.');
+      return;
+    }
+    msg('err', 'Sign-in failed: ' + ((e && e.message) ? e.message : e));
+  }
+}
+$('in-google').addEventListener('click', () => signIn('google'));
+$('in-apple').addEventListener('click',  () => signIn('apple'));
+$('signout').addEventListener('click', async () => {
+  try{ await fbAuth.signOut(); msg('', ''); }catch(e){ console.error(e); }
+});
+
+// ── REDEEM ──────────────────────────────────────────────────────────────────
+/* Reformat as they type so a code pasted from an email in any shape ends up
+   looking like the one on the page. The Worker normalises again server-side,
+   so this is purely so people can see they typed it right. */
+$('code').addEventListener('input', e => {
+  let v = e.target.value.toUpperCase().replace(/[^A-Z0-9]/g, '');
+  if(v.slice(0, 2) === 'BR') v = v.slice(2);
+  let out = 'BR';
+  if(v.length) out += '-' + v.slice(0, 4);
+  if(v.length > 4) out += '-' + v.slice(4, 8);
+  e.target.value = out;
+});
+$('code').addEventListener('keydown', e => { if(e.key === 'Enter') $('redeem').click(); });
+
+$('redeem').addEventListener('click', async () => {
+  const btn = $('redeem');
+  const user = fbAuth && fbAuth.currentUser;
+  if(!user){ msg('err', 'Please sign in first.'); return; }
+
+  const code = $('code').value.trim();
+  if(code.replace(/[^A-Z0-9]/gi, '').length !== 10){
+    msg('err', 'That code looks incomplete. It should be BR- followed by two groups of four.');
+    return;
+  }
+
+  btn.disabled = true;
+  btn.textContent = 'Redeeming\u2026';
+  msg('', '');
+  try{
+    const idToken = await user.getIdToken(true);
+    const r = await fetch(API + '/redeem', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + idToken },
+      body: JSON.stringify({ code })
+    });
+    const data = await r.json();
+    if(!r.ok) throw new Error(data.error || 'Could not redeem that code');
+
+    const until = new Date(data.expiresAt).toLocaleDateString(undefined, { day:'numeric', month:'long', year:'numeric' });
+    const tier = String(data.tier || '').toUpperCase();
+    msg('ok',
+      '<b>Done — you are on ' + tier + ' until ' + until + '.</b><br>' +
+      'Open the BoatRun app and it will pick this up within a few seconds. ' +
+      'If it still shows Basic, close the app fully and reopen it.');
+    $('code').value = '';
+    if(packId) loadPack();
+  }catch(e){
+    msg('err', (e && e.message) ? e.message : 'Something went wrong. Please try again.');
+  }finally{
+    btn.disabled = false;
+    btn.textContent = 'Redeem code';
+  }
+});
+
+// ── BUYER VIEW ──────────────────────────────────────────────────────────────
+const params = new URLSearchParams(location.search);
+const packId = params.get('p') || '';
+const claimToken = params.get('t') || '';
+let packCodes = [];
+
+function esc(s){ return String(s).replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c])); }
+
+async function loadPack(){
+  if(!packId || !claimToken) return;
+  $('pack-section').classList.remove('hidden');
+  $('hero-tag').textContent = 'Club pack';
+  $('hero-h').innerHTML = 'Your pack is <em>ready</em>.';
+  $('hero-sub').textContent = 'Below are your codes — one per seat. Send one to each person and point them at this page to redeem it.';
+
+  const body = $('pack-body');
+  body.innerHTML = '<p style="color:rgba(239,243,250,.62);font-size:14px;">Loading your codes\u2026</p>';
+  try{
+    const r = await fetch(API + '/pack?p=' + encodeURIComponent(packId) + '&t=' + encodeURIComponent(claimToken));
+    const data = await r.json();
+    if(!r.ok) throw new Error(data.error || 'Could not load this pack');
+
+    if(data.status !== 'paid'){
+      /* Stripe's webhook usually lands before the browser gets back here, but
+         not always. Poll rather than telling someone who has just paid that
+         nothing exists. */
+      body.innerHTML = '<p style="color:rgba(239,243,250,.62);font-size:14px;">Payment is still being confirmed. This page will update on its own \u2014 give it a few seconds.</p>';
+      $('pack-summary').innerHTML = '';
+      setTimeout(loadPack, 4000);
+      return;
+    }
+
+    packCodes = data.codes || [];
+    const used  = packCodes.filter(c => c.used).length;
+    const spare = packCodes.length - used;
+    $('pack-summary').innerHTML =
+      '<div><b>' + packCodes.length + '</b><span>SEATS</span></div>' +
+      '<div><b>' + used + '</b><span>REDEEMED</span></div>' +
+      '<div><b>' + spare + '</b><span>STILL SPARE</span></div>' +
+      '<div><b>' + (data.months || 12) + '</b><span>MONTHS EACH</span></div>';
+
+    let html = '<table><tr><th>Code</th><th>Seat</th><th>Status</th><th></th></tr>';
+    packCodes.forEach(c => {
+      html += '<tr>' +
+        '<td class="c">' + esc(c.code) + '</td>' +
+        '<td><span class="tag ' + (c.tier === 'coach' ? 'coach' : 'pro') + '">' + esc(c.tier) + '</span></td>' +
+        '<td><span class="tag ' + (c.used ? 'used' : 'spare') + '">' + (c.used ? 'redeemed' : 'spare') + '</span></td>' +
+        '<td style="text-align:right;">' + (c.used ? '' : '<button class="copy" data-code="' + esc(c.code) + '">Copy</button>') + '</td>' +
+        '</tr>';
+    });
+    html += '</table>';
+    body.innerHTML = html;
+
+    body.querySelectorAll('button.copy').forEach(b => {
+      b.addEventListener('click', () => {
+        navigator.clipboard.writeText(b.dataset.code);
+        b.textContent = 'Copied';
+        setTimeout(() => { b.textContent = 'Copy'; }, 1600);
+      });
+    });
+  }catch(e){
+    body.innerHTML = '<p style="color:#FFD9D1;font-size:14px;">' +
+      esc((e && e.message) ? e.message : 'Could not load this pack.') +
+      ' If you have lost your link, email us with the address you paid from.</p>';
+  }
+}
+
+$('copy-all').addEventListener('click', () => {
+  const spare = packCodes.filter(c => !c.used);
+  if(!spare.length){ return; }
+  navigator.clipboard.writeText(spare.map(c => c.code + '  (' + c.tier + ')').join('\n'));
+  $('copy-all').textContent = 'Copied ' + spare.length + ' codes';
+  setTimeout(() => { $('copy-all').textContent = 'Copy all unused codes'; }, 1900);
+});
+$('refresh').addEventListener('click', loadPack);
+
+loadPack();
+</script>
+</body>
+</html>

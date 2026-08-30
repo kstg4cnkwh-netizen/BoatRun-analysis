@@ -1,0 +1,332 @@
+<!doctype html>
+<html lang="en-AU">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1"/>
+<meta name="theme-color" content="#081226"/>
+<title>BoatRun — Club Packs</title>
+<link rel="icon" type="image/png" href="icons/icon-192.png">
+<meta name="description" content="Buy BoatRun Coach and Pro seats for your whole squad in one go. One invoice, one payment, a code for every rower."/>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&family=Inter:wght@400;500;600;700&family=Roboto+Mono:wght@500;600&display=swap" rel="stylesheet">
+<style>
+:root{
+  --navy:#081226; --navy-2:#0E1B38; --panel:#0F1C3A;
+  --line:rgba(255,255,255,.10);
+  --ink:#EFF3FA; --ink-dim:rgba(239,243,250,.62); --ink-faint:rgba(239,243,250,.38);
+  --coral:#FF5A3C; --coral-dim:rgba(255,90,60,.14);
+  --teal:#2FD3C6; --amber:#FFB648;
+  --paper:#F6F5F1; --paper-ink:#0E1420;
+  --radius:14px;
+}
+*{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent;}
+html{scroll-behavior:smooth;}
+body{font-family:'Inter',-apple-system,system-ui,sans-serif;background:var(--paper);color:var(--paper-ink);line-height:1.6;-webkit-font-smoothing:antialiased;}
+.disp{font-family:'Space Grotesk',sans-serif;}
+.mono{font-family:'Roboto Mono',monospace;}
+a{color:inherit;}
+.wrap{max-width:1120px;margin:0 auto;padding:0 24px;}
+.eyebrow{display:inline-flex;align-items:center;gap:8px;font-family:'Roboto Mono',monospace;font-size:11px;font-weight:600;letter-spacing:.14em;text-transform:uppercase;padding:6px 12px;border-radius:100px;border:1px solid var(--line);}
+
+header{position:sticky;top:0;z-index:40;background:rgba(8,18,38,.86);backdrop-filter:blur(10px);border-bottom:1px solid rgba(255,255,255,.08);}
+.nav{display:flex;align-items:center;justify-content:space-between;height:64px;color:var(--ink);}
+.brand{display:flex;align-items:center;gap:9px;font-family:'Space Grotesk',sans-serif;font-weight:700;font-size:18px;letter-spacing:-.01em;text-decoration:none;}
+.brand .dot{width:9px;height:9px;border-radius:2px;background:var(--coral);transform:rotate(45deg);}
+.navlinks{display:flex;gap:28px;font-size:14px;font-weight:500;}
+.navlinks a{text-decoration:none;color:var(--ink-dim);transition:color .15s;}
+.navlinks a:hover{color:var(--ink);}
+@media(max-width:840px){.navlinks{display:none;}}
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:8px;text-decoration:none;font-size:14.5px;font-weight:700;padding:13px 22px;border-radius:10px;border:1px solid transparent;transition:transform .1s ease,opacity .15s;cursor:pointer;font-family:inherit;}
+.btn:active{transform:scale(.98);}
+.btn-coral{background:var(--coral);color:#fff;box-shadow:0 8px 24px -8px rgba(255,90,60,.55);}
+.btn-ghost{background:transparent;color:var(--ink);border-color:rgba(255,255,255,.22);}
+.btn:disabled{opacity:.45;cursor:default;box-shadow:none;}
+
+.hero{background:radial-gradient(ellipse 900px 500px at 20% -10%, #142a56 0%, transparent 60%),linear-gradient(180deg,var(--navy) 0%, var(--navy-2) 100%);color:var(--ink);padding:64px 0 72px;position:relative;overflow:hidden;}
+.hero:after{content:"";position:absolute;inset:0;pointer-events:none;background:linear-gradient(rgba(255,255,255,.035) 1px,transparent 1px);background-size:100% 44px;mix-blend-mode:overlay;opacity:.5;}
+.hero .inner{position:relative;z-index:1;max-width:640px;}
+.hero-eyebrow{color:var(--coral);border-color:rgba(255,90,60,.35);background:var(--coral-dim);}
+h1.hero-h{font-family:'Space Grotesk',sans-serif;font-weight:700;font-size:clamp(32px,4.6vw,50px);line-height:1.05;letter-spacing:-.02em;margin:18px 0 16px;}
+h1.hero-h em{font-style:normal;color:var(--coral);}
+.hero-sub{font-size:16.5px;color:var(--ink-dim);}
+
+section{padding:64px 0;}
+.section-h{font-family:'Space Grotesk',sans-serif;font-size:clamp(24px,3.2vw,34px);font-weight:700;letter-spacing:-.015em;margin-bottom:10px;}
+.section-p{color:#4B5565;max-width:620px;}
+
+.steps{display:grid;grid-template-columns:repeat(3,1fr);gap:18px;margin-top:34px;}
+@media(max-width:820px){.steps{grid-template-columns:1fr;}}
+.step{background:#fff;border:1px solid #E3E1D9;border-radius:var(--radius);padding:20px;}
+.step .n{font-family:'Roboto Mono',monospace;font-size:11px;font-weight:600;letter-spacing:.14em;color:var(--coral);}
+.step h4{font-family:'Space Grotesk',sans-serif;font-size:17px;margin:8px 0 6px;}
+.step p{font-size:14px;color:#4B5565;}
+
+.buybox{background:#0F1C3A;color:var(--ink);border-radius:18px;padding:28px;border:1px solid var(--line);}
+.buy-grid{display:grid;grid-template-columns:1.1fr .9fr;gap:34px;align-items:start;}
+@media(max-width:900px){.buy-grid{grid-template-columns:1fr;gap:24px;}}
+.seat-row{display:flex;align-items:center;justify-content:space-between;gap:14px;padding:16px 0;border-bottom:1px solid var(--line);}
+.seat-row:last-of-type{border-bottom:none;}
+.seat-info h4{font-family:'Space Grotesk',sans-serif;font-size:16px;margin-bottom:2px;}
+.seat-info span{font-size:12.5px;color:var(--ink-faint);}
+.stepper{display:flex;align-items:center;gap:0;border:1px solid rgba(255,255,255,.2);border-radius:10px;overflow:hidden;flex:0 0 auto;}
+.stepper button{width:38px;height:40px;background:rgba(255,255,255,.06);border:none;color:var(--ink);font-size:19px;font-weight:600;cursor:pointer;font-family:inherit;line-height:1;}
+.stepper button:hover{background:rgba(255,255,255,.14);}
+.stepper button:disabled{opacity:.3;cursor:default;}
+.stepper input{width:56px;height:40px;background:transparent;border:none;border-left:1px solid rgba(255,255,255,.2);border-right:1px solid rgba(255,255,255,.2);color:var(--ink);text-align:center;font-family:'Roboto Mono',monospace;font-size:15px;font-weight:600;}
+.stepper input:focus{outline:none;background:rgba(255,255,255,.06);}
+
+label.fld{display:block;font-size:12px;font-weight:600;letter-spacing:.04em;text-transform:uppercase;color:var(--ink-faint);margin:20px 0 7px;}
+input.txt{width:100%;padding:13px 14px;border-radius:10px;border:1px solid rgba(255,255,255,.2);background:rgba(255,255,255,.05);color:var(--ink);font-family:inherit;font-size:15px;}
+input.txt:focus{outline:none;border-color:var(--coral);}
+input.txt::placeholder{color:var(--ink-faint);}
+
+.total{background:rgba(255,255,255,.05);border:1px solid var(--line);border-radius:14px;padding:20px;}
+.total h4{font-family:'Roboto Mono',monospace;font-size:11px;letter-spacing:.14em;text-transform:uppercase;color:var(--ink-faint);margin-bottom:14px;}
+.tot-line{display:flex;justify-content:space-between;font-size:14px;color:var(--ink-dim);padding:6px 0;}
+.tot-line b{color:var(--ink);font-weight:600;}
+.tot-sum{display:flex;justify-content:space-between;align-items:baseline;border-top:1px solid var(--line);margin-top:12px;padding-top:14px;}
+.tot-sum span{font-size:13px;color:var(--ink-faint);}
+.tot-sum b{font-family:'Space Grotesk',sans-serif;font-size:30px;font-weight:700;}
+.note{font-size:12.5px;color:var(--ink-faint);line-height:1.55;margin-top:14px;}
+.err{background:rgba(255,90,60,.14);border:1px solid rgba(255,90,60,.4);color:#FFD9D1;border-radius:10px;padding:11px 13px;font-size:13.5px;margin-top:14px;display:none;}
+
+.faq{border-top:1px solid #E3E1D9;padding:22px 0;}
+.faq h4{font-family:'Space Grotesk',sans-serif;font-size:16.5px;margin-bottom:6px;}
+.faq p{font-size:14.5px;color:#4B5565;}
+
+footer{background:var(--navy);color:var(--ink);padding:44px 0 30px;}
+.foot-bottom{display:flex;justify-content:space-between;flex-wrap:wrap;gap:10px;font-size:12.5px;color:var(--ink-faint);}
+.foot-links{display:flex;gap:20px;flex-wrap:wrap;font-size:13px;margin-bottom:22px;}
+.foot-links a{color:var(--ink-dim);text-decoration:none;}
+.foot-links a:hover{color:var(--ink);}
+</style>
+</head>
+<body>
+
+<header>
+  <div class="wrap nav">
+    <a class="brand" href="./index.html"><span class="dot"></span>BoatRun</a>
+    <nav class="navlinks">
+      <a href="./index.html#rowers">For Rowers</a>
+      <a href="./index.html#coaches">For Coaches</a>
+      <a href="./index.html#pricing">Plans</a>
+      <a href="./clubs.html">Clubs</a>
+      <a href="./guide.html">Guide</a>
+    </nav>
+    <a class="btn btn-coral" href="#buy">Buy seats</a>
+  </div>
+</header>
+
+<div class="hero">
+  <div class="wrap inner">
+    <span class="eyebrow hero-eyebrow">Clubs &amp; Schools</span>
+    <h1 class="hero-h">Kit out the <em>whole squad</em> in one go.</h1>
+    <p class="hero-sub">One payment, one invoice, and a redemption code for every rower and coach. No app store accounts to chase, no reimbursement forms, and it works the same on iPhone and Android.</p>
+  </div>
+</div>
+
+<section>
+  <div class="wrap">
+    <h2 class="section-h">How it works</h2>
+    <p class="section-p">Three steps. The whole thing normally takes about ten minutes, most of which is you emailing the codes out.</p>
+    <div class="steps">
+      <div class="step">
+        <div class="n">STEP 01</div>
+        <h4>Pick your seats</h4>
+        <p>Choose how many Coach seats and how many Pro seats you need, then pay by card. You get a receipt you can hand straight to your treasurer.</p>
+      </div>
+      <div class="step">
+        <div class="n">STEP 02</div>
+        <h4>Get your codes</h4>
+        <p>The moment payment clears you land on a page listing one code per seat. Bookmark it — it also shows you who has and hasn't redeemed yet.</p>
+      </div>
+      <div class="step">
+        <div class="n">STEP 03</div>
+        <h4>Send them out</h4>
+        <p>Each person opens the redeem page, signs in with the same account they use in the app, and pastes their code. Their plan appears next time they open BoatRun.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section id="buy" style="background:#EFEDE6;">
+  <div class="wrap">
+    <h2 class="section-h">Build your pack</h2>
+    <p class="section-p" style="margin-bottom:28px;">Every seat runs for 12 months from the day that individual redeems their code, not from the day you buy. Nobody loses time waiting for a rower to get around to it.</p>
+
+    <div class="buybox">
+      <div class="buy-grid">
+        <div>
+          <div class="seat-row">
+            <div class="seat-info">
+              <h4>Coach seats</h4>
+              <span>Squad monitoring, erg racing, video, workouts. Includes Pro.</span>
+            </div>
+            <div class="stepper">
+              <button type="button" id="coach-minus">&minus;</button>
+              <input id="coach-n" class="mono" type="text" inputmode="numeric" value="1">
+              <button type="button" id="coach-plus">+</button>
+            </div>
+          </div>
+          <div class="seat-row">
+            <div class="seat-info">
+              <h4>Pro seats</h4>
+              <span>Unlimited recording, full metrics, stroke curve, Strava.</span>
+            </div>
+            <div class="stepper">
+              <button type="button" id="pro-minus">&minus;</button>
+              <input id="pro-n" class="mono" type="text" inputmode="numeric" value="10">
+              <button type="button" id="pro-plus">+</button>
+            </div>
+          </div>
+
+          <label class="fld" for="email">Where should we send the receipt?</label>
+          <input class="txt" id="email" type="email" autocomplete="email" placeholder="treasurer@yourclub.org.au">
+          <p class="note">This is also the address we'll use if you ever lose the link to your codes.</p>
+        </div>
+
+        <div>
+          <div class="total">
+            <h4>Your pack</h4>
+            <div class="tot-line"><span id="l-coach">Coach × 1</span><b id="v-coach">$240.00</b></div>
+            <div class="tot-line"><span id="l-pro">Pro × 10</span><b id="v-pro">$450.00</b></div>
+            <div class="tot-sum">
+              <span>Total, 12 months</span>
+              <b id="v-total">$690.00</b>
+            </div>
+            <button class="btn btn-coral" id="go" style="width:100%;margin-top:18px;">Continue to payment</button>
+            <p class="note">Secure card payment through Stripe. We never see your card details. Prices in AUD and include GST.</p>
+          </div>
+          <div class="err" id="err"></div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section>
+  <div class="wrap" style="max-width:760px;">
+    <h2 class="section-h" style="margin-bottom:22px;">Questions clubs actually ask</h2>
+
+    <div class="faq">
+      <h4>Do the rowers need their own accounts?</h4>
+      <p>Yes, and that's deliberate. Each rower's sessions save to their own Google Drive, their own Strava links to their own account, and the coach view needs to tell people apart. A shared login would have everyone overwriting each other.</p>
+    </div>
+    <div class="faq">
+      <h4>What if a rower leaves mid-season?</h4>
+      <p>A redeemed code stays with that person for the full 12 months. Hold a couple of spare Pro seats back if you expect turnover — spare codes never expire until they're used.</p>
+    </div>
+    <div class="faq">
+      <h4>Can we pay by invoice instead of card?</h4>
+      <p>For larger orders, yes. Email us and we'll raise an invoice and issue the codes on receipt.</p>
+    </div>
+    <div class="faq">
+      <h4>Does this replace an App Store subscription?</h4>
+      <p>It's an alternative to it. If someone already subscribes through the App Store or Google Play they should cancel there before redeeming a club code, otherwise they'll be paying twice for the same thing.</p>
+    </div>
+    <div class="faq">
+      <h4>What happens at the end of 12 months?</h4>
+      <p>Everyone drops back to Basic, which is free and permanent. Nothing is deleted, nothing is locked away, and every session they recorded is still theirs to export.</p>
+    </div>
+  </div>
+</section>
+
+<footer>
+  <div class="wrap">
+    <div class="foot-links">
+      <a href="./index.html">Home</a>
+      <a href="./pack.html">Redeem a code</a>
+      <a href="./guide.html">User Guide</a>
+      <a href="./privacy.html">Privacy</a>
+      <a href="./terms.html">Terms</a>
+      <a href="./support.html">Support</a>
+      <a href="mailto:bigwig.91mash@icloud.com?subject=BoatRun%20club%20pack%20enquiry">Email us</a>
+    </div>
+    <div class="foot-bottom">
+      <span>© 2026 BoatRun</span>
+      <span>Rowing telemetry for rowers, coxes and coaches</span>
+    </div>
+  </div>
+</footer>
+
+<script>
+/* ============================================================
+   EDIT THIS to your deployed Worker URL. Everything else on the
+   page reads its prices from the constants directly below, which
+   must be kept in step with the same constants in worker.js.
+   ============================================================ */
+const API = 'https://boatrun-packs.davidmacready74.workers.dev';
+
+const PRICE_COACH = 13499; // cents, must match PRICE_COACH_12M in worker.js
+const PRICE_PRO   =  8999; // cents, must match PRICE_PRO_12M   in worker.js
+const MAX_COACH   = 5;
+const MAX_PRO     = 60;
+
+let coachSeats = 1;
+let proSeats   = 10;
+
+function money(cents){
+  return '$' + (cents / 100).toFixed(2).replace(/\B(?=(\d{3})+(?!\d))/g, ',');
+}
+function clamp(n, lo, hi){ n = parseInt(n, 10); if(!isFinite(n)) n = lo; return Math.max(lo, Math.min(hi, n)); }
+
+function render(){
+  document.getElementById('coach-n').value = coachSeats;
+  document.getElementById('pro-n').value   = proSeats;
+  document.getElementById('l-coach').textContent = 'Coach \u00d7 ' + coachSeats;
+  document.getElementById('l-pro').textContent   = 'Pro \u00d7 ' + proSeats;
+  document.getElementById('v-coach').textContent = money(coachSeats * PRICE_COACH);
+  document.getElementById('v-pro').textContent   = money(proSeats * PRICE_PRO);
+  document.getElementById('v-total').textContent = money(coachSeats * PRICE_COACH + proSeats * PRICE_PRO);
+  document.getElementById('coach-minus').disabled = (coachSeats <= 0);
+  document.getElementById('coach-plus').disabled  = (coachSeats >= MAX_COACH);
+  document.getElementById('pro-minus').disabled   = (proSeats <= 0);
+  document.getElementById('pro-plus').disabled    = (proSeats >= MAX_PRO);
+  document.getElementById('go').disabled = (coachSeats + proSeats < 1);
+}
+
+function showErr(msg){
+  const el = document.getElementById('err');
+  el.textContent = msg;
+  el.style.display = msg ? 'block' : 'none';
+}
+
+document.getElementById('coach-minus').addEventListener('click', () => { coachSeats = clamp(coachSeats - 1, 0, MAX_COACH); render(); });
+document.getElementById('coach-plus').addEventListener('click',  () => { coachSeats = clamp(coachSeats + 1, 0, MAX_COACH); render(); });
+document.getElementById('pro-minus').addEventListener('click',   () => { proSeats   = clamp(proSeats   - 1, 0, MAX_PRO);   render(); });
+document.getElementById('pro-plus').addEventListener('click',    () => { proSeats   = clamp(proSeats   + 1, 0, MAX_PRO);   render(); });
+document.getElementById('coach-n').addEventListener('change', e => { coachSeats = clamp(e.target.value, 0, MAX_COACH); render(); });
+document.getElementById('pro-n').addEventListener('change',   e => { proSeats   = clamp(e.target.value, 0, MAX_PRO);   render(); });
+
+document.getElementById('go').addEventListener('click', async () => {
+  const btn = document.getElementById('go');
+  const email = document.getElementById('email').value.trim();
+  showErr('');
+  if(!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email)){
+    showErr('Please enter a valid email address for the receipt.');
+    document.getElementById('email').focus();
+    return;
+  }
+  btn.disabled = true;
+  btn.textContent = 'Opening Stripe\u2026';
+  try{
+    const r = await fetch(API + '/checkout', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ coachSeats, proSeats, email })
+    });
+    const data = await r.json();
+    if(!r.ok || !data.url) throw new Error(data.error || 'Could not start checkout');
+    window.location.href = data.url;
+  }catch(e){
+    showErr(e.message || 'Something went wrong. Please try again, or email us and we will sort it out.');
+    btn.disabled = false;
+    btn.textContent = 'Continue to payment';
+  }
+});
+
+render();
+</script>
+</body>
+</html>
