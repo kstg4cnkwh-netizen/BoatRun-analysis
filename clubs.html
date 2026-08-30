@@ -4,6 +4,7 @@
 <meta charset="UTF-8"/>
 <meta name="viewport" content="width=device-width,initial-scale=1"/>
 <meta name="theme-color" content="#081226"/>
+<meta name="color-scheme" content="light"/>
 <title>BoatRun — Club Packs</title>
 <link rel="icon" type="image/png" href="icons/icon-192.png">
 <meta name="description" content="Buy BoatRun Coach and Pro seats for your whole squad in one go. One invoice, one payment, a code for every rower."/>
@@ -12,6 +13,7 @@
 <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&family=Inter:wght@400;500;600;700&family=Roboto+Mono:wght@500;600&display=swap" rel="stylesheet">
 <style>
 :root{
+  color-scheme:light;
   --navy:#081226; --navy-2:#0E1B38; --panel:#0F1C3A;
   --line:rgba(255,255,255,.10);
   --ink:#EFF3FA; --ink-dim:rgba(239,243,250,.62); --ink-faint:rgba(239,243,250,.38);
@@ -89,6 +91,19 @@ input.txt::placeholder{color:var(--ink-faint);}
 .tot-sum span{font-size:13px;color:var(--ink-faint);}
 .tot-sum b{font-family:'Space Grotesk',sans-serif;font-size:30px;font-weight:700;}
 .note{font-size:12.5px;color:var(--ink-faint);line-height:1.55;margin-top:14px;}
+.save{color:var(--teal);}
+.nudge{display:none;margin-top:16px;padding:14px 15px;border-radius:11px;background:rgba(47,211,198,.10);border:1px solid rgba(47,211,198,.32);}
+.nudge p{font-size:13.5px;line-height:1.5;color:var(--ink);margin-bottom:11px;}
+.nudge p b{color:var(--teal);}
+.nudge button{width:100%;background:rgba(47,211,198,.16);border:1px solid rgba(47,211,198,.45);color:var(--teal);border-radius:9px;padding:10px 12px;font-family:inherit;font-size:13.5px;font-weight:700;cursor:pointer;}
+.nudge button:hover{background:rgba(47,211,198,.26);}
+.band{display:inline-block;font-family:'Roboto Mono',monospace;font-size:10.5px;font-weight:600;letter-spacing:.1em;text-transform:uppercase;padding:4px 10px;border-radius:100px;background:rgba(47,211,198,.14);color:var(--teal);margin-bottom:12px;}
+.band.none{background:rgba(255,255,255,.07);color:var(--ink-faint);}
+.tiers{width:100%;border-collapse:collapse;margin-top:26px;background:#fff;border:1px solid #E3E1D9;border-radius:var(--radius);overflow:hidden;}
+.tiers th{text-align:left;font-family:'Roboto Mono',monospace;font-size:10.5px;letter-spacing:.12em;text-transform:uppercase;color:#6A7383;font-weight:600;padding:14px 18px;background:#F1EFE8;}
+.tiers td{padding:14px 18px;border-top:1px solid #E9E7E0;font-size:14.5px;}
+.tiers td.p{font-family:'Roboto Mono',monospace;font-weight:600;}
+.tiers tr.on td{background:#EAF9F7;}
 .err{background:rgba(255,90,60,.14);border:1px solid rgba(255,90,60,.4);color:#FFD9D1;border-radius:10px;padding:11px 13px;font-size:13.5px;margin-top:14px;display:none;}
 
 .faq{border-top:1px solid #E3E1D9;padding:22px 0;}
@@ -153,7 +168,17 @@ footer{background:var(--navy);color:var(--ink);padding:44px 0 30px;}
 <section id="buy" style="background:#EFEDE6;">
   <div class="wrap">
     <h2 class="section-h">Build your pack</h2>
-    <p class="section-p" style="margin-bottom:28px;">Every seat runs for 12 months from the day that individual redeems their code, not from the day you buy. Nobody loses time waiting for a rower to get around to it.</p>
+    <p class="section-p" style="margin-bottom:8px;">Every seat runs for 12 months from the day that individual redeems their code, not from the day you buy. Nobody loses time waiting for a rower to get around to it.</p>
+    <p class="section-p" style="margin-bottom:26px;">Seats are the same price you'd pay in the App Store, with a club rate that kicks in once you're buying for more than a handful of people. The discount is set by how many Pro seats you take, and it applies to your Coach seats too.</p>
+
+    <table class="tiers" id="tier-table">
+      <tr><th>Pro seats</th><th>Club rate</th><th>Pro each</th><th>Coach each</th></tr>
+      <tr data-min="0"><td>1 &ndash; 5</td><td>List price</td><td class="p">$89.99</td><td class="p">$134.99</td></tr>
+      <tr data-min="6"><td>6 &ndash; 10</td><td>5% off</td><td class="p">$85.49</td><td class="p">$128.24</td></tr>
+      <tr data-min="11"><td>11 &ndash; 25</td><td>10% off</td><td class="p">$80.99</td><td class="p">$121.49</td></tr>
+      <tr data-min="26"><td>26 or more</td><td>15% off</td><td class="p">$76.49</td><td class="p">$114.74</td></tr>
+    </table>
+    <p class="section-p" style="font-size:13px;margin:12px 0 28px;">All prices in AUD and include GST. You'll get a tax invoice with our ABN on it the moment payment clears.</p>
 
     <div class="buybox">
       <div class="buy-grid">
@@ -189,14 +214,20 @@ footer{background:var(--navy);color:var(--ink);padding:44px 0 30px;}
         <div>
           <div class="total">
             <h4>Your pack</h4>
-            <div class="tot-line"><span id="l-coach">Coach × 1</span><b id="v-coach">$240.00</b></div>
-            <div class="tot-line"><span id="l-pro">Pro × 10</span><b id="v-pro">$450.00</b></div>
+            <span class="band" id="v-band">5% club rate</span>
+            <div class="tot-line"><span id="l-coach">Coach × 1 @ $128.24</span><b id="v-coach">$128.24</b></div>
+            <div class="tot-line"><span id="l-pro">Pro × 10 @ $85.49</span><b id="v-pro">$854.90</b></div>
+            <div class="tot-line save" id="row-save"><span>You save</span><b id="v-save">$51.75</b></div>
             <div class="tot-sum">
-              <span>Total, 12 months</span>
-              <b id="v-total">$690.00</b>
+              <span>Total, 12 months, incl. GST</span>
+              <b id="v-total">$983.14</b>
+            </div>
+            <div class="nudge" id="nudge">
+              <p id="nudge-text"></p>
+              <button type="button" id="nudge-go"></button>
             </div>
             <button class="btn btn-coral" id="go" style="width:100%;margin-top:18px;">Continue to payment</button>
-            <p class="note">Secure card payment through Stripe. We never see your card details. Prices in AUD and include GST.</p>
+            <p class="note">Secure card payment through Stripe. We never see your card details. Prices in AUD and include GST. A tax invoice is issued automatically.</p>
           </div>
           <div class="err" id="err"></div>
         </div>
@@ -218,8 +249,17 @@ footer{background:var(--navy);color:var(--ink);padding:44px 0 30px;}
       <p>A redeemed code stays with that person for the full 12 months. Hold a couple of spare Pro seats back if you expect turnover — spare codes never expire until they're used.</p>
     </div>
     <div class="faq">
+      <h4>Why is a small pack the same price as the App Store?</h4>
+      <p>Because it should be. Nobody should be worse off for buying through the channel they happened to find first. The club rate is about volume, not about pushing you off the App Store &mdash; and it starts at six Pro seats, which is roughly where the admin of managing codes starts saving a club real time.</p>
+    </div>
+    <div class="faq">
       <h4>Can we pay by invoice instead of card?</h4>
       <p>For larger orders, yes. Email us and we'll raise an invoice and issue the codes on receipt.</p>
+    </div>
+    <div class="faq">
+      <h4>Can we get a refund on seats we don't end up using?</h4>
+      <p>Unredeemed seats can be refunded within 60 days of purchase. Once someone has redeemed a code it's theirs for the full 12 months and can't be returned.</p>
+      <p style="margin-top:8px;">One catch worth knowing up front: the seats you keep get repriced to the discount band those seats qualify for on their own. Buy 30 to reach the 15% rate, redeem 25 and return 5, and the 25 you kept are charged at the 10% rate that 25 seats earns &mdash; the refund is whatever's left. Your codes page shows the exact figure at any time, so there's no guesswork.</p>
     </div>
     <div class="faq">
       <h4>Does this replace an App Store subscription?</h4>
@@ -241,6 +281,7 @@ footer{background:var(--navy);color:var(--ink);padding:44px 0 30px;}
       <a href="./privacy.html">Privacy</a>
       <a href="./terms.html">Terms</a>
       <a href="./support.html">Support</a>
+      <a href="./pack.html">Redeem a code</a>
       <a href="mailto:bigwig.91mash@icloud.com?subject=BoatRun%20club%20pack%20enquiry">Email us</a>
     </div>
     <div class="foot-bottom">
@@ -263,6 +304,26 @@ const PRICE_PRO   =  8999; // cents, must match PRICE_PRO_12M   in worker.js
 const MAX_COACH   = 5;
 const MAX_PRO     = 60;
 
+/* Must match VOLUME_TIERS in worker.js exactly, including the rounding in
+   unitPrices(). This page only quotes a number — the Worker decides what
+   Stripe actually charges — so any drift shows up as a club being quoted one
+   total and billed another. */
+const VOLUME_TIERS = [
+  { minPro:  0, off: 0.00 },
+  { minPro:  6, off: 0.05 },
+  { minPro: 11, off: 0.10 },
+  { minPro: 26, off: 0.15 }
+];
+function unitPrices(proSeats){
+  let off = 0;
+  for(const t of VOLUME_TIERS) if(proSeats >= t.minPro) off = t.off;
+  return {
+    coach: Math.round(PRICE_COACH * (1 - off)),
+    pro:   Math.round(PRICE_PRO   * (1 - off)),
+    off
+  };
+}
+
 let coachSeats = 1;
 let proSeats   = 10;
 
@@ -270,15 +331,94 @@ function money(cents){
   return '$' + (cents / 100).toFixed(2).replace(/\B(?=(\d{3})+(?!\d))/g, ',');
 }
 function clamp(n, lo, hi){ n = parseInt(n, 10); if(!isFinite(n)) n = lo; return Math.max(lo, Math.min(hi, n)); }
+function nextBandMin(proSeats){
+  let m = 0;
+  for(const t of VOLUME_TIERS) if(proSeats >= t.minPro) m = t.minPro;
+  return m;
+}
+function packTotal(coach, pro){
+  const p = unitPrices(pro);
+  return coach * p.coach + pro * p.pro;
+}
+/* Banded pricing means the total can actually FALL as you add seats - at the
+   boundary, 26 Pro seats cost less than 25. Rather than hide that, point it
+   out. A treasurer who spots it on their own assumes the page is broken; one
+   who is told about it gets a seat or two free and feels well treated.
+
+   Two cases are worth surfacing. Either the bigger pack is outright cheaper,
+   or the extra seats come in under 70% of what they would normally cost, which
+   is a real enough saving to mention without nagging about every single seat. */
+function bandNudge(){
+  const here = packTotal(coachSeats, proSeats);
+  const next = VOLUME_TIERS.filter(t => t.minPro > proSeats)[0];
+  if(!next || next.minPro > MAX_PRO) return null;
+
+  const extraSeats = next.minPro - proSeats;
+  const there = packTotal(coachSeats, next.minPro);
+  const delta = there - here;
+  const seatWord = extraSeats === 1 ? 'seat' : 'seats';
+
+  if(delta < 0){
+    return {
+      to: next.minPro,
+      html: 'Adding <b>' + extraSeats + ' more Pro ' + seatWord + '</b> would make your pack <b>' +
+            money(-delta) + ' cheaper</b>, because ' + next.minPro +
+            ' seats reaches the ' + Math.round(next.off * 100) + '% club rate.',
+      btn: 'Add ' + extraSeats + ' ' + seatWord + ' and pay less'
+    };
+  }
+  if(delta < extraSeats * PRICE_PRO * 0.70){
+    return {
+      to: next.minPro,
+      html: extraSeats + ' more Pro ' + seatWord + ' would only add <b>' + money(delta) +
+            '</b> \u2014 that\'s ' + money(Math.round(delta / extraSeats)) +
+            ' each instead of ' + money(PRICE_PRO) + ', and it drops the whole pack to the ' +
+            Math.round(next.off * 100) + '% club rate.',
+      btn: 'Add ' + extraSeats + ' ' + seatWord
+    };
+  }
+  return null;
+}
 
 function render(){
+  const p = unitPrices(proSeats);
+  const total = coachSeats * p.coach + proSeats * p.pro;
+  const list  = coachSeats * PRICE_COACH + proSeats * PRICE_PRO;
+  const saved = list - total;
+
   document.getElementById('coach-n').value = coachSeats;
   document.getElementById('pro-n').value   = proSeats;
-  document.getElementById('l-coach').textContent = 'Coach \u00d7 ' + coachSeats;
-  document.getElementById('l-pro').textContent   = 'Pro \u00d7 ' + proSeats;
-  document.getElementById('v-coach').textContent = money(coachSeats * PRICE_COACH);
-  document.getElementById('v-pro').textContent   = money(proSeats * PRICE_PRO);
-  document.getElementById('v-total').textContent = money(coachSeats * PRICE_COACH + proSeats * PRICE_PRO);
+  document.getElementById('l-coach').textContent = 'Coach \u00d7 ' + coachSeats + ' @ ' + money(p.coach);
+  document.getElementById('l-pro').textContent   = 'Pro \u00d7 ' + proSeats + ' @ ' + money(p.pro);
+  document.getElementById('v-coach').textContent = money(coachSeats * p.coach);
+  document.getElementById('v-pro').textContent   = money(proSeats * p.pro);
+  document.getElementById('v-total').textContent = money(total);
+
+  /* Hide the savings row entirely at list price rather than showing "$0.00",
+     which reads like something has gone wrong. */
+  document.getElementById('row-save').style.display = saved > 0 ? 'flex' : 'none';
+  document.getElementById('v-save').textContent = money(saved);
+
+  const band = document.getElementById('v-band');
+  band.textContent = p.off > 0 ? Math.round(p.off * 100) + '% club rate' : 'List price';
+  band.className = p.off > 0 ? 'band' : 'band none';
+
+  /* Highlight the band they have landed in so the table above stops being
+     abstract and starts being about their order. */
+  document.querySelectorAll('#tier-table tr[data-min]').forEach(tr => {
+    tr.classList.toggle('on', parseInt(tr.dataset.min, 10) === nextBandMin(proSeats));
+  });
+
+  const n = bandNudge();
+  const box = document.getElementById('nudge');
+  if(n){
+    document.getElementById('nudge-text').innerHTML = n.html;
+    document.getElementById('nudge-go').textContent = n.btn;
+    document.getElementById('nudge-go').dataset.to = n.to;
+    box.style.display = 'block';
+  }else{
+    box.style.display = 'none';
+  }
   document.getElementById('coach-minus').disabled = (coachSeats <= 0);
   document.getElementById('coach-plus').disabled  = (coachSeats >= MAX_COACH);
   document.getElementById('pro-minus').disabled   = (proSeats <= 0);
@@ -298,6 +438,11 @@ document.getElementById('pro-minus').addEventListener('click',   () => { proSeat
 document.getElementById('pro-plus').addEventListener('click',    () => { proSeats   = clamp(proSeats   + 1, 0, MAX_PRO);   render(); });
 document.getElementById('coach-n').addEventListener('change', e => { coachSeats = clamp(e.target.value, 0, MAX_COACH); render(); });
 document.getElementById('pro-n').addEventListener('change',   e => { proSeats   = clamp(e.target.value, 0, MAX_PRO);   render(); });
+
+document.getElementById('nudge-go').addEventListener('click', e => {
+  proSeats = clamp(e.target.dataset.to, 0, MAX_PRO);
+  render();
+});
 
 document.getElementById('go').addEventListener('click', async () => {
   const btn = document.getElementById('go');
