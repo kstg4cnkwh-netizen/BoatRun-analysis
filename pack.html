@@ -4,6 +4,7 @@
 <meta charset="UTF-8"/>
 <meta name="viewport" content="width=device-width,initial-scale=1"/>
 <meta name="theme-color" content="#081226"/>
+<meta name="color-scheme" content="light"/>
 <title>BoatRun — Your Club Pack</title>
 <link rel="icon" type="image/png" href="icons/icon-192.png">
 <meta name="robots" content="noindex">
@@ -13,6 +14,7 @@
 <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&family=Inter:wght@400;500;600;700&family=Roboto+Mono:wght@500;600&display=swap" rel="stylesheet">
 <style>
 :root{
+  color-scheme:light;
   --navy:#081226; --navy-2:#0E1B38;
   --line:rgba(255,255,255,.10);
   --ink:#EFF3FA; --ink-dim:rgba(239,243,250,.62); --ink-faint:rgba(239,243,250,.38);
@@ -84,6 +86,13 @@ td button.copy:hover{color:var(--ink);}
 .summary div span{font-size:12px;color:var(--ink-faint);letter-spacing:.03em;}
 
 .hint{font-size:13px;color:#6A7383;line-height:1.55;margin-top:14px;}
+.refund{margin-top:22px;padding:18px;border-radius:12px;background:rgba(255,255,255,.05);border:1px solid var(--line);}
+.refund h5{font-family:'Roboto Mono',monospace;font-size:10.5px;letter-spacing:.13em;text-transform:uppercase;color:var(--ink-faint);font-weight:600;margin-bottom:12px;}
+.refund .r{display:flex;justify-content:space-between;font-size:14px;color:var(--ink-dim);padding:5px 0;}
+.refund .r b{color:var(--ink);font-weight:600;}
+.refund .r.tot{border-top:1px solid var(--line);margin-top:9px;padding-top:12px;}
+.refund .r.tot b{font-family:'Space Grotesk',sans-serif;font-size:20px;color:var(--teal);}
+.refund p{font-size:12.5px;color:var(--ink-faint);line-height:1.55;margin-top:12px;}
 .hidden{display:none !important;}
 
 footer{background:var(--navy);color:var(--ink);padding:40px 0 28px;}
@@ -121,6 +130,7 @@ footer{background:var(--navy);color:var(--ink);padding:40px 0 28px;}
         <button class="btn btn-ghostlight" id="copy-all">Copy all unused codes</button>
         <button class="btn btn-ghostlight" id="refresh">Refresh</button>
       </div>
+      <div class="refund" id="refund-box"></div>
     </div>
     <p class="hint">Send each person one code plus a link to this page. They redeem it below. A code works exactly once, and the 12 months starts on the day they redeem, not the day you bought.</p>
   </div>
@@ -334,7 +344,7 @@ async function loadPack(){
 
     packCodes = data.codes || [];
     const used  = packCodes.filter(c => c.used).length;
-    const spare = packCodes.length - used;
+    const spare = packCodes.filter(c => !c.used && !c.revoked).length;
     $('pack-summary').innerHTML =
       '<div><b>' + packCodes.length + '</b><span>SEATS</span></div>' +
       '<div><b>' + used + '</b><span>REDEEMED</span></div>' +
@@ -346,12 +356,15 @@ async function loadPack(){
       html += '<tr>' +
         '<td class="c">' + esc(c.code) + '</td>' +
         '<td><span class="tag ' + (c.tier === 'coach' ? 'coach' : 'pro') + '">' + esc(c.tier) + '</span></td>' +
-        '<td><span class="tag ' + (c.used ? 'used' : 'spare') + '">' + (c.used ? 'redeemed' : 'spare') + '</span></td>' +
-        '<td style="text-align:right;">' + (c.used ? '' : '<button class="copy" data-code="' + esc(c.code) + '">Copy</button>') + '</td>' +
+        '<td><span class="tag ' + (c.revoked ? 'used' : (c.used ? 'used' : 'spare')) + '">' +
+          (c.revoked ? 'cancelled' : (c.used ? 'redeemed' : 'spare')) + '</span></td>' +
+        '<td style="text-align:right;">' + ((c.used || c.revoked) ? '' : '<button class="copy" data-code="' + esc(c.code) + '">Copy</button>') + '</td>' +
         '</tr>';
     });
     html += '</table>';
     body.innerHTML = html;
+
+    renderRefund(data.refund);
 
     body.querySelectorAll('button.copy').forEach(b => {
       b.addEventListener('click', () => {
@@ -367,8 +380,40 @@ async function loadPack(){
   }
 }
 
+/* Show the club exactly what they'd get back if they handed the spare seats
+   in today. The seats they keep are repriced to the band those seats qualify
+   for on their own, which is why the figure is not simply "spares x what you
+   paid" - buying into a higher band and refunding down out of it would
+   otherwise leave them on a discount they never earned. */
+function renderRefund(r){
+  const box = $('refund-box');
+  if(!r || !r.paid){ box.style.display = 'none'; return; }
+  box.style.display = 'block';
+
+  const spare = packCodes.filter(c => !c.used && !c.revoked).length;
+  if(spare === 0){
+    box.innerHTML = '<h5>Refunds</h5><p style="margin-top:0;">' +
+      'Every seat in this pack has been redeemed, so there is nothing to refund. ' +
+      'Each one runs for a full 12 months from the day that person activated it.</p>';
+    return;
+  }
+
+  const band = r.keptBandPct > 0 ? r.keptBandPct + '% club rate' : 'list price';
+  box.innerHTML =
+    '<h5>If you returned the ' + spare + ' spare seat' + (spare === 1 ? '' : 's') + ' today</h5>' +
+    '<div class="r"><span>You paid</span><b>' + fmt(r.paid) + '</b></div>' +
+    '<div class="r"><span>' + r.keptCoach + ' Coach + ' + r.keptPro + ' Pro redeemed, at ' + band + '</span><b>' + fmt(r.keptCharge) + '</b></div>' +
+    '<div class="r tot"><span>Refund due</span><b>' + fmt(r.refundDue) + '</b></div>' +
+    '<p>The seats already redeemed are repriced to the discount band they qualify for on their own, ' +
+    'so returning spares can move you to a smaller discount. Redeemed seats cannot be returned. ' +
+    'Email us to arrange a refund &mdash; it goes back to the card you paid with.</p>';
+}
+function fmt(cents){
+  return '$' + (cents / 100).toFixed(2).replace(/\B(?=(\d{3})+(?!\d))/g, ',');
+}
+
 $('copy-all').addEventListener('click', () => {
-  const spare = packCodes.filter(c => !c.used);
+  const spare = packCodes.filter(c => !c.used && !c.revoked);
   if(!spare.length){ return; }
   navigator.clipboard.writeText(spare.map(c => c.code + '  (' + c.tier + ')').join('\n'));
   $('copy-all').textContent = 'Copied ' + spare.length + ' codes';
