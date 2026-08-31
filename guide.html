@@ -610,6 +610,16 @@ img.inline{display:inline;margin:0 3px;vertical-align:-.32em;height:1.45em;width
 <p>Shows the step sequence and per-interval metrics as you complete them.</p>
 <img class="w-lg" src="screenshots/intervals-tab.png" alt="INTERVALS tab with the interval table" loading="lazy"/>
 
+<h2>Starting - when the clock actually begins</h2>
+<p>Pressing <strong>START</strong> puts the app in a ready state rather than starting the clock. The boat is usually still tied up, or being backed down, and none of that should land in your session - so distance, pace and elapsed time all stay at zero until the boat is genuinely under way.</p>
+<p>Three things can release it, whichever happens first:</p>
+<ul>
+<li><strong>You move.</strong> About 20 metres from where you pressed START. This one needs nothing from the accelerometer, so it works even on the lightest warmup paddle.</li>
+<li><strong>You pick up speed.</strong> Two GPS readings above walking pace.</li>
+<li><strong>You take two strokes.</strong> The quickest path, and the only one that backdates the clock by a couple of seconds so the very first stroke belongs to the session.</li>
+</ul>
+<p class="note">Earlier versions waited on stroke detection alone. If your warmup catches were very light the app could sit in the ready state for several minutes, only starting when you rowed harder. Movement now releases it regardless, so a gentle paddle away from the pontoon starts the session within about ten seconds.</p>
+
 <h2>Laps</h2>
 <p>Tap <strong>LAP</strong> to mark a split. Each lap records time, distance, pace, rate and HR.</p>
 
@@ -802,8 +812,39 @@ img.inline{display:inline;margin:0 3px;vertical-align:-.32em;height:1.45em;width
 <h2>The COACH tab</h2>
 <img class="fr w-sm" src="screenshots/coach-tab.png" alt="Coach tab with squad map and rower tiles" loading="lazy"/>
 <p><strong>Squad map</strong> - every connected rower as a labelled dot, with your own position shown separately. Tap a dot or the individual's tile to open that rower's detailed view.</p>
-<p><strong>Rower tiles</strong> - one per rower: name, big stroke rate, big pace, plus whichever secondary metrics you've enabled in layouts. A tile greys out when no data has arrived recently. Use the <strong>+ / −</strong> buttons to scale the grid. Use the arrow buttons in the top left of each tile to swap the order.</p>
+<p><strong>Rower tiles</strong> - one per rower: name, big stroke rate, big pace, plus whichever secondary metrics you've enabled in layouts. Use the <strong>+ / −</strong> buttons to scale the grid. Use the arrow buttons in the top left of each tile to swap the order.</p>
 <p><strong>LAP - ALL BOATS</strong> sends a simultaneous lap to every connected rower. This is useful for starting an interval for everyone at the same time.</p>
+
+<h2>What each boat's colour means</h2>
+<p>One press of LAP ALL BOATS does three different things depending on what a boat is doing: it <em>starts</em> a boat that is sitting in ready mode, <em>splits</em> a boat that is rowing, and does <em>nothing at all</em> to a boat that is stopped or paused. So each tile is coloured by its state, and the whole tile changes - not just a small badge - so it reads at arm's length in sunlight.</p>
+<div class="tblwrap">
+<table class="lead">
+<tr><td>Their own colour - <strong>ROWING</strong></td><td>Under way. A lap splits them.</td></tr>
+<tr><td>Light orange - <strong>REST</strong></td><td>Sitting in a rest interval of a workout.</td></tr>
+<tr><td>Light blue - <strong>LAP READY</strong></td><td>Waiting at the start with ready mode armed. A lap <em>starts</em> them rather than splitting them.</td></tr>
+<tr><td>Light green - <strong>LAPPED · READY</strong></td><td>Your lap landed and put them into ready mode. Stays light green for as long as they sit there, so you can see at a glance who is set and waiting.</td></tr>
+<tr><td>Green - <strong>LAPPED</strong></td><td>Your lap landed while they were rowing. Holds for 5 seconds, then back to their own colour.</td></tr>
+<tr><td>Grey - <strong>STOPPED</strong></td><td>Paused, finished, or pressed START but not moving yet. A lap does nothing to them.</td></tr>
+<tr><td>Grey - <strong>NO SIGNAL</strong></td><td>Nothing heard for 25 seconds. They may not receive the lap at all - usually a coverage blackspot.</td></tr>
+</table>
+</div>
+<p>The green and light-green states are your confirmation that the command actually arrived on each phone, not just that you sent it.</p>
+<p class="note">Boat colours on the race track do <em>not</em> change - a lane has to stay trackable for the whole piece. Only the tiles and the name pills carry the state.</p>
+
+<h2>The LAP ALL BOATS button</h2>
+<p>The button takes the colour and the wording of whatever most of the squad is doing, with a count:</p>
+<div class="tblwrap">
+<table class="lead">
+<tr><td><strong>LAP 4/4</strong></td><td>Blue. Everyone rowing and reporting in.</td></tr>
+<tr><td><strong>LAP · REST 4/4</strong></td><td>Light orange. Squad sitting in a rest interval.</td></tr>
+<tr><td><strong>LAP READY 3/4</strong></td><td>Light blue. Three boats sitting at the start armed and waiting.</td></tr>
+<tr><td><strong>LAPPED · READY 4/4</strong></td><td>Light green. Your lap landed on all four and they are set for the start.</td></tr>
+<tr><td><strong>STOPPED 3/4</strong></td><td>Grey. Most of the squad is not rowing.</td></tr>
+</table>
+</div>
+<p>The second number is your boat total. <strong>Any first number below it is the thing to look at</strong> - it means somebody is in a different state to everybody else, or has dropped off.</p>
+<p>If the squad is split across states, or anyone has gone quiet, tapping the button asks you to confirm first and names who is in which group and what the lap will do to them. If every boat is in the same state you go straight through with no dialog - lapping six boats that are all rowing should never need a confirmation.</p>
+<p class="note">During a workout with no <strong>when rowing</strong> steps you will see blue <strong>LAP n/n</strong> almost the whole time, with a 5-second flash of green after each lap you send. Light blue and light green cannot appear, because boats do not enter ready mode part-way through a workout.</p>
 
 <h2 class="clear">The SQUAD tab</h2>
 <p>Rotating the coach's device from portrait to landscape mode changes the layout from free row to race view.</p>
@@ -839,6 +880,7 @@ img.inline{display:inline;margin:0 3px;vertical-align:-.32em;height:1.45em;width
 <p>Running a squad workout on the water is the same process as running it on the erg. The difference is that the workouts all contain a warmup step.</p>
 <p>When building workouts, choose to start <strong>AFTER 5 SEC</strong> or <strong>WHEN ROWING</strong>. <strong> After 5 seconds</strong> is ideal for a running start where you don't want to stop the entire squad.<strong> WHEN ROWING</strong> is ideal for practising race starts where you want everyone to be stationary at the start.</p>
 <p>When you want to finish the warmup and start the piece, tap the <strong>LAP ALL BOATS</strong> button. Note that if you have selected the <strong>WHEN ROWING</strong> option, all crews must be stationary for at least 10 seconds before pressing lap or the lap will start immediately.</p>
+<p>Watch the button before you press it. With <strong>WHEN ROWING</strong> you want it reading <strong>LAP READY n/n</strong> - light blue, with the full count - which means every boat is stopped and armed. If it still says <strong>LAP</strong> for some of them, those crews are moving and pressing now would start their piece on the spot. After the lap lands the button turns light green, <strong>LAPPED · READY n/n</strong>, and stays there until the crews start rowing - that is your confirmation that all of them are sitting on the start line ready to go.</p>
 
 <h2 class="clear">The INTERVALS tab</h2>
 <p>The coach's interval tab receives the intervals from all connected rowers as they complete each lap and finish their session. The data is updated every 30 seconds but can be refreshed earlier via the refresh button. Results from individual rowers can be removed from the interval tab via the x button. Deleting data from the tab <strong>does not delete the data. It is only removed from the display.</strong> Your log will automatically collate the information into a session log which can be viewed on the menu - log tab.</p>
@@ -854,6 +896,7 @@ img.inline{display:inline;margin:0 3px;vertical-align:-.32em;height:1.45em;width
 <tr><td>Rowing, coach not detected</td><td>30 seconds</td></tr>
 <tr><td>Rowing, coach online</td><td>9 seconds</td></tr>
 <tr><td>Coach has requested your stroke curve</td><td>3 seconds</td></tr>
+<tr><td>You start, stop, lap, or receive a lap from the coach</td><td>Immediately, on top of the above</td></tr>
 </table>
 </div>
 <p>The app deliberately backs off when nobody is listening, and it batches samples between sends rather than waking the radio constantly. But a two-hour squad session with a coach connected will use noticeably more battery than the same row on your own - expect up to double the power consumption.</p>
