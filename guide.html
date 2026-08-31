@@ -139,12 +139,56 @@ img.inline{display:inline;margin:0 3px;vertical-align:-.32em;height:1.45em;width
   .sidebyside .sbs-img{margin:12px 0 16px;max-width:100%;}
   ul,ol{padding-left:26px;}
 }
+
+/* ---------- home / back-to-top navigation ---------- */
+.topnav{
+  font-family:var(--sans);
+  font-size:13px;
+  margin:0 0 18px;
+}
+.topnav a{margin-right:18px;}
+.docfoot{
+  display:flex;
+  flex-wrap:wrap;
+  gap:18px;
+  font-family:var(--sans);
+  font-size:14px;
+  margin-top:36px;
+  padding-top:14px;
+  border-top:1px solid #dcdcdc;
+}
+#toTop{
+  position:fixed;
+  right:16px;
+  bottom:calc(16px + env(safe-area-inset-bottom));
+  z-index:50;
+  display:none;
+  flex-direction:column;
+  gap:8px;
+}
+#toTop.show{display:flex;}
+#toTop a{
+  font-family:var(--sans);
+  font-size:12px;
+  font-weight:600;
+  line-height:1;
+  text-align:center;
+  color:#fff;
+  background:var(--blue);
+  border-radius:22px;
+  padding:11px 14px;
+  box-shadow:0 2px 8px rgba(0,0,0,.28);
+  text-decoration:none;
+}
+#toTop a:hover{text-decoration:none;background:#255f96;}
+@media print{#toTop{display:none !important;}}
 </style>
 </head>
 <body>
 <div class="wrap">
 
 <h1 class="doc-title">BoatRun - User Guide</h1>
+<p class="topnav"><a href="./index.html">⌂ Home</a><a href="#contents">Contents</a><a href="./quickstart.html">Quick Start</a></p>
 
 <p>One native app for rowing, coxing, coaching and erging. Two web tools for afterwards.</p>
 
@@ -1331,9 +1375,36 @@ img.inline{display:inline;margin:0 3px;vertical-align:-.32em;height:1.45em;width
 
 <p><em>Found a bug or have an idea? Email feedback from the About screen.</em></p>
 
-<a class="back" href="./about.html">← Back to About</a>
+<div class="docfoot">
+  <a href="./index.html">⌂ Home</a>
+  <a href="./about.html">← Back to About</a>
+  <a href="#contents">Contents</a>
+  <a href="#" onclick="window.scrollTo({top:0,behavior:'smooth'});return false;">↑ Back to top</a>
+</div>
 
 </div>
+
+<div id="toTop" aria-hidden="true">
+  <a href="./index.html" title="Home">⌂ Home</a>
+  <a href="#" id="toTopBtn" title="Back to top">↑ Top</a>
+</div>
+
+<script>
+(function(){
+  var box=document.getElementById('toTop');
+  var btn=document.getElementById('toTopBtn');
+  function onScroll(){
+    if(window.pageYOffset>320){box.className='show';box.setAttribute('aria-hidden','false');}
+    else{box.className='';box.setAttribute('aria-hidden','true');}
+  }
+  btn.addEventListener('click',function(e){
+    e.preventDefault();
+    window.scrollTo({top:0,behavior:'smooth'});
+  });
+  window.addEventListener('scroll',onScroll,{passive:true});
+  onScroll();
+})();
+</script>
 
 <script>
 // Any screenshot not yet dropped into /screenshots renders as a labelled
