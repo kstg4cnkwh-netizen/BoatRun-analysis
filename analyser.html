@@ -1865,7 +1865,9 @@ function parseCSV(text) {
         cells.forEach((v,i)=>{ if(headers[i]) row[headers[i].trim()]=v.trim(); });
         laps.push({ lap:parseInt(row.lap), distance_m:parseFloat(row.dist_m),
           time_s:parseFloat(row.time_s), pace_s_per_500m:parseFloat(row.pace_s500),
-          stroke_rate_spm:parseFloat(row.rate_spm) });
+          stroke_rate_spm:parseFloat(row.rate_spm),
+          start_time_s:(row.start_time_s!=null&&row.start_time_s!==''?parseFloat(row.start_time_s):null),
+          start_dist_m:(row.start_dist_m!=null&&row.start_dist_m!==''?parseFloat(row.start_dist_m):null) });
         break;
       }
       case 'glaps': {
@@ -1934,7 +1936,12 @@ function sessionToAnalyserFmt(s) {
   const hr = (s.hrTrace||[]).map(h=>({ ts:new Date(h.t).toISOString(), bpm:h.hr }));
   const wlm=s.workoutLapMetrics||[];
   const lapSrc=wlm.length?wlm:(s.laps||[]);
-  const laps = lapSrc.map((l,i)=>({ lap:l.n, distance_m:l.dist, time_s:l.time, pace_s_per_500m:(l.pace!=null?l.pace:l.lapPace), stroke_rate_spm:l.rate, type:l.type||wlm[i]?.type||null }));
+  /* start_time_s / start_dist_m are the absolute elapsed and distance at the
+     step's start, as recorded by Metrics. Without them a consumer has to
+     accumulate from zero, which puts every lap too early whenever the lap list
+     does not begin at the start of the session - exactly what happens when a
+     workout is loaded after the session is already under way. */
+  const laps = lapSrc.map((l,i)=>({ lap:l.n, distance_m:l.dist, time_s:l.time, pace_s_per_500m:(l.pace!=null?l.pace:l.lapPace), stroke_rate_spm:l.rate, type:l.type||wlm[i]?.type||null, start_time_s:(l.startT!=null?l.startT:null), start_dist_m:(l.startD!=null?l.startD:null) }));
   const glaps = (s.garminLaps||[]).map(l=>({ lap:l.n, distance_m:l.dist, time_s:l.time, pace_s_per_500m:l.pace, avg_hr_bpm:l.avgHr, max_hr_bpm:l.maxHr, calories:l.cal, strokes:l.garminStrokes, avg_spm:l.garminAvgSpm, avg_stroke_dist_m:l.avgStrokeDist }));
   const gpsTrace = (s.gpsTrace||[]).filter(p=>p.lat!=null&&p.lon!=null).map(p=>({ lat:p.lat, lon:p.lon, t:p.t, dist:p.dist }));
   return { sum, strokes, hr, laps, glaps, gpsTrace,
@@ -3757,15 +3764,30 @@ function emaSmooth(view,alpha){
 // ══════════════════════════════════════════════════════════════════════════
 // LAP BOUNDARY HELPERS
 // ══════════════════════════════════════════════════════════════════════════
+/* End-of-lap distances. Running totals are only right when the lap list covers
+   the session from its first stroke. A workout loaded mid-session does not, so
+   every boundary drifts earlier by however far was rowed beforehand. Where the
+   session supplies start_dist_m the boundary is placed absolutely instead, and
+   the running total is re-anchored to it. */
+function lapEndDists(useLaps,offset){
+  const out=[];let cum=offset;
+  for(let li=0;li<useLaps.length;li++){
+    const sd=useLaps[li].start_dist_m;
+    if(sd!=null&&!isNaN(sd))cum=offset+(+sd);
+    cum+=+(useLaps[li].distance_m||0);
+    out.push(cum);
+  }
+  return out;
+}
 function computeLapBoundaryXValues(){
   const useLaps=LAPS.filter(l=>'stroke_rate_spm' in l);
   if(!useLaps.length||!ST.length)return[];
   const mode=document.getElementById('xmode').value;
   const result=[];
   const offset=ST[0].dist||0;
-  let cumDist=offset;
+  const ends=lapEndDists(useLaps,offset);
   for(let li=0;li<useLaps.length;li++){
-    cumDist+=+(useLaps[li].distance_m||0);
+    const cumDist=ends[li];
     let best=0,bestDiff=Infinity;
     for(let i=0;i<ST.length;i++){
       const d=Math.abs((ST[i].dist||0)-cumDist);
@@ -3782,13 +3804,8 @@ function assignLapNumbers(){
   const useLaps=LAPS.filter(l=>'stroke_rate_spm' in l);
   if(!useLaps.length){ST.forEach(s=>s.lapNum=null);return;}
   if(useLaps.length===1){ST.forEach(s=>s.lapNum=1);return;}
-  const bounds=[];
   const offset=ST.length?ST[0].dist||0:0;
-  let cumDist=offset;
-  for(let li=0;li<useLaps.length-1;li++){
-    cumDist+=+(useLaps[li].distance_m||0);
-    bounds.push(cumDist);
-  }
+  const bounds=lapEndDists(useLaps,offset).slice(0,useLaps.length-1);
   ST.forEach(s=>{
     let lap=1;
     for(let i=0;i<bounds.length;i++){
@@ -3802,9 +3819,9 @@ function computeLapSegments(){
   if(!useLaps.length||!ST.length||!useLaps.some(l=>l.type))return[];
   const mode=document.getElementById('xmode').value;
   const getXVal=s=>{if(mode==='dist')return s.dist||0;if(mode==='time')return(s.elapsed||0)/60;return s.n>0?s.n-0.5:s.n;};
-  const offset=ST[0].dist||0;let cumDist=offset;const bounds=[];
+  const offset=ST[0].dist||0;const ends=lapEndDists(useLaps,offset);const bounds=[];
   for(let li=0;li<useLaps.length;li++){
-    cumDist+=+(useLaps[li].distance_m||0);
+    const cumDist=ends[li];
     let best=0,bestDiff=Infinity;
     for(let i=0;i<ST.length;i++){const d=Math.abs((ST[i].dist||0)-cumDist);if(d<bestDiff){bestDiff=d;best=i;}}
     bounds.push(getXVal(ST[best]));
@@ -6482,6 +6499,9 @@ function buildSessionFIT() {
     let cumSec = 0;
     for (const lap of lapSource) {
       const lapDurSec = lap.time_s || 0;
+      /* Absolute start where the session recorded one, so a workout loaded
+         mid-session does not shift every lap in the FIT file. */
+      if (lap.start_time_s != null && !isNaN(lap.start_time_s)) cumSec = +lap.start_time_s;
       const lapStartAbs = lapAnchorMs + cumSec * 1000;
       const lapEndAbs = lapStartAbs + lapDurSec * 1000;
       cumSec += lapDurSec;
