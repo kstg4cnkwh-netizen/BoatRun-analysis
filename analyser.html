@@ -8234,6 +8234,21 @@ loadAnVidDir();
     }catch(e){console.error('xfer load failed',e);}
   }
 
+  // Preloaded demo session:  Analyser.html?demo=NAME  ->  fetches demo/NAME.json
+  const demo=(new URLSearchParams(location.search).get('demo')||'').replace(/[^A-Za-z0-9_-]/g,'');
+  if(demo){
+    fetch('demo/'+demo+'.json',{cache:'no-store'})
+      .then(r=>{ if(!r.ok) throw new Error('not found'); return r.json(); })
+      .then(j=>{
+        const s=Array.isArray(j)?j[0]:j;
+        applySessionUnits(s);
+        const d=(s.strokes&&s.strokes.length&&typeof s.strokes[0].elapsed==='number')?s:sessionToAnalyserFmt(s);
+        if(!d.strokes.length) throw new Error('no strokes');
+        addSessionFromData(d,(d.name||'Demo session'),true);
+      })
+      .catch(()=>toast('Could not load the demo session'));
+    return;
+  }
 })();
 </script>
 </body>
