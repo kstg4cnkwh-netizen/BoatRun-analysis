@@ -6040,11 +6040,13 @@ async function showStartup(){
         <button class="dzbtn dzbtn-pri" id="sz-signin">Connect Google Drive</button>
         <button class="dzbtn dzbtn-sec" id="sz-squad"><img src="icons/Import.svg"><span>From Squad</span></button>
         <button class="dzbtn dzbtn-sec" id="sz-openfile"><img src="icons/Open.svg"><span>Open file</span></button>
+        <button class="dzbtn dzbtn-sec" id="sz-demo"><span>See a demo session</span></button>
       </div>
     </div>`;
     document.getElementById('sz-signin').onclick=()=>AnalyserDrive.signIn();
     document.getElementById('sz-squad').onclick=loadFromSquad;
     document.getElementById('sz-openfile').onclick=()=>document.getElementById('fin').click();
+    document.getElementById('sz-demo').onclick=()=>{ location.href = location.pathname + '?demo=demo1'; };
     return;
   }
 
@@ -6053,6 +6055,7 @@ async function showStartup(){
       <button class="dzbtn dzbtn-sec" id="sz-coach"><img src="icons/Import.svg"><span>Coach Sessions</span></button>
       <button class="dzbtn dzbtn-sec" id="sz-squad"><img src="icons/Import.svg"><span>From Squad</span></button>
       <button class="dzbtn dzbtn-sec" id="sz-openfile"><img src="icons/Open.svg"><span>Open file</span></button>
+      <button class="dzbtn dzbtn-sec" id="sz-demo"><span>Demo session</span></button>
       ${(localStorage.getItem('_ad_legacy_done') === '1' || localStorage.getItem('_ad_legacy_empty') === '1') ? '' : '<button class="dzbtn dzbtn-sec" id="sz-oldacct"><span>Import old sessions</span></button>'}
     </div>
     <div class="brpill">
@@ -6068,6 +6071,7 @@ async function showStartup(){
   document.getElementById('sz-coach').onclick=loadCoachSessions;
   document.getElementById('sz-squad').onclick=loadFromSquad;
   document.getElementById('sz-openfile').onclick=()=>document.getElementById('fin').click();
+  document.getElementById('sz-demo').onclick=()=>{ location.href = location.pathname + '?demo=demo1'; };
   try{
     const cached=AnalyserDrive.cachedList('RowSess_');
     const files=cached||await AnalyserDrive.list();
