@@ -5958,10 +5958,10 @@ window.setUnitsAndRebuild = setUnitsAndRebuild;
 // ══════════════════════════════════════════════════════════════════════════
 function mountData(d,label){
   _pinnedStrokeIdx=-1; if(_mapPinMarker){if(leafletMap)leafletMap.removeLayer(_mapPinMarker);_mapPinMarker=null;}
-  ST=d.strokes;
+  ST=d.strokes||[];
   _rawOarAngles = ST.map(s => s.oarAngle);  // snapshot before any conversion
   computeStrokeAngles(ST);
-  HR=d.hr; buildHRIndex(); LAPS=[...d.laps,...d.glaps]; GPSTRACE=d.gpsTrace||[];
+  HR=d.hr||[]; buildHRIndex(); LAPS=[...(d.laps||[]),...(d.glaps||[])]; GPSTRACE=d.gpsTrace||[];
   viewS=0; viewE=ST.length-1; selS=-1; selE=-1;
   if(!ST.length&&LAPS.length){toast('No stroke data — showing laps only',4000);}
   else if(!ST.length){toast('No stroke data found in this file',4000);return;}
