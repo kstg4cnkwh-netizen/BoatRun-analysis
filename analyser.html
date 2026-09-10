@@ -4410,6 +4410,67 @@ function removeCurveGroup(idx){
 }
 window.removeCurveGroup=removeCurveGroup;
 
+/* Pin an absolute stroke range as a curve group. Same as pinSelection() but
+   takes absolute ST indices, so it can be driven from the lap table. */
+function pinAbsRange(absS,absE){
+  if(curveGroups.length>=8)return false;
+  const n=ST.length;
+  const a=clamp(Math.min(absS,absE),0,n-1);
+  const b=clamp(Math.max(absS,absE),0,n-1);
+  if(b-a<2)return false;
+  const usedColors=curveGroups.map(g=>g.color);
+  const nextColorIdx=GROUP_COLORS.findIndex(c=>!usedColors.includes(c));
+  const ci=nextColorIdx>=0?nextColorIdx:curveGroups.length%GROUP_COLORS.length;
+  const _hrRaw=(SESSIONS[activeSessionIdx]&&SESSIONS[activeSessionIdx].d&&SESSIONS[activeSessionIdx].d.hr)||[];
+  const _hrSorted=_hrRaw.map(h=>({t:new Date(h.ts).getTime(),b:h.bpm})).sort((x,y)=>x.t-y.t);
+  curveGroups.push({
+    color:GROUP_COLORS[ci], bg:GROUP_BG[ci],
+    strokes:ST.slice(a,b+1),
+    absS:a, absE:b,
+    label:'G'+(ci+1),
+    sessionIdx:activeSessionIdx,
+    sessionLabel:(SESSIONS[activeSessionIdx]&&SESSIONS[activeSessionIdx].label)||'',
+    hrT:_hrSorted.map(x=>x.t), hrBpm:_hrSorted.map(x=>x.b),
+  });
+  return true;
+}
+
+/* Lap table -> curves. Tapping a lap row already sets the selection, so the
+   single-lap button just reuses pinSelection(). */
+function addLapToCurves(){
+  if(selS<0||selE<0){toast('Tap a lap row first');return;}
+  if(curveGroups.length>=8){toast('8 curve groups max');return;}
+  pinSelection();
+}
+window.addLapToCurves=addLapToCurves;
+
+function lapStrokeRange(lapN){
+  const idxs=ST.map((s,i)=>s.lapNum===lapN?i:-1).filter(i=>i>=0);
+  return idxs.length?[idxs[0],idxs[idxs.length-1]]:null;
+}
+
+function addWorkLapsToCurves(){
+  const rows=Array.from(document.querySelectorAll('#laptbl tbody tr')).filter(r=>r.dataset.type==='work');
+  if(!rows.length){toast('No work intervals in this session');return;}
+  let added=0,skipped=0;
+  for(const r of rows){
+    if(curveGroups.length>=8){skipped++;continue;}
+    const rng=lapStrokeRange(+r.dataset.lap);
+    if(!rng)continue;
+    if(pinAbsRange(rng[0],rng[1]))added++;
+  }
+  selS=-1;selE=-1;
+  tplFocusIdx=-1;
+  hlRows([]);
+  buildCurveSection();
+  updateMapGroups();
+  applyGroupHighlights();
+  updateStatsStrip();
+  schedRender();
+  toast(added+' curve group'+(added===1?'':'s')+' added'+(skipped?' \u2014 8 group max reached':''));
+}
+window.addWorkLapsToCurves=addWorkLapsToCurves;
+
 function clearAllCurves(){curveGroups=[];tplFocusIdx=-1;buildCurveSection();updateMapGroups();applyGroupHighlights();schedRender();}
 
 /* Catch Duration is measured on the raw samples: from the point the catch
@@ -5701,11 +5762,15 @@ function buildLaps(){
   const availTypes=isErgSession()?['work','rest']:['warmup','work','rest','cooldown'];
   const barTypes=availTypes.filter(t=>showLaps.some(l=>l.type===t));
   const typeColor=t=>({work:'var(--g)',rest:'var(--o)',warmup:'var(--b)',cooldown:'var(--p)'}[t]||'var(--muted)');
-  document.getElementById('laptypebar').innerHTML=(hasType&&barTypes.length)?
+  const hasWorkLaps=showLaps.some(l=>l.type==='work');
+  const lapCurveBtns=
+    `<button class="laptypebtn" data-type="" style="--btc:var(--g);border-color:var(--g);color:var(--g);margin-left:12px;" onclick="addLapToCurves()" title="Add the selected lap to the curve comparison">＋ Add to curves</button>`+
+    (hasWorkLaps?`<button class="laptypebtn" data-type="" style="--btc:var(--g);border-color:var(--g);color:var(--g);" onclick="addWorkLapsToCurves()" title="Add every work interval as its own curve group">＋ Add all work intervals to curves</button>`:'');
+  document.getElementById('laptypebar').innerHTML=((hasType&&barTypes.length)?
     '<span style="font-size:10px;color:var(--muted);margin-right:6px;">Show:</span>'+
     `<button class="laptypebtn on" data-type="all" style="--btc:var(--muted)" onclick="showAllLaps()">All</button>`+
     barTypes.map(t=>`<button class="laptypebtn" data-type="${t}" style="--btc:${typeColor(t)}" onclick="toggleLapType('${t}')">${t}</button>`).join('')
-    :'';
+    :'')+lapCurveBtns;
   document.querySelector('#laptbl thead').innerHTML=`<tr>${hasType?'<th style="text-align:left;">Type</th>':''}<th>Lap</th><th>Dist</th><th>Time</th><th>Pace</th><th>Rate</th>${hasHR?'<th>HR avg</th><th>HR max</th>':''}${hasCal?'<th>Cal</th>':''}</tr>`;
   document.querySelector('#laptbl tbody').innerHTML=showLaps.map((l,i)=>`<tr data-lap="${i+1}" data-type="${l.type||''}" style="cursor:pointer">
     ${hasType?`<td>${lapTypeChip(l.type)}</td>`:''}
