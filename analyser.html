@@ -5814,10 +5814,21 @@ function lapTypeChip(type){
 }
 let lapTypesDirty=false;
 const LAP_TYPES=['','warmup','work','rest','cooldown'];
+/* Same colours the chips used: the select carries the type's colour so the
+   table still reads at a glance. */
+const LAP_TYPE_COLOURS={
+  work:['var(--g)','rgba(41,184,255,.13)'],
+  rest:['var(--o)','rgba(77,166,255,.13)'],
+  warmup:['var(--b)','rgba(255,179,71,.13)'],
+  cooldown:['var(--p)','rgba(126,200,227,.13)'],
+  transition:['var(--muted)','var(--s3)']
+};
 function lapTypeSelect(idx,type){
+  const [c,bg]=LAP_TYPE_COLOURS[type]||['var(--muted)','var(--s3)'];
   return `<select class="laptypesel" data-lidx="${idx}" onchange="setLapType(${idx},this.value)" onclick="event.stopPropagation()" `
-    +`style="font-size:9px;padding:1px 3px;background:var(--s3);color:var(--text);border:1px solid var(--border);border-radius:6px;">`
-    +LAP_TYPES.map(o=>`<option value="${o}"${(type||'')===o?' selected':''}>${o||'\u2014'}</option>`).join('')
+    +`style="font-size:7.5px;font-weight:700;letter-spacing:.6px;text-transform:uppercase;padding:1px 4px;`
+    +`color:${c};background:${bg};border:1px solid ${c};border-radius:10px;-webkit-appearance:none;appearance:none;">`
+    +LAP_TYPES.map(o=>`<option value="${o}" style="color:var(--text);background:var(--s2);text-transform:none;letter-spacing:0;"${(type||'')===o?' selected':''}>${o||'\u2014'}</option>`).join('')
     +'</select>';
 }
 /* Changing a type re-runs everything that keys off work laps: the filter bar,
