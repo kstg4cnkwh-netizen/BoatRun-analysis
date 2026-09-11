@@ -3614,8 +3614,11 @@ function buildCards(sum) {
   {const hb=(workOnly?AST.map(st=>nearestHRAt(st.ms)):HR.map(h=>h.bpm)).filter(b=>b!=null&&b>40&&b<220);
    vals.hr=hb.length?{mean:arrMean(hb),min:arrMin(hb),max:arrMax(hb),n:hb.length}:null;}
   const tipOf=k=>{const m=METRIC_DEFS.find(d=>d.k===k);return m?m.tip:'';};
+  /* Metric cards carry a metric key; Distance and Duration do not. When the
+     session has work laps every keyed card is a work-lap average, so it is
+     labelled as one rather than silently reporting a narrower number. */
   const card=(cls,lbl,val,sub,k,tip)=>`<div class="card ${cls}${k?' clickable':''}${k&&!vis[k]?' dim':''}"${k?` id="card-${k}" data-vis="${k}"`:''}${tip?` title="${tip}"`:''}>` +
-    `<div class="lbl">${lbl}</div><div class="val">${val}</div><div class="sub">${sub}</div></div>`;
+    `<div class="lbl">${(k&&workOnly)?lbl+' (work)':lbl}</div><div class="val">${val}</div><div class="sub">${sub}</div></div>`;
   const CARD_BUILDERS={
     pace:()=>{
       if(isErgSession()&&unitSettings.ergUnit==='watts'){
@@ -3631,7 +3634,7 @@ function buildCards(sum) {
     },
     rate:()=>vals.rate?card('c-rate','Rate',f1(vals.rate.mean),'spm · max '+f0(vals.rate.max),'rate',tipOf('rate')):'',
     dps:()=>vals.dps?card('c-dps','DPS',fmtDPSU(vals.dps.mean),dpsULabelU()+'/stroke','dps',tipOf('dps')):'',
-    cdelta:()=>vals.cdelta?`<div class="card clickable${!vis.cdelta?' dim':''}" id="card-cdelta" data-vis="cdelta" style="border-top:2px solid var(--mc-cdelta)" title="${tipOf('cdelta')}"><div class="lbl">Vel Efficiency</div><div class="val" style="color:var(--mc-cdelta)">${f1(vals.cdelta.mean)}%</div><div class="sub">vs steady hull</div></div>`:'',
+    cdelta:()=>vals.cdelta?`<div class="card clickable${!vis.cdelta?' dim':''}" id="card-cdelta" data-vis="cdelta" style="border-top:2px solid var(--mc-cdelta)" title="${tipOf('cdelta')}"><div class="lbl">Vel Efficiency${workOnly?' (work)':''}</div><div class="val" style="color:var(--mc-cdelta)">${f1(vals.cdelta.mean)}%</div><div class="sub">vs steady hull</div></div>`:'',
     rloss:()=>vals.rloss?card('c-rloss','Recovery Loss',fmtRunLossU(vals.rloss.mean),'avg/stroke','rloss',tipOf('rloss')):'',
     impulse:()=>vals.impulse?card('c-impulse','Impulse',Math.round(vals.impulse.mean),'peak '+Math.round(vals.impulse.max),'impulse',tipOf('impulse')):'',
     slope:()=>vals.slope?card('c-slope','Pos Slope',f0(vals.slope.mean),'peak '+f1(vals.slope.max),'slope',tipOf('slope')):'',
@@ -3639,7 +3642,7 @@ function buildCards(sum) {
     caccel:()=>vals.caccel?card('c-caccel','Catch Accel',f1(vals.caccel.mean)+' m/s²','deepest '+f1(vals.caccel.min),'caccel',tipOf('caccel')):'',
     ratio:()=>vals.ratio?card('c-ratio','Ratio',f2(vals.ratio.mean),'rec÷drive','ratio',tipOf('ratio')):'',
     schar:()=>vals.schar?card('c-schar','Stroke Char',f0(vals.schar.mean)+'%','','schar',tipOf('schar')):'',
-    cdur:()=>vals.cdur?`<div class="card clickable${!vis.cdur?' dim':''}" id="card-cdur" data-vis="cdur" style="border-top:2px solid var(--mc-cdur)" title="${tipOf('cdur')}"><div class="lbl">Catch Dur</div><div class="val" style="color:var(--mc-cdur)">${f0(vals.cdur.mean)} ms</div><div class="sub">avg/stroke</div></div>`:'',
+    cdur:()=>vals.cdur?`<div class="card clickable${!vis.cdur?' dim':''}" id="card-cdur" data-vis="cdur" style="border-top:2px solid var(--mc-cdur)" title="${tipOf('cdur')}"><div class="lbl">Catch Dur${workOnly?' (work)':''}</div><div class="val" style="color:var(--mc-cdur)">${f0(vals.cdur.mean)} ms</div><div class="sub">avg/stroke</div></div>`:'',
     driveaccel:()=>vals.driveaccel?card('c-driveaccel','Drive Accel',f1(vals.driveaccel.mean)+' m/s²','avg/stroke','driveaccel',tipOf('driveaccel')):'',
     recoveryaccel:()=>vals.recoveryaccel?card('c-recoveryaccel','Recovery Accel',f1(vals.recoveryaccel.mean)+' m/s²','avg/stroke','recoveryaccel',tipOf('recoveryaccel')):'',
     hr:()=>vals.hr?card('c-hr','Avg HR',f0(vals.hr.mean),'max '+f0(vals.hr.max)+' bpm','hr',tipOf('hr')):'',
@@ -3647,7 +3650,7 @@ function buildCards(sum) {
     drivelength:()=>vals.drivelength?card('c-drivelength','Stroke Length',f2(vals.drivelength.mean)+' m','','drivelength',tipOf('drivelength')):'',
   };
   let html=
-    card('cw','Distance',distDisp,distLbl,null,'Total distance travelled (GPS), in km or mi based on units setting.')+
+    card('cw','Distance',distDisp,distLbl+(workOnly?' \u00b7 session':''),null,'Total distance travelled (GPS), in km or mi based on units setting.')+
     card('cw','Duration',dur,workOnly?(AST.length+' work strokes'):(ST.length+' strokes'),null,workOnly?'Total elapsed time of the session. Metric averages below are taken from the work laps only.':'Total elapsed time of the session.')+
     METRIC_DEFS.map(m=>(hid[m.k]||!CARD_BUILDERS[m.k])?'':CARD_BUILDERS[m.k]()).join('');
   document.getElementById('cards').innerHTML=html;
