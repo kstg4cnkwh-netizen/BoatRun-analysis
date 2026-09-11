@@ -1601,6 +1601,41 @@ function fmtPaceU(s500) {
     default:         return fmtPace(s500);
   }
 }
+/* One-decimal pace, used where the work-lap average is shown alongside the
+   whole-session average and the difference is often under a second. */
+function fmtPace1(s){
+  if(!s||isNaN(s)||s<50||s>700)return EM;
+  const t=Math.floor(s*10)/10, m=Math.floor(t/60), r=t-m*60;
+  return m+':'+(r<10?'0':'')+r.toFixed(1);
+}
+function fmtPace1U(s500){
+  if(!s500||isNaN(s500))return EM;
+  switch(unitSettings.paceUnit){
+    case 'pace1000': return fmtPace1(s500*2);
+    case 'pacemile': return fmtPace1(s500*3.21868);
+    case 'kph':      return (1800/s500).toFixed(1);
+    case 'mph':      return (1118.47/s500).toFixed(1);
+    default:         return fmtPace1(s500);
+  }
+}
+/* Work laps, and the strokes that fall inside them. When a session has work
+   laps every card average is taken from the work portion only — the warm-up,
+   the rests and the paddle home would otherwise drag every number toward
+   nothing in particular. Falls back to the whole session when the laps carry
+   no start_time_s (older files) or the window catches almost nothing. */
+function workLapWindows(){
+  return (LAPS||[]).filter(l=>l.type==='work'&&l.start_time_s!=null&&l.time_s>0)
+                   .map(l=>[l.start_time_s,l.start_time_s+l.time_s]);
+}
+function workStrokes(){
+  const w=workLapWindows();
+  if(!w.length)return {strokes:ST,workOnly:false,pace:0};
+  const f=ST.filter(st=>w.some(r=>st.elapsed>=r[0]&&st.elapsed<=r[1]));
+  if(f.length<3)return {strokes:ST,workOnly:false,pace:0};
+  const wl=(LAPS||[]).filter(l=>l.type==='work'&&l.start_time_s!=null&&l.time_s>0);
+  const d=wl.reduce((a,l)=>a+(l.distance_m||0),0), t=wl.reduce((a,l)=>a+(l.time_s||0),0);
+  return {strokes:f,workOnly:true,pace:(d>5&&t>0)?(t/d)*500:0};
+}
 function paceULabel() {
   switch (unitSettings.paceUnit) {
     case 'pace500':  return '/500m';
@@ -3571,10 +3606,13 @@ function buildCards(sum) {
   const dur=fmtTime(+sum.duration_s);
   const movPace=+sum.avg_moving_pace_s_per_500m||0;
   const avgPace=+sum.avg_pace_s_per_500m||0;
-  // Session-level per-metric averages
+  // Session-level per-metric averages — work laps only when the session has them
+  const WS=workStrokes();
+  const AST=WS.strokes, workOnly=WS.workOnly, workPace=WS.pace;
   const vals={};
-  for(const m of METRIC_DEFS){const arr=ST.filter(m.filter).map(m.val);vals[m.k]=arr.length?{mean:arrMean(arr),min:arrMin(arr),max:arrMax(arr),n:arr.length}:null;}
-  {const hb=HR.map(h=>h.bpm).filter(b=>b>40&&b<220);vals.hr=hb.length?{mean:arrMean(hb),min:arrMin(hb),max:arrMax(hb),n:hb.length}:null;}
+  for(const m of METRIC_DEFS){const arr=AST.filter(m.filter).map(m.val);vals[m.k]=arr.length?{mean:arrMean(arr),min:arrMin(arr),max:arrMax(arr),n:arr.length}:null;}
+  {const hb=(workOnly?AST.map(st=>nearestHRAt(st.ms)):HR.map(h=>h.bpm)).filter(b=>b!=null&&b>40&&b<220);
+   vals.hr=hb.length?{mean:arrMean(hb),min:arrMin(hb),max:arrMax(hb),n:hb.length}:null;}
   const tipOf=k=>{const m=METRIC_DEFS.find(d=>d.k===k);return m?m.tip:'';};
   const card=(cls,lbl,val,sub,k,tip)=>`<div class="card ${cls}${k?' clickable':''}${k&&!vis[k]?' dim':''}"${k?` id="card-${k}" data-vis="${k}"`:''}${tip?` title="${tip}"`:''}>` +
     `<div class="lbl">${lbl}</div><div class="val">${val}</div><div class="sub">${sub}</div></div>`;
@@ -3587,7 +3625,9 @@ function buildCards(sum) {
         const cal=(sum.erg&&sum.erg.calories!=null)?sum.erg.calories:null;
         return cal!=null?card('c-pace','Calories',Math.round(cal),'total kcal','pace',tipOf('watts')):'';
       }
-      return vals.pace?card('c-pace','Pace',fmtPaceU(avgPace>0?avgPace:vals.pace.mean),movPace>0?'mov '+fmtPaceU(movPace):paceULabel(),'pace',tipOf('pace')):'';
+      const paceSub=(workOnly&&workPace>0)?'work '+fmtPace1U(workPace)
+                   :(movPace>0?'mov '+fmtPaceU(movPace):paceULabel());
+      return vals.pace?card('c-pace','Pace',fmtPaceU(avgPace>0?avgPace:vals.pace.mean),paceSub,'pace',tipOf('pace')):'';
     },
     rate:()=>vals.rate?card('c-rate','Rate',f1(vals.rate.mean),'spm · max '+f0(vals.rate.max),'rate',tipOf('rate')):'',
     dps:()=>vals.dps?card('c-dps','DPS',fmtDPSU(vals.dps.mean),dpsULabelU()+'/stroke','dps',tipOf('dps')):'',
@@ -3608,7 +3648,7 @@ function buildCards(sum) {
   };
   let html=
     card('cw','Distance',distDisp,distLbl,null,'Total distance travelled (GPS), in km or mi based on units setting.')+
-    card('cw','Duration',dur,ST.length+' strokes',null,'Total elapsed time of the session.')+
+    card('cw','Duration',dur,workOnly?(AST.length+' work strokes'):(ST.length+' strokes'),null,workOnly?'Total elapsed time of the session. Metric averages below are taken from the work laps only.':'Total elapsed time of the session.')+
     METRIC_DEFS.map(m=>(hid[m.k]||!CARD_BUILDERS[m.k])?'':CARD_BUILDERS[m.k]()).join('');
   document.getElementById('cards').innerHTML=html;
   buildHRZoneTable();
