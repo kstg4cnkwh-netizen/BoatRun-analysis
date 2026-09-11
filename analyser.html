@@ -1227,6 +1227,26 @@ const AnalyserDrive = {
     this._ok(r, 'Rename');
     this._invalidateFolder();
   },
+  /* Lap types edited here are written back into the session file itself, so
+     Metrics picks them up on its next Drive sync and every work-lap average —
+     including the session card image — follows. Targets workoutLapMetrics when
+     the session has them, otherwise plain laps: the same source the rest of the
+     app reads types from. */
+  async patchLapTypes(fileId, types) {
+    this._check();
+    const content = await this.fetchSession(fileId);
+    const wlm = Array.isArray(content.workoutLapMetrics) ? content.workoutLapMetrics : null;
+    const tgt = (wlm && wlm.length) ? wlm : (Array.isArray(content.laps) ? content.laps : null);
+    if (!tgt || !tgt.length) throw new Error('Session has no laps');
+    types.forEach((t, i) => { if (tgt[i]) tgt[i].type = t || null; });
+    const form = new FormData();
+    form.append('metadata', new Blob([JSON.stringify({})], { type: 'application/json' }));
+    form.append('file', new Blob([JSON.stringify(content)], { type: 'application/json' }));
+    const r = await this._api(`https://www.googleapis.com/upload/drive/v3/files/${fileId}?uploadType=multipart`, {
+      method: 'PATCH', body: form
+    }, 'Lap types', 45000, fileId);
+    this._ok(r, 'Lap types');
+  },
   async patchVidSync(fileId, vidSync) {
     this._check();
     const content=await this.fetchSession(fileId);
@@ -5792,6 +5812,41 @@ function lapTypeChip(type){
   const[c,bg]=m[type]||['var(--muted)','var(--s3)'];
   return `<span style="display:inline-block;padding:1px 6px;border-radius:10px;font-size:7.5px;font-weight:700;letter-spacing:.6px;color:${c};background:${bg};text-transform:uppercase;">${type}</span>`;
 }
+let lapTypesDirty=false;
+const LAP_TYPES=['','warmup','work','rest','cooldown'];
+function lapTypeSelect(idx,type){
+  return `<select class="laptypesel" data-lidx="${idx}" onchange="setLapType(${idx},this.value)" onclick="event.stopPropagation()" `
+    +`style="font-size:9px;padding:1px 3px;background:var(--s3);color:var(--text);border:1px solid var(--border);border-radius:6px;">`
+    +LAP_TYPES.map(o=>`<option value="${o}"${(type||'')===o?' selected':''}>${o||'\u2014'}</option>`).join('')
+    +'</select>';
+}
+/* Changing a type re-runs everything that keys off work laps: the filter bar,
+   the card averages and the charts. Nothing is written to Drive until Save. */
+function setLapType(idx,val){
+  if(!LAPS[idx])return;
+  LAPS[idx].type=val||null;
+  lapTypesDirty=true;
+  buildLaps();
+  if(_lastSum&&typeof buildCards==='function')buildCards(_lastSum);
+  try{schedRender();}catch{}
+  try{updateStatsStrip();}catch{}
+}
+async function saveLapTypes(){
+  const sess=SESSIONS[activeSessionIdx];
+  if(!sess){toast('No session loaded');return;}
+  if(typeof AnalyserDrive==='undefined'||!AnalyserDrive.isSignedIn()||!sess.fileId){
+    toast('Sign in to Drive to save lap types back to the session');return;
+  }
+  const types=LAPS.filter(l=>'stroke_rate_spm' in l).map(l=>l.type||null);
+  try{
+    await AnalyserDrive.patchLapTypes(sess.fileId,types);
+    lapTypesDirty=false;
+    buildLaps();
+    toast('Lap types saved \u2014 re-sync Metrics to update the session card',5000);
+  }catch(e){toast('Save failed: '+((e&&e.message)||e),5000);}
+}
+window.setLapType=setLapType;
+window.saveLapTypes=saveLapTypes;
 function buildLaps(){
   const showLaps=LAPS.filter(l=>'stroke_rate_spm' in l);
   activeLapTypes=new Set();
@@ -5801,14 +5856,15 @@ function buildLaps(){
   if(!showLaps.length)return;
   document.getElementById('map-stroke-row').classList.add('on');
   const hasHR='avg_hr_bpm' in showLaps[0],hasCal='calories' in showLaps[0];
-  const hasType=showLaps.some(l=>l.type);
+  const hasType=true;   // the Type column is editable now, so it always shows
   const availTypes=isErgSession()?['work','rest']:['warmup','work','rest','cooldown'];
   const barTypes=availTypes.filter(t=>showLaps.some(l=>l.type===t));
   const typeColor=t=>({work:'var(--g)',rest:'var(--o)',warmup:'var(--b)',cooldown:'var(--p)'}[t]||'var(--muted)');
   const hasWorkLaps=showLaps.some(l=>l.type==='work');
   const lapCurveBtns=
     `<button class="laptypebtn" data-type="" style="--btc:var(--g);border-color:var(--g);color:var(--g);margin-left:12px;" onclick="addLapToCurves()" title="Add the selected lap to the curve comparison">＋ Add to curves</button>`+
-    (hasWorkLaps?`<button class="laptypebtn" data-type="" style="--btc:var(--g);border-color:var(--g);color:var(--g);" onclick="addWorkLapsToCurves()" title="Add every work interval as its own curve group">＋ Add all work intervals to curves</button>`:'');
+    (hasWorkLaps?`<button class="laptypebtn" data-type="" style="--btc:var(--g);border-color:var(--g);color:var(--g);" onclick="addWorkLapsToCurves()" title="Add every work interval as its own curve group">＋ Add all work intervals to curves</button>`:'')+
+    `<button class="laptypebtn" data-type="" style="--btc:var(--o);border-color:var(--o);color:var(--o);${lapTypesDirty?'':'opacity:.45;'}" onclick="saveLapTypes()" title="Write the lap types back to the session file on Drive, so Metrics and the session card pick them up">\u25BC Save lap types${lapTypesDirty?' *':''}</button>`;
   document.getElementById('laptypebar').innerHTML=((hasType&&barTypes.length)?
     '<span style="font-size:10px;color:var(--muted);margin-right:6px;">Show:</span>'+
     `<button class="laptypebtn on" data-type="all" style="--btc:var(--muted)" onclick="showAllLaps()">All</button>`+
@@ -5816,7 +5872,7 @@ function buildLaps(){
     :'')+lapCurveBtns;
   document.querySelector('#laptbl thead').innerHTML=`<tr>${hasType?'<th style="text-align:left;">Type</th>':''}<th>Lap</th><th>Dist</th><th>Time</th><th>Pace</th><th>Rate</th>${hasHR?'<th>HR avg</th><th>HR max</th>':''}${hasCal?'<th>Cal</th>':''}</tr>`;
   document.querySelector('#laptbl tbody').innerHTML=showLaps.map((l,i)=>`<tr data-lap="${i+1}" data-type="${l.type||''}" style="cursor:pointer">
-    ${hasType?`<td>${lapTypeChip(l.type)}</td>`:''}
+    ${hasType?`<td>${lapTypeSelect(LAPS.indexOf(l),l.type)}</td>`:''}
     <td>Lap ${i+1}</td>
     <td>${(+l.distance_m||0).toFixed(0)}m</td>
     <td>${fmtTime(+l.time_s)}</td>
