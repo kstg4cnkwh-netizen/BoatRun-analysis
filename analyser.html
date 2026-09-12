@@ -1238,6 +1238,27 @@ const AnalyserDrive = {
       method:'PATCH',body:form}, 'Sync save', 45000, fileId);
     this._ok(r, 'Sync save');
   },
+  /* Lap types are edited by hand in the Analyser's lap table and have to
+     survive a reload, so they get written back into the ORIGINAL Metrics
+     session file rather than living only in memory. The Analyser's lap list
+     is built from workoutLapMetrics when that array exists and from laps
+     otherwise (see sessionToAnalyserFmt), so the write has to target the same
+     array, by the same index. Anything else silently writes types onto the
+     wrong rows. */
+  async patchLapTypes(fileId, types) {
+    this._check();
+    const content = await this.fetchSession(fileId);
+    const wlm = Array.isArray(content.workoutLapMetrics) ? content.workoutLapMetrics : [];
+    const dst = wlm.length ? wlm : (Array.isArray(content.laps) ? content.laps : []);
+    if (!dst.length) throw new Error('no laps in session file');
+    types.forEach((t, i) => { if (dst[i]) dst[i].type = t || null; });
+    const form = new FormData();
+    form.append('metadata', new Blob([JSON.stringify({})], { type: 'application/json' }));
+    form.append('file', new Blob([JSON.stringify(content)], { type: 'application/json' }));
+    const r = await this._api(`https://www.googleapis.com/upload/drive/v3/files/${fileId}?uploadType=multipart`, {
+      method: 'PATCH', body: form }, 'Lap types', 45000, fileId);
+    this._ok(r, 'Lap types');
+  },
   async patchFavourite(fileId, isFav) {
     this._check();
     const mResp = await this._api(`https://www.googleapis.com/drive/v3/files/${fileId}?fields=name`, {}, 'Favourite', null, fileId);
@@ -5845,11 +5866,28 @@ function readLapEditDraft(){
 function saveLapTypes(){
   readLapEditDraft();
   _showLaps.forEach((l,i)=>{ l.type=_lapEditDraft[i]||null; });
+  const _types=_showLaps.map(l=>l.type||null);
   _lapEditMode=false;_lapEditDraft=[];
   buildLaps();
   if(_lastSum)buildCards(_lastSum);
   if(typeof schedRender==='function')schedRender();
-  if(typeof toast==='function')toast('Lap types updated');
+  /* PERSIST. The lap objects here are the very objects held by sess.d.laps
+     (mountData spreads the array but not its members), so the in-memory
+     session is already current. workoutLapMetrics is a separate copy though,
+     and the Drive file is a third — both need the same types or a reload, an
+     export, or the Metrics log will still show the old ones. */
+  const sess=(typeof SESSIONS!=='undefined'&&activeSessionIdx>=0)?SESSIONS[activeSessionIdx]:null;
+  if(sess&&sess.d&&Array.isArray(sess.d.workoutLapMetrics)){
+    _types.forEach((t,i)=>{ if(sess.d.workoutLapMetrics[i]) sess.d.workoutLapMetrics[i].type=t; });
+  }
+  if(sess&&sess.fileId&&AnalyserDrive.isSignedIn()){
+    if(typeof toast==='function')toast('Saving lap types\u2026');
+    AnalyserDrive.patchLapTypes(sess.fileId,_types)
+      .then(()=>{ if(typeof toast==='function')toast('\u2714 Lap types saved to Drive'); })
+      .catch(e=>{ if(typeof toast==='function')toast('Drive save failed: '+e.message,3000); });
+  } else if(typeof toast==='function'){
+    toast('Lap types updated \u2014 no Drive file, so this session only',3000);
+  }
 }
 function cancelLapTypes(){
   _lapEditMode=false;_lapEditDraft=[];
