@@ -5719,8 +5719,12 @@ function buildMap(){
   sec.style.display='block';
   if(leafletMap){leafletMap.remove();leafletMap=null;mapBaseLine=null;mapGroupLines=[];}
   const latlngs=GPSTRACE.map(p=>[p.lat,p.lon]);
-  leafletMap=L.map('mapbox',{zoomControl:true,attributionControl:false});
-  L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png',{subdomains:'abcd',maxZoom:19}).addTo(leafletMap);
+  /* CARTO basemaps now demand an API key, so the dark tiles 404 into a nag
+     screen. Esri World Imagery is keyless, dark enough for the overlay colours
+     and far more useful on water - you can see the actual river bank. */
+  leafletMap=L.map('mapbox',{zoomControl:true,attributionControl:true});
+  leafletMap.attributionControl.setPrefix('');
+  L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}',{maxZoom:19,attribution:'Esri'}).addTo(leafletMap);
   mapBaseLine=L.polyline(latlngs,{color:'#29b8ff',weight:3,opacity:0.85}).addTo(leafletMap);
   L.circleMarker(latlngs[0],{radius:6,fillColor:'#fff',color:'#000',weight:2,fillOpacity:1}).bindTooltip('Start',{permanent:false}).addTo(leafletMap);
   L.circleMarker(latlngs[latlngs.length-1],{radius:6,fillColor:'#f54040',color:'#000',weight:2,fillOpacity:1}).bindTooltip('Finish',{permanent:false}).addTo(leafletMap);
@@ -5774,10 +5778,10 @@ function buildLaps(){
   const typeColor=t=>({work:'var(--g)',rest:'var(--o)',warmup:'var(--b)',cooldown:'var(--p)'}[t]||'var(--muted)');
   const hasWorkLaps=showLaps.some(l=>l.type==='work');
   const lapCurveBtns=_lapEditMode?
-    `<button class="laptypebtn" data-type="" style="--btc:var(--g);border-color:var(--g);color:var(--g);margin-left:12px;" onclick="saveLapTypes()" title="Apply the lap types and rebuild">✓ Save types</button>`+
+    `<button class="laptypebtn" data-type="" style="--btc:var(--g);border-color:var(--g);color:var(--g);margin-left:12px;" onclick="saveLapTypes()" title="Apply the lap types and rebuild">✓ Save lap types</button>`+
     `<button class="laptypebtn" data-type="" style="--btc:var(--muted);border-color:var(--muted);color:var(--muted);" onclick="cancelLapTypes()" title="Discard the changes">✕ Cancel</button>`
     :
-    `<button class="laptypebtn" data-type="" style="--btc:var(--b);border-color:var(--b);color:var(--b);margin-left:12px;" onclick="editLapTypes()" title="Change which laps are warmup, work, rest or cooldown">✎ Edit types</button>`+
+    `<button class="laptypebtn" data-type="" style="--btc:var(--b);border-color:var(--b);color:var(--b);margin-left:12px;" onclick="editLapTypes()" title="Change which laps are warmup, work, rest or cooldown">✎ Edit lap types</button>`+
     `<button class="laptypebtn" data-type="" style="--btc:var(--g);border-color:var(--g);color:var(--g);" onclick="addLapToCurves()" title="Add the selected lap to the curve comparison">＋ Add to curves</button>`+
     (hasWorkLaps?`<button class="laptypebtn" data-type="" style="--btc:var(--g);border-color:var(--g);color:var(--g);" onclick="addWorkLapsToCurves()" title="Add every work interval as its own curve group">＋ Add all work intervals to curves</button>`:'');
   document.getElementById('laptypebar').innerHTML=((hasType&&barTypes.length)?
