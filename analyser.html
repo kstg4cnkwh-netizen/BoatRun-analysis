@@ -1580,6 +1580,17 @@ function arrMin(a){let m=Infinity;for(let i=0;i<a.length;i++)if(a[i]<m)m=a[i];re
 function arrMax(a){let m=-Infinity;for(let i=0;i<a.length;i++)if(a[i]>m)m=a[i];return m;}
 function arrSum(a){let s=0;for(let i=0;i<a.length;i++)s+=a[i];return s;}
 function arrMean(a){return a.length?arrSum(a)/a.length:NaN;}
+/* ── ROWING-ONLY AVERAGES ─────────────────────────────────────────
+   Every metric on a stroke is measured across the interval from the stroke
+   before it, so the first stroke after a stop describes the stop, not a
+   stroke. A rate outside 5-50 spm is the marker for one of those, and they
+   are left out of every average - session cards, selection stats and pinned
+   curve groups alike. Charts and tables still show every stroke; this only
+   changes what gets averaged. Falls back to the whole array when almost
+   nothing qualifies, so a session with no usable rate still reports. */
+const ROW_MIN_SPM=5, ROW_MAX_SPM=50, ROW_GAP_MAX_S=60/ROW_MIN_SPM;
+function isRowStroke(s){return !!s&&!isNaN(s.rate)&&s.rate>ROW_MIN_SPM&&s.rate<ROW_MAX_SPM;}
+function rowOnly(a){const v=(a||[]).filter(isRowStroke);return v.length>=3?v:(a||[]);}
 function pctBounds(arr,lo=0.03,hi=0.97,pad=0.08){if(!arr.length)return[0,1];const s=[...arr].sort((a,b)=>a-b);const p=q=>{const i=q*(s.length-1),f=Math.floor(i);return s[f]+((s[f+1]??s[f])-s[f])*(i-f);};const vlo=p(lo),vhi=p(hi),rng=(vhi-vlo)||Math.abs(vhi)*0.1||1;return[vlo-rng*pad,vhi+rng*pad];}
 function clamp(v,a,b){return v<a?a:v>b?b:v;}
 const EM='—';
@@ -3600,7 +3611,8 @@ function buildCards(sum) {
   const avgPace=+sum.avg_pace_s_per_500m||0;
   // Session-level per-metric averages
   const vals={};
-  for(const m of METRIC_DEFS){const arr=ST.filter(m.filter).map(m.val);vals[m.k]=arr.length?{mean:arrMean(arr),min:arrMin(arr),max:arrMax(arr),n:arr.length}:null;}
+  const _rST=rowOnly(ST);
+  for(const m of METRIC_DEFS){const arr=_rST.filter(m.filter).map(m.val);vals[m.k]=arr.length?{mean:arrMean(arr),min:arrMin(arr),max:arrMax(arr),n:arr.length}:null;}
   {const hb=HR.map(h=>h.bpm).filter(b=>b>40&&b<220);vals.hr=hb.length?{mean:arrMean(hb),min:arrMin(hb),max:arrMax(hb),n:hb.length}:null;}
   const tipOf=k=>{const m=METRIC_DEFS.find(d=>d.k===k);return m?m.tip:'';};
   const card=(cls,lbl,val,sub,k,tip)=>`<div class="card ${cls}${k?' clickable':''}${k&&!vis[k]?' dim':''}"${k?` id="card-${k}" data-vis="${k}"`:''}${tip?` title="${tip}"`:''}>` +
@@ -4358,6 +4370,7 @@ function updateStatsStrip(){
   const vlen=viewE-viewS+1;
   const s2=clamp(Math.min(selS,selE),0,vlen-1),e2=clamp(Math.max(selS,selE),0,vlen-1);
   const strokes=ST.slice(viewS+s2,viewS+e2+1);
+  const _rSel=rowOnly(strokes);
   const hasCurves=strokes.some(s=>s.curve&&s.curve.length===CURVE_POINTS);
   document.getElementById('stripcontext').textContent='Selection · '+strokes.length+' strokes'+(hasCurves?' · has curves':'');
 
@@ -4377,7 +4390,7 @@ function updateStatsStrip(){
   }
   for(const m of METRIC_DEFS){
     if(hid[m.k]||!metricFitsSession(m.k))continue;
-    const arr=strokes.filter(m.filter).map(m.val);
+    const arr=_rSel.filter(m.filter).map(m.val);
     if(m.k==='pace'||m.k==='dps'){
       const gv=(m.k==='pace')?groupAvgPace(strokes):groupAvgDPS(strokes);
       if(gv==null&&!arr.length)continue;
@@ -4566,11 +4579,14 @@ function computeGroupCurve(strokes){
   for(const s of valid){
     for(let i=0;i<CURVE_POINTS;i++)avg[i]+=s.curve[i];
     dfSum+=(s.curveDriveFrac||0.5);
-    if(s.rate>5&&s.rate<50){rateSum+=s.rate;rateN++;}
-    if(s.dps>1&&s.dps<25){dpsSum+=s.dps;dpsN++;}
-    if(s.pace>50&&s.pace<500){paceSum+=s.pace;paceN++;}
-    if(s.driveTimeMs>50&&s.driveTimeMs<3000){drvSum+=s.driveTimeMs;drvN++;}
-    if(s.catchDuration>0&&s.catchDuration<1500){cdSum+=s.catchDuration;cdN++;}
+    /* Curve shape uses every stroke; the numbers beside it do not count the
+       stroke that spans a stop. */
+    const _row=isRowStroke(s);
+    if(_row){rateSum+=s.rate;rateN++;}
+    if(_row&&s.dps>1&&s.dps<25){dpsSum+=s.dps;dpsN++;}
+    if(_row&&s.pace>50&&s.pace<500){paceSum+=s.pace;paceN++;}
+    if(_row&&s.driveTimeMs>50&&s.driveTimeMs<3000){drvSum+=s.driveTimeMs;drvN++;}
+    if(_row&&s.catchDuration>0&&s.catchDuration<1500){cdSum+=s.catchDuration;cdN++;}
   }
   for(let i=0;i<CURVE_POINTS;i++)avg[i]/=valid.length;
   let df=dfSum/valid.length;
@@ -5421,7 +5437,9 @@ function groupDistTime(a){
   let metres=0,secs=0,gaps=0;
   for(let i=1;i<v.length;i++){
     const dt=v[i].elapsed-v[i-1].elapsed, dm=v[i].dist-v[i-1].dist;
-    if(!(dt>0)||dm<0||dm/dt>MAX_BOAT_MS)continue;
+    /* A gap longer than the slowest stroke is a stop, not a stroke - counting
+       its seconds made the group pace and DPS read as rowing-plus-resting. */
+    if(!(dt>0)||dt>ROW_GAP_MAX_S||dm<0||dm/dt>MAX_BOAT_MS)continue;
     metres+=dm;secs+=dt;gaps++;
   }
   if(!(metres>0)||!(secs>0))return null;
@@ -5459,7 +5477,7 @@ function groupBestPace(a){
   const bad=[];
   for(let i=1;i<v.length;i++){
     const dt=v[i].elapsed-v[i-1].elapsed, dm=v[i].dist-v[i-1].dist;
-    bad.push(!(dt>0)||dm<0||dm/dt>MAX_BOAT_MS);
+    bad.push(!(dt>0)||dt>ROW_GAP_MAX_S||dm<0||dm/dt>MAX_BOAT_MS);
   }
   let best=null;
   for(let i=0;i<v.length-1;i++){
@@ -5511,7 +5529,7 @@ function buildCurveStats(){
       continue;
     }
     rows.push({l:'Avg '+m.l, c:m.c, fn:g=>{
-      const arr=g.strokes.filter(m.filter).map(m.val);
+      const arr=rowOnly(g.strokes).filter(m.filter).map(m.val);
       return arr.length?m.fmtAvg(arrMean(arr)):EM;
     }});
     if(m.showBest) rows.push({l:'Best '+m.l, c:m.c, fn:g=>{
