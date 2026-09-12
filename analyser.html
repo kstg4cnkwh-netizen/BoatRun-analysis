@@ -5749,9 +5749,9 @@ function buildMap(){
 // ══════════════════════════════════════════════════════════════════════════
 // LAPS TABLE
 // ══════════════════════════════════════════════════════════════════════════
-let _showLaps=[];
+let _showLaps=[],_lapEditMode=false,_lapEditDraft=[];
 function lapTypeChip(type){
-  if(!type)return '<span style="display:inline-block;padding:1px 6px;border-radius:10px;font-size:7.5px;font-weight:700;letter-spacing:.6px;color:var(--muted);background:var(--s3);text-transform:uppercase;">set</span>';
+  if(!type)return '<span style="color:var(--muted);font-size:9px;">—</span>';
   const m={work:['var(--g)','rgba(41,184,255,.13)'],rest:['var(--o)','rgba(77,166,255,.13)'],warmup:['var(--b)','rgba(255,179,71,.13)'],cooldown:['var(--p)','rgba(126,200,227,.13)'],transition:['var(--muted)','var(--s3)']};
   const[c,bg]=m[type]||['var(--muted)','var(--s3)'];
   return `<span style="display:inline-block;padding:1px 6px;border-radius:10px;font-size:7.5px;font-weight:700;letter-spacing:.6px;color:${c};background:${bg};text-transform:uppercase;">${type}</span>`;
@@ -5773,8 +5773,12 @@ function buildLaps(){
   const barTypes=availTypes.filter(t=>showLaps.some(l=>l.type===t));
   const typeColor=t=>({work:'var(--g)',rest:'var(--o)',warmup:'var(--b)',cooldown:'var(--p)'}[t]||'var(--muted)');
   const hasWorkLaps=showLaps.some(l=>l.type==='work');
-  const lapCurveBtns=
-    `<button class="laptypebtn" data-type="" style="--btc:var(--g);border-color:var(--g);color:var(--g);margin-left:12px;" onclick="addLapToCurves()" title="Add the selected lap to the curve comparison">＋ Add to curves</button>`+
+  const lapCurveBtns=_lapEditMode?
+    `<button class="laptypebtn" data-type="" style="--btc:var(--g);border-color:var(--g);color:var(--g);margin-left:12px;" onclick="saveLapTypes()" title="Apply the lap types and rebuild">✓ Save types</button>`+
+    `<button class="laptypebtn" data-type="" style="--btc:var(--muted);border-color:var(--muted);color:var(--muted);" onclick="cancelLapTypes()" title="Discard the changes">✕ Cancel</button>`
+    :
+    `<button class="laptypebtn" data-type="" style="--btc:var(--b);border-color:var(--b);color:var(--b);margin-left:12px;" onclick="editLapTypes()" title="Change which laps are warmup, work, rest or cooldown">✎ Edit types</button>`+
+    `<button class="laptypebtn" data-type="" style="--btc:var(--g);border-color:var(--g);color:var(--g);" onclick="addLapToCurves()" title="Add the selected lap to the curve comparison">＋ Add to curves</button>`+
     (hasWorkLaps?`<button class="laptypebtn" data-type="" style="--btc:var(--g);border-color:var(--g);color:var(--g);" onclick="addWorkLapsToCurves()" title="Add every work interval as its own curve group">＋ Add all work intervals to curves</button>`:'');
   document.getElementById('laptypebar').innerHTML=((hasType&&barTypes.length)?
     '<span style="font-size:10px;color:var(--muted);margin-right:6px;">Show:</span>'+
@@ -5783,7 +5787,9 @@ function buildLaps(){
     :'')+lapCurveBtns;
   document.querySelector('#laptbl thead').innerHTML=`<tr>${hasType?'<th style="text-align:left;">Type</th>':''}<th>Lap</th><th>Dist</th><th>Time</th><th>Pace</th><th>Rate</th>${hasHR?'<th>HR avg</th><th>HR max</th>':''}${hasCal?'<th>Cal</th>':''}</tr>`;
   document.querySelector('#laptbl tbody').innerHTML=showLaps.map((l,i)=>`<tr data-lap="${i+1}" data-type="${l.type||''}" style="cursor:pointer">
-    ${hasType?`<td class="laptype-cell" title="Click to change lap type" style="cursor:pointer" onclick="event.stopPropagation();cycleLapType(${i})">${lapTypeChip(l.type)}</td>`:''}
+    ${hasType?(_lapEditMode
+      ?`<td><select class="lapedit-sel" data-i="${i}" onclick="event.stopPropagation()" style="font-size:9px;padding:2px 3px;background:var(--s3);color:var(--text);border:1px solid var(--s3);border-radius:4px;">${['',...availTypes].map(t=>`<option value="${t}"${(_lapEditDraft[i]||'')===t?' selected':''}>${t||'—'}</option>`).join('')}</select></td>`
+      :`<td>${lapTypeChip(l.type)}</td>`):''}
     <td>Lap ${i+1}</td>
     <td>${(+l.distance_m||0).toFixed(0)}m</td>
     <td>${fmtTime(+l.time_s)}</td>
@@ -5794,6 +5800,7 @@ function buildLaps(){
   </tr>`).join('');
   document.querySelectorAll('#laptbl tbody tr').forEach(row=>{
     row.addEventListener('click',()=>{
+      if(_lapEditMode)return;
       const lapN=+row.dataset.lap;
       const idxs=ST.map((s,i)=>s.lapNum===lapN?i:-1).filter(i=>i>=0);
       if(!idxs.length)return;
@@ -5819,16 +5826,34 @@ function showAllLaps(){
   activeLapTypes=new Set();
   applyLapTypeFilter();
 }
-function cycleLapType(i){
-  const l=_showLaps[i];if(!l)return;
-  const order=isErgSession()?[null,'work','rest']:[null,'work','rest','warmup','cooldown'];
-  const cur=order.indexOf(l.type||null);
-  l.type=order[(cur+1)%order.length];
+/* Lap types are edited in an explicit mode so that an ordinary row click keeps
+   selecting the lap's strokes instead of silently retyping the lap. */
+function editLapTypes(){
+  _lapEditDraft=_showLaps.map(l=>l.type||'');
+  _lapEditMode=true;
+  buildLaps();
+}
+function readLapEditDraft(){
+  document.querySelectorAll('#laptbl .lapedit-sel').forEach(sel=>{
+    _lapEditDraft[+sel.dataset.i]=sel.value||'';
+  });
+}
+function saveLapTypes(){
+  readLapEditDraft();
+  _showLaps.forEach((l,i)=>{ l.type=_lapEditDraft[i]||null; });
+  _lapEditMode=false;_lapEditDraft=[];
   buildLaps();
   if(_lastSum)buildCards(_lastSum);
   if(typeof schedRender==='function')schedRender();
+  if(typeof toast==='function')toast('Lap types updated');
 }
-window.cycleLapType=cycleLapType;
+function cancelLapTypes(){
+  _lapEditMode=false;_lapEditDraft=[];
+  buildLaps();
+}
+window.editLapTypes=editLapTypes;
+window.saveLapTypes=saveLapTypes;
+window.cancelLapTypes=cancelLapTypes;
 window.toggleLapType=toggleLapType;
 window.showAllLaps=showAllLaps;
 
@@ -6001,6 +6026,7 @@ function mountData(d,label){
   document.getElementById('map-stroke-row').classList.add('on');
   buildMeta(label,d.sum);
   buildUnitsBar();
+  _lapEditMode=false;_lapEditDraft=[];
   buildCards(d.sum);
   buildLaps();
   assignLapNumbers();
