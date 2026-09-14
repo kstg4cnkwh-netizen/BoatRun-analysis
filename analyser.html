@@ -331,6 +331,9 @@ body.light .hdrname{color:#fff;}
   #vidStageWrap #vidstage{margin:0 auto;}
   #vidstage{position:relative;width:100%;max-width:100%;overflow:hidden;background:#000;border-radius:10px;line-height:0;}
   #vidstage video{display:block;width:100%;height:auto;}
+  .vid-grip{position:absolute;right:8px;bottom:8px;width:34px;height:34px;border-radius:9px;border:2px solid #fff;box-shadow:0 2px 6px rgba(0,0,0,.55);background-color:rgba(0,0,0,.55);background-image:linear-gradient(135deg,transparent 40%,#fff 40%,#fff 50%,transparent 50%,transparent 60%,#fff 60%,#fff 70%,transparent 70%);cursor:nwse-resize;touch-action:none;pointer-events:auto;z-index:8;display:block;}
+  #vidStageWrap:fullscreen .vid-grip{display:none;}
+  #vidStageWrap:-webkit-full-screen .vid-grip{display:none;}
   #vidOverlay{position:absolute;top:0;left:0;width:100%;height:100%;touch-action:none;cursor:grab;}
   #vidOverlay.drag{cursor:grabbing;}
   .vid-empty{padding:8px 14px;text-align:center;color:var(--muted);font-size:12px;}
@@ -7501,7 +7504,6 @@ function vidRenderBody(){
   <div class="vid-panel" id="vidCropPanel">
     <div class="vid-panel-hd">Video size &amp; crop</div>
     <div class="vid-row">
-      <div class="vid-slider"><span>width</span><input type="range" id="vidWidth" min="40" max="100" value="${cfg.vidWidth}"></div>
       <div class="vid-slider"><span>zoom/crop</span><input type="range" id="vidZoom" min="100" max="220" value="${Math.round(cfg.vidZoom*100)}"></div>
     </div>
     <div class="vid-row" style="margin-top:8px;">
@@ -7514,6 +7516,7 @@ function vidRenderBody(){
     <div id="vidstage" style="width:${cfg.vidWidth}%;">
       <video id="vidEl" playsinline preload="metadata"></video>
       <canvas id="vidOverlay"></canvas>
+      <div id="vidSizeGrip" class="vid-grip" title="drag to resize the video"></div>
     </div>
     <div class="vid-transport">
       <button class="vid-play" id="vidPlayBtn">\u25B6</button>
@@ -7560,7 +7563,6 @@ function vidRenderBody(){
       <div class="vid-mchips">${mchips}</div>
       <div class="vid-row" style="margin-top:8px;">
         <label><input type="checkbox" id="vidShowBox" ${cfg.showBox?'checked':''}> show box</label>
-        <div class="vid-slider"><span>box size</span><input type="range" id="vidBoxScale" min="60" max="200" value="${Math.round(cfg.boxScale*100)}"></div>
         <div class="vid-slider"><span>opacity</span><input type="range" id="vidOpacity" min="20" max="100" value="${Math.round(cfg.opacity*100)}"></div>
       </div>
     </div>
@@ -7570,10 +7572,9 @@ function vidRenderBody(){
       <div class="vid-row">
         <label><input type="checkbox" id="vidShowCurve" ${cfg.showCurve?'checked':''}> show curve</label>
         <label><input type="checkbox" id="vidCurveAvg5" ${cfg.curveAvg5?'checked':''}> show avg last 5 strokes</label>
-        <div class="vid-slider"><span>curve size</span><input type="range" id="vidCurveScale" min="50" max="220" value="${Math.round(cfg.curveScale*100)}"></div>
         <div class="vid-slider"><span>opacity</span><input type="range" id="vidCurveOpacity" min="20" max="100" value="${Math.round(cfg.curveOpacity*100)}"></div>
       </div>
-      <div class="vid-mini" style="margin-top:5px;">Drag the box or curve directly on the video to reposition.</div>
+      <div class="vid-mini" style="margin-top:5px;">Drag the box or curve on the video to move it, or drag its corner handle to resize. The handle at the bottom-right of the video resizes the video itself.</div>
       ${tplRowHtml}
     </div>
 
@@ -7612,11 +7613,8 @@ function vidRenderBody(){
   on('vidOffset','onchange',e=>{ a.offset=parseFloat(e.target.value)||0; vidLearnBias(a); vidDraw(); vidQueueSaveSync(); });
   on('vidShowBox','onchange',e=>{ cfg.showBox=e.target.checked; vidDraw(); });
   on('vidShowCurve','onchange',e=>{ cfg.showCurve=e.target.checked; vidDraw(); });
-  on('vidBoxScale','oninput',e=>{ cfg.boxScale=e.target.value/100; vidDraw(); });
-  on('vidCurveScale','oninput',e=>{ cfg.curveScale=e.target.value/100; vidDraw(); });
   on('vidCurveOpacity','oninput',e=>{ cfg.curveOpacity=e.target.value/100; vidDraw(); });
   on('vidOpacity','oninput',e=>{ cfg.opacity=e.target.value/100; vidDraw(); });
-  on('vidWidth','oninput',e=>{ cfg.vidWidth=+e.target.value; document.getElementById('vidstage').style.width=cfg.vidWidth+'%'; requestAnimationFrame(()=>{vidSizeOverlay();vidDraw();}); });
   on('vidZoom','oninput',e=>{ cfg.vidZoom=e.target.value/100; vidApplyVideoStyle(); vidDraw(); });
   on('vidPanX','oninput',e=>{ cfg.vidPanX=+e.target.value; vidApplyVideoStyle(); vidDraw(); });
   on('vidPanY','oninput',e=>{ cfg.vidPanY=+e.target.value; vidApplyVideoStyle(); vidDraw(); });
@@ -7640,6 +7638,29 @@ function vidRenderBody(){
   vidSyncBtnUI();
   if(a._dirty) vidMarkUnsaved(); else vidMarkSaved();
 
+  /* The stage is centre-aligned, so dragging the right-hand grip by dx widens
+     it by dx on both sides - hence the doubled step. */
+  const grip=document.getElementById('vidSizeGrip');
+  if(grip){
+    grip.onpointerdown=ev=>{
+      ev.preventDefault(); ev.stopPropagation();
+      const wrap=document.getElementById('vidStageWrap');
+      const base=Math.max(1,(wrap&&wrap.clientWidth)||1);
+      const x0=ev.clientX, w0=cfg.vidWidth;
+      try{ grip.setPointerCapture(ev.pointerId); }catch(_){}
+      grip.onpointermove=e2=>{
+        cfg.vidWidth=clamp(Math.round(w0+(e2.clientX-x0)/base*200),40,100);
+        const stg=document.getElementById('vidstage');
+        if(stg) stg.style.width=cfg.vidWidth+'%';
+        vidSizeOverlay(); vidDraw();
+      };
+      const up=()=>{
+        grip.onpointermove=null; grip.onpointerup=null; grip.onpointercancel=null;
+        requestAnimationFrame(()=>{ vidSizeOverlay(); vidDraw(); });
+      };
+      grip.onpointerup=up; grip.onpointercancel=up;
+    };
+  }
   vidWireDrag();
   requestAnimationFrame(()=>{ vidSizeOverlay(); vidDraw(); });
 }
@@ -8003,13 +8024,14 @@ function vidDraw(){
 
   const upd=document.getElementById('vidRead');
   const st=vidCurrent();
-  if(!st){ if(upd) upd.textContent='\u2014'; vidDrawChartLine(); return; }
+  if(!st){ if(upd) upd.textContent='\u2014'; vidDrawGrips(ctx,W,H,null); vidDrawChartLine(); return; }
   if(upd) upd.textContent=(st.sessT<0?'before start':('t '+fmtTime(st.sessT)+'  \u00B7  stroke '+(st.idx>=0?st.idx+1:'\u2013')));
-  if(st.idx<0){ vidDrawChartLine(); return; }
+  if(st.idx<0){ vidDrawGrips(ctx,W,H,null); vidDrawChartLine(); return; }
 
   if(VID.cfg.showBox){ ctx.globalAlpha=VID.cfg.opacity; vidDrawBox(ctx,W,H,st); }
   if(VID.cfg.showCurve){ ctx.globalAlpha=VID.cfg.curveOpacity; vidDrawCurve(ctx,W,H,st); }
   ctx.globalAlpha=1;
+  vidDrawGrips(ctx,W,H,st);
   vidDrawChartLine();
 }
 
@@ -8079,6 +8101,27 @@ function vidCurveRect(W,H){
   const x=clamp(VID.cfg.curveX/100*W,0,Math.max(0,W-cw));
   const y=clamp(VID.cfg.curveY/100*H,0,Math.max(0,H-ch));
   return {x,y,cw,ch};
+}
+/* Corner grip for the box and the curve. Drawn only on the live overlay, never
+   on the export canvas, so it cannot end up burned into a clip. */
+function vidDrawGrip(ctx,x,y){
+  ctx.save();
+  ctx.globalAlpha=1;
+  ctx.beginPath(); ctx.arc(x,y,13,0,Math.PI*2);
+  ctx.fillStyle='rgba(0,0,0,0.6)'; ctx.fill();
+  ctx.strokeStyle='#ffffff'; ctx.lineWidth=2; ctx.stroke();
+  ctx.beginPath();
+  ctx.moveTo(x-6,y+5); ctx.lineTo(x+5,y-6);
+  ctx.moveTo(x-1,y+6); ctx.lineTo(x+6,y-1);
+  ctx.lineWidth=2; ctx.stroke();
+  ctx.restore();
+}
+/* vidBoxRect ignores `st`, so grips can be drawn and grabbed before the clip is
+   synced to a stroke - which is exactly when you want to size things. */
+function vidDrawGrips(ctx,W,H,st){
+  if(VID.exporting) return;
+  if(VID.cfg.showBox){ const br=vidBoxRect(W,H,st); vidDrawGrip(ctx,br.x+br.bw,br.y+br.bh); }
+  if(VID.cfg.showCurve){ const cr=vidCurveRect(W,H); vidDrawGrip(ctx,cr.x+cr.cw,cr.y+cr.ch); }
 }
 function vidDrawCurve(ctx,W,H,st){
   const r=vidCurveRect(W,H);
@@ -8236,11 +8279,20 @@ function vidWireDrag(){
     const rect=cv.getBoundingClientRect();
     const x=(e.clientX-rect.left), y=(e.clientY-rect.top);
     VID._tapX=x; VID._tapY=y; VID._tapMoved=false; VID.drag=null;
-    const st=vidCurrent();
-    if(st){
+    if(cv._w){
       const W=cv._w,H=cv._h;
-      const br=vidBoxRect(W,H,st), cr=vidCurveRect(W,H);
-      if(VID.cfg.showBox && x>=br.x&&x<=br.x+br.bw&&y>=br.y&&y<=br.y+br.bh){
+      const br=vidBoxRect(W,H,null), cr=vidCurveRect(W,H);
+      /* Grips are tested first, so grabbing a corner resizes instead of
+         starting a move. Scale tracks the pointer's distance from the rect's
+         own top-left corner, which is the anchor it grows from. */
+      const near=(gx,gy)=>Math.abs(x-gx)<=22&&Math.abs(y-gy)<=22;
+      if(VID.cfg.showBox && near(br.x+br.bw,br.y+br.bh)){
+        VID.drag='box-size'; VID._sc0=VID.cfg.boxScale;
+        VID._ox=br.x; VID._oy=br.y; VID._d0=Math.max(14,Math.hypot(x-br.x,y-br.y));
+      } else if(VID.cfg.showCurve && near(cr.x+cr.cw,cr.y+cr.ch)){
+        VID.drag='curve-size'; VID._sc0=VID.cfg.curveScale;
+        VID._ox=cr.x; VID._oy=cr.y; VID._d0=Math.max(14,Math.hypot(x-cr.x,y-cr.y));
+      } else if(VID.cfg.showBox && x>=br.x&&x<=br.x+br.bw&&y>=br.y&&y<=br.y+br.bh){
         VID.drag='box'; VID.dragDX=x-br.x; VID.dragDY=y-br.y;
       } else if(VID.cfg.showCurve && x>=cr.x&&x<=cr.x+cr.cw&&y>=cr.y&&y<=cr.y+cr.ch){
         VID.drag='curve'; VID.dragDX=x-cr.x; VID.dragDY=y-cr.y;
@@ -8255,6 +8307,12 @@ function vidWireDrag(){
     if(Math.abs(x-VID._tapX)>6||Math.abs(y-VID._tapY)>6) VID._tapMoved=true;
     if(!VID.drag) return;
     const W=cv._w,H=cv._h;
+    if(VID.drag==='box-size'||VID.drag==='curve-size'){
+      const sc=VID._sc0*(Math.hypot(x-VID._ox,y-VID._oy)/VID._d0);
+      if(VID.drag==='box-size') VID.cfg.boxScale=clamp(sc,0.6,2.2);
+      else VID.cfg.curveScale=clamp(sc,0.5,2.4);
+      vidDraw(); return;
+    }
     const nx=x-VID.dragDX, ny=y-VID.dragDY;
     if(VID.drag==='box'){ VID.cfg.boxX=clamp(nx/W*100,0,100); VID.cfg.boxY=clamp(ny/H*100,0,100); }
     else { VID.cfg.curveX=clamp(nx/W*100,0,100); VID.cfg.curveY=clamp(ny/H*100,0,100); }
