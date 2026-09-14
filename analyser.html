@@ -7638,7 +7638,7 @@ function vidRenderBody(){
   on('vidRate','onchange',e=>{ cfg.rate=parseFloat(e.target.value)||1; el.playbackRate=cfg.rate; });
   { const rs=document.getElementById('vidRate'); if(rs) rs.value=String(cfg.rate); el.playbackRate=cfg.rate; }
   vidSyncBtnUI();
-  vidMarkSaved();
+  if(a._dirty) vidMarkUnsaved(); else vidMarkSaved();
 
   vidWireDrag();
   requestAnimationFrame(()=>{ vidSizeOverlay(); vidDraw(); });
@@ -7752,6 +7752,7 @@ function vidApplyVideoStyle(){
 // ── Sync persistence ─────────────────────────────────────────────────────────
 let _vidSyncSaveTimer=null;
 function vidQueueSaveSync(){
+  const a=VID.clips[VID.active]; if(a) a._dirty=true;
   vidMarkUnsaved();
   clearTimeout(_vidSyncSaveTimer);
   _vidSyncSaveTimer=setTimeout(vidSaveSync,1200);
@@ -7763,24 +7764,40 @@ function vidMarkUnsaved(){
   b.style.borderColor='#e53935';
   b.style.color='#fff';
 }
+function vidMarkSaving(){
+  const b=document.getElementById('vidSaveSyncBtn'); if(!b) return;
+  b.textContent='\u2026 Saving to Drive';
+  b.style.background='var(--s2)';
+  b.style.borderColor='var(--border)';
+  b.style.color='var(--text)';
+}
 function vidMarkSaved(){
   const b=document.getElementById('vidSaveSyncBtn'); if(!b) return;
-  b.textContent='✔ Sync saved';
+  b.textContent='\u2714 Sync saved';
   b.style.background='var(--g)';
   b.style.borderColor='var(--g)';
   b.style.color='#000';
 }
 function vidSaveSync(){
-  const a=VID.clips[VID.active]; if(!a||!a._id) return;
-  const sess=SESSIONS[activeSessionIdx]; if(!sess) return;
+  clearTimeout(_vidSyncSaveTimer);
+  const a=VID.clips[VID.active];
+  if(!a||!a._id){ toast('No clip loaded to save a sync for'); vidMarkUnsaved(); return; }
+  const sess=SESSIONS[activeSessionIdx];
+  if(!sess){ toast('No session loaded'); vidMarkUnsaved(); return; }
   if(!sess.d.vidSync) sess.d.vidSync={};
   sess.d.vidSync[a._id]={offset:a.offset};
+  /* Writing it into the session is the save. Drive is just where it goes next,
+     so the button goes green either way - it used to stay red forever whenever
+     you were not signed in, or had no Drive file. */
+  a._dirty=false;
+  vidMarkSaved();
   if(AnalyserDrive.isSignedIn()&&sess.fileId){
+    vidMarkSaving();
     AnalyserDrive.patchVidSync(sess.fileId,sess.d.vidSync)
-      .then(()=>{toast('✔ Sync saved to Drive');vidMarkSaved();})
-      .catch(e=>{toast('Drive save failed: '+e.message,3000);vidMarkUnsaved();});
+      .then(()=>{toast('\u2714 Sync saved to Drive');vidMarkSaved();})
+      .catch(e=>{toast('Drive save failed: '+e.message,3000);a._dirty=true;vidMarkUnsaved();});
   } else {
-    toast('✔ Sync set — tap ⬇ Export JSON to save for another device');
+    toast('\u2714 Sync saved on this device \u2014 tap \u2B07 Export JSON to move it to another');
   }
 }
 function vidExportJSON(){
@@ -8263,6 +8280,20 @@ function vidPickMime(){
   for(const m of opts){ if(window.MediaRecorder && MediaRecorder.isTypeSupported(m)) return m; }
   return '';
 }
+/* Chrome has recorded MP4 directly since v130, and Safari since 17.4. When it
+   is available there is nothing to convert - record the finished container and
+   skip the wasm transcode entirely. */
+function vidPickMp4Mime(){
+  const opts=['video/mp4;codecs=avc1.42E01E,mp4a.40.2','video/mp4;codecs=avc1,mp4a.40.2','video/mp4;codecs=avc1.42E01E','video/mp4;codecs=avc1','video/mp4;codecs=h264','video/mp4'];
+  for(const m of opts){ if(window.MediaRecorder && MediaRecorder.isTypeSupported(m)) return m; }
+  return '';
+}
+/* ffmpeg.wasm 0.11 needs SharedArrayBuffer, which browsers only expose on a
+   cross-origin-isolated page (COOP + COEP headers). We do not send those, so
+   the transcode fallback cannot run - check before promising it. */
+function vidCanTranscode(){
+  return typeof SharedArrayBuffer !== 'undefined' && self.crossOriginIsolated === true;
+}
 
 function vidExportRun(mode){
   if(VID_EXPORT){ return; }
@@ -8271,8 +8302,14 @@ function vidExportRun(mode){
   const el=a.el;
   const canCap=!!document.createElement('canvas').captureStream;
   if(!window.MediaRecorder || !canCap){ toast('Recording not supported here \u2014 use desktop Chrome'); return; }
-  const mime=vidPickMime();
-  if(!mime){ toast('webm recording not supported here \u2014 use desktop Chrome'); return; }
+  let mime='', direct=false;
+  if(mode==='mp4'){ mime=vidPickMp4Mime(); direct=!!mime; }
+  if(!mime) mime=vidPickMime();
+  if(!mime){ toast('This browser cannot record video \u2014 try Chrome'); return; }
+  if(mode==='mp4' && !direct && !vidCanTranscode()){
+    toast('This browser cannot write MP4 \u2014 saving as webm instead',4500);
+    mode='webm';
+  }
   if(!el.videoWidth){ toast('Press play once so the video loads, then export'); return; }
 
   let Ow=el.videoWidth, Oh=el.videoHeight;
@@ -8296,18 +8333,19 @@ function vidExportRun(mode){
   rec.onstop=()=>{
     const X=VID_EXPORT;
     if(X&&X.cancelled){ vidExportCleanup(); toast('Export cancelled'); return; }
-    const blob=new Blob(chunks,{type:'video/webm'});
-    if(X&&X.mode==='mp4'){ vidToMp4(blob, a.name); return; }
+    const isMp4=(X&&X.direct)||/mp4/i.test(mime);
+    const blob=new Blob(chunks,{type:isMp4?'video/mp4':'video/webm'});
+    if(X&&X.mode==='mp4'&&!isMp4){ vidToMp4(blob, a.name); return; }
     const url=URL.createObjectURL(blob);
     const link=document.createElement('a'); link.href=url;
-    link.download='Overlay_'+vidShort(a.name).replace(/[^\w\-]+/g,'_')+'.webm';
+    link.download='Overlay_'+vidShort(a.name).replace(/[^\w\-]+/g,'_')+(isMp4?'.mp4':'.webm');
     document.body.appendChild(link); link.click(); link.remove();
     setTimeout(()=>URL.revokeObjectURL(url),5000);
-    vidExportCleanup(); toast('Overlay video saved');
+    vidExportCleanup(); toast(isMp4?'MP4 saved':'Overlay video saved');
   };
 
   VID.exporting=true;
-  VID_EXPORT={rec,comp,cctx,stream,clip:a,el,Ow,Oh,raf:null,started:false,cancelled:false,mode};
+  VID_EXPORT={rec,comp,cctx,stream,clip:a,el,Ow,Oh,raf:null,started:false,cancelled:false,mode,direct,mime};
   vidExportUI(true);
 
   el.muted=true;
@@ -8326,8 +8364,10 @@ function vidExportRun(mode){
 
 function vidExport(){ vidExportRun('webm'); }
 function vidExportMp4(){
-  if(vidIsMobile()){ toast('MP4 burn-in needs a desktop browser \u2014 use the webm option on mobile',4500); return; }
-  if(!window.MediaRecorder){ toast('Not supported here \u2014 use desktop Chrome/Firefox'); return; }
+  if(!window.MediaRecorder){ toast('This browser cannot record video \u2014 try Chrome'); return; }
+  /* Only block mobile when the browser cannot write MP4 itself - the old
+     blanket block was pointless once native MP4 recording exists. */
+  if(!vidPickMp4Mime() && vidIsMobile()){ toast('MP4 burn-in needs a desktop browser \u2014 use the webm option on mobile',4500); return; }
   vidExportRun('mp4');
 }
 function vidIsMobile(){ return /Mobi|Android|iPhone|iPad|iPod/i.test(navigator.userAgent||''); }
@@ -8366,6 +8406,16 @@ async function vidToMp4(webmBlob, name){
   const status=document.getElementById('vidExportStatus');
   const setS=t=>{ if(status) status.textContent=t; };
   setS('Loading converter\u2026');
+  if(!vidCanTranscode()){
+    /* Do not lose the export: hand over the webm that was just recorded. */
+    const url=URL.createObjectURL(webmBlob);
+    const link=document.createElement('a'); link.href=url;
+    link.download='Overlay_'+vidShort(name).replace(/[^\w\-]+/g,'_')+'.webm';
+    document.body.appendChild(link); link.click(); link.remove();
+    setTimeout(()=>URL.revokeObjectURL(url),6000);
+    toast('This browser cannot write MP4 \u2014 saved as webm instead',5000);
+    vidExportUI(false); vidDraw(); return;
+  }
   try{
     const ff=await vidLoadFFmpeg(setS);
     setS('Converting to MP4\u2026 0%');
@@ -8383,7 +8433,15 @@ async function vidToMp4(webmBlob, name){
     toast('MP4 saved');
   }catch(err){
     console.error(err);
-    toast('MP4 conversion failed \u2014 use desktop Chrome/Firefox, or use the webm option',5000);
+    /* Conversion died, but the recording is fine - save it rather than lose it. */
+    try{
+      const url=URL.createObjectURL(webmBlob);
+      const link=document.createElement('a'); link.href=url;
+      link.download='Overlay_'+vidShort(name).replace(/[^\w\-]+/g,'_')+'.webm';
+      document.body.appendChild(link); link.click(); link.remove();
+      setTimeout(()=>URL.revokeObjectURL(url),6000);
+    }catch(e2){}
+    toast('MP4 conversion failed \u2014 saved as webm instead',5000);
   }
   vidExportUI(false);
   vidDraw();
