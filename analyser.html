@@ -7139,6 +7139,39 @@ function toast(msg,ms=2500){
 // VIDEO OVERLAY
 // ══════════════════════════════════════════════════════════════════════════
 let VID_SESS_T0 = 0;   // absolute ms of session start
+/* Camera timestamps are systematically early or late: MediaRecorder takes a
+   moment to produce its first frame, and mvhd stamps are written by the
+   encoder, not the shutter. The first manual correction after an auto-sync is
+   remembered per timestamp source and applied to every later clip. */
+const VID_BIAS_KEY = 'an_vid_capture_bias';
+let VID_BIAS = {};
+try { VID_BIAS = JSON.parse(localStorage.getItem(VID_BIAS_KEY) || '{}') || {}; } catch(e) { VID_BIAS = {}; }
+function vidBiasFor(src){
+  const v = VID_BIAS[src || 'mp4'];
+  return (typeof v === 'number' && isFinite(v)) ? v : 0;
+}
+function vidBiasText(src){
+  const b = vidBiasFor(src);
+  return b ? ('capture lag learned: ' + (b>0?'+':'') + b + 's, applied automatically')
+           : 'no capture lag learned yet \u2014 your next manual correction is remembered';
+}
+function vidLearnBias(a){
+  if(!a || a._autoRaw == null) return;
+  const b = Math.round((a.offset - a._autoRaw)*10)/10;
+  if(!isFinite(b) || Math.abs(b) > 600) return;
+  VID_BIAS[a.probeSource || 'mp4'] = b;
+  try { localStorage.setItem(VID_BIAS_KEY, JSON.stringify(VID_BIAS)); } catch(e) {}
+  const el = document.getElementById('vidBiasMsg');
+  if(el) el.textContent = vidBiasText(a.probeSource);
+}
+function vidClearBias(){
+  VID_BIAS = {};
+  try { localStorage.removeItem(VID_BIAS_KEY); } catch(e) {}
+  const a = VID.clips[VID.active];
+  const el = document.getElementById('vidBiasMsg');
+  if(el) el.textContent = vidBiasText(a && a.probeSource);
+  toast('Capture lag cleared');
+}
 const VID = {
   clips: [],     // {name,url,el,offset,probedMs}
   active: -1,
@@ -7497,6 +7530,10 @@ function vidRenderBody(){
       </div>
       <div class="vid-mini" style="margin-top:5px;">Tap <b>Sync from chart</b>, move the video to a clear moment (e.g. a catch), then click that point on the Stroke Chart above. The chart switches to a time axis automatically.</div>
       <div class="vid-row" style="margin-top:6px;">
+        <span class="vid-mini" id="vidBiasMsg">${vidBiasText(a.probeSource)}</span>
+        <button class="vid-clip-tab" onclick="vidClearBias()">Reset lag</button>
+      </div>
+      <div class="vid-row" style="margin-top:6px;">
         <button class="vid-clip-tab" id="vidSaveSyncBtn" onclick="vidSaveSync()" style="background:var(--b);color:#000;border-color:var(--b);">\u2714 Save sync</button>
         <button class="vid-clip-tab" onclick="vidExportJSON()">\u2B07 Export JSON</button>
         <span class="vid-mini">Save offset to Drive, or export session JSON for another device</span>
@@ -7557,7 +7594,7 @@ function vidRenderBody(){
 
   // control wiring
   const on=(id,ev,fn)=>{const e=document.getElementById(id);if(e)e[ev]=fn;};
-  on('vidOffset','onchange',e=>{ a.offset=parseFloat(e.target.value)||0; vidDraw(); vidQueueSaveSync(); });
+  on('vidOffset','onchange',e=>{ a.offset=parseFloat(e.target.value)||0; vidLearnBias(a); vidDraw(); vidQueueSaveSync(); });
   on('vidShowBox','onchange',e=>{ cfg.showBox=e.target.checked; vidDraw(); });
   on('vidShowCurve','onchange',e=>{ cfg.showCurve=e.target.checked; vidDraw(); });
   on('vidBoxScale','oninput',e=>{ cfg.boxScale=e.target.value/100; vidDraw(); });
@@ -7664,6 +7701,7 @@ function vidChartSync(cx){
   const sess=(currentView[idx]&&currentView[idx].elapsed)||0;
   a.offset=Math.round((sess - a.el.currentTime)*10)/10;
   const inp=document.getElementById('vidOffset'); if(inp) inp.value=a.offset;
+  vidLearnBias(a);
   VID.syncMode=false; vidRestoreXmode(); vidSyncBtnUI();
   toast('Synced \u2014 chart '+fmtTime(sess)+' = video '+fmtTime(a.el.currentTime)+'  (offset '+a.offset+'s)',3500);
   vidDraw(); vidQueueSaveSync();
@@ -7728,6 +7766,7 @@ function vidNudge(d){
   const a=VID.clips[VID.active]; if(!a) return;
   a.offset=Math.round((a.offset+d)*10)/10;
   const inp=document.getElementById('vidOffset'); if(inp) inp.value=a.offset;
+  vidLearnBias(a);
   vidDraw(); vidQueueSaveSync();
 }
 
@@ -7742,6 +7781,7 @@ function vidAlign(){
   if(isNaN(t)){ toast('Enter session time as m:ss or seconds'); return; }
   a.offset=Math.round((t - a.el.currentTime)*10)/10;
   const inp=document.getElementById('vidOffset'); if(inp) inp.value=a.offset;
+  vidLearnBias(a);
   toast('Aligned \u2014 offset '+a.offset+'s'); vidDraw(); vidQueueSaveSync();
 }
 function vidClipDurS(a){
@@ -7776,7 +7816,10 @@ function vidAutoOffset(a){
     if(!best || overlap > best.overlap) best = {off:c.off, lbl:c.lbl, overlap:overlap};
   });
   if(!best || best.overlap <= 0) return null;
-  return {offset: Math.round(best.off*10)/10, label: best.lbl};
+  const bias = vidBiasFor(a.probeSource);
+  return {offset: Math.round((best.off + bias)*10)/10,
+          raw:    Math.round(best.off*10)/10,
+          bias:   bias, label: best.lbl};
 }
 function vidApplyAutoOffset(a, quiet){
   const r = vidAutoOffset(a);
@@ -7785,11 +7828,12 @@ function vidApplyAutoOffset(a, quiet){
     return false;
   }
   a.offset = r.offset;
+  a._autoRaw = r.raw;
   const inp = document.getElementById('vidOffset');
   if(inp && VID.clips[VID.active] === a) inp.value = a.offset;
   vidDraw();
   if(!quiet){
-    toast('Auto offset '+a.offset+'s ('+r.label+') \u2014 check one catch, then nudge \u00B10.1',4200);
+    toast('Auto offset '+a.offset+'s ('+r.label+(r.bias?', incl. learned '+(r.bias>0?'+':'')+r.bias+'s':'')+') \u2014 check one catch, then nudge \u00B10.1',4200);
     vidQueueSaveSync();
   }
   return true;
