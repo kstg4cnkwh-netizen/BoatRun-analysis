@@ -341,6 +341,9 @@ body.light .hdrname{color:#fff;}
   .vid-clip-tab{background:var(--s2);border:1px solid var(--border);color:var(--text);border-radius:7px;padding:4px 9px;font-size:11px;cursor:pointer;}
   .vid-clip-tab.on{background:var(--b);color:#000;border-color:var(--b);}
   .vid-clip-tab .x{margin-left:6px;opacity:.6;}
+  .vid-clip-tab.open-already{opacity:.45;}
+  .vid-clip-tab.flagged{border-color:var(--g);color:var(--g);}
+  .vid-tabs-hd{font-size:10px;letter-spacing:.06em;text-transform:uppercase;color:var(--muted);margin:0 0 4px;}
   .vid-mchips{display:flex;flex-wrap:wrap;gap:5px;}
   .vid-mchip{background:var(--s2);border:1px solid var(--border);color:var(--muted);border-radius:14px;padding:3px 10px;font-size:10px;cursor:pointer;user-select:none;}
   .vid-mchip.on{background:var(--b);color:#000;border-color:var(--b);}
@@ -7343,11 +7346,11 @@ async function vidScanMatches() {
     let html = '';
     if (flagged.length) {
       html += '<div class="vid-mini" style="margin-bottom:4px;">\u2714 Coach video' + (flagged.length > 1 ? 's' : '') + ' for this session:</div>' +
-        flagged.map(name => `<button class="vid-clip-tab" style="background:var(--b);color:#000;border-color:var(--b);" onclick="vidAddFromDir('${name.replace(/'/g, "\\'")}')">${vidShort(name)}</button>`).join('');
+        flagged.map(name => `<button class="vid-clip-tab flagged${vidIsOpen(name)?' open-already':''}" onclick="vidAddFromDir('${name.replace(/'/g, "\\'")}')">${vidLabel(name)}${vidIsOpen(name)?' \u2713 open':''}</button>`).join('');
     }
     if (others.length) {
       html += '<div class="vid-mini" style="margin:6px 0 4px;">Other videos near this session time:</div>' +
-        others.map(m => `<button class="vid-clip-tab" onclick="vidAddFromDir('${m.name.replace(/'/g, "\\'")}')">${vidShort(m.name)} \u2014 ${new Date(m.ms).toLocaleTimeString()}</button>`).join('');
+        others.map(m => `<button class="vid-clip-tab${vidIsOpen(m.name)?' open-already':''}" onclick="vidAddFromDir('${m.name.replace(/'/g, "\\'")}')">${vidLabel(m.name)}${vidIsOpen(m.name)?' \u2713 open':''}</button>`).join('');
     }
     if (!html) html = flags.length ? '<div class="vid-mini">Coach video' + (flags.length > 1 ? 's' : '') + ' flagged for this session, but not found in the chosen folder.</div>' : '';
     box.innerHTML = html;
@@ -7409,8 +7412,17 @@ function vidWire(){
 
 
 function vidAddClip(file){
-  const url=URL.createObjectURL(file);
   const id=file.name+':'+file.size;
+  /* Opening the same file twice just produced two identical tabs with no way
+     to tell them apart. Switch to the one already loaded instead. */
+  const dup=VID.clips.findIndex(c=>c._id===id);
+  if(dup>=0){
+    VID.active=dup;
+    vidRenderBody();
+    toast('Already open \u2014 switched to '+vidLabel(file.name));
+    return;
+  }
+  const url=URL.createObjectURL(file);
   const savedSync=SESSIONS[activeSessionIdx]?.d?.vidSync?.[id];
   const clip={ name:file.name, url, el:null, offset:savedSync!=null?savedSync.offset:0, probedMs:null, probeSource:null, file, _id:id };
   if(savedSync!=null) setTimeout(()=>toast('\u2714 Sync restored: offset '+clip.offset+'s'),400);
@@ -7421,6 +7433,7 @@ function vidAddClip(file){
     if(xm && xm.value!=='time'){ VID._autoXmode=xm.value; xm.value='time'; schedRender(); }
   }
   vidRenderBody();
+  try{ vidScanMatches(); }catch(e){}
   // try to auto-detect capture time in background
   vidProbeTime(file).then(res=>{
     clip.probedMs=res && res.ms;
@@ -7448,6 +7461,7 @@ function vidRemoveClip(i){
     if(xm){ xm.value=VID._autoXmode; } VID._autoXmode=null; schedRender();
   }
   vidRenderBody();
+  try{ vidScanMatches(); }catch(e){}
 }
 
 function vidSetActive(i){ VID.active=i; vidRenderBody(); }
@@ -7461,7 +7475,7 @@ function vidRenderBody(){
   }
   const a=VID.clips[VID.active];
   const cfg=VID.cfg;
-  const tabs=VID.clips.map((c,i)=>`<div class="vid-clip-tab${i===VID.active?' on':''}" onclick="vidSetActive(${i})">${vidShort(c.name)}<span class="x" onclick="event.stopPropagation();vidRemoveClip(${i})">\u00D7</span></div>`).join('');
+  const tabs=VID.clips.map((c,i)=>`<div class="vid-clip-tab${i===VID.active?' on':''}" onclick="vidSetActive(${i})">${i===VID.active?'\u25B6 ':''}${vidLabel(c.name)}<span class="x" onclick="event.stopPropagation();vidRemoveClip(${i})">\u00D7</span></div>`).join('');
   const mchips=VID_METRIC_ORDER.filter(k=>!vidKeyHidden(k)).map(k=>`<div class="vid-mchip${cfg.metrics.includes(k)?' on':''}" onclick="vidToggleMetric('${k}')">${VID_METRICS[k].l}</div>`).join('');
   let tplRowHtml='';
   if(isPro()){
@@ -7481,6 +7495,7 @@ function vidRenderBody(){
   const probe = a.probedMs ? ((a.probeSource==='filename'?'Coach clip start ':'capture \u2248 ')+new Date(a.probedMs).toLocaleTimeString()) : 'no capture/coach timestamp found';
 
   body.innerHTML=`
+  <div class="vid-tabs-hd">Open clip${VID.clips.length>1?'s \u2014 tap to switch':''}</div>
   <div class="vid-clip-tabs">${tabs}</div>
 
   <div class="vid-panel" id="vidCropPanel">
@@ -7630,6 +7645,22 @@ function vidRenderBody(){
 }
 
 function vidShort(n){ n=n.replace(/\.[^.]+$/,''); return n.length>16?n.slice(0,15)+'\u2026':n; }
+/* Coach clips are named CoachVid_<rower>_<YYYYMMDD_HHMMSS>_<epochms><ext>.
+   The raw filename says nothing useful at a glance, so show who and when. */
+function vidLabel(n){
+  n = n || '';
+  const m = /^CoachVid_(.+?)_(\d{8})_(\d{2})(\d{2})(\d{2})_(\d{13})\.[a-z0-9]+$/i.exec(n);
+  if(m) return m[1].replace(/_/g,' ') + ' \u00B7 ' + m[3] + ':' + m[4] + ':' + m[5];
+  const e = /_([0-9]{13})\.[a-z0-9]+$/i.exec(n);
+  if(e){
+    const who = n.slice(0,e.index).replace(/^CoachVid_/i,'').replace(/_\d{8}_\d{6}$/,'').replace(/_/g,' ') || 'clip';
+    const d = new Date(parseInt(e[1],10));
+    const p = v => String(v).padStart(2,'0');
+    return who + ' \u00B7 ' + p(d.getHours()) + ':' + p(d.getMinutes()) + ':' + p(d.getSeconds());
+  }
+  return vidShort(n);
+}
+function vidIsOpen(name){ return VID.clips.some(c => c.name === name); }
 
 function vidUpdTime(){
   const el=VID.clips[VID.active]&&VID.clips[VID.active].el; if(!el) return;
@@ -7848,7 +7879,10 @@ function vidAutoTime(){
 // Parse MP4 mvhd creation_time. Reads head + tail only.
 function vidProbeTime(file){
   return new Promise((resolve)=>{
-    const m=/_([0-9]{13})\.webm$/i.exec(file.name);
+    /* Coach clips are named ..._<epoch ms><ext>. The native camera returns
+       .mov/.mp4, so match those too - the filename stamp is exact and beats
+       any mvhd guess. */
+    const m=/_([0-9]{13})\.(webm|mp4|mov|m4v)$/i.exec(file.name);
     if(m){ resolve({ms:parseInt(m[1],10), source:'filename'}); return; }
     const HEAD=Math.min(file.size, 96*1024);
     const TAIL=Math.min(file.size, 3*1024*1024);
