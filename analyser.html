@@ -7189,7 +7189,14 @@ function vidKeyHidden(vidKey){
 
 function vidOnMount(d){
   vidTeardown();
-  VID_SESS_T0 = (d.strokes && d.strokes[0] && d.strokes[0].ms) || Date.parse(d.sum && d.sum.start_time) || 0;
+  /* Every import path builds stroke.elapsed as (stroke time - session start),
+     so VID_SESS_T0 must be the epoch where elapsed === 0 - i.e. sum.start_time,
+     NOT the first stroke. Using strokes[0].ms put every auto-sync early by the
+     whole warm-up, which is why the overlay always landed on the wrong stroke. */
+  const _t0 = Date.parse((d.sum && d.sum.start_time) || '');
+  const _s0 = d.strokes && d.strokes[0];
+  VID_SESS_T0 = !isNaN(_t0) ? _t0
+              : (_s0 && _s0.ms > 1e12 ? _s0.ms - (_s0.elapsed||0)*1000 : 0);
   VID_SESS_DUR_MS = (+(d.sum && d.sum.duration_s) || 0)*1000;
   VID_FLAGS = d.videoFlags || [];
   document.getElementById('videosec').style.display='block';
@@ -7386,8 +7393,12 @@ function vidAddClip(file){
     clip.probedMs=res && res.ms;
     clip.probeSource=res && res.source;
     if(clip.probedMs && VID_SESS_T0 && savedSync==null){
-      clip.offset=Math.round((clip.probedMs - VID_SESS_T0)/1000*10)/10;
-      setTimeout(()=>toast('\u2714 Auto-synced from coach video timestamp (offset '+clip.offset+'s)'),450);
+      if(vidClipDurS(clip)){
+        clip._autoPending=false;
+        if(vidApplyAutoOffset(clip,true)) setTimeout(()=>toast('\u2714 Auto-synced from clip timestamp (offset '+clip.offset+'s)'),450);
+      } else {
+        clip._autoPending=true;
+      }
     }
     if(VID.clips[VID.active]===clip) vidRenderBody();
   }).catch(()=>{});
@@ -7539,7 +7550,7 @@ function vidRenderBody(){
   el.onseeked=vidDraw;
   el.onseeking=vidDraw;
   el.onerror=()=>vidVideoError(el);
-  el.onloadedmetadata=()=>{ const m=document.getElementById('vidErrMsg'); if(m) m.remove(); vidUpdTime(); vidSizeOverlay(); vidDraw(); };
+  el.onloadedmetadata=()=>{ const m=document.getElementById('vidErrMsg'); if(m) m.remove(); if(a._autoPending && a.probedMs && VID_SESS_T0){ a._autoPending=false; if(vidApplyAutoOffset(a,true)) toast('\u2714 Auto-synced from clip timestamp (offset '+a.offset+'s)',3500); } vidUpdTime(); vidSizeOverlay(); vidDraw(); };
   el.ontimeupdate=()=>{ vidUpdTime(); if(!VID.playing) vidDraw(); };
   if(playBtn) playBtn.onclick=()=>{ if(el.paused){ const p=el.play(); if(p&&p.catch)p.catch(()=>vidVideoError(el)); } else el.pause(); };
   if(seek) seek.oninput=()=>{ if(el.duration){ el.currentTime=(seek.value/1000)*el.duration; vidDraw(); } };
@@ -7733,13 +7744,61 @@ function vidAlign(){
   const inp=document.getElementById('vidOffset'); if(inp) inp.value=a.offset;
   toast('Aligned \u2014 offset '+a.offset+'s'); vidDraw(); vidQueueSaveSync();
 }
+function vidClipDurS(a){
+  const d = a && a.el && a.el.duration;
+  return (d && isFinite(d) && d > 0) ? d : 0;
+}
+/* mvhd creation_time is not written the same way by every camera: some stamp
+   the START of the recording, some the END (when the file is closed), and
+   Apple .mov commonly writes LOCAL time into a field defined as UTC. Build
+   every candidate and keep the one that actually lands the clip inside this
+   session, instead of blindly trusting the raw stamp. */
+function vidAutoOffset(a){
+  if(!a || !a.probedMs || !VID_SESS_T0) return null;
+  const clipDur = vidClipDurS(a);
+  let sessDur = (VID_SESS_DUR_MS||0)/1000;
+  if(!(sessDur>0) && ST.length) sessDur = ST[ST.length-1].elapsed || 0;
+  if(!(sessDur>0)) sessDur = 3600;
+  const tzMs = new Date(a.probedMs).getTimezoneOffset()*60000;
+  const cands = [];
+  const add = (ms,lbl) => cands.push({off:(ms - VID_SESS_T0)/1000, lbl:lbl});
+  add(a.probedMs, 'clip start');
+  if(clipDur) add(a.probedMs - clipDur*1000, 'clip end');
+  if(a.probeSource !== 'filename'){
+    add(a.probedMs + tzMs, 'clip start, local clock');
+    if(clipDur) add(a.probedMs + tzMs - clipDur*1000, 'clip end, local clock');
+  }
+  const len = clipDur || 1;
+  let best = null;
+  cands.forEach(c => {
+    const s = c.off, e = c.off + len;
+    const overlap = Math.min(e, sessDur) - Math.max(s, 0);
+    if(!best || overlap > best.overlap) best = {off:c.off, lbl:c.lbl, overlap:overlap};
+  });
+  if(!best || best.overlap <= 0) return null;
+  return {offset: Math.round(best.off*10)/10, label: best.lbl};
+}
+function vidApplyAutoOffset(a, quiet){
+  const r = vidAutoOffset(a);
+  if(!r){
+    if(!quiet) toast('That clip timestamp does not fall inside this session \u2014 sync from the chart instead',4200);
+    return false;
+  }
+  a.offset = r.offset;
+  const inp = document.getElementById('vidOffset');
+  if(inp && VID.clips[VID.active] === a) inp.value = a.offset;
+  vidDraw();
+  if(!quiet){
+    toast('Auto offset '+a.offset+'s ('+r.label+') \u2014 check one catch, then nudge \u00B10.1',4200);
+    vidQueueSaveSync();
+  }
+  return true;
+}
 function vidAutoTime(){
   const a=VID.clips[VID.active]; if(!a) return;
   if(!a.probedMs){ toast('No capture time found in this file'); return; }
   if(!VID_SESS_T0){ toast('Session start time unknown'); return; }
-  a.offset=Math.round((a.probedMs - VID_SESS_T0)/1000*10)/10;
-  const inp=document.getElementById('vidOffset'); if(inp) inp.value=a.offset;
-  toast('Auto offset '+a.offset+'s (verify with a known moment)'); vidDraw(); vidQueueSaveSync();
+  vidApplyAutoOffset(a, false);
 }
 
 // Parse MP4 mvhd creation_time. Reads head + tail only.
