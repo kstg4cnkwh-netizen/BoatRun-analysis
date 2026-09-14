@@ -7682,6 +7682,27 @@ function vidLabel(n){
   return vidShort(n);
 }
 function vidIsOpen(name){ return VID.clips.some(c => c.name === name); }
+/* Burnt-in exports are named date_name_time, taken from the coach clip's own
+   CoachVid_<rower>_<YYYYMMDD>_<HHMMSS>_<epochms> filename. Anything that does
+   not follow that pattern falls back to the session's start date and time. */
+function vidExportName(name){
+  name = name || '';
+  const clean = v => String(v).replace(/[^\w\-]+/g,'_').replace(/^_+|_+$/g,'') || 'clip';
+  const m = /^CoachVid_(.+?)_(\d{8})_(\d{6})_(\d{13})\.[a-z0-9]+$/i.exec(name);
+  if(m) return m[2] + '_' + clean(m[1]) + '_' + m[3];
+  const p = v => String(v).padStart(2,'0');
+  const stamp = d => d.getFullYear() + p(d.getMonth()+1) + p(d.getDate()) + '|' + p(d.getHours()) + p(d.getMinutes()) + p(d.getSeconds());
+  const e = /_([0-9]{13})\.[a-z0-9]+$/i.exec(name);
+  if(e){
+    const who = name.slice(0,e.index).replace(/^CoachVid_/i,'').replace(/_\d{8}_\d{6}$/,'');
+    const parts = stamp(new Date(parseInt(e[1],10))).split('|');
+    return parts[0] + '_' + clean(who) + '_' + parts[1];
+  }
+  const who = clean(name.replace(/\.[^.]+$/,''));
+  const t0 = VID_SESS_T0 || Date.now();
+  const parts = stamp(new Date(t0)).split('|');
+  return parts[0] + '_' + who + '_' + parts[1];
+}
 
 function vidUpdTime(){
   const el=VID.clips[VID.active]&&VID.clips[VID.active].el; if(!el) return;
@@ -8396,7 +8417,7 @@ function vidExportRun(mode){
     if(X&&X.mode==='mp4'&&!isMp4){ vidToMp4(blob, a.name); return; }
     const url=URL.createObjectURL(blob);
     const link=document.createElement('a'); link.href=url;
-    link.download='Overlay_'+vidShort(a.name).replace(/[^\w\-]+/g,'_')+(isMp4?'.mp4':'.webm');
+    link.download=vidExportName(a.name)+(isMp4?'.mp4':'.webm');
     document.body.appendChild(link); link.click(); link.remove();
     setTimeout(()=>URL.revokeObjectURL(url),5000);
     vidExportCleanup(); toast(isMp4?'MP4 saved':'Overlay video saved');
@@ -8468,7 +8489,7 @@ async function vidToMp4(webmBlob, name){
     /* Do not lose the export: hand over the webm that was just recorded. */
     const url=URL.createObjectURL(webmBlob);
     const link=document.createElement('a'); link.href=url;
-    link.download='Overlay_'+vidShort(name).replace(/[^\w\-]+/g,'_')+'.webm';
+    link.download=vidExportName(name)+'.webm';
     document.body.appendChild(link); link.click(); link.remove();
     setTimeout(()=>URL.revokeObjectURL(url),6000);
     toast('This browser cannot write MP4 \u2014 saved as webm instead',5000);
@@ -8485,7 +8506,7 @@ async function vidToMp4(webmBlob, name){
     const mp4=new Blob([data.buffer],{type:'video/mp4'});
     const url=URL.createObjectURL(mp4);
     const link=document.createElement('a'); link.href=url;
-    link.download='Overlay_'+vidShort(name).replace(/[^\w\-]+/g,'_')+'.mp4';
+    link.download=vidExportName(name)+'.mp4';
     document.body.appendChild(link); link.click(); link.remove();
     setTimeout(()=>URL.revokeObjectURL(url),6000);
     toast('MP4 saved');
@@ -8495,7 +8516,7 @@ async function vidToMp4(webmBlob, name){
     try{
       const url=URL.createObjectURL(webmBlob);
       const link=document.createElement('a'); link.href=url;
-      link.download='Overlay_'+vidShort(name).replace(/[^\w\-]+/g,'_')+'.webm';
+      link.download=vidExportName(name)+'.webm';
       document.body.appendChild(link); link.click(); link.remove();
       setTimeout(()=>URL.revokeObjectURL(url),6000);
     }catch(e2){}
