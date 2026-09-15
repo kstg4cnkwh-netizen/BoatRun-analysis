@@ -1140,11 +1140,40 @@ img.inline{display:inline;margin:0 3px;vertical-align:-.32em;height:1.45em;width
 <p><strong>＋ Add video</strong> for individual files, or <strong>Video folder</strong> to point at a whole directory - the Analyser matches clips to the session by timestamp and flags the ones it recognises.</p>
 <ul>
 <li>Playback controls with ±5s, ±0.1s frame stepping and fullscreen</li>
+<li><strong>Sync from code</strong> reads the Video Sync code filmed at the start of the clip - the most accurate way (see below)</li>
 <li><strong>Sync from chart</strong> aligns the video to a specific stroke; <strong>Auto from file</strong> uses the file timestamp; ±0.1 nudges fine-tune it</li>
 <li><strong>Save sync</strong> remembers the alignment</li>
 <li>Once synced, a line tracks across the stroke chart as the video plays, and live metrics plus the stroke curve overlay onto the video itself</li>
+<li><strong>Video size &amp; crop</strong> zooms and pans the clip; drag the metrics box or curve to move it, and drag its corner handle to resize</li>
+<li><strong>Metrics box</strong> - tap to choose what shows. Rate, Pace and DPS are on by default; your choice is saved to your account. Includes Elapsed Time, Total Distance, Lap Time, Lap Distance, Lap Pace and Workout step when the session has them</li>
 <li><strong>Record overlay (webm = small file)</strong> or <strong>Burn into MP4 (large file)</strong> exports the annotated video</li>
 </ul>
+
+<h2>Filming yourself - Video Sync <span class="light">(Pro)</span></h2>
+<p>For your own footage from a GoPro, second phone or any camera without a GPS clock. The phone shows its clock as a changing QR code; the camera films it; the Analyser reads it back and lines the video up with your session to within about a tenth of a second. The same clock stamps the session, so it doesn't matter how long you take between showing the code and pressing Start.</p>
+<p><strong>On the water</strong></p>
+<ol>
+<li>Start the camera recording</li>
+<li>In Metrics, before calibrating, tap <strong>Video Sync</strong></li>
+<li>Hold the phone screen close to the lens, steady, for 3 seconds. Turn the screen brightness up in sunlight</li>
+<li>Tap <strong>Done</strong>, mount the phone, calibrate and <strong>Start</strong> as normal</li>
+<li><strong>Keep the camera recording.</strong> If you stop and restart it, show the code again</li>
+</ol>
+<p><strong>In the Analyser</strong></p>
+<ol>
+<li>Open the session and <strong>＋ Add video</strong></li>
+<li>Tap <strong>Sync from code</strong>. It searches the first 90 seconds of the clip for the code, then times it to the frame</li>
+<li>If the code can't be read (glare, blur, too far away), step the video to the first frame where the digits under the code change, type that time in (e.g. <code>07:42:15.5</code>) and tap <strong>Use typed time</strong></li>
+<li>Check one catch and nudge ±0.1 if needed, then <strong>Save sync</strong></li>
+</ol>
+<p><strong>GoPro chapters</strong></p>
+<p>GoPro splits long recordings into chapters (GX01xxxx, GX02xxxx, ...). There's no gap between them, so the Analyser chains them: sync the chapter with the code and every other loaded chapter of the same recording is lined up automatically, including chapters you add later.</p>
+<ul>
+<li>Load all the chapters up to the one you want - their lengths are needed to chain</li>
+<li>After nudging a chapter, tap <strong>Chain chapters</strong> to re-line up the rest from it</li>
+<li>If a chapter is missing, or the file times suggest a gap, you'll get a warning - sync that chapter on its own</li>
+</ul>
+<p class="note">The QR reader loads from the internet the first time you use <strong>Sync from code</strong>. Offline, use the typed-time method.</p>
 
 <h2>Video format</h2>
 <p><strong>Best: H.264 MP4</strong> - plays everywhere, including desktop Chrome/Firefox/Safari and export via QuickTime.</p>
@@ -1221,14 +1250,14 @@ img.inline{display:inline;margin:0 3px;vertical-align:-.32em;height:1.45em;width
 <p><strong>Use:</strong> the clearest sign of a hurried stroke. If ratio collapses as rate climbs, you're shortening the recovery instead of quickening the drive.</p>
 
 <h3>🟢 Stroke Char (%)</h3>
-<p>Where the drive force is centred in time. 0% = all at the catch, 100% = all at the finish. It is the impulse centroid - every sample of the drive acceleration curve is weighted by how much force it carried, rather than reading off the single biggest sample. That makes it far steadier stroke to stroke, because a good drive has a broad flat top where the exact peak sample wanders.</p>
+<p>Where the peak drive acceleration falls within the drive. 0% = the moment the boat starts accelerating after the catch, 100% = blade exit. The catch deceleration itself is not included - that is Catch Dur. The peak time is interpolated between sensor samples, so it doesn't jump from one sample to the next, and it is smoothed over the last 5 strokes.</p>
 <ul>
-<li>Under 45% - front-loaded</li>
-<li>45–55% - mid-drive</li>
-<li>Over 55% - back-loaded (or soft/late catch)</li>
+<li>Under 40% - front-loaded</li>
+<li>40–60% - mid-drive</li>
+<li>Over 60% - back-loaded (or soft/late catch)</li>
 </ul>
 <p><strong>Use:</strong> rising Char through a session means the catch is going under fatigue. Pair it with Positive Catch Slope as high slope with low Char is clean front-end loading.</p>
-<p><strong>Note:</strong> earlier versions used the single peak acceleration sample instead of the centroid. Values from older sessions read lower and are noisier - don't compare the two directly.</p>
+<p><strong>Note:</strong> sessions recorded before Metrics 260915_3 used the impulse centroid (the balance point of the whole drive curve), which can only read about 33–67% and so sits close to 50% even on a very back-heavy stroke. Don't compare those sessions directly with newer ones.</p>
 
 <h3>🟢 Recovery Loss</h3>
 <p>Speed lost to deceleration during the recovery, normalised per second of recovery so the number is comparable across stroke rates. Accelerometer-derived, condition-independent. Lower is better.</p>
