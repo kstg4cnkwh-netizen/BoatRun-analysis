@@ -8056,19 +8056,21 @@ function vidDraw(){
   vidDrawChartLine();
 }
 
+const VID_LOGO=new Image();
+VID_LOGO.onload=()=>{ try{ vidDraw(); }catch(e){} };
+VID_LOGO.src='icons/icon-192.png';
 function vidBoxRect(W,H,st){
   const sc=VID.cfg.boxScale;
   const fs=Math.max(11,Math.round(W*0.026*sc));
   const lh=fs*1.85;
   const pad=fs*0.7;
   const rows=VID.cfg.metrics.length||1;
-  let maxw=0;
-  // estimate width from labels+values (approx)
+  const hh=fs*1.9;
   const bw=Math.max(W*0.20, fs*7.2)+pad*2;
-  const bh=rows*lh+pad*2;
+  const bh=hh+rows*lh+pad*2;
   const x=clamp(VID.cfg.boxX/100*W,0,Math.max(0,W-bw));
   const y=clamp(VID.cfg.boxY/100*H,0,Math.max(0,H-bh));
-  return {x,y,bw,bh,fs,lh,pad};
+  return {x,y,bw,bh,fs,lh,pad,hh};
 }
 function vidDrawBox(ctx,W,H,st){
   const r=vidBoxRect(W,H,st);
@@ -8076,7 +8078,21 @@ function vidDrawBox(ctx,W,H,st){
   vidRoundRect(ctx,r.x,r.y,r.bw,r.bh,8); ctx.fill();
   ctx.strokeStyle='rgba(120,170,230,0.35)'; ctx.lineWidth=1;
   vidRoundRect(ctx,r.x,r.y,r.bw,r.bh,8); ctx.stroke();
-  let yy=r.y+r.pad+r.fs;
+  const ls=r.fs*1.25;
+  const lx=r.x+r.pad, ly=r.y+r.pad;
+  if(VID_LOGO.complete && VID_LOGO.naturalWidth>0){
+    ctx.save();
+    vidRoundRect(ctx,lx,ly,ls,ls,ls*0.22); ctx.clip();
+    ctx.drawImage(VID_LOGO,lx,ly,ls,ls);
+    ctx.restore();
+  }
+  ctx.font='800 '+Math.round(r.fs*0.95)+'px -apple-system, BlinkMacSystemFont, Helvetica Neue, sans-serif';
+  ctx.fillStyle='#fff'; ctx.textAlign='left'; ctx.textBaseline='middle';
+  ctx.fillText('BoatRun', lx+ls+r.fs*0.45, ly+ls/2);
+  ctx.textBaseline='alphabetic';
+  ctx.strokeStyle='rgba(120,170,230,0.25)'; ctx.lineWidth=1;
+  ctx.beginPath(); ctx.moveTo(r.x+r.pad, r.y+r.pad+r.hh-r.fs*0.3); ctx.lineTo(r.x+r.bw-r.pad, r.y+r.pad+r.hh-r.fs*0.3); ctx.stroke();
+  let yy=r.y+r.pad+r.hh+r.fs;
   VID.cfg.metrics.forEach(k=>{
     const def=VID_METRICS[k]; if(!def) return;
     if(vidKeyHidden(k)) return;
