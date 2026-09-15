@@ -1532,6 +1532,11 @@ async function pullPrefsAndApply() {
       applyTileOrder(prefs.tiles.order);
     }
   }
+  if (Array.isArray(prefs.vidMetrics)) {
+    VID.cfg.metrics = prefs.vidMetrics.filter(k => typeof k === 'string');
+    try { localStorage.setItem('an_vid_metrics', JSON.stringify(VID.cfg.metrics)); } catch {}
+    try { if (VID.built && VID.clips.length) vidRenderBody(); } catch {}
+  }
   if (prefs.squadPws && typeof prefs.squadPws === 'object') {
     Object.keys(prefs.squadPws).forEach(c => {
       const v = prefs.squadPws[c];
@@ -7188,7 +7193,7 @@ const VID = {
   drag: null,    // 'box' | 'curve' | null
   dragDX: 0, dragDY: 0,
   cfg: {
-    metrics: ['rate','pace','dps','rloss','catchDuration'],
+    metrics: (()=>{ try{ const m=JSON.parse(localStorage.getItem('an_vid_metrics')||'null'); if(Array.isArray(m)) return m.filter(k=>typeof k==='string'); }catch(e){} return ['rate','pace','dps']; })(),
     showCurve: true, showBox: true,
     curveX: 97, curveY: 3, curveScale: 1,
     boxX: 3, boxY: 3, boxScale: 1,
@@ -7215,15 +7220,60 @@ const VID_METRICS = {
   driveTimeMs:{l:'Drive Time',  fmt:s=>({v:f0(s.driveTimeMs),u:'ms'})},
   driveaccel:    {l:'Drive Accel',   fmt:s=>({v:f1(s.driveAccel),u:'m/s²'})},
   recoveryaccel: {l:'Recovery Accel',fmt:s=>({v:f1(s.recoveryAccel),u:'m/s²'})},
-  dist:         {l:'Distance',   fmt:s=>({v:f0(s.dist),u:'m'})},
+  hr:           {l:'HR',         fmt:s=>{const b=nearestHRAt(s.ms);return {v:(b!=null?f0(b):EM),u:'bpm'};}},
+  watts:        {l:'Power',      fmt:s=>({v:f0(s.watts),u:'W'})},
+  peakforce:    {l:'Peak Force', fmt:s=>({v:f0(s.peakforceN),u:'N'})},
+  drivelength:  {l:'Stroke Length',fmt:s=>({v:f2(s.drivelength),u:'m'})},
+  dist:         {l:'Total Distance', fmt:s=>({v:fmtDistU(s.dist),u:distULabelU()})},
+  lapTime:      {l:'Lap Time',   fmt:(s,i,t)=>{const g=vidLapAt(t);return {v:g?fmtTime(Math.max(0,t-g.t0)):EM,u:''};}},
+  lapDist:      {l:'Lap Distance',fmt:(s,i,t)=>{const g=vidLapAt(t);const d=g?(s.dist-g.d0):NaN;return {v:(g&&d>=0)?f0(d):EM,u:'m'};}},
+  lapPace:      {l:'Lap Pace',   fmt:(s,i,t)=>{const g=vidLapAt(t);const d=g?(s.dist-g.d0):NaN;const el=g?(s.elapsed-g.t0):0;return {v:(g&&d>5&&el>0)?fmtPaceU(el/d*500):EM,u:paceULabel()};}},
+  workout:      {l:'Workout',    fmt:(s,i,t)=>{const g=vidLapAt(t);if(!g)return {v:EM,u:''};const ty=g.type?(g.type.charAt(0).toUpperCase()+g.type.slice(1)+' '):'';return {v:ty+g.n+'/'+vidLapSegs().length,u:''};}},
   stroke:       {l:'Stroke #',   fmt:(s,i)=>({v:String(i+1),u:''})},
-  time:         {l:'Session',    fmt:(s,i,t)=>({v:fmtTime(t),u:''})},
+  time:         {l:'Elapsed Time', fmt:(s,i,t)=>({v:fmtTime(Math.max(0,t)),u:''})},
 };
-const VID_METRIC_ORDER = ['rate','pace','dps','slopeneg','caccel','slope','catchDuration','impulse','driveaccel','recoveryaccel','rloss','schar','ratio','checkDelta','driveTimeMs','dist','stroke','time'];
+const VID_METRIC_ORDER = ['rate','pace','dps','time','dist','lapTime','lapDist','lapPace','workout','hr','watts','peakforce','drivelength','slopeneg','caccel','slope','catchDuration','impulse','driveaccel','recoveryaccel','rloss','schar','ratio','checkDelta','driveTimeMs','stroke'];
+const VID_LAP_KEYS = ['lapTime','lapDist','lapPace'];
+/* Lap segments from the session's own laps (Metrics), else Garmin laps.
+   start_time_s / start_dist_m are used where recorded, so a workout loaded
+   mid-session still lines up. Cached until ST or LAPS is replaced. */
+function vidLapSegs(){
+  if(vidLapSegs._st===ST && vidLapSegs._laps===LAPS && vidLapSegs._v) return vidLapSegs._v;
+  const own=LAPS.filter(l=>l && ('stroke_rate_spm' in l));
+  const src=(own.length?own:LAPS.filter(Boolean)).slice().sort((a,b)=>(a.lap||0)-(b.lap||0));
+  const segs=[]; let t=0;
+  src.forEach((l,i)=>{
+    const dur=+l.time_s||0;
+    if(l.start_time_s!=null && !isNaN(l.start_time_s)) t=+l.start_time_s;
+    const d0=(l.start_dist_m!=null && !isNaN(l.start_dist_m)) ? +l.start_dist_m : vidDistAt(t);
+    if(dur>0) segs.push({n:segs.length+1, t0:t, t1:t+dur, d0, type:l.type||null});
+    t+=dur;
+  });
+  vidLapSegs._st=ST; vidLapSegs._laps=LAPS; vidLapSegs._v=segs;
+  return segs;
+}
+function vidDistAt(t){
+  let d=0;
+  for(const s of ST){ if(s.elapsed<=t){ if(s.dist!=null && !isNaN(s.dist)) d=s.dist; } else break; }
+  return d;
+}
+function vidLapAt(t){
+  const segs=vidLapSegs();
+  for(const g of segs){ if(t>=g.t0 && t<g.t1) return g; }
+  return null;
+}
+function vidHasWorkout(){
+  const d=SESSIONS[activeSessionIdx] && SESSIONS[activeSessionIdx].d;
+  return !!(d && ((Array.isArray(d.workoutLapMetrics) && d.workoutLapMetrics.length) || d.workoutName));
+}
 const VID_KEY_TO_TILE = {checkDelta:'cdelta',catchDuration:'cdur',driveTimeMs:'drivetime'};
 function vidKeyHidden(vidKey){
   const tileKey = VID_KEY_TO_TILE[vidKey] || vidKey;
-  return !!hid[tileKey];
+  if(VID_LAP_KEYS.includes(vidKey)) return !vidLapSegs().length;
+  if(vidKey === 'workout') return !vidHasWorkout() || !vidLapSegs().length;
+  if(tileKey === 'watts') return !isErgSession();
+  if(METRIC_DEFS.some(m => m.k === tileKey)) return !metricFitsSession(tileKey);
+  return false;
 }
 
 function vidOnMount(d){
@@ -7427,7 +7477,7 @@ function vidAddClip(file){
   }
   const url=URL.createObjectURL(file);
   const savedSync=SESSIONS[activeSessionIdx]?.d?.vidSync?.[id];
-  const clip={ name:file.name, url, el:null, offset:savedSync!=null?savedSync.offset:0, probedMs:null, probeSource:null, file, _id:id };
+  const clip={ name:file.name, url, el:null, offset:savedSync!=null?savedSync.offset:0, probedMs:null, probeSource:null, file, _id:id, syncSrc:(savedSync&&savedSync.src)||null };
   if(savedSync!=null) setTimeout(()=>toast('\u2714 Sync restored: offset '+clip.offset+'s'),400);
   VID.clips.push(clip);
   VID.active=VID.clips.length-1;
@@ -7437,11 +7487,22 @@ function vidAddClip(file){
   }
   vidRenderBody();
   try{ vidScanMatches(); }catch(e){}
+  if(savedSync==null){
+    const _g=vidGoPro(clip.name);
+    const _ref=_g && VID.clips.find(c=>c!==clip && c.syncSrc==='code' && (vidGoPro(c.name)||{}).rec===_g.rec);
+    if(_ref) vidChainFrom(_ref).then(n=>{
+      if(n && clip.syncSrc==='chain'){
+        toast('\u2714 Chained from '+vidLabel(_ref.name)+' (offset '+clip.offset+'s)');
+        if(VID.clips[VID.active]===clip) vidRenderBody();
+        vidSaveSync();
+      }
+    });
+  }
   // try to auto-detect capture time in background
   vidProbeTime(file).then(res=>{
     clip.probedMs=res && res.ms;
     clip.probeSource=res && res.source;
-    if(clip.probedMs && VID_SESS_T0 && savedSync==null){
+    if(clip.probedMs && VID_SESS_T0 && savedSync==null && !clip.syncSrc){
       if(vidClipDurS(clip)){
         clip._autoPending=false;
         if(vidApplyAutoOffset(clip,true)) setTimeout(()=>toast('\u2714 Auto-synced from clip timestamp (offset '+clip.offset+'s)'),450);
@@ -7495,22 +7556,13 @@ function vidRenderBody(){
   } else {
     tplRowHtml = '<div class="vid-mini" style="margin-top:8px;">Stroke template overlay is a Pro feature.</div>';
   }
+  const _gp = vidGoPro(a.name);
+  const _srcTxt = a.syncSrc==='code' ? 'synced from code' : a.syncSrc==='chain' ? 'chained from another chapter' : (_gp ? ('GoPro chapter '+String(_gp.ch).padStart(2,'0')) : '');
   const probe = a.probedMs ? ((a.probeSource==='filename'?'Coach clip start ':'capture \u2248 ')+new Date(a.probedMs).toLocaleTimeString()) : 'no capture/coach timestamp found';
 
   body.innerHTML=`
   <div class="vid-tabs-hd">Open clip${VID.clips.length>1?'s \u2014 tap to switch':''}</div>
   <div class="vid-clip-tabs">${tabs}</div>
-
-  <div class="vid-panel" id="vidCropPanel">
-    <div class="vid-panel-hd">Video size &amp; crop</div>
-    <div class="vid-row">
-      <div class="vid-slider"><span>zoom/crop</span><input type="range" id="vidZoom" min="100" max="220" value="${Math.round(cfg.vidZoom*100)}"></div>
-    </div>
-    <div class="vid-row" style="margin-top:8px;">
-      <div class="vid-slider"><span>pan left/right</span><input type="range" id="vidPanX" min="-50" max="50" value="${cfg.vidPanX}"></div>
-      <div class="vid-slider"><span>pan up/down</span><input type="range" id="vidPanY" min="-50" max="50" value="${cfg.vidPanY}"></div>
-    </div>
-  </div>
 
   <div id="vidStageWrap" style="margin-top:8px;">
     <div id="vidstage" style="width:${cfg.vidWidth}%;">
@@ -7532,6 +7584,17 @@ function vidRenderBody(){
   </div>
   <div class="vid-ctrls">
 
+    <div class="vid-panel" id="vidCropPanel">
+      <div class="vid-panel-hd">Video size &amp; crop</div>
+      <div class="vid-row">
+        <div class="vid-slider"><span>zoom/crop</span><input type="range" id="vidZoom" min="100" max="220" value="${Math.round(cfg.vidZoom*100)}"></div>
+      </div>
+      <div class="vid-row" style="margin-top:8px;">
+        <div class="vid-slider"><span>pan left/right</span><input type="range" id="vidPanX" min="-50" max="50" value="${cfg.vidPanX}"></div>
+        <div class="vid-slider"><span>pan up/down</span><input type="range" id="vidPanY" min="-50" max="50" value="${cfg.vidPanY}"></div>
+      </div>
+    </div>
+
     <div class="vid-panel">
       <div class="vid-panel-hd">Sync this clip</div>
       <div class="vid-row">
@@ -7541,6 +7604,14 @@ function vidRenderBody(){
         <button class="vid-clip-tab" onclick="vidNudge(-0.1)">\u22120.1</button>
         <button class="vid-clip-tab" onclick="vidNudge(0.1)">+0.1</button>
       </div>
+      <div class="vid-row" style="margin-top:6px;">
+        <button class="vid-clip-tab" onclick="vidCodeScan()" style="background:var(--b);color:#000;border-color:var(--b);">\u25A3 Sync from code</button>
+        <input class="vid-num" id="vidCodeT" type="text" inputmode="decimal" placeholder="hh:mm:ss.s" style="width:96px;">
+        <button class="vid-clip-tab" onclick="vidCodeManual()">Use typed time</button>
+        ${_gp?'<button class="vid-clip-tab" onclick="vidChainBtn()">\u26D3 Chain chapters</button>':''}
+        <span class="vid-mini" id="vidCodeMsg">${_srcTxt}</span>
+      </div>
+      <div class="vid-mini" style="margin-top:5px;">Film the Metrics <b>Video Sync</b> screen at the start of the recording, then tap <b>Sync from code</b>. If it can\u2019t be read, pause on the first frame where the digits change and type them in.${_gp?' GoPro chapters of this recording ('+_gp.rec+') are chained automatically \u2014 load all of them.':''}</div>
       <div class="vid-row" style="margin-top:6px;">
         <button class="vid-clip-tab" id="vidSyncBtn" style="background:var(--b);color:#000;border-color:var(--b);">\u2316 Sync from chart</button>
         <button class="vid-clip-tab" onclick="vidAutoTime()">Auto from file</button>
@@ -7603,7 +7674,7 @@ function vidRenderBody(){
   el.onseeked=vidDraw;
   el.onseeking=vidDraw;
   el.onerror=()=>vidVideoError(el);
-  el.onloadedmetadata=()=>{ const m=document.getElementById('vidErrMsg'); if(m) m.remove(); if(a._autoPending && a.probedMs && VID_SESS_T0){ a._autoPending=false; if(vidApplyAutoOffset(a,true)) toast('\u2714 Auto-synced from clip timestamp (offset '+a.offset+'s)',3500); } vidUpdTime(); vidSizeOverlay(); vidDraw(); };
+  el.onloadedmetadata=()=>{ const m=document.getElementById('vidErrMsg'); if(m) m.remove(); if(a._autoPending && a.probedMs && VID_SESS_T0 && !a.syncSrc){ a._autoPending=false; if(vidApplyAutoOffset(a,true)) toast('\u2714 Auto-synced from clip timestamp (offset '+a.offset+'s)',3500); } vidUpdTime(); vidSizeOverlay(); vidDraw(); };
   el.ontimeupdate=()=>{ vidUpdTime(); if(!VID.playing) vidDraw(); };
   if(playBtn) playBtn.onclick=()=>{ if(el.paused){ const p=el.play(); if(p&&p.catch)p.catch(()=>vidVideoError(el)); } else el.pause(); };
   if(seek) seek.oninput=()=>{ if(el.duration){ el.currentTime=(seek.value/1000)*el.duration; vidDraw(); } };
@@ -7782,6 +7853,9 @@ function vidChartSync(cx){
 function vidToggleMetric(k){
   const m=VID.cfg.metrics; const i=m.indexOf(k);
   if(i>=0) m.splice(i,1); else m.push(k);
+  try{ localStorage.setItem('an_vid_metrics', JSON.stringify(m)); }catch(e){}
+  clearTimeout(vidToggleMetric._t);
+  if(AnalyserDrive.isSignedIn()) vidToggleMetric._t=setTimeout(()=>{ AnalyserDrive.pushPrefs({ vidMetrics: VID.cfg.metrics.slice() }).catch(()=>{}); },1500);
   vidRenderBody();
 }
 
@@ -7827,7 +7901,7 @@ function vidSaveSync(){
   const sess=SESSIONS[activeSessionIdx];
   if(!sess){ toast('No session loaded'); vidMarkUnsaved(); return; }
   if(!sess.d.vidSync) sess.d.vidSync={};
-  sess.d.vidSync[a._id]={offset:a.offset};
+  sess.d.vidSync[a._id]=a.syncSrc?{offset:a.offset,src:a.syncSrc}:{offset:a.offset};
   /* Writing it into the session is the save. Drive is just where it goes next,
      so the button goes green either way - it used to stay red forever whenever
      you were not signed in, or had no Drive file. */
@@ -7851,6 +7925,194 @@ function vidExportJSON(){
   lnk.click(); URL.revokeObjectURL(url);
   toast('Session exported with sync settings');
 }
+// ── Sync code (Metrics Video Sync screen) + GoPro chapters ───────────────────
+function vidGoPro(name){
+  const m=/^G([HXL])(\d{2})(\d{4})\.mp4$/i.exec(name||'');
+  return m ? {rec:m[1].toUpperCase()+m[3], ch:parseInt(m[2],10)} : null;
+}
+function vidLoadJsQR(){
+  if(typeof jsQR==='function') return Promise.resolve(true);
+  if(vidLoadJsQR._p) return vidLoadJsQR._p;
+  vidLoadJsQR._p=new Promise(res=>{
+    const sc=document.createElement('script');
+    sc.src='https://cdn.jsdelivr.net/npm/jsqr@1.4.0/dist/jsQR.js';
+    sc.onload=()=>res(typeof jsQR==='function');
+    sc.onerror=()=>{ vidLoadJsQR._p=null; res(false); };
+    document.head.appendChild(sc);
+  });
+  return vidLoadJsQR._p;
+}
+function vidClipDuration(c){
+  if(c.el && c.el.duration && isFinite(c.el.duration)){ c.durS=c.el.duration; return Promise.resolve(c.durS); }
+  if(c.durS) return Promise.resolve(c.durS);
+  return new Promise(res=>{
+    const v=document.createElement('video');
+    v.preload='metadata'; v.muted=true;
+    let fin=false;
+    const done=d=>{ if(fin) return; fin=true; try{ v.removeAttribute('src'); v.load(); }catch(e){} res(d); };
+    v.onloadedmetadata=()=>{ const d=v.duration; if(d && isFinite(d)){ c.durS=d; done(d); } else done(0); };
+    v.onerror=()=>done(0);
+    setTimeout(()=>done(0),15000);
+    v.src=c.url;
+  });
+}
+function vidCodeMsg(t){ const e=document.getElementById('vidCodeMsg'); if(e) e.textContent=t; }
+async function vidCodeScan(){
+  const a=VID.clips[VID.active]; if(!a) return;
+  if(!VID_SESS_T0){ toast('Session start time unknown'); return; }
+  if(VID._codeBusy){ toast('Already scanning'); return; }
+  VID._codeBusy=true;
+  let v=null;
+  try{
+    vidCodeMsg('Loading QR reader\u2026');
+    if(!(await vidLoadJsQR())){ toast('QR reader could not load \u2014 check your connection, or type the time digits instead',4200); vidCodeMsg(''); return; }
+    v=document.createElement('video');
+    v.muted=true; v.playsInline=true; v.preload='auto';
+    const ready=new Promise((res,rej)=>{ v.onloadeddata=res; v.onerror=()=>rej(new Error('Video could not be read')); });
+    v.src=a.url;
+    await ready;
+    const dur=(v.duration && isFinite(v.duration)) ? v.duration : 90;
+    const vw=v.videoWidth||1280, vh=v.videoHeight||720;
+    const W=Math.min(960,vw), H=Math.max(1,Math.round(W*vh/vw));
+    const cv=document.createElement('canvas'); cv.width=W; cv.height=H;
+    const cx=cv.getContext('2d',{willReadFrequently:true});
+    const seekTo=t=>new Promise(res=>{
+      let ok=false;
+      const f=()=>{ if(ok) return; ok=true; v.removeEventListener('seeked',f); res(); };
+      v.addEventListener('seeked',f);
+      v.currentTime=t;
+      setTimeout(f,4000);
+    });
+    const read=async t=>{
+      await seekTo(t);
+      cx.drawImage(v,0,0,W,H);
+      const img=cx.getImageData(0,0,W,H);
+      const r=jsQR(img.data,W,H,{inversionAttempts:'dontInvert'});
+      if(!r || !r.data) return null;
+      const m=/^BRSYNC:(\d{12,14})$/.exec(String(r.data).trim());
+      return m ? +m[1] : null;
+    };
+    const lim=Math.min(dur,90);
+    let hit=null;
+    for(let t=0.05;t<lim;t+=0.5){
+      vidCodeMsg('Looking for sync code\u2026 '+Math.round(t)+' / '+Math.round(lim)+' s');
+      const c=await read(t);
+      if(c){ hit={t,c}; break; }
+    }
+    if(!hit){
+      vidCodeMsg('No sync code found in the first '+Math.round(lim)+' s');
+      toast('No sync code found \u2014 pause on the digits and type them in instead',4200);
+      return;
+    }
+    const step=1/30;
+    const t0=Math.max(0,hit.t-0.6), t1=Math.min(dur,hit.t+2.5);
+    const est=[];
+    let prev=null;
+    for(let t=t0;t<=t1;t+=step){
+      vidCodeMsg('Refining sync\u2026 '+Math.round((t-t0)/Math.max(0.01,t1-t0)*100)+'%');
+      const c=await read(t);
+      if(c==null) continue;
+      if(prev && c-prev.c===500 && (t-prev.t)<=step*3.5) est.push(c/1000-(prev.t+t)/2);
+      prev={t,c};
+    }
+    let base, how;
+    if(est.length){
+      est.sort((x,y)=>x-y);
+      base=est[Math.floor(est.length/2)];
+      how=est.length+' code change'+(est.length>1?'s':'');
+    } else {
+      base=hit.c/1000-hit.t;
+      how='single code, \u00B10.5 s';
+    }
+    const off=Math.round((base-VID_SESS_T0/1000)*100)/100;
+    if(Math.abs(off)>6*3600){
+      vidCodeMsg('');
+      toast('That sync code is from a different time to this session \u2014 check you opened the right session',5000);
+      return;
+    }
+    await vidApplyCodeOffset(a,off,how);
+  } catch(e){
+    vidCodeMsg('');
+    toast('Sync code scan failed: '+(e && e.message || e),4000);
+  } finally {
+    VID._codeBusy=false;
+    if(v){ try{ v.removeAttribute('src'); v.load(); }catch(e){} }
+  }
+}
+function vidCodeManual(){
+  const a=VID.clips[VID.active]; if(!a || !a.el) return;
+  if(!VID_SESS_T0){ toast('Session start time unknown'); return; }
+  const inp=document.getElementById('vidCodeT');
+  const m=/^(\d{1,2}):(\d{2}):(\d{2})(?:[.,](\d))?$/.exec(((inp && inp.value) || '').trim());
+  if(!m){ toast('Type the time as shown on screen, e.g. 07:42:15.5'); return; }
+  const d=new Date(VID_SESS_T0);
+  d.setHours(+m[1],+m[2],+m[3],(+(m[4]||0))*100);
+  let C=d.getTime();
+  if(C-VID_SESS_T0>12*3600e3) C-=864e5;
+  else if(VID_SESS_T0-C>12*3600e3) C+=864e5;
+  const off=Math.round(((C-VID_SESS_T0)/1000-a.el.currentTime)*100)/100;
+  vidApplyCodeOffset(a,off,'typed time');
+}
+async function vidApplyCodeOffset(a,off,how){
+  a.offset=off; a._autoRaw=null; a._autoPending=false; a.syncSrc='code';
+  const inp=document.getElementById('vidOffset');
+  if(inp && VID.clips[VID.active]===a) inp.value=a.offset;
+  vidDraw();
+  const n=await vidChainFrom(a);
+  vidCodeMsg('synced from code');
+  toast('\u2714 Synced from code (offset '+a.offset+'s, '+how+')'+(n?' \u00B7 '+n+' chapter'+(n>1?'s':'')+' chained':''),4200);
+  vidSaveSync();
+}
+function vidSetChained(c,off,sess){
+  c.offset=Math.round(off*100)/100;
+  c.syncSrc='chain'; c._autoRaw=null; c._autoPending=false; c._dirty=false;
+  if(sess){ if(!sess.d.vidSync) sess.d.vidSync={}; sess.d.vidSync[c._id]={offset:c.offset,src:'chain'}; }
+}
+async function vidChainFrom(ref){
+  const g=vidGoPro(ref && ref.name); if(!g) return 0;
+  const sibs=VID.clips.map(c=>({c,h:vidGoPro(c.name)})).filter(x=>x.h && x.h.rec===g.rec).map(x=>({c:x.c,ch:x.h.ch})).sort((x,y)=>x.ch-y.ch);
+  if(sibs.length<2) return 0;
+  const byCh={}; sibs.forEach(x=>{ byCh[x.ch]=x.c; });
+  const lo=sibs[0].ch, hi=sibs[sibs.length-1].ch;
+  const missing=[]; for(let k=lo;k<=hi;k++) if(!byCh[k]) missing.push(k);
+  const durs={};
+  for(const x of sibs) durs[x.ch]=await vidClipDuration(x.c);
+  const sess=SESSIONS[activeSessionIdx];
+  let n=0, off=ref.offset;
+  for(let k=g.ch+1;k<=hi;k++){
+    if(!byCh[k-1] || !durs[k-1] || !byCh[k]) break;
+    off+=durs[k-1];
+    vidSetChained(byCh[k],off,sess); n++;
+  }
+  off=ref.offset;
+  for(let k=g.ch-1;k>=lo;k--){
+    if(!byCh[k] || !durs[k]) break;
+    off-=durs[k];
+    vidSetChained(byCh[k],off,sess); n++;
+  }
+  if(missing.length) toast('Load chapter'+(missing.length>1?'s ':' ')+missing.map(k=>String(k).padStart(2,'0')).join(', ')+' too \u2014 chaining stops at a missing chapter',4500);
+  const gaps=[];
+  sibs.forEach(x=>{
+    const p=byCh[x.ch-1];
+    if(!p || !p.probedMs || !x.c.probedMs || !durs[x.ch-1]) return;
+    const dt=(x.c.probedMs-p.probedMs)/1000;
+    if(Math.abs(dt)<2) return;
+    if(Math.abs(dt-durs[x.ch-1])>3) gaps.push(String(x.ch).padStart(2,'0'));
+  });
+  if(gaps.length) setTimeout(()=>toast('\u26A0 File times suggest a gap before chapter '+gaps.join(', ')+' \u2014 check the sync there',5000),4500);
+  const act=VID.clips[VID.active];
+  const inp=document.getElementById('vidOffset');
+  if(n && inp && act) inp.value=act.offset;
+  if(n) vidDraw();
+  return n;
+}
+async function vidChainBtn(){
+  const a=VID.clips[VID.active]; if(!a) return;
+  const n=await vidChainFrom(a);
+  if(n){ toast('\u2714 '+n+' chapter'+(n>1?'s':'')+' chained from '+vidLabel(a.name)); vidSaveSync(); }
+  else toast('Load the other chapters of this recording first');
+}
+
 // ── Sync helpers ─────────────────────────────────────────────────────────────
 function vidNudge(d){
   const a=VID.clips[VID.active]; if(!a) return;
@@ -8064,9 +8326,9 @@ function vidBoxRect(W,H,st){
   const fs=Math.max(11,Math.round(W*0.026*sc));
   const lh=fs*1.85;
   const pad=fs*0.7;
-  const rows=VID.cfg.metrics.length||1;
+  const rows=VID.cfg.metrics.filter(k=>VID_METRICS[k]&&!vidKeyHidden(k)).length||1;
   const hh=fs*1.9;
-  const bw=Math.max(W*0.20, fs*7.2)+pad*2;
+  const bw=Math.max(W*0.20, fs*(VID.cfg.metrics.includes('workout')?9.5:7.2))+pad*2;
   const bh=hh+rows*lh+pad*2;
   const x=clamp(VID.cfg.boxX/100*W,0,Math.max(0,W-bw));
   const y=clamp(VID.cfg.boxY/100*H,0,Math.max(0,H-bh));
