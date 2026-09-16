@@ -561,7 +561,6 @@ body.light .hdrname{color:#fff;}
   <!-- Overview minimap -->
   <div class="sec">
     <div class="ovbox"><canvas id="ovC" height="44"></canvas></div>
-    <div class="hint" style="margin-top:3px;">Drag to select strokes · drag group bands to move/resize</div>
   </div>
 
   <!-- Main chart -->
@@ -591,7 +590,6 @@ body.light .hdrname{color:#fff;}
       </div>
     </div>
     <div class="cbox"><canvas id="mainC" height="250"></canvas><canvas id="vidLineC"></canvas>
-      <div class="hint">Drag to select · scroll to zoom · swipe/scroll sideways to pan · double-click to reset</div>
     </div>
     <div id="panBarWrap" style="display:none;padding:1px 11px 0;"><input type="range" id="panSlider" min="0" max="100" value="0" style="width:100%;cursor:pointer;accent-color:var(--acc);margin:0;" oninput="window.panSlide(this.value)"></div>
   </div>
@@ -616,7 +614,6 @@ body.light .hdrname{color:#fff;}
         <div class="hint" id="curvehint" style="margin-top:4px;"></div>
       </div>
       <div class="curve-stats-col">
-        <div class="hint" style="margin-bottom:4px;">Click any row to highlight it</div>
         <div class="twrap"><table id="curvetbl"><thead id="curvethead"></thead><tbody id="curvebody"></tbody></table></div>
       </div>
     </div>
@@ -626,9 +623,8 @@ body.light .hdrname{color:#fff;}
   <div class="sec" id="videosec">
     <div class="sec-hd">
       <h2>Video Overlay</h2>
-      <span class="vid-mini" style="margin-left:6px;">Overlay live metrics &amp; curve on coach video</span>
-      <button class="hbtn" id="vidDirBtn" style="margin-left:auto;font-size:10px;">&#128193; Video folder</button>
-      <button class="hbtn" id="vidAddBtn" style="font-size:10px;">＋ Add video</button>
+      <button class="hbtn" id="vidDirBtn" style="margin-left:auto;font-size:10px;">&#128193; Folder</button>
+      <button class="hbtn" id="vidAddBtn" style="font-size:10px;">＋ Video</button>
     </div>
     <input type="file" id="vidFin" accept="video/*" multiple style="display:none">
     <input type="file" id="vidDirFin" accept="video/*" multiple webkitdirectory style="display:none">
@@ -660,7 +656,6 @@ body.light .hdrname{color:#fff;}
         <span id="tblcount" style="font-size:10px;color:var(--muted);"></span>
         <button class="hbtn" id="tbltogglebtn" style="margin-left:auto;font-size:10px;" onclick="window.toggleTable()">Hide ▴</button>
       </div>
-      <div class="hint" style="padding:4px 12px 0;">Tap a row here, or a point on the chart above, to highlight that stroke's position on the chart, table, and map</div>
       <div id="tblwrap">
         <div class="twrap"><table><thead id="sth"></thead><tbody id="stb"></tbody></table></div>
       </div>
@@ -6560,7 +6555,7 @@ ${trackpoints}        </Track>
 }
 function exportJSON() {
   if (!ST.length) { toast('No session loaded'); return; }
-  const data = { name:_lastLabel, sum:_lastSum, strokes:ST, hr:HR, laps:LAPS, gpsTrace:GPSTRACE };
+  const data = { name:_lastLabel, sum:_lastSum, strokes:ST, hr:HR, laps:LAPS, gpsTrace:GPSTRACE, vidSync:(SESSIONS[activeSessionIdx]&&SESSIONS[activeSessionIdx].d&&SESSIONS[activeSessionIdx].d.vidSync)||null };
   const json = JSON.stringify(data);
   const blob = new Blob([json], {type:'application/json'});
   const url = URL.createObjectURL(blob);
@@ -7364,7 +7359,7 @@ async function vidScanMatches() {
   const flags = VID_FLAGS || [];
   if (!_anVidDirHandle && !_anVidDirFiles) {
     if (flags.length) {
-      box.innerHTML = '<div class="vid-mini">This session has ' + flags.length + ' coach video' + (flags.length > 1 ? 's' : '') + ' recorded. <button class="vid-clip-tab" onclick="chooseAnVidDir()">Choose video folder</button> to find ' + (flags.length > 1 ? 'them' : 'it') + '.</div>';
+      box.innerHTML = '<div class="vid-mini">' + flags.length + ' coach video' + (flags.length > 1 ? 's' : '') + ' \u00b7 <button class="vid-clip-tab" onclick="chooseAnVidDir()">&#128193; Folder</button></div>';
     } else { box.innerHTML = ''; }
     return;
   }
@@ -7398,14 +7393,14 @@ async function vidScanMatches() {
     others.sort((a, b) => a.ms - b.ms);
     let html = '';
     if (flagged.length) {
-      html += '<div class="vid-mini" style="margin-bottom:4px;">\u2714 Coach video' + (flagged.length > 1 ? 's' : '') + ' for this session:</div>' +
+      html += '<div class="vid-mini" style="margin-bottom:4px;">This session</div>' +
         flagged.map(name => `<button class="vid-clip-tab flagged${vidIsOpen(name)?' open-already':''}" onclick="vidAddFromDir('${name.replace(/'/g, "\\'")}')">${vidLabel(name)}${vidIsOpen(name)?' \u2713 open':''}</button>`).join('');
     }
     if (others.length) {
-      html += '<div class="vid-mini" style="margin:6px 0 4px;">Other videos near this session time:</div>' +
+      html += '<div class="vid-mini" style="margin:6px 0 4px;">Nearby</div>' +
         others.map(m => `<button class="vid-clip-tab${vidIsOpen(m.name)?' open-already':''}" onclick="vidAddFromDir('${m.name.replace(/'/g, "\\'")}')">${vidLabel(m.name)}${vidIsOpen(m.name)?' \u2713 open':''}</button>`).join('');
     }
-    if (!html) html = flags.length ? '<div class="vid-mini">Coach video' + (flags.length > 1 ? 's' : '') + ' flagged for this session, but not found in the chosen folder.</div>' : '';
+    if (!html) html = flags.length ? '<div class="vid-mini">Not found in folder</div>' : '';
     box.innerHTML = html;
   } catch (e) { box.innerHTML = ''; }
 }
@@ -7528,136 +7523,128 @@ function vidRemoveClip(i){
   try{ vidScanMatches(); }catch(e){}
 }
 
-function vidSetActive(i){ VID.active=i; vidRenderBody(); }
+function vidSetActive(i){ VID.active=i; VID.syncTab=null; vidRenderBody(); }
 
 // ── Body / controls ─────────────────────────────────────────────────────────
 function vidRenderBody(){
   const body=document.getElementById('vidBody');
   if(!VID.clips.length){
-    body.innerHTML='<div class="vid-empty">No video loaded. Tap <b>＋ Add video</b> to overlay metrics on a coach clip.<br>You can add several clips (e.g. chopped recordings) to one session.</div>';
+    body.innerHTML='<div class="vid-empty">No video</div>';
     return;
   }
   const a=VID.clips[VID.active];
   const cfg=VID.cfg;
-  const tabs=VID.clips.map((c,i)=>`<div class="vid-clip-tab${i===VID.active?' on':''}" onclick="vidSetActive(${i})">${i===VID.active?'\u25B6 ':''}${vidLabel(c.name)}<span class="x" onclick="event.stopPropagation();vidRemoveClip(${i})">\u00D7</span></div>`).join('');
+  const tabs=VID.clips.map((c,i)=>`<div class="vid-clip-tab${i===VID.active?' on':''}" onclick="vidSetActive(${i})">${vidLabel(c.name)}<span class="x" onclick="event.stopPropagation();vidRemoveClip(${i})">\u00D7</span></div>`).join('');
   const mchips=VID_METRIC_ORDER.filter(k=>!vidKeyHidden(k)).map(k=>`<div class="vid-mchip${cfg.metrics.includes(k)?' on':''}" onclick="vidToggleMetric('${k}')">${VID_METRICS[k].l}</div>`).join('');
   let tplRowHtml='';
   if(isPro()){
     const _tl = (typeof tplOpen!=='undefined' && tplOpen) ? tplOpen : [];
     const _sel = (cfg.tplIdx>=0 && cfg.tplIdx<_tl.length) ? cfg.tplIdx : tplActiveIdx;
     const _opts = _tl.map((t,i)=>`<option value="${i}"${i===_sel?' selected':''}>${escHtml(t.name||'Template')} \u00b7 ${t.entries.length}r</option>`).join('');
-    tplRowHtml =
+    tplRowHtml = _tl.length ?
       '<div class="vid-row" style="margin-top:8px;">'+
-        `<label><input type="checkbox" id="vidShowTpl" ${cfg.showTpl?'checked':''}> show stroke template</label>`+
-        (_tl.length ? `<select class="vid-num" id="vidTplSel" style="width:auto;max-width:150px;">${_opts}</select>`
-                    : '<span class="vid-mini">no template open \u2014 load or create one from the menu</span>')+
-      '</div>'+
-      '<div class="vid-mini" style="margin-top:4px;">Drawn dotted yellow, re-timed to each stroke\u2019s own rate.</div>';
-  } else {
-    tplRowHtml = '<div class="vid-mini" style="margin-top:8px;">Stroke template overlay is a Pro feature.</div>';
+        `<label><input type="checkbox" id="vidShowTpl" ${cfg.showTpl?'checked':''}> Template</label>`+
+        `<select class="vid-num" id="vidTplSel" style="width:auto;max-width:150px;">${_opts}</select>`+
+      '</div>' : '';
   }
   const _gp = vidGoPro(a.name);
-  const _srcTxt = a.syncSrc==='code' ? 'synced from code' : a.syncSrc==='chain' ? 'chained from another chapter' : (_gp ? ('GoPro chapter '+String(_gp.ch).padStart(2,'0')) : '');
-  const probe = a.probedMs ? ((a.probeSource==='filename'?'Coach clip start ':'capture \u2248 ')+new Date(a.probedMs).toLocaleTimeString()) : 'no capture/coach timestamp found';
+  const _srcTxt = a.syncSrc==='code' ? '\u2714' : a.syncSrc==='chain' ? '\u26D3' : '';
+  const probe = a.probedMs ? new Date(a.probedMs).toLocaleTimeString() : 'No timestamp';
+  if(!VID.syncTab) VID.syncTab = (a.syncSrc==='code'||a.syncSrc==='chain') ? 'code' : (a.probedMs ? 'auto' : 'chart');
+  const segB=(m,l)=>`<button class="vid-clip-tab vid-seg${VID.syncTab===m?' on':''}" data-seg="${m}" onclick="vidSyncTabSet('${m}')">${l}</button>`;
+  const segS=m=>VID.syncTab===m?'':'display:none;';
 
   body.innerHTML=`
-  <div class="vid-tabs-hd">Open clip${VID.clips.length>1?'s \u2014 tap to switch':''}</div>
   <div class="vid-clip-tabs">${tabs}</div>
 
   <div id="vidStageWrap" style="margin-top:8px;">
     <div id="vidstage" style="width:${cfg.vidWidth}%;">
       <video id="vidEl" playsinline preload="metadata"></video>
       <canvas id="vidOverlay"></canvas>
-      <div id="vidSizeGrip" class="vid-grip" title="drag to resize the video"></div>
+      <div id="vidSizeGrip" class="vid-grip" title="Resize video"></div>
     </div>
     <div class="vid-transport">
       <button class="vid-play" id="vidPlayBtn">\u25B6</button>
-      <button class="vid-clip-tab" id="vidBack5" title="back 5s">\u23EA</button>
-      <button class="vid-clip-tab" id="vidStepB" title="back 0.1s">\u2039</button>
-      <button class="vid-clip-tab" id="vidStepF" title="forward 0.1s">\u203A</button>
-      <button class="vid-clip-tab" id="vidFwd5" title="forward 5s">\u23E9</button>
+      <button class="vid-clip-tab" id="vidBack5" title="-5s">\u23EA</button>
+      <button class="vid-clip-tab" id="vidStepB" title="-0.1s">\u2039</button>
+      <button class="vid-clip-tab" id="vidStepF" title="+0.1s">\u203A</button>
+      <button class="vid-clip-tab" id="vidFwd5" title="+5s">\u23E9</button>
       <select class="vid-num" id="vidRate" style="width:auto;"><option value="0.25">0.25\u00D7</option><option value="0.5">0.5\u00D7</option><option value="1">1\u00D7</option><option value="1.5">1.5\u00D7</option><option value="2">2\u00D7</option></select>
       <input type="range" id="vidSeek" min="0" max="1000" value="0">
       <span class="vid-mini" id="vidTime" style="min-width:78px;text-align:right;">0:00 / 0:00</span>
-      <button class="vid-clip-tab" id="vidFS" title="fullscreen">\u26F6</button>
+      <button class="vid-clip-tab" id="vidFS" title="Fullscreen">\u26F6</button>
     </div>
   </div>
+
   <div class="vid-ctrls">
 
-    <div class="vid-panel" id="vidCropPanel">
-      <div class="vid-panel-hd">Video size &amp; crop</div>
-      <div class="vid-row">
-        <div class="vid-slider"><span>zoom/crop</span><input type="range" id="vidZoom" min="100" max="220" value="${Math.round(cfg.vidZoom*100)}"></div>
-      </div>
-      <div class="vid-row" style="margin-top:8px;">
-        <div class="vid-slider"><span>pan left/right</span><input type="range" id="vidPanX" min="-50" max="50" value="${cfg.vidPanX}"></div>
-        <div class="vid-slider"><span>pan up/down</span><input type="range" id="vidPanY" min="-50" max="50" value="${cfg.vidPanY}"></div>
-      </div>
-    </div>
-
     <div class="vid-panel">
-      <div class="vid-panel-hd">Sync this clip</div>
+      <div class="vid-panel-hd">Sync</div>
       <div class="vid-row">
-        <div class="vid-read" id="vidRead">\u2014</div>
-        <label>offset</label>
+        ${segB('auto','Auto')}${segB('chart','Chart')}${segB('code','Code')}
+        <div class="vid-read" id="vidRead" style="margin-left:auto;">\u2014</div>
+      </div>
+      <div class="vid-row" data-segbody="auto" style="margin-top:6px;${segS('auto')}">
+        <button class="vid-clip-tab" onclick="vidAutoTime()" style="background:var(--b);color:#000;border-color:var(--b);">Apply</button>
+        <span class="vid-mini">${probe}</span>
+        <button class="vid-clip-tab" onclick="vidClearBias()" title="Clear learned capture lag" style="margin-left:auto;">Reset lag</button>
+      </div>
+      <div class="vid-row" data-segbody="chart" style="margin-top:6px;${segS('chart')}">
+        <button class="vid-clip-tab" id="vidSyncBtn" style="background:var(--b);color:#000;border-color:var(--b);">\u2316 Pick on chart</button>
+        <span class="vid-mini">Pause on a catch, tap it on the chart</span>
+      </div>
+      <div class="vid-row" data-segbody="code" style="margin-top:6px;${segS('code')}">
+        <button class="vid-clip-tab" onclick="vidCodeScan()" style="background:var(--b);color:#000;border-color:var(--b);">\u25A3 Scan</button>
+        <input class="vid-num" id="vidCodeT" type="text" inputmode="decimal" placeholder="hh:mm:ss.s" style="width:96px;">
+        <button class="vid-clip-tab" onclick="vidCodeManual()">Use</button>
+        ${_gp?'<button class="vid-clip-tab" onclick="vidChainBtn()" title="Chain GoPro chapters">\u26D3</button>':''}
+        <span class="vid-mini" id="vidCodeMsg">${_srcTxt}</span>
+      </div>
+      <div class="vid-row" style="margin-top:6px;">
+        <label>Offset</label>
         <input class="vid-num" id="vidOffset" type="number" step="0.1" value="${a.offset}"> s
         <button class="vid-clip-tab" onclick="vidNudge(-0.1)">\u22120.1</button>
         <button class="vid-clip-tab" onclick="vidNudge(0.1)">+0.1</button>
-      </div>
-      <div class="vid-row" style="margin-top:6px;">
-        <button class="vid-clip-tab" onclick="vidCodeScan()" style="background:var(--b);color:#000;border-color:var(--b);">\u25A3 Sync from code</button>
-        <input class="vid-num" id="vidCodeT" type="text" inputmode="decimal" placeholder="hh:mm:ss.s" style="width:96px;">
-        <button class="vid-clip-tab" onclick="vidCodeManual()">Use typed time</button>
-        ${_gp?'<button class="vid-clip-tab" onclick="vidChainBtn()">\u26D3 Chain chapters</button>':''}
-        <span class="vid-mini" id="vidCodeMsg">${_srcTxt}</span>
-      </div>
-      <div class="vid-mini" style="margin-top:5px;">Film the Metrics <b>Video Sync</b> screen at the start of the recording, then tap <b>Sync from code</b>. If it can\u2019t be read, pause on the first frame where the digits change and type them in.${_gp?' GoPro chapters of this recording ('+_gp.rec+') are chained automatically \u2014 load all of them.':''}</div>
-      <div class="vid-row" style="margin-top:6px;">
-        <button class="vid-clip-tab" id="vidSyncBtn" style="background:var(--b);color:#000;border-color:var(--b);">\u2316 Sync from chart</button>
-        <button class="vid-clip-tab" onclick="vidAutoTime()">Auto from file</button>
-        <span class="vid-mini">${probe}</span>
-      </div>
-      <div class="vid-mini" style="margin-top:5px;">Tap <b>Sync from chart</b>, move the video to a clear moment (e.g. a catch), then click that point on the Stroke Chart above. The chart switches to a time axis automatically.</div>
-      <div class="vid-row" style="margin-top:6px;">
-        <span class="vid-mini" id="vidBiasMsg">${vidBiasText(a.probeSource)}</span>
-        <button class="vid-clip-tab" onclick="vidClearBias()">Reset lag</button>
-      </div>
-      <div class="vid-row" style="margin-top:6px;">
-        <button class="vid-clip-tab" id="vidSaveSyncBtn" onclick="vidSaveSync()" style="background:var(--b);color:#000;border-color:var(--b);">\u2714 Save sync</button>
-        <button class="vid-clip-tab" onclick="vidExportJSON()">\u2B07 Export JSON</button>
-        <span class="vid-mini">Save offset to Drive, or export session JSON for another device</span>
+        <button class="vid-clip-tab" id="vidSaveSyncBtn" onclick="vidSaveSync()" style="margin-left:auto;background:var(--b);color:#000;border-color:var(--b);">\u2714 Save</button>
       </div>
     </div>
 
     <div class="vid-panel">
-      <div class="vid-panel-hd">Metrics box \u2014 tap to choose</div>
+      <div class="vid-panel-hd">Metrics</div>
       <div class="vid-mchips">${mchips}</div>
       <div class="vid-row" style="margin-top:8px;">
-        <label><input type="checkbox" id="vidShowBox" ${cfg.showBox?'checked':''}> show box</label>
-        <div class="vid-slider"><span>opacity</span><input type="range" id="vidOpacity" min="20" max="100" value="${Math.round(cfg.opacity*100)}"></div>
+        <label><input type="checkbox" id="vidShowBox" ${cfg.showBox?'checked':''}> Show</label>
+        <div class="vid-slider"><span>Opacity</span><input type="range" id="vidOpacity" min="20" max="100" value="${Math.round(cfg.opacity*100)}"></div>
       </div>
     </div>
 
     <div class="vid-panel">
       <div class="vid-panel-hd">Curve</div>
       <div class="vid-row">
-        <label><input type="checkbox" id="vidShowCurve" ${cfg.showCurve?'checked':''}> show curve</label>
-        <label><input type="checkbox" id="vidCurveAvg5" ${cfg.curveAvg5?'checked':''}> show avg last 5 strokes</label>
-        <div class="vid-slider"><span>opacity</span><input type="range" id="vidCurveOpacity" min="20" max="100" value="${Math.round(cfg.curveOpacity*100)}"></div>
+        <label><input type="checkbox" id="vidShowCurve" ${cfg.showCurve?'checked':''}> Show</label>
+        <label><input type="checkbox" id="vidCurveAvg5" ${cfg.curveAvg5?'checked':''}> Avg 5</label>
+        <div class="vid-slider"><span>Opacity</span><input type="range" id="vidCurveOpacity" min="20" max="100" value="${Math.round(cfg.curveOpacity*100)}"></div>
       </div>
-      <div class="vid-mini" style="margin-top:5px;">Drag the box or curve on the video to move it, or drag its corner handle to resize. The handle at the bottom-right of the video resizes the video itself.</div>
       ${tplRowHtml}
     </div>
 
-    <div class="vid-panel">
-      <div class="vid-panel-hd">Export overlay video</div>
+    <div class="vid-panel" id="vidCropPanel">
+      <div class="vid-panel-hd">Crop</div>
       <div class="vid-row">
-        <button class="vid-clip-tab" id="vidExportBtn" style="background:var(--b);color:#000;border-color:var(--b);">\u2B07 Record overlay (webm)</button>
-        <button class="vid-clip-tab" id="vidExportMp4Btn">\u2B07 Burn into MP4</button>
+        <div class="vid-slider"><span>Zoom</span><input type="range" id="vidZoom" min="100" max="220" value="${Math.round(cfg.vidZoom*100)}"></div>
+        <div class="vid-slider"><span>Pan X</span><input type="range" id="vidPanX" min="-50" max="50" value="${cfg.vidPanX}"></div>
+        <div class="vid-slider"><span>Pan Y</span><input type="range" id="vidPanY" min="-50" max="50" value="${cfg.vidPanY}"></div>
+      </div>
+    </div>
+
+    <div class="vid-panel">
+      <div class="vid-panel-hd">Export</div>
+      <div class="vid-row">
+        <button class="vid-clip-tab" id="vidExportBtn" title="WebM: VLC / Chrome" style="background:var(--b);color:#000;border-color:var(--b);">\u2B07 WebM</button>
+        <button class="vid-clip-tab" id="vidExportMp4Btn" title="MP4: plays anywhere, desktop only">\u2B07 MP4</button>
         <button class="vid-clip-tab" id="vidExportCancel" style="display:none;">Stop</button>
         <span class="vid-mini" id="vidExportStatus"></span>
       </div>
-      <div class="vid-mini" style="margin-top:5px;">Plays the clip start\u2192finish and records video + overlay + audio. <b>webm</b> opens in VLC/Chrome. <b>MP4</b> plays anywhere (incl. QuickTime) but is desktop-only and downloads a ~25 MB converter the first time. Best on desktop Chrome/Firefox.</div>
     </div>
 
   </div>`;
@@ -7834,9 +7821,15 @@ function vidSyncToggle(){
 }
 function vidSyncBtnUI(){
   const b=document.getElementById('vidSyncBtn'); if(!b) return;
-  b.textContent=VID.syncMode?'\u2316 Click the chart\u2026':'\u2316 Sync from chart';
+  b.textContent=VID.syncMode?'\u2316 Tap chart\u2026':'\u2316 Pick on chart';
   b.style.outline=VID.syncMode?'2px solid #fff':'';
   const mc=document.getElementById('mainC'); if(mc) mc.style.cursor=VID.syncMode?'crosshair':'';
+}
+function vidSyncTabSet(m){
+  VID.syncTab=m;
+  document.querySelectorAll('#vidBody .vid-seg').forEach(b=>b.classList.toggle('on',b.dataset.seg===m));
+  document.querySelectorAll('#vidBody [data-segbody]').forEach(r=>{ r.style.display=r.dataset.segbody===m?'':'none'; });
+  if(m!=='chart' && VID.syncMode){ VID.syncMode=false; vidRestoreXmode(); vidSyncBtnUI(); }
 }
 function vidChartSync(cx){
   const a=VID.clips[VID.active]; if(!a||!a.el){ VID.syncMode=false; vidSyncBtnUI(); return; }
@@ -7915,15 +7908,6 @@ function vidSaveSync(){
   } else {
     toast('\u2714 Sync saved on this device \u2014 tap \u2B07 Export JSON to move it to another');
   }
-}
-function vidExportJSON(){
-  const sess=SESSIONS[activeSessionIdx]; if(!sess) return;
-  const blob=new Blob([JSON.stringify(sess.d)],{type:'application/json'});
-  const url=URL.createObjectURL(blob);
-  const lnk=document.createElement('a'); lnk.href=url;
-  lnk.download=(sess.label||'session').replace(/[^a-zA-Z0-9_-]/g,'_')+'_sync.json';
-  lnk.click(); URL.revokeObjectURL(url);
-  toast('Session exported with sync settings');
 }
 // ── Sync code (Metrics Video Sync screen) + GoPro chapters ───────────────────
 function vidGoPro(name){
@@ -8326,9 +8310,26 @@ function vidBoxRect(W,H,st){
   const fs=Math.max(11,Math.round(W*0.026*sc));
   const lh=fs*1.85;
   const pad=fs*0.7;
-  const rows=VID.cfg.metrics.filter(k=>VID_METRICS[k]&&!vidKeyHidden(k)).length||1;
   const hh=fs*1.9;
-  const bw=Math.max(W*0.20, fs*(VID.cfg.metrics.includes('workout')?9.5:7.2))+pad*2;
+  const keys=VID.cfg.metrics.filter(k=>VID_METRICS[k]&&!vidKeyHidden(k));
+  const rows=keys.length||1;
+  const mc=vidBoxRect._c||(vidBoxRect._c=document.createElement('canvas').getContext('2d'));
+  const FF='px -apple-system, BlinkMacSystemFont, Helvetica Neue, sans-serif';
+  const gap=fs*0.8;
+  mc.font='800 '+Math.round(fs*0.95)+FF;
+  let inner=fs*1.25+fs*0.45+mc.measureText('BoatRun').width;
+  keys.forEach(k=>{
+    const def=VID_METRICS[k];
+    let o; try{ o=def.fmt((st&&st.stroke)||{},st?st.idx:-1,st?st.sessT:0); }catch(e){ o={v:'',u:''}; }
+    const u=o&&o.u?(' '+o.u):'';
+    const sample=(k==='workout'?'Cooldown 00/00':'00:00.0')+u;
+    mc.font='600 '+Math.round(fs*0.62)+FF;
+    const lw=mc.measureText(def.l.toUpperCase()).width;
+    mc.font='700 '+fs+FF;
+    const vw=Math.max(mc.measureText(sample).width, mc.measureText(String(o&&o.v!=null?o.v:'')+u).width);
+    inner=Math.max(inner, lw+gap+vw);
+  });
+  const bw=inner+pad*2;
   const bh=hh+rows*lh+pad*2;
   const x=clamp(VID.cfg.boxX/100*W,0,Math.max(0,W-bw));
   const y=clamp(VID.cfg.boxY/100*H,0,Math.max(0,H-bh));
