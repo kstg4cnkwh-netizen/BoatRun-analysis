@@ -7614,7 +7614,7 @@ function vidRenderBody(){
       <div class="vid-mchips">${mchips}</div>
       <div class="vid-row" style="margin-top:8px;">
         <label><input type="checkbox" id="vidShowBox" ${cfg.showBox?'checked':''}> Show</label>
-        <div class="vid-slider"><span>Opacity</span><input type="range" id="vidOpacity" min="20" max="100" value="${Math.round(cfg.opacity*100)}"></div>
+        <div class="vid-slider"><span style="min-width:0;">Opacity</span><input type="range" id="vidOpacity" min="20" max="100" value="${Math.round(cfg.opacity*100)}"></div>
       </div>
     </div>
 
@@ -7623,7 +7623,7 @@ function vidRenderBody(){
       <div class="vid-row">
         <label><input type="checkbox" id="vidShowCurve" ${cfg.showCurve?'checked':''}> Show</label>
         <label><input type="checkbox" id="vidCurveAvg5" ${cfg.curveAvg5?'checked':''}> Avg 5</label>
-        <div class="vid-slider"><span>Opacity</span><input type="range" id="vidCurveOpacity" min="20" max="100" value="${Math.round(cfg.curveOpacity*100)}"></div>
+        <div class="vid-slider"><span style="min-width:0;">Opacity</span><input type="range" id="vidCurveOpacity" min="20" max="100" value="${Math.round(cfg.curveOpacity*100)}"></div>
       </div>
       ${tplRowHtml}
     </div>
@@ -7631,9 +7631,9 @@ function vidRenderBody(){
     <div class="vid-panel" id="vidCropPanel">
       <div class="vid-panel-hd">Crop</div>
       <div class="vid-row">
-        <div class="vid-slider"><span>Zoom</span><input type="range" id="vidZoom" min="100" max="220" value="${Math.round(cfg.vidZoom*100)}"></div>
-        <div class="vid-slider"><span>Pan X</span><input type="range" id="vidPanX" min="-50" max="50" value="${cfg.vidPanX}"></div>
-        <div class="vid-slider"><span>Pan Y</span><input type="range" id="vidPanY" min="-50" max="50" value="${cfg.vidPanY}"></div>
+        <div class="vid-slider"><span style="min-width:0;">Zoom</span><input type="range" id="vidZoom" min="100" max="220" value="${Math.round(cfg.vidZoom*100)}"></div>
+        <div class="vid-slider"><span style="min-width:0;">Left/Right</span><input type="range" id="vidPanX" min="-50" max="50" value="${cfg.vidPanX}"></div>
+        <div class="vid-slider"><span style="min-width:0;">Up/Down</span><input type="range" id="vidPanY" min="-50" max="50" value="${cfg.vidPanY}"></div>
       </div>
     </div>
 
