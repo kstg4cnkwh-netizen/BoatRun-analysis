@@ -566,7 +566,17 @@ body.light .hdrname{color:#fff;}
   thead th{font-family:'Space Grotesk',-apple-system,sans-serif;}
 
   /* ══ Video controls compact ══ */
-  .vid-ctrls{display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:6px;margin-top:6px;}
+  .vid-ctrls{display:grid;grid-template-columns:repeat(6,minmax(0,1fr));gap:6px;margin-top:6px;}
+  .vid-ctrls .vp-1{grid-column:span 1;}
+  .vid-ctrls .vp-2{grid-column:span 2;}
+  @media(max-width:900px){ .vid-ctrls{grid-template-columns:repeat(2,minmax(0,1fr));} .vid-ctrls .vp-2{grid-column:span 2;} }
+  .vid-panel-hd{display:flex;align-items:center;gap:8px;}
+  .vid-panel-hd label{margin-left:auto;text-transform:none;letter-spacing:0;font-family:inherit;color:var(--muted);font-size:11px;display:flex;align-items:center;gap:3px;}
+  .vid-stack{display:flex;flex-direction:column;align-items:stretch;gap:4px;}
+  .vid-stack .vid-slider{flex-direction:column;align-items:stretch;gap:1px;}
+  .vid-stack .vid-slider span{min-width:0;}
+  .vid-stack .vid-slider input[type=range]{width:100%;}
+  .vid-ctrls .vid-slider span{min-width:0;}
   .vid-ctrls.hide{display:none;}
   .vid-panel{padding:6px 8px;border-radius:12px;}
   .vid-panel-hd{margin-bottom:4px;}
@@ -7620,10 +7630,8 @@ function vidRenderBody(){
     const _sel = (cfg.tplIdx>=0 && cfg.tplIdx<_tl.length) ? cfg.tplIdx : tplActiveIdx;
     const _opts = _tl.map((t,i)=>`<option value="${i}"${i===_sel?' selected':''}>${escHtml(t.name||'Template')} \u00b7 ${t.entries.length}r</option>`).join('');
     tplRowHtml = _tl.length ?
-      '<div class="vid-row" style="margin-top:8px;">'+
         `<label><input type="checkbox" id="vidShowTpl" ${cfg.showTpl?'checked':''}> Template</label>`+
-        `<select class="vid-num" id="vidTplSel" style="width:auto;max-width:150px;">${_opts}</select>`+
-      '</div>' : '';
+        `<select class="vid-num" id="vidTplSel" style="width:100%;">${_opts}</select>` : '';
   }
   const _gp = vidGoPro(a.name);
   const _srcTxt = a.syncSrc==='code' ? '\u2714' : a.syncSrc==='chain' ? '\u26D3' : '';
@@ -7658,7 +7666,7 @@ function vidRenderBody(){
 
   <div class="vid-ctrls${VID.cfg.hideCtrls?' hide':''}" id="vidCtrls">
 
-    <div class="vid-panel">
+    <div class="vid-panel vp-2">
       <div class="vid-panel-hd">Sync</div>
       <div class="vid-row">
         ${segB('auto','Auto')}${segB('chart','Chart')}${segB('code','Code')}
@@ -7690,35 +7698,33 @@ function vidRenderBody(){
       </div>
     </div>
 
-    <div class="vid-panel" id="vidCropPanel">
+    <div class="vid-panel vp-1" id="vidCropPanel">
       <div class="vid-panel-hd">Crop</div>
-      <div class="vid-row">
-        <div class="vid-slider"><span style="min-width:0;">Zoom</span><input type="range" id="vidZoom" min="100" max="220" value="${Math.round(cfg.vidZoom*100)}"></div>
-        <div class="vid-slider"><span style="min-width:0;">Left/Right</span><input type="range" id="vidPanX" min="-50" max="50" value="${cfg.vidPanX}"></div>
-        <div class="vid-slider"><span style="min-width:0;">Up/Down</span><input type="range" id="vidPanY" min="-50" max="50" value="${cfg.vidPanY}"></div>
+      <div class="vid-stack">
+        <div class="vid-slider"><span>Zoom</span><input type="range" id="vidZoom" min="100" max="220" value="${Math.round(cfg.vidZoom*100)}"></div>
+        <div class="vid-slider"><span>Left/Right</span><input type="range" id="vidPanX" min="-50" max="50" value="${cfg.vidPanX}"></div>
+        <div class="vid-slider"><span>Up/Down</span><input type="range" id="vidPanY" min="-50" max="50" value="${cfg.vidPanY}"></div>
       </div>
     </div>
 
-    <div class="vid-panel">
-      <div class="vid-panel-hd">Metrics</div>
-      <div class="vid-mchips">${mchips}</div>
-      <div class="vid-row" style="margin-top:8px;">
-        <label><input type="checkbox" id="vidShowBox" ${cfg.showBox?'checked':''}> Show</label>
-        <div class="vid-slider"><span style="min-width:0;">Opacity</span><input type="range" id="vidOpacity" min="0" max="100" value="${Math.round(cfg.opacity*100)}"></div>
-      </div>
-    </div>
-
-    <div class="vid-panel">
-      <div class="vid-panel-hd">Curve</div>
-      <div class="vid-row">
-        <label><input type="checkbox" id="vidShowCurve" ${cfg.showCurve?'checked':''}> Show</label>
+    <div class="vid-panel vp-1">
+      <div class="vid-panel-hd">Curve<label><input type="checkbox" id="vidShowCurve" ${cfg.showCurve?'checked':''}> Show</label></div>
+      <div class="vid-stack">
         <label><input type="checkbox" id="vidCurveAvg5" ${cfg.curveAvg5?'checked':''}> Avg 5</label>
-        <div class="vid-slider"><span style="min-width:0;">Opacity</span><input type="range" id="vidCurveOpacity" min="0" max="100" value="${Math.round(cfg.curveOpacity*100)}"></div>
+        <div class="vid-slider"><span>Opacity</span><input type="range" id="vidCurveOpacity" min="0" max="100" value="${Math.round(cfg.curveOpacity*100)}"></div>
+        ${tplRowHtml}
       </div>
-      ${tplRowHtml}
     </div>
 
-    <div class="vid-panel">
+    <div class="vid-panel vp-2">
+      <div class="vid-panel-hd">Metrics<label><input type="checkbox" id="vidShowBox" ${cfg.showBox?'checked':''}> Show</label></div>
+      <div class="vid-mchips">${mchips}</div>
+      <div class="vid-row" style="margin-top:6px;">
+        <div class="vid-slider"><span>Opacity</span><input type="range" id="vidOpacity" min="0" max="100" value="${Math.round(cfg.opacity*100)}"></div>
+      </div>
+    </div>
+
+    <div class="vid-panel vp-2">
       <div class="vid-panel-hd">Export</div>
       <div class="vid-row">
         <button class="vid-clip-tab" id="vidExportBtn" title="WebM: VLC / Chrome" style="background:var(--b);color:#000;border-color:var(--b);">\u2B07 WebM</button>
