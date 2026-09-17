@@ -5,6 +5,9 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
 <meta name="color-scheme" content="light dark"/>
 <title>BoatRun Analyser</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
 <link rel="icon" type="image/png" href="icons/icon-192.png">
 <script>
 // OAuth popup bootstrap. Google redirects back to this same page with ?code=,
@@ -272,6 +275,58 @@
     .curve-layout { flex-direction: column; }
   }
 
+
+  /* ══ BoatRun site theme (index / guide) ══ */
+  body{
+    color-scheme:dark;
+    --bg:#081226; --s1:#0F1C3A; --s2:#0E1B38; --s3:#16274B; --dim:#0B1730;
+    --border:rgba(255,255,255,.10); --frame-ln:rgba(255,255,255,.12);
+    --text:#EFF3FA; --muted:rgba(239,243,250,.62); --faint:rgba(239,243,250,.38);
+    --grid-ln:rgba(255,255,255,.06); --grid-lb:rgba(239,243,250,.45);
+    --sel-fill:rgba(47,211,198,.08); --sel-stk:rgba(47,211,198,.45);
+    --acc:#FF5A3C; --acc-2:#2FD3C6; --acc-g:#2FD3C6; --acc-y:#FFB648; --acc-o:#FFB648; --acc-p:#B38CFF; --acc-r:#FF5A3C;
+    --acc-dim:rgba(255,90,60,.14); --acc-2-dim:rgba(47,211,198,.16);
+    --pill:rgba(255,255,255,.05); --seg:#16274B; --seg-txt:#EFF3FA;
+    font-family:'Inter',-apple-system,BlinkMacSystemFont,Helvetica Neue,sans-serif;
+  }
+  body.light{
+    color-scheme:light;
+    --bg:#F6F5F1; --s1:#FFFFFF; --s2:#FBFAF7; --s3:#EFEDE7; --dim:#F1EFEA;
+    --border:#E2DFD6; --frame-ln:#DAD6CC;
+    --text:#0E1420; --muted:#5E6677; --faint:#8A90A0;
+    --grid-ln:#EEEBE4; --grid-lb:#7A8090;
+    --sel-fill:rgba(31,181,169,.07); --sel-stk:rgba(31,181,169,.45);
+    --acc:#F04A2C; --acc-2:#1FB5A9; --acc-g:#1FB5A9; --acc-y:#F5A524; --acc-o:#F5A524; --acc-p:#8B5CF6; --acc-r:#E5412A;
+    --acc-dim:rgba(240,74,44,.10); --acc-2-dim:rgba(31,181,169,.12);
+    --pill:#ECEAE4; --seg:#FFFFFF; --seg-txt:#0E1420;
+  }
+  #hdr{background:rgba(8,18,38,.94);backdrop-filter:blur(10px);-webkit-backdrop-filter:blur(10px);border-bottom:1px solid rgba(255,255,255,.08);}
+  #hdr h1{font-family:'Space Grotesk',-apple-system,sans-serif;letter-spacing:-.01em;}
+  #hdr h1 a::after{content:"";display:inline-block;width:8px;height:8px;margin-left:8px;border-radius:2px;background:#FF5A3C;transform:rotate(45deg);vertical-align:middle;}
+  .sec-hd h2,#dz h2,.vid-panel-hd{font-family:'Space Grotesk',-apple-system,sans-serif;color:var(--text);}
+  .sec-hd h2::before{content:"";display:inline-block;width:6px;height:6px;margin-right:7px;border-radius:1.5px;background:var(--acc);transform:rotate(45deg);vertical-align:middle;}
+  .card .val{font-family:'Space Grotesk',-apple-system,sans-serif;font-weight:600;}
+  .sess-tab.on,.filt-chip.on,.segbtn.on{background:var(--acc-2);color:#04201D;box-shadow:0 2px 8px var(--acc-2-dim);}
+  .vid-clip-tab.on,.vid-mchip.on{background:var(--acc-2);color:#04201D;}
+  .vid-play,#addcurvebtn,.brpill-row .dzbtn-pri,.brpill-row .dzbtn-pri:hover{background:var(--acc);color:#fff;}
+  .vid-panel .vid-clip-tab[style*="var(--b)"]{background:var(--acc)!important;border-color:var(--acc)!important;color:#fff!important;}
+  .vid-panel{background:var(--s1);}
+  .sz-star.on{background:var(--acc-y);box-shadow:0 3px 9px rgba(255,182,72,.40);}
+  .asc{border-left-color:var(--acc-2);}
+  .asc:hover{border-left-color:var(--acc);}
+  .hmenu .hbtn:hover{color:var(--acc);}
+  .sec-hd .hbtn:hover{background:var(--acc);color:#fff;}
+  .segbtn:hover,.zoom-btn:hover,.sumnav button:hover,.brpill-row .dzbtn:hover{color:var(--acc);}
+  .hbtn:hover{border-color:var(--acc);color:var(--acc);}
+  body.light .hdr-tabs .hbtn.hicon-btn:hover{color:var(--acc);}
+  #stripcontext{color:var(--acc-2);}
+  select{background-image:linear-gradient(45deg,transparent 50%,var(--acc-2) 50%),linear-gradient(135deg,var(--acc-2) 50%,transparent 50%);}
+  select:focus,.brsearch:focus{box-shadow:0 0 0 2px var(--acc-2);}
+  input[type=range]{accent-color:var(--acc-2);}
+  tbody tr.hl td{background:var(--acc-2-dim)!important;}
+  tbody tr.hl.stroke-pin td,tbody tr.stroke-pin td{background:var(--acc-y)!important;color:#000!important;}
+  tbody tr.best td{color:var(--acc-2);}
+  thead th{font-family:'Space Grotesk',-apple-system,sans-serif;}
 </style>
 <style>
 #startup{min-height:calc(100vh - 52px);display:flex;flex-direction:column;align-items:center;justify-content:flex-start;padding:28px 16px 40px;box-sizing:border-box;}
@@ -7402,6 +7457,13 @@ async function vidScanMatches() {
     }
     if (!html) html = flags.length ? '<div class="vid-mini">Not found in folder</div>' : '';
     box.innerHTML = html;
+    if (isPro()) {
+      const key = String(VID_SESS_T0);
+      if (VID._autoKey !== key) { VID._autoKey = key; VID._autoDone = new Set(); }
+      const todo = flagged.concat(others.map(o => o.name)).filter(n => !vidIsOpen(n) && !VID._autoDone.has(n));
+      todo.forEach(n => VID._autoDone.add(n));
+      for (const n of todo) await vidAddFromDir(n);
+    }
   } catch (e) { box.innerHTML = ''; }
 }
 async function vidAddFromDir(name) {
@@ -7609,6 +7671,15 @@ function vidRenderBody(){
       </div>
     </div>
 
+    <div class="vid-panel" id="vidCropPanel">
+      <div class="vid-panel-hd">Crop</div>
+      <div class="vid-row">
+        <div class="vid-slider"><span style="min-width:0;">Zoom</span><input type="range" id="vidZoom" min="100" max="220" value="${Math.round(cfg.vidZoom*100)}"></div>
+        <div class="vid-slider"><span style="min-width:0;">Left/Right</span><input type="range" id="vidPanX" min="-50" max="50" value="${cfg.vidPanX}"></div>
+        <div class="vid-slider"><span style="min-width:0;">Up/Down</span><input type="range" id="vidPanY" min="-50" max="50" value="${cfg.vidPanY}"></div>
+      </div>
+    </div>
+
     <div class="vid-panel">
       <div class="vid-panel-hd">Metrics</div>
       <div class="vid-mchips">${mchips}</div>
@@ -7626,15 +7697,6 @@ function vidRenderBody(){
         <div class="vid-slider"><span style="min-width:0;">Opacity</span><input type="range" id="vidCurveOpacity" min="20" max="100" value="${Math.round(cfg.curveOpacity*100)}"></div>
       </div>
       ${tplRowHtml}
-    </div>
-
-    <div class="vid-panel" id="vidCropPanel">
-      <div class="vid-panel-hd">Crop</div>
-      <div class="vid-row">
-        <div class="vid-slider"><span style="min-width:0;">Zoom</span><input type="range" id="vidZoom" min="100" max="220" value="${Math.round(cfg.vidZoom*100)}"></div>
-        <div class="vid-slider"><span style="min-width:0;">Left/Right</span><input type="range" id="vidPanX" min="-50" max="50" value="${cfg.vidPanX}"></div>
-        <div class="vid-slider"><span style="min-width:0;">Up/Down</span><input type="range" id="vidPanY" min="-50" max="50" value="${cfg.vidPanY}"></div>
-      </div>
     </div>
 
     <div class="vid-panel">
