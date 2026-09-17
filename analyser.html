@@ -7211,8 +7211,7 @@ function vidBiasFor(src){
 }
 function vidBiasText(src){
   const b = vidBiasFor(src);
-  return b ? ('capture lag learned: ' + (b>0?'+':'') + b + 's, applied automatically')
-           : 'no capture lag learned yet \u2014 your next manual correction is remembered';
+  return b ? ('\u00b7 Lag ' + (b>0?'+':'') + b + ' s') : '\u00b7 Lag 0 s';
 }
 function vidLearnBias(a){
   if(!a || a._autoRaw == null) return;
@@ -7649,6 +7648,7 @@ function vidRenderBody(){
       <div class="vid-row" data-segbody="auto" style="margin-top:6px;${segS('auto')}">
         <button class="vid-clip-tab" onclick="vidAutoTime()" style="background:var(--b);color:#000;border-color:var(--b);">Apply</button>
         <span class="vid-mini">${probe}</span>
+        <span class="vid-mini" id="vidBiasMsg">${vidBiasText(a.probeSource)}</span>
         <button class="vid-clip-tab" onclick="vidClearBias()" title="Clear learned capture lag" style="margin-left:auto;">Reset lag</button>
       </div>
       <div class="vid-row" data-segbody="chart" style="margin-top:6px;${segS('chart')}">
