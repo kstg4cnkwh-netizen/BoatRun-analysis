@@ -8399,7 +8399,7 @@ function vidBoxRect(W,H,st){
   });
   const bw=inner+pad*2;
   const bh=hh+rows*lh+pad*2;
-  const m=Math.round(Math.min(W,H)*0.025);
+  const m=0;
   const x=clamp(VID.cfg.boxX/100*W,m,Math.max(m,W-bw-m));
   const y=clamp(VID.cfg.boxY/100*H,m,Math.max(m,H-bh-m));
   return {x,y,bw,bh,fs,lh,pad,hh};
@@ -8467,7 +8467,7 @@ function vidCurveRect(W,H){
   const sc=VID.cfg.curveScale;
   const cw=Math.min(W*0.42*sc, W*0.9);
   const ch=cw*0.52;
-  const m=Math.round(Math.min(W,H)*0.025);
+  const m=0;
   const x=clamp(VID.cfg.curveX/100*W,m,Math.max(m,W-cw-m));
   const y=clamp(VID.cfg.curveY/100*H,m,Math.max(m,H-ch-m));
   return {x,y,cw,ch};
