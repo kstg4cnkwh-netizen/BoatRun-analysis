@@ -2503,6 +2503,7 @@ function mergeSectors(a,b){
     const c=map[s.id];
     if(!c){map[s.id]=s;return;}
     if(c.deleted||s.deleted){map[s.id]={id:s.id,name:c.name||s.name,deleted:true};return;}
+    if((s.rev||0)!==(c.rev||0)){map[s.id]=(s.rev||0)>(c.rev||0)?s:c;return;}
     const res={};
     (c.results||[]).concat(s.results||[]).forEach(r=>{if(r&&r.key)res[r.key]=r;});
     map[s.id]={...c,results:Object.values(res),best:sectorPickBest(c.best,s.best)};
@@ -2598,7 +2599,7 @@ function buildSectorFromTrace(trace,i0,i1,name){
   const g=sectorGate(ref,true), fl=sectorLatLon(ref[ref.length-1][0],ref[ref.length-1][1],o);
   return {id:'sec_'+Date.now().toString(36)+Math.random().toString(36).slice(2,6), name, created:new Date().toISOString(),
     origin:o, finish:{lat:fl[0],lon:fl[1]}, bearing:Math.round((Math.atan2(g.ux,g.uy)*180/Math.PI+360)%360),
-    distance:Math.round(cum), corridor:SECTOR_CORRIDOR_M, ref, best:null, results:[]};
+    distance:Math.round(cum), corridor:SECTOR_CORRIDOR_M, ref, best:null, results:[], rev:Date.now()};
 }
 function updateSectorsFromData(d,label,fileId,onlyId){
   if(!d||!d.gpsTrace||d.gpsTrace.length<2)return false;
@@ -2633,6 +2634,7 @@ function renderSectors(){
   if(!box||!body)return;
   _sectorLayers.forEach(l=>{try{if(leafletMap)leafletMap.removeLayer(l);}catch{}});
   _sectorLayers=[];
+  _sectorHLRestore();
   const cur=SESSIONS[activeSessionIdx];
   const erg=!!(cur&&cur.d&&cur.d.sum&&cur.d.sum.session_mode==='erg');
   if(erg||GPSTRACE.length<2){box.style.display='block';body.innerHTML='<div style="font-size:10px;color:var(--muted);padding:4px 0;">'+(erg?'Not available for erg sessions':'No GPS track')+'</div>';return;}
@@ -2655,8 +2657,9 @@ function renderSectors(){
   let h='<div class="twrap"><table style="width:100%;font-size:10px;"><thead><tr><th style="text-align:left;">Sector</th><th>Time</th><th>Pace</th><th>Rate</th><th style="'+sep+'">PB</th><th>PB Pace</th><th>PB Date</th></tr></thead><tbody>';
   rows.forEach(r=>{
     const s=r.s, b=s.best, isPB=b&&Math.abs(b.timeMs-r.h.timeMs)<50;
-    const pbDate=b?(b.fileId?'<a href="#" style="color:var(--accent,#29b8ff);" onclick="event.preventDefault();window.loadSectorBest(\''+s.id+'\')">'+fmtRecordDate(b.date)+'</a>':fmtRecordDate(b.date)):'—';
-    h+='<tr><td style="'+td+'text-align:left;"><div style="font-weight:600;">'+_secEsc(s.name)+'</div><div style="color:var(--muted);">'+s.distance+'m · <a href="#" style="color:var(--accent,#29b8ff);" onclick="event.preventDefault();window.openSectorCompare(\''+s.id+'\')">compare</a> · <a href="#" style="color:var(--muted);" onclick="event.preventDefault();window.deleteSector(\''+s.id+'\')">delete</a></div></td>'
+    const pbDate=b?(b.fileId?'<a href="#" style="color:var(--accent,#29b8ff);" onclick="event.preventDefault();event.stopPropagation();window.loadSectorBest(\''+s.id+'\')">'+fmtRecordDate(b.date)+'</a>':fmtRecordDate(b.date)):'—';
+    const hk=s.id+'|'+Math.round(r.h.startT);
+    h+='<tr data-hl="'+hk+'" style="cursor:pointer;'+(_sectorHL&&_sectorHL.key===hk?'background:var(--s3);':'')+'" onclick="window.highlightSector(\''+s.id+'\','+Math.round(r.h.startT)+','+Math.round(r.h.endT)+')"><td style="'+td+'text-align:left;"><div style="font-weight:600;">'+_secEsc(s.name)+'</div><div style="color:var(--muted);">'+s.distance+'m · <a href="#" style="color:var(--accent,#29b8ff);" onclick="event.preventDefault();event.stopPropagation();window.openSectorCompare(\''+s.id+'\')">compare</a> · <a href="#" style="color:var(--accent,#29b8ff);" onclick="event.preventDefault();event.stopPropagation();window.editSector(\''+s.id+'\')">edit</a> · <a href="#" style="color:var(--muted);" onclick="event.preventDefault();event.stopPropagation();window.deleteSector(\''+s.id+'\')">delete</a></div></td>'
       +'<td style="'+td+'">'+fmtRecordTime(r.h.timeMs)+(isPB?' <span style="color:#2ee06a;font-weight:700;">PB</span>':'')+'</td>'
       +'<td style="'+td+'">'+fmtPaceU(sectorPace(r.h.timeMs,s.distance))+'</td>'
       +'<td style="'+td+'">'+(r.rate!=null?r.rate.toFixed(1):'—')+'</td>'
@@ -2694,15 +2697,16 @@ function _sectorMapClick(e){
     toast('Click the sector finish on the track',4000);
     return;
   }
-  const i0=c.i0,i1=nr.i;
+  const i0=c.i0,i1=nr.i,editId=c.editId,oldSec=editId?SECTORS_DB.find(x=>x.id===editId):null;
   c.markers.push(L.circleMarker([p.lat,p.lon],{radius:7,fillColor:'#f54040',color:'#000',weight:2,fillOpacity:1}).addTo(leafletMap));
   setTimeout(()=>{
-    const name=(prompt('Sector name')||'').trim();
+    const name=(prompt('Sector name',oldSec?oldSec.name:'')||'').trim();
     cancelSectorCreate();
     if(!name)return;
     const s=buildSectorFromTrace(GPSTRACE,i0,i1,name);
     if(!s){toast('Sector must be at least '+SECTOR_MIN_M+' m');return;}
-    SECTORS_DB.push(s);
+    if(editId){const ix=SECTORS_DB.findIndex(x=>x.id===editId);if(ix<0)return;s.id=editId;s.created=SECTORS_DB[ix].created||s.created;SECTORS_DB[ix]=s;}
+    else SECTORS_DB.push(s);
     SESSIONS.forEach(x=>updateSectorsFromData(x.d,x.label,x.fileId,s.id));
     saveSectors();
     renderSectors();
@@ -2710,10 +2714,11 @@ function _sectorMapClick(e){
     if(AnalyserDrive.isSignedIn()&&confirm('Scan all Drive sessions for "'+name+'"?'))scanAllSectors(s.id);
   },50);
 }
-window.startSectorCreate=function(){
+window.startSectorCreate=function(editId){
   if(_sectorCreate){cancelSectorCreate();return;}
   if(!leafletMap||GPSTRACE.length<2){toast('No GPS track');return;}
-  _sectorCreate={i0:-1,markers:[]};
+  clearSectorHighlight();
+  _sectorCreate={i0:-1,markers:[],editId:(typeof editId==='string'?editId:null)};
   const b=document.getElementById('sectorAddBtn');if(b)b.textContent='✕ Cancel';
   leafletMap.getContainer().style.cursor='crosshair';
   leafletMap.on('click',_sectorMapClick);
@@ -2742,6 +2747,63 @@ async function scanAllSectors(onlyId){
   toast('Sector scan complete');
 }
 window.scanAllSectors=function(){scanAllSectors(null);};
+let _sectorHL=null;
+function _sectorHLRestore(){
+  if(!_sectorHL)return;
+  if(!leafletMap||!leafletMap.hasLayer(_sectorHL.line)){_sectorHL=null;return;}
+}
+function clearSectorHighlight(){
+  if(_sectorHL){try{if(leafletMap)leafletMap.removeLayer(_sectorHL.line);}catch{}}
+  _sectorHL=null;
+  if(mapBaseLine)mapBaseLine.setStyle({opacity:curveGroups.length?0.25:0.85});
+  document.querySelectorAll('#sectorbody tr[data-hl]').forEach(tr=>{tr.style.background='';});
+}
+window.highlightSector=function(id,t0,t1){
+  if(!leafletMap)return;
+  const key=id+'|'+t0, was=_sectorHL&&_sectorHL.key===key;
+  clearSectorHighlight();
+  if(was){if(mapBaseLine)leafletMap.fitBounds(mapBaseLine.getBounds(),{padding:[20,20]});return;}
+  const pts=GPSTRACE.filter(p=>p.lat!=null&&p.lon!=null&&p.t>=t0-1000&&p.t<=t1+1000).map(p=>[p.lat,p.lon]);
+  if(pts.length<2)return;
+  const line=L.polyline(pts,{color:'#ff2fd0',weight:6,opacity:0.95}).addTo(leafletMap);
+  if(mapBaseLine)mapBaseLine.setStyle({opacity:0.25});
+  leafletMap.fitBounds(line.getBounds(),{padding:[30,30]});
+  _sectorHL={key,line};
+  const tr=document.querySelector('#sectorbody tr[data-hl="'+key+'"]');
+  if(tr)tr.style.background='var(--s3)';
+};
+window.editSector=function(id){
+  const sec=SECTORS_DB.find(x=>x.id===id&&!x.deleted);
+  if(!sec)return;
+  document.getElementById('_secedit_modal')?.remove();
+  const overlay=document.createElement('div');
+  overlay.id='_secedit_modal';
+  overlay.style.cssText='position:fixed;inset:0;background:rgba(0,0,0,.72);display:flex;align-items:center;justify-content:center;z-index:9999;padding:16px;';
+  const panel=document.createElement('div');
+  panel.style.cssText='background:var(--s1);border:1px solid var(--border);border-radius:10px;max-width:420px;width:100%;padding:14px 16px;';
+  panel.innerHTML='<div style="font-size:13px;font-weight:600;color:var(--text);margin-bottom:10px;">Edit sector</div>'
+    +'<input type="text" id="_secedit_name" class="brsearch" style="width:100%;box-sizing:border-box;margin-bottom:6px;" value="'+_secEsc(sec.name)+'">'
+    +'<div style="font-size:11px;color:var(--muted);margin-bottom:12px;">'+sec.distance+' m · '+((sec.results||[]).length)+' results</div>'
+    +'<div style="display:flex;flex-wrap:wrap;gap:8px;margin-bottom:8px;"><button class="dzbtn dzbtn-pri" id="_secedit_save">Save name</button><button class="dzbtn dzbtn-sec" id="_secedit_redraw"><span>Redraw start / finish</span></button><button class="dzbtn dzbtn-sec" id="_secedit_cancel"><span>Cancel</span></button></div>'
+    +'<div style="font-size:10px;color:var(--muted);">Redraw uses the track of the open session and clears this sector\'s results and PB, then offers a rescan.</div>';
+  overlay.appendChild(panel);
+  overlay.onclick=e=>{if(e.target===overlay)overlay.remove();};
+  document.body.appendChild(overlay);
+  const inp=document.getElementById('_secedit_name');
+  inp.focus();inp.select();
+  document.getElementById('_secedit_cancel').onclick=()=>overlay.remove();
+  document.getElementById('_secedit_save').onclick=()=>{
+    const n=inp.value.trim();
+    if(!n){toast('Enter a name');return;}
+    sec.name=n;sec.rev=Date.now();
+    saveSectors();renderSectors();overlay.remove();toast('Sector renamed');
+  };
+  document.getElementById('_secedit_redraw').onclick=()=>{
+    overlay.remove();
+    if(!leafletMap||GPSTRACE.length<2){toast('Open a session with a GPS track first');return;}
+    window.startSectorCreate(id);
+  };
+};
 window.deleteSector=function(id){
   const i=SECTORS_DB.findIndex(s=>s.id===id);if(i<0)return;
   if(!confirm('Delete sector "'+SECTORS_DB[i].name+'" and all its results?'))return;
