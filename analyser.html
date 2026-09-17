@@ -2738,7 +2738,7 @@ function _sectorMapClick(e){
     const _dg={};
     if(scanTraceForSector(s,GPSTRACE,_dg).length)toast('Sector saved · '+s.distance+' m');
     else toast('Sector saved · '+s.distance+' m — not detected in this session: '+_dg.reason,8000);
-    if(AnalyserDrive.isSignedIn()&&confirm('Scan all Drive sessions for "'+name+'"?'))scanAllSectors(s.id);
+    if(AnalyserDrive.isSignedIn()&&confirm('Scan all Drive sessions for "'+name+'"?'))runSectorScan(s.id);
   },250);
 }
 window.startSectorCreate=function(editId){
@@ -2751,29 +2751,40 @@ window.startSectorCreate=function(editId){
   leafletMap.on('click',_sectorMapClick);
   toast('Click the sector start on the track',4000);
 };
-async function scanAllSectors(onlyId){
+async function runSectorScan(onlyId){
   if(_sectorScanBusy)return;
   if(!AnalyserDrive.isSignedIn()){toast('Sign in to Google Drive to scan sessions');return;}
   if(!SECTORS_DB.some(s=>!s.deleted)){toast('No sectors saved');return;}
   const lbl=document.getElementById('sectorlbl'), btn=document.getElementById('sectorScanBtn');
-  let files;
-  try{files=(await AnalyserDrive.list()).filter(f=>!_sumParseFn(f.name).erg);}catch(err){if(!driveAuthExpired(err))toast('Could not load sessions');return;}
+  const setP=t=>{if(lbl)lbl.textContent=t;if(btn)btn.textContent=t;};
   _sectorScanBusy=true;if(btn)btn.disabled=true;
+  setP('Listing sessions…');
+  const before={};
+  SECTORS_DB.forEach(x=>{if(!x.deleted)before[x.id]={n:(x.results||[]).length,b:x.best?x.best.timeMs:null};});
+  let files;
+  try{files=(await AnalyserDrive.list()).filter(f=>!_sumParseFn(f.name).erg);}
+  catch(err){_sectorScanBusy=false;if(btn){btn.disabled=false;btn.textContent='Scan all';}renderSectors();if(!driveAuthExpired(err))toast('Could not load sessions');return;}
   for(let k=0;k<files.length;k++){
     const f=files[k];
-    if(lbl)lbl.textContent='Scanning '+(k+1)+'/'+files.length+'…';
+    setP('Scanning '+(k+1)+'/'+files.length+'…');
     try{
       const session=await AnalyserDrive.fetchSession(f.id);
       applySessionUnits(session);
       const conv=sessionToAnalyserFmt(session);
       updateSectorsFromData(conv,nameFromFilename(f.name)||conv.name||f.name,f.id,onlyId||null);
-    }catch(err){}
+    }catch(err){if(driveAuthExpired(err))break;}
   }
-  _sectorScanBusy=false;if(btn)btn.disabled=false;
+  let newRes=0,newPB=0;
+  SECTORS_DB.forEach(x=>{
+    const o=before[x.id];if(!o||x.deleted)return;
+    newRes+=Math.max(0,(x.results||[]).length-o.n);
+    if(x.best&&(o.b==null||x.best.timeMs<o.b))newPB++;
+  });
+  _sectorScanBusy=false;if(btn){btn.disabled=false;btn.textContent='Scan all';}
   renderSectors();
-  toast('Sector scan complete');
+  toast('Scan complete · '+files.length+' sessions · '+newRes+' new results · '+newPB+' new PB'+(newPB===1?'':'s'),6000);
 }
-window.scanAllSectors=function(){scanAllSectors(null);};
+window.scanAllSectors=function(){runSectorScan(null);};
 window.showSectorList=function(){
   document.getElementById('_seclist_modal')?.remove();
   const overlay=document.createElement('div');
