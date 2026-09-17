@@ -727,7 +727,7 @@ body.light .hdrname{color:#fff;}
     </div>
     <div class="info-col brpill">
       <div id="sectorsec" style="display:none;">
-        <div class="sec-hd" style="padding:0 0 4px;"><h2>Sectors</h2><span id="sectorlbl" style="font-size:10px;color:var(--muted);"></span><button class="hbtn" id="sectorScanBtn" style="margin-left:auto;font-size:10px;" onclick="window.scanAllSectors()">Scan all</button></div>
+        <div class="sec-hd" style="padding:0 0 4px;"><h2>Sectors</h2><span id="sectorlbl" style="font-size:10px;color:var(--muted);"></span><button class="hbtn" id="sectorListBtn" style="margin-left:auto;font-size:10px;" onclick="window.showSectorList()">All sectors</button><button class="hbtn" id="sectorScanBtn" style="font-size:10px;" onclick="window.scanAllSectors()">Scan all</button><button class="hbtn" id="sectorAddBtn" style="font-size:10px;" onclick="window.startSectorCreate()">＋ Create Sector</button></div>
         <div id="sectorbody"></div>
       </div>
     </div>
@@ -741,7 +741,7 @@ body.light .hdrname{color:#fff;}
     </div>
     <div class="map-col">
       <div id="mapsec" style="display:none;">
-        <div class="sec-hd" style="padding:0 0 4px;"><h2>Route Map</h2><span id="maplbl" style="font-size:10px;color:var(--muted);"></span><button class="hbtn" id="sectorAddBtn" style="margin-left:auto;font-size:10px;" onclick="window.startSectorCreate()">＋ Create Sector</button></div>
+        <div class="sec-hd" style="padding:0 0 4px;"><h2>Route Map</h2><span id="maplbl" style="font-size:10px;color:var(--muted);"></span></div>
         <div id="mapbox"></div>
       </div>
     </div>
@@ -2553,6 +2553,7 @@ function scanTraceForSector(sec,trace,diag){
   while(i<pts.length){
     const cs=sectorCross(pts[i-1],pts[i],sg);
     if(!cs){i++;continue;}
+    const cs0=cs;
     let hintD=0,maxD=0,offT=null,anc=pts[i],ok=true,fin=null,j=i,why='never crossed the finish line';
     const tr=[[0,0]];
     for(;j<pts.length;j++){
@@ -2565,6 +2566,7 @@ function scanTraceForSector(sec,trace,diag){
       if(pr.d<maxD-SECTOR_BACKTRACK_M){ok=false;why='went backwards at '+Math.round(maxD)+' m';break;}
       if(pr.d>maxD)maxD=pr.d;
       if(Math.hypot(p.x-anc.x,p.y-anc.y)>=10)anc=p;
+      else if(p.t-anc.t>SECTOR_STOP_MS&&maxD<15){cs.t=p.t;anc=p;tr.length=1;continue;}
       else if(p.t-anc.t>SECTOR_STOP_MS){ok=false;why='stopped for over 20 s at '+Math.round(maxD)+' m';break;}
       const ts=Math.round((p.t-cs.t)/100)/10;
       if(ts-tr[tr.length-1][0]>=1)tr.push([ts,Math.round(maxD*10)/10]);
@@ -2654,7 +2656,7 @@ function renderSectors(){
   const nAll=SECTORS_DB.filter(s=>!s.deleted).length;
   const lbl=document.getElementById('sectorlbl');
   if(lbl&&!_sectorScanBusy)lbl.textContent=nAll+' saved';
-  if(!rows.length){body.innerHTML='<div style="font-size:10px;color:var(--muted);padding:4px 0;">No sectors in this session</div>';return;}
+  if(!rows.length){body.innerHTML='<div style="font-size:10px;color:var(--muted);padding:4px 0;">No sectors in this session'+(nAll?' · <a href="#" style="color:var(--accent,#29b8ff);" onclick="event.preventDefault();window.showSectorList()">view all '+nAll+'</a>':'')+'</div>';return;}
   rows.sort((a,b)=>a.h.startT-b.h.startT);
   const td='padding:4px 6px;border-bottom:1px solid var(--border);white-space:nowrap;';
   const sep='border-left:1px solid var(--border);';
@@ -2675,14 +2677,28 @@ function renderSectors(){
   body.innerHTML=h;
 }
 function _sectorNearestIdx(latlng,minIdx){
-  let bi=-1,bm=Infinity;
-  const o={lat:latlng.lat,lon:latlng.lng};
-  for(let i=Math.max(0,minIdx||0);i<GPSTRACE.length;i++){
-    const p=GPSTRACE[i];if(p.lat==null||p.lon==null)continue;
+  const o={lat:latlng.lat,lon:latlng.lng}, from=Math.max(0,minIdx||0), ds=[];
+  let bm=Infinity;
+  for(let i=from;i<GPSTRACE.length;i++){
+    const p=GPSTRACE[i];
+    if(p.lat==null||p.lon==null){ds.push(Infinity);continue;}
     const xy=sectorXY(p.lat,p.lon,o),m=Math.hypot(xy[0],xy[1]);
-    if(m<bm){bm=m;bi=i;}
+    ds.push(m);if(m<bm)bm=m;
   }
-  return {i:bi,m:bm};
+  if(bm===Infinity)return {i:-1,m:Infinity};
+  if(!minIdx){
+    let bi=-1;ds.forEach((m,k)=>{if(m===bm&&bi<0)bi=k;});
+    return {i:from+bi,m:bm};
+  }
+  /* Finish: take the FIRST pass after the start that comes near the click,
+     not the closest point anywhere later in the session - otherwise a session
+     with several laps of the same stretch can pick a later lap and the sector
+     swallows the turns and rests in between. */
+  const thr=Math.max(bm+15,30);
+  let k=0;while(k<ds.length&&ds[k]>thr)k++;
+  let bi=k,bv=ds[k];
+  while(k<ds.length&&ds[k]<=thr){if(ds[k]<bv){bv=ds[k];bi=k;}k++;}
+  return {i:from+bi,m:bv};
 }
 function cancelSectorCreate(){
   if(_sectorCreate){_sectorCreate.markers.forEach(m=>{try{if(leafletMap)leafletMap.removeLayer(m);}catch{}});}
@@ -2753,6 +2769,52 @@ async function scanAllSectors(onlyId){
   toast('Sector scan complete');
 }
 window.scanAllSectors=function(){scanAllSectors(null);};
+window.showSectorList=function(){
+  document.getElementById('_seclist_modal')?.remove();
+  const overlay=document.createElement('div');
+  overlay.id='_seclist_modal';
+  overlay.style.cssText='position:fixed;inset:0;background:rgba(0,0,0,.72);display:flex;align-items:center;justify-content:center;z-index:9998;padding:16px;';
+  const panel=document.createElement('div');
+  panel.style.cssText='background:var(--s1);border:1px solid var(--border);border-radius:10px;max-width:760px;width:100%;max-height:86vh;overflow-y:auto;padding:14px 16px;';
+  overlay.appendChild(panel);
+  overlay.onclick=e=>{if(e.target===overlay)overlay.remove();};
+  document.body.appendChild(overlay);
+  const render=()=>{
+    const list=SECTORS_DB.filter(x=>!x.deleted).sort((a,b)=>String(a.name).localeCompare(String(b.name)));
+    const td='padding:6px 8px;border-bottom:1px solid var(--border);white-space:nowrap;font-size:11px;';
+    let h='<div style="display:flex;align-items:center;gap:10px;margin-bottom:12px;"><div style="font-size:13px;font-weight:600;color:var(--text);">All sectors</div><span style="font-size:11px;color:var(--muted);">'+list.length+' saved</span><button id="_seclist_close" style="margin-left:auto;background:var(--s3);border:1px solid var(--border);color:var(--muted);border-radius:6px;padding:4px 10px;font-size:11px;cursor:pointer;">Close</button></div>';
+    if(!list.length){
+      h+='<div class="sz-loading">No sectors yet. Open a session and click ＋ Create Sector above the Route Map.</div>';
+    }else{
+      h+='<div class="twrap" style="max-height:none;"><table style="width:100%;"><thead><tr><th style="text-align:left;">Sector</th><th>Distance</th><th>Results</th><th>PB</th><th>PB Pace</th><th>PB Date</th><th></th></tr></thead><tbody>';
+      list.forEach(x=>{
+        const b=x.best;
+        const pbDate=b?(b.fileId?'<a href="#" style="color:var(--accent,#29b8ff);" data-act="best" data-id="'+x.id+'">'+fmtRecordDate(b.date)+'</a>':fmtRecordDate(b.date)):'—';
+        h+='<tr><td style="'+td+'text-align:left;font-weight:600;">'+_secEsc(x.name)+'</td>'
+          +'<td style="'+td+'">'+x.distance+' m</td>'
+          +'<td style="'+td+'">'+((x.results||[]).length)+'</td>'
+          +'<td style="'+td+'">'+(b?fmtRecordTime(b.timeMs):'—')+'</td>'
+          +'<td style="'+td+'">'+(b?fmtPaceU(sectorPace(b.timeMs,x.distance)):'—')+'</td>'
+          +'<td style="'+td+'">'+pbDate+'</td>'
+          +'<td style="'+td+'text-align:right;"><a href="#" style="color:var(--accent,#29b8ff);" data-act="compare" data-id="'+x.id+'">compare</a> · <a href="#" style="color:var(--accent,#29b8ff);" data-act="edit" data-id="'+x.id+'">edit</a> · <a href="#" style="color:#f54040;" data-act="delete" data-id="'+x.id+'">delete</a></td></tr>';
+      });
+      h+='</tbody></table></div>';
+    }
+    panel.innerHTML=h;
+    document.getElementById('_seclist_close').onclick=()=>overlay.remove();
+    panel.querySelectorAll('a[data-act]').forEach(a=>{
+      a.onclick=e=>{
+        e.preventDefault();
+        const id=a.dataset.id, act=a.dataset.act;
+        if(act==='delete'){window.deleteSector(id);render();}
+        else if(act==='edit'){overlay.remove();window.editSector(id);}
+        else if(act==='compare'){overlay.remove();window.openSectorCompare(id);}
+        else if(act==='best'){overlay.remove();window.loadSectorBest(id);}
+      };
+    });
+  };
+  render();
+};
 let _sectorHL=null;
 function _sectorHLRestore(){
   if(!_sectorHL)return;
