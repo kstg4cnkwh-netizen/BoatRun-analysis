@@ -728,7 +728,7 @@ body.light .hdrname{color:#fff;}
     </div>
     <div class="info-col info-wide brpill">
       <div id="sectorsec" style="display:none;">
-        <div class="sec-hd" style="padding:0 0 4px;"><h2>Sectors</h2><span id="sectorlbl" style="font-size:10px;color:var(--muted);"></span><button class="hbtn" id="sectorListBtn" style="margin-left:auto;font-size:10px;" onclick="window.showSectorList()">All sectors</button><button class="hbtn" id="sectorScanBtn" style="font-size:10px;" onclick="window.scanAllSectors()">Scan all</button><button class="hbtn" id="sectorAddBtn" style="font-size:10px;" onclick="window.startSectorCreate()">＋ Create Sector</button></div>
+        <div class="sec-hd" style="padding:0 0 4px;"><h2>Sectors</h2><span id="sectorlbl" style="font-size:10px;color:var(--muted);"></span><button class="hbtn" id="sectorListBtn" style="margin-left:auto;font-size:10px;" onclick="window.showSectorList()">Sector list</button><button class="hbtn" id="sectorScanBtn" style="font-size:10px;" onclick="window.scanAllSectors()">Scan all</button><button class="hbtn" id="sectorAddBtn" style="font-size:10px;" onclick="window.startSectorCreate()">＋ Create Sector</button></div>
         <div id="sectorbody"></div>
       </div>
     </div>
@@ -2479,7 +2479,7 @@ window.loadRecordDurationSession=async function(ms, mode){
 // ══════════════════════════════════════════════════════════════════════════
 let SECTORS_DB=(()=>{try{const v=JSON.parse(localStorage.getItem('br_sectors')||'[]');return Array.isArray(v)?v:[];}catch{return [];}})();
 let _sectorLayers=[], _sectorCreate=null, _sectorScanBusy=false, _sectorsPushTimer=null;
-const SECTOR_CORRIDOR_M=100, SECTOR_GATE_HALF_M=100, SECTOR_OFFTRACK_MS=3000, SECTOR_STOP_MS=20000, SECTOR_BACKTRACK_M=20, SECTOR_MIN_M=100;
+const SECTOR_CORRIDOR_M=100, SECTOR_GATE_HALF_M=100, SECTOR_OFFTRACK_MS=3000, SECTOR_STOP_MS=40000, SECTOR_BACKTRACK_M=20, SECTOR_MIN_M=100;
 function _secEsc(s){return String(s==null?'':s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));}
 function saveSectors(){
   try{localStorage.setItem('br_sectors',JSON.stringify(SECTORS_DB));}catch{toast('Sectors not saved — storage error');}
@@ -2559,6 +2559,7 @@ function scanTraceForSector(sec,trace,diag){
     const tr=[[0,0]];
     for(;j<pts.length;j++){
       const p=pts[j];
+      if(j>i&&p.t-pts[j-1].t>SECTOR_STOP_MS){ok=false;why='paused for '+Math.round((p.t-pts[j-1].t)/1000)+' s at '+Math.round(maxD)+' m';break;}
       if(j>i){const fc=sectorCross(pts[j-1],p,fg);if(fc&&maxD>L*0.5){fin=fc;break;}}
       const pr=sectorProject(ref,p.x,p.y,hintD);
       if(pr.lat>SECTOR_CORRIDOR_M){if(offT==null)offT=p.t;if(p.t-offT>SECTOR_OFFTRACK_MS){ok=false;why='left the 100 m corridor at '+Math.round(maxD)+' m';break;}continue;}
@@ -2568,7 +2569,7 @@ function scanTraceForSector(sec,trace,diag){
       if(pr.d>maxD)maxD=pr.d;
       if(Math.hypot(p.x-anc.x,p.y-anc.y)>=10)anc=p;
       else if(p.t-anc.t>SECTOR_STOP_MS&&maxD<15){cs.t=p.t;anc=p;tr.length=1;continue;}
-      else if(p.t-anc.t>SECTOR_STOP_MS){ok=false;why='stopped for over 20 s at '+Math.round(maxD)+' m';break;}
+      else if(p.t-anc.t>SECTOR_STOP_MS){ok=false;why='stopped for over 40 s at '+Math.round(maxD)+' m';break;}
       const ts=Math.round((p.t-cs.t)/100)/10;
       if(ts-tr[tr.length-1][0]>=1)tr.push([ts,Math.round(maxD*10)/10]);
     }
@@ -2657,7 +2658,7 @@ function renderSectors(){
   const nAll=SECTORS_DB.filter(s=>!s.deleted).length;
   const lbl=document.getElementById('sectorlbl');
   if(lbl&&!_sectorScanBusy)lbl.textContent=nAll+' saved';
-  if(!rows.length){body.innerHTML='<div style="font-size:10px;color:var(--muted);padding:4px 0;">No sectors in this session'+(nAll?' · <a href="#" style="color:var(--accent,#29b8ff);" onclick="event.preventDefault();window.showSectorList()">view all '+nAll+'</a>':'')+'</div>';return;}
+  if(!rows.length){body.innerHTML='<div style="font-size:10px;color:var(--muted);padding:4px 0;">No sectors in this session'+(nAll?' · <a href="#" style="color:var(--accent,#29b8ff);" onclick="event.preventDefault();window.showSectorList()">sector list ('+nAll+')</a>':'')+'</div>';return;}
   rows.sort((a,b)=>a.h.startT-b.h.startT);
   const td='padding:4px 6px;border-bottom:1px solid var(--border);white-space:nowrap;';
   const sep='border-left:1px solid var(--border);';
@@ -2666,7 +2667,8 @@ function renderSectors(){
     const s=r.s, b=s.best, isPB=b&&Math.abs(b.timeMs-r.h.timeMs)<50;
     const pbDate=b?(b.fileId?'<a href="#" style="color:var(--accent,#29b8ff);" onclick="event.preventDefault();event.stopPropagation();window.loadSectorBest(\''+s.id+'\')">'+fmtRecordDate(b.date)+'</a>':fmtRecordDate(b.date)):'—';
     const hk=s.id+'|'+Math.round(r.h.startT);
-    h+='<tr data-hl="'+hk+'" style="cursor:pointer;'+(_sectorHL&&_sectorHL.key===hk?'background:var(--s3);':'')+'" onclick="window.highlightSector(\''+s.id+'\','+Math.round(r.h.startT)+','+Math.round(r.h.endT)+')"><td style="'+td+'text-align:left;"><div style="font-weight:600;">'+_secEsc(s.name)+'</div><div style="color:var(--muted);">'+s.distance+'m · <a href="#" style="color:var(--accent,#29b8ff);" onclick="event.preventDefault();event.stopPropagation();window.openSectorCompare(\''+s.id+'\')">compare</a> · <a href="#" style="color:var(--accent,#29b8ff);" onclick="event.preventDefault();event.stopPropagation();window.editSector(\''+s.id+'\')">edit</a> · <a href="#" style="color:var(--muted);" onclick="event.preventDefault();event.stopPropagation();window.deleteSector(\''+s.id+'\')">delete</a></div></td>'
+    const ck=((cur&&cur.fileId)||(cur&&cur.label)||'local')+'|'+Math.round(r.h.startT);
+    h+='<tr data-hl="'+hk+'" style="cursor:pointer;'+(_sectorHL&&_sectorHL.key===hk?'background:var(--s3);':'')+'" onclick="window.highlightSector(\''+s.id+'\','+Math.round(r.h.startT)+','+Math.round(r.h.endT)+')"><td style="'+td+'text-align:left;"><div style="font-weight:600;">'+_secEsc(s.name)+'</div><div style="color:var(--muted);">'+s.distance+'m · <a href="#" style="color:var(--accent,#29b8ff);" onclick="event.preventDefault();event.stopPropagation();window.openSectorCompare(\''+s.id+'\',\''+_secEsc(ck)+'\')">compare</a></div></td>'
       +'<td style="'+td+'">'+fmtRecordTime(r.h.timeMs)+(isPB?' <span style="color:#2ee06a;font-weight:700;">PB</span>':'')+'</td>'
       +'<td style="'+td+'">'+fmtPaceU(sectorPace(r.h.timeMs,s.distance))+'</td>'
       +'<td style="'+td+'">'+(r.rate!=null?r.rate.toFixed(1):'—')+'</td>'
@@ -2737,7 +2739,7 @@ function _sectorMapClick(e){
     renderSectors();
     const _dg={};
     if(scanTraceForSector(s,GPSTRACE,_dg).length)toast('Sector saved · '+s.distance+' m');
-    else toast('Sector saved · '+s.distance+' m — not detected in this session: '+_dg.reason,8000);
+    else toast('Sector saved · '+s.distance+' m · this pass is not a result ('+_dg.reason+')',8000);
     if(AnalyserDrive.isSignedIn()&&confirm('Scan all Drive sessions for "'+name+'"?'))runSectorScan(s.id);
   },250);
 }
@@ -2798,7 +2800,7 @@ window.showSectorList=function(){
   const render=()=>{
     const list=SECTORS_DB.filter(x=>!x.deleted).sort((a,b)=>String(a.name).localeCompare(String(b.name)));
     const td='padding:6px 8px;border-bottom:1px solid var(--border);white-space:nowrap;font-size:11px;';
-    let h='<div style="display:flex;align-items:center;gap:10px;margin-bottom:12px;"><div style="font-size:13px;font-weight:600;color:var(--text);">All sectors</div><span style="font-size:11px;color:var(--muted);">'+list.length+' saved</span><button id="_seclist_close" style="margin-left:auto;background:var(--s3);border:1px solid var(--border);color:var(--muted);border-radius:6px;padding:4px 10px;font-size:11px;cursor:pointer;">Close</button></div>';
+    let h='<div style="display:flex;align-items:center;gap:10px;margin-bottom:12px;"><div style="font-size:13px;font-weight:600;color:var(--text);">Sector list</div><span style="font-size:11px;color:var(--muted);">'+list.length+' saved</span><button id="_seclist_close" style="margin-left:auto;background:var(--s3);border:1px solid var(--border);color:var(--muted);border-radius:6px;padding:4px 10px;font-size:11px;cursor:pointer;">Close</button></div>';
     if(!list.length){
       h+='<div class="sz-loading">No sectors yet. Open a session and click ＋ Create Sector above the Route Map.</div>';
     }else{
@@ -2806,7 +2808,7 @@ window.showSectorList=function(){
       list.forEach(x=>{
         const b=x.best;
         const pbDate=b?(b.fileId?'<a href="#" style="color:var(--accent,#29b8ff);" data-act="best" data-id="'+x.id+'">'+fmtRecordDate(b.date)+'</a>':fmtRecordDate(b.date)):'—';
-        h+='<tr><td style="'+td+'text-align:left;font-weight:600;">'+_secEsc(x.name)+'</td>'
+        h+='<tr data-row="'+x.id+'" style="cursor:pointer;"><td style="'+td+'text-align:left;font-weight:600;">'+_secEsc(x.name)+'</td>'
           +'<td style="'+td+'">'+x.distance+' m</td>'
           +'<td style="'+td+'">'+((x.results||[]).length)+'</td>'
           +'<td style="'+td+'">'+(b?fmtRecordTime(b.timeMs):'—')+'</td>'
@@ -2818,9 +2820,11 @@ window.showSectorList=function(){
     }
     panel.innerHTML=h;
     document.getElementById('_seclist_close').onclick=()=>overlay.remove();
+    panel.querySelectorAll('tr[data-row]').forEach(tr=>{tr.onclick=()=>{overlay.remove();window.openSectorCompare(tr.dataset.row);};});
     panel.querySelectorAll('a[data-act]').forEach(a=>{
       a.onclick=e=>{
         e.preventDefault();
+        e.stopPropagation();
         const id=a.dataset.id, act=a.dataset.act;
         if(act==='delete'){window.deleteSector(id);render();}
         else if(act==='edit'){overlay.remove();window.editSector(id);}
@@ -2964,7 +2968,7 @@ function _secCmpFmtElapsed(ms){
   const s=Math.max(0,ms)/1000, m=Math.floor(s/60), ss=(s%60).toFixed(1);
   return m+':'+(ss<10?'0':'')+ss;
 }
-window.openSectorCompare=function(id){
+window.openSectorCompare=function(id,preKey){
   if(!isPro()){showPlanModal('Sector comparison is a Pro feature.');return;}
   const sec=SECTORS_DB.find(s=>s.id===id&&!s.deleted);
   if(!sec){toast('Sector not found');return;}
@@ -2979,9 +2983,22 @@ window.openSectorCompare=function(id){
   overlay.onclick=e=>{if(e.target===overlay)closeSectorCompare();};
   document.body.appendChild(overlay);
   document.getElementById('_seccmp_close').onclick=closeSectorCompare;
-  _secCmp={sec,overlay,picked:new Set(),map:null,raf:null,sess:[],simT:0,dur:0,speed:1,playing:false,lastFrame:0,lastCards:0};
+  const _pre=new Set();
+  if(preKey){const pr=(sec.results||[]).find(x=>x.key===preKey);if(pr&&_secCmpAvailable(pr))_pre.add(preKey);}
+  _secCmp={sec,overlay,picked:_pre,map:null,raf:null,sess:[],simT:0,dur:0,speed:1,playing:false,lastFrame:0,lastCards:0};
   _secCmpRenderPicker();
 };
+async function openSectorResultSession(r){
+  closeSectorCompare();
+  const loaded=SESSIONS.findIndex(x=>(r.fileId&&x.fileId===r.fileId)||(!r.fileId&&x.label===r.label));
+  if(loaded>=0){switchSession(loaded);return;}
+  if(!r.fileId){toast('Session not available');return;}
+  try{
+    const session=await AnalyserDrive.fetchSession(r.fileId);
+    applySessionUnits(session);
+    addSessionFromData(sessionToAnalyserFmt(session),r.label||'Session',true,r.fileId);
+  }catch(err){if(!driveAuthExpired(err))toast('Load failed: '+err.message);}
+}
 function closeSectorCompare(){
   if(_secCmp){
     if(_secCmp.raf)cancelAnimationFrame(_secCmp.raf);
@@ -3007,7 +3024,7 @@ function _secCmpRenderPicker(){
     const ok=_secCmpAvailable(r), isPB=sec.best&&sec.best.key===r.key;
     h+='<tr style="opacity:'+(ok?1:0.45)+';"><td style="'+td+'"><input type="checkbox" data-key="'+_secEsc(r.key)+'" '+(ok?'':'disabled')+(c.picked.has(r.key)?' checked':'')+'></td>'
       +'<td style="'+td+'text-align:left;">'+fmtRecordDate(r.date)+'</td>'
-      +'<td style="'+td+'text-align:left;">'+_secEsc(r.label)+(ok?'':' <span style="color:var(--muted);">(not on Drive)</span>')+'</td>'
+      +'<td style="'+td+'text-align:left;">'+(ok?'<a href="#" data-open="'+_secEsc(r.key)+'" style="color:var(--accent,#29b8ff);">'+_secEsc(r.label)+'</a>':_secEsc(r.label)+' <span style="color:var(--muted);">(not on Drive)</span>')+'</td>'
       +'<td style="'+td+'">'+fmtRecordTime(r.timeMs)+(isPB?' <span style="color:#2ee06a;font-weight:700;">PB</span>':'')+'</td>'
       +'<td style="'+td+'">'+fmtPaceU(sectorPace(r.timeMs,sec.distance))+'</td>'
       +'<td style="'+td+'">'+(r.rate!=null?r.rate.toFixed(1):'—')+'</td></tr>';
@@ -3021,6 +3038,7 @@ function _secCmpRenderPicker(){
     };
   });
   document.getElementById('_seccmp_go').onclick=_secCmpLoad;
+  body.querySelectorAll('a[data-open]').forEach(a=>{a.onclick=e=>{e.preventDefault();const r=(sec.results||[]).find(x=>x.key===a.dataset.open);if(r)openSectorResultSession(r);};});
 }
 async function _secCmpLoad(){
   const c=_secCmp;if(!c)return;
