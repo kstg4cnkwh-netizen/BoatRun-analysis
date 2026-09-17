@@ -717,8 +717,12 @@ body.light .hdrname{color:#fff;}
         <div class="twrap" style="max-height:160px;margin-bottom:8px;"><table id="laptbl"><thead></thead><tbody></tbody></table></div>
       </div>
       <div id="mapsec" style="display:none;">
-        <div class="sec-hd" style="padding:0 0 4px;"><h2>Route Map</h2><span id="maplbl" style="font-size:10px;color:var(--muted);"></span></div>
+        <div class="sec-hd" style="padding:0 0 4px;"><h2>Route Map</h2><span id="maplbl" style="font-size:10px;color:var(--muted);"></span><button class="hbtn" id="sectorAddBtn" style="margin-left:auto;font-size:10px;" onclick="window.startSectorCreate()">＋ Sector</button></div>
         <div id="mapbox"></div>
+      </div>
+      <div id="sectorsec" style="display:none;">
+        <div class="sec-hd" style="padding:8px 0 4px;"><h2>Sectors</h2><span id="sectorlbl" style="font-size:10px;color:var(--muted);"></span><button class="hbtn" id="sectorScanBtn" style="margin-left:auto;font-size:10px;" onclick="window.scanAllSectors()">Scan all</button></div>
+        <div id="sectorbody"></div>
       </div>
       <!-- Time in Heart Rate Zones -->
       <div id="hrzonesec" style="display:none;">
@@ -1589,6 +1593,11 @@ async function pullPrefsAndApply() {
     RECORDS_DB = mergeRecords(RECORDS_DB, prefs.records);
     try { localStorage.setItem('br_records', JSON.stringify(RECORDS_DB)); } catch {}
   }
+  if (Array.isArray(prefs.sectors)) {
+    SECTORS_DB = mergeSectors(SECTORS_DB, prefs.sectors);
+    try { localStorage.setItem('br_sectors', JSON.stringify(SECTORS_DB)); } catch {}
+    if (SESSIONS.length) renderSectors();
+  }
   if (prefs.tiles) {
     if (prefs.tiles.vis && typeof prefs.tiles.vis === 'object') {
       Object.assign(vis, prefs.tiles.vis);
@@ -2311,6 +2320,7 @@ function addSessionFromData(d, label, replace, fileId, squadCode) {
   const idx=SESSIONS.length;
   SESSIONS.push({label, d, fileId: fileId||null, squadCode: squadCode || d.squadCode || null});
   updateRecords(recordsTrace(d), label, d.sum&&d.sum.start_time, fileId, (d.sum&&d.sum.session_mode==='erg')?'erg':'water');
+  updateSectorsFromData(d, label, fileId);
   switchSession(idx);
 }
 function bestEffortForDistance(pts, targetDist) {
@@ -2445,6 +2455,289 @@ window.loadRecordDurationSession=async function(ms, mode){
     applySessionUnits(session);
     addSessionFromData(sessionToAnalyserFmt(session), r.label||'Session', true, r.fileId);
   }catch(err){ if(!driveAuthExpired(err)) toast('Load failed: '+err.message); }
+};
+
+// ══════════════════════════════════════════════════════════════════════════
+// SECTORS — datum track, gate crossings, session results, bests
+// ══════════════════════════════════════════════════════════════════════════
+let SECTORS_DB=(()=>{try{const v=JSON.parse(localStorage.getItem('br_sectors')||'[]');return Array.isArray(v)?v:[];}catch{return [];}})();
+let _sectorLayers=[], _sectorCreate=null, _sectorScanBusy=false, _sectorsPushTimer=null;
+const SECTOR_CORRIDOR_M=100, SECTOR_GATE_HALF_M=100, SECTOR_OFFTRACK_MS=3000, SECTOR_STOP_MS=20000, SECTOR_BACKTRACK_M=20, SECTOR_MIN_M=100;
+function _secEsc(s){return String(s==null?'':s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));}
+function saveSectors(){
+  try{localStorage.setItem('br_sectors',JSON.stringify(SECTORS_DB));}catch{toast('Sectors not saved — storage error');}
+  schedulePushSectorsToPrefs();
+}
+function schedulePushSectorsToPrefs(){
+  if(!AnalyserDrive.isSignedIn())return;
+  clearTimeout(_sectorsPushTimer);
+  _sectorsPushTimer=setTimeout(()=>{
+    AnalyserDrive.pullPrefs().then(cur=>{
+      if(cur&&Array.isArray(cur.sectors)){SECTORS_DB=mergeSectors(SECTORS_DB,cur.sectors);try{localStorage.setItem('br_sectors',JSON.stringify(SECTORS_DB));}catch{}}
+      return AnalyserDrive.pushPrefs({sectors:SECTORS_DB});
+    }).catch(()=>{});
+  },2000);
+}
+function sectorPickBest(a,b){if(!a)return b||null;if(!b)return a;return b.timeMs<a.timeMs?b:a;}
+function mergeSectors(a,b){
+  const map={};
+  (a||[]).forEach(s=>{if(s&&s.id)map[s.id]=s;});
+  (b||[]).forEach(s=>{
+    if(!s||!s.id)return;
+    const c=map[s.id];
+    if(!c){map[s.id]=s;return;}
+    if(c.deleted||s.deleted){map[s.id]={id:s.id,name:c.name||s.name,deleted:true};return;}
+    const res={};
+    (c.results||[]).concat(s.results||[]).forEach(r=>{if(r&&r.key)res[r.key]=r;});
+    map[s.id]={...c,results:Object.values(res),best:sectorPickBest(c.best,s.best)};
+  });
+  return Object.values(map);
+}
+function sectorXY(lat,lon,o){const R=6371000,k=Math.PI/180;return [(lon-o.lon)*k*R*Math.cos(o.lat*k),(lat-o.lat)*k*R];}
+function sectorLatLon(x,y,o){const R=6371000,k=Math.PI/180;return [o.lat+y/(R*k),o.lon+x/(R*k*Math.cos(o.lat*k))];}
+function sectorGate(ref,isStart){
+  const n=ref.length, L=ref[n-1][2];
+  let g,a,b;
+  if(isStart){g=ref[0];let k=1;while(k<n-1&&ref[k][2]<20)k++;a=ref[0];b=ref[k];}
+  else{g=ref[n-1];let k=n-2;while(k>0&&ref[k][2]>L-20)k--;a=ref[k];b=ref[n-1];}
+  const dx=b[0]-a[0],dy=b[1]-a[1],len=Math.hypot(dx,dy)||1;
+  return {x:g[0],y:g[1],ux:dx/len,uy:dy/len};
+}
+function sectorCross(a,b,g){
+  if(b.t-a.t>5000)return null;
+  const sa=(a.x-g.x)*g.ux+(a.y-g.y)*g.uy, sb=(b.x-g.x)*g.ux+(b.y-g.y)*g.uy;
+  if(!(sa<0&&sb>=0))return null;
+  const f=-sa/(sb-sa), cx=a.x+f*(b.x-a.x), cy=a.y+f*(b.y-a.y);
+  if(Math.abs((cx-g.x)*(-g.uy)+(cy-g.y)*g.ux)>SECTOR_GATE_HALF_M)return null;
+  return {t:a.t+f*(b.t-a.t)};
+}
+function sectorProject(ref,x,y,hintD){
+  const dMin=hintD-30, dMax=hintD+150;
+  let best=null;
+  for(let i=0;i<ref.length-1;i++){
+    const A=ref[i],B=ref[i+1];
+    if(B[2]<dMin||A[2]>dMax)continue;
+    const vx=B[0]-A[0],vy=B[1]-A[1],l2=vx*vx+vy*vy;
+    let t=l2>0?((x-A[0])*vx+(y-A[1])*vy)/l2:0; t=t<0?0:t>1?1:t;
+    const px=A[0]+t*vx,py=A[1]+t*vy,lat=Math.hypot(x-px,y-py);
+    if(!best||lat<best.lat)best={lat,d:A[2]+t*(B[2]-A[2])};
+  }
+  return best||{lat:Infinity,d:hintD};
+}
+function scanTraceForSector(sec,trace){
+  const out=[];
+  if(!sec||!sec.ref||sec.ref.length<2||!trace||trace.length<2)return out;
+  const o=sec.origin, ref=sec.ref, L=sec.distance, pts=[];
+  for(const p of trace){if(p.lat==null||p.lon==null||p.t==null)continue;const xy=sectorXY(p.lat,p.lon,o);pts.push({x:xy[0],y:xy[1],t:p.t});}
+  const sg=sectorGate(ref,true), fg=sectorGate(ref,false);
+  let i=1;
+  while(i<pts.length){
+    const cs=sectorCross(pts[i-1],pts[i],sg);
+    if(!cs){i++;continue;}
+    let hintD=0,maxD=0,offT=null,anc=pts[i],ok=true,fin=null,j=i;
+    const tr=[[0,0]];
+    for(;j<pts.length;j++){
+      const p=pts[j];
+      if(j>i){const fc=sectorCross(pts[j-1],p,fg);if(fc&&maxD>L*0.5){fin=fc;break;}}
+      const pr=sectorProject(ref,p.x,p.y,hintD);
+      if(pr.lat>SECTOR_CORRIDOR_M){if(offT==null)offT=p.t;if(p.t-offT>SECTOR_OFFTRACK_MS){ok=false;break;}continue;}
+      offT=null;
+      hintD=pr.d;
+      if(pr.d<maxD-SECTOR_BACKTRACK_M){ok=false;break;}
+      if(pr.d>maxD)maxD=pr.d;
+      if(Math.hypot(p.x-anc.x,p.y-anc.y)>=10)anc=p;
+      else if(p.t-anc.t>SECTOR_STOP_MS){ok=false;break;}
+      const ts=Math.round((p.t-cs.t)/100)/10;
+      if(ts-tr[tr.length-1][0]>=1)tr.push([ts,Math.round(maxD*10)/10]);
+    }
+    if(ok&&fin){
+      const timeMs=fin.t-cs.t;
+      tr.push([Math.round(timeMs/100)/10,L]);
+      out.push({startT:cs.t,endT:fin.t,timeMs,trace:tr});
+      i=j+1;
+    }else i++;
+  }
+  return out;
+}
+function sectorAvgRate(strokes,t0,t1){
+  let sum=0,n=0;
+  (strokes||[]).forEach(s=>{if(s.ms>=t0&&s.ms<=t1&&s.rate>5&&s.rate<50){sum+=s.rate;n++;}});
+  return n?sum/n:null;
+}
+function sectorPace(timeMs,distM){return distM>0?(timeMs/1000)*500/distM:null;}
+function buildSectorFromTrace(trace,i0,i1,name){
+  const o={lat:trace[i0].lat,lon:trace[i0].lon};
+  const raw=[];
+  for(let i=i0;i<=i1;i++){const p=trace[i];if(p.lat==null||p.lon==null)continue;raw.push(sectorXY(p.lat,p.lon,o));}
+  if(raw.length<2)return null;
+  const ref=[[0,0,0]];let cum=0,last=raw[0];
+  for(let i=1;i<raw.length;i++){
+    const seg=Math.hypot(raw[i][0]-last[0],raw[i][1]-last[1]);
+    if(seg<5&&i<raw.length-1)continue;
+    if(seg<0.5)continue;
+    cum+=seg;last=raw[i];
+    ref.push([Math.round(last[0]*10)/10,Math.round(last[1]*10)/10,Math.round(cum*10)/10]);
+  }
+  if(cum<SECTOR_MIN_M||ref.length<2)return null;
+  const g=sectorGate(ref,true), fl=sectorLatLon(ref[ref.length-1][0],ref[ref.length-1][1],o);
+  return {id:'sec_'+Date.now().toString(36)+Math.random().toString(36).slice(2,6), name, created:new Date().toISOString(),
+    origin:o, finish:{lat:fl[0],lon:fl[1]}, bearing:Math.round((Math.atan2(g.ux,g.uy)*180/Math.PI+360)%360),
+    distance:Math.round(cum), corridor:SECTOR_CORRIDOR_M, ref, best:null, results:[]};
+}
+function updateSectorsFromData(d,label,fileId,onlyId){
+  if(!d||!d.gpsTrace||d.gpsTrace.length<2)return false;
+  if(d.sum&&d.sum.session_mode==='erg')return false;
+  const dateISO=(d.sum&&d.sum.start_time)||null;
+  let changed=false;
+  SECTORS_DB.forEach(sec=>{
+    if(sec.deleted||(onlyId&&sec.id!==onlyId))return;
+    scanTraceForSector(sec,d.gpsTrace).forEach(h=>{
+      const key=(fileId||label||'local')+'|'+Math.round(h.startT);
+      const r={key,fileId:fileId||null,label:label||'',date:dateISO,startT:h.startT,endT:h.endT,timeMs:h.timeMs,rate:sectorAvgRate(d.strokes,h.startT,h.endT)};
+      sec.results=sec.results||[];
+      if(!sec.results.some(x=>x.key===key)){sec.results.push(r);changed=true;}
+      if(!sec.best||h.timeMs<sec.best.timeMs){sec.best={...r,trace:h.trace};changed=true;}
+    });
+  });
+  if(changed)saveSectors();
+  return changed;
+}
+function drawSectorOnMap(s){
+  if(!leafletMap)return;
+  const o=s.origin, ll=s.ref.map(p=>sectorLatLon(p[0],p[1],o));
+  _sectorLayers.push(L.polyline(ll,{color:'#ffb020',weight:2,opacity:0.9,dashArray:'6 6'}).bindTooltip(s.name).addTo(leafletMap));
+  [[true,'#2ee06a'],[false,'#f54040']].forEach(([st,col])=>{
+    const g=sectorGate(s.ref,st), nx=-g.uy, ny=g.ux;
+    const a=sectorLatLon(g.x+nx*SECTOR_GATE_HALF_M,g.y+ny*SECTOR_GATE_HALF_M,o), b=sectorLatLon(g.x-nx*SECTOR_GATE_HALF_M,g.y-ny*SECTOR_GATE_HALF_M,o);
+    _sectorLayers.push(L.polyline([a,b],{color:col,weight:3,opacity:0.95}).bindTooltip(s.name+(st?' start':' finish')).addTo(leafletMap));
+  });
+}
+function renderSectors(){
+  const box=document.getElementById('sectorsec'), body=document.getElementById('sectorbody');
+  if(!box||!body)return;
+  _sectorLayers.forEach(l=>{try{if(leafletMap)leafletMap.removeLayer(l);}catch{}});
+  _sectorLayers=[];
+  const cur=SESSIONS[activeSessionIdx];
+  const erg=!!(cur&&cur.d&&cur.d.sum&&cur.d.sum.session_mode==='erg');
+  if(erg||GPSTRACE.length<2){box.style.display='none';return;}
+  box.style.display='block';
+  const rows=[];
+  SECTORS_DB.forEach(s=>{
+    if(s.deleted)return;
+    const hits=scanTraceForSector(s,GPSTRACE);
+    if(!hits.length)return;
+    drawSectorOnMap(s);
+    hits.forEach(h=>rows.push({s,h,rate:sectorAvgRate(ST,h.startT,h.endT)}));
+  });
+  const nAll=SECTORS_DB.filter(s=>!s.deleted).length;
+  const lbl=document.getElementById('sectorlbl');
+  if(lbl&&!_sectorScanBusy)lbl.textContent=nAll+' saved';
+  if(!rows.length){body.innerHTML='<div style="font-size:10px;color:var(--muted);padding:4px 0;">No sectors in this session</div>';return;}
+  rows.sort((a,b)=>a.h.startT-b.h.startT);
+  const td='padding:4px 6px;border-bottom:1px solid var(--border);white-space:nowrap;';
+  let h='<div class="twrap" style="max-height:220px;margin-bottom:8px;"><table style="width:100%;font-size:10px;"><thead><tr><th style="text-align:left;">Sector</th><th>Time</th><th>Pace</th><th>Rate</th><th>Best</th></tr></thead><tbody>';
+  rows.forEach(r=>{
+    const s=r.s, b=s.best, isPB=b&&Math.abs(b.timeMs-r.h.timeMs)<50;
+    const bestCell=b?('<div>'+fmtRecordTime(b.timeMs)+(isPB?' <span style="color:#2ee06a;font-weight:700;">PB</span>':'')+'</div><div style="color:var(--muted);">'+fmtPaceU(sectorPace(b.timeMs,s.distance))+'</div>'+(b.fileId?'<a href="#" style="color:var(--accent,#29b8ff);" onclick="event.preventDefault();window.loadSectorBest(\''+s.id+'\')">'+fmtRecordDate(b.date)+'</a>':'<div style="color:var(--muted);">'+fmtRecordDate(b.date)+'</div>')):'—';
+    h+='<tr><td style="'+td+'text-align:left;"><div style="font-weight:600;">'+_secEsc(s.name)+'</div><div style="color:var(--muted);">'+s.distance+'m · <a href="#" style="color:var(--muted);" onclick="event.preventDefault();window.deleteSector(\''+s.id+'\')">delete</a></div></td>'
+      +'<td style="'+td+'">'+fmtRecordTime(r.h.timeMs)+'</td>'
+      +'<td style="'+td+'">'+fmtPaceU(sectorPace(r.h.timeMs,s.distance))+'</td>'
+      +'<td style="'+td+'">'+(r.rate!=null?r.rate.toFixed(1):'—')+'</td>'
+      +'<td style="'+td+'">'+bestCell+'</td></tr>';
+  });
+  h+='</tbody></table></div>';
+  body.innerHTML=h;
+}
+function _sectorNearestIdx(latlng,minIdx){
+  let bi=-1,bm=Infinity;
+  const o={lat:latlng.lat,lon:latlng.lng};
+  for(let i=Math.max(0,minIdx||0);i<GPSTRACE.length;i++){
+    const p=GPSTRACE[i];if(p.lat==null||p.lon==null)continue;
+    const xy=sectorXY(p.lat,p.lon,o),m=Math.hypot(xy[0],xy[1]);
+    if(m<bm){bm=m;bi=i;}
+  }
+  return {i:bi,m:bm};
+}
+function cancelSectorCreate(){
+  if(_sectorCreate){_sectorCreate.markers.forEach(m=>{try{if(leafletMap)leafletMap.removeLayer(m);}catch{}});}
+  _sectorCreate=null;
+  if(leafletMap){leafletMap.off('click',_sectorMapClick);leafletMap.getContainer().style.cursor='';}
+  const b=document.getElementById('sectorAddBtn');if(b)b.textContent='＋ Sector';
+}
+function _sectorMapClick(e){
+  const c=_sectorCreate;if(!c)return;
+  const nr=_sectorNearestIdx(e.latlng,c.i0<0?0:c.i0+1);
+  if(nr.i<0||nr.m>50){toast('Click closer to the track');return;}
+  const p=GPSTRACE[nr.i];
+  if(c.i0<0){
+    c.i0=nr.i;
+    c.markers.push(L.circleMarker([p.lat,p.lon],{radius:7,fillColor:'#2ee06a',color:'#000',weight:2,fillOpacity:1}).addTo(leafletMap));
+    toast('Click the sector finish on the track',4000);
+    return;
+  }
+  const i0=c.i0,i1=nr.i;
+  c.markers.push(L.circleMarker([p.lat,p.lon],{radius:7,fillColor:'#f54040',color:'#000',weight:2,fillOpacity:1}).addTo(leafletMap));
+  setTimeout(()=>{
+    const name=(prompt('Sector name')||'').trim();
+    cancelSectorCreate();
+    if(!name)return;
+    const s=buildSectorFromTrace(GPSTRACE,i0,i1,name);
+    if(!s){toast('Sector must be at least '+SECTOR_MIN_M+' m');return;}
+    SECTORS_DB.push(s);
+    SESSIONS.forEach(x=>updateSectorsFromData(x.d,x.label,x.fileId,s.id));
+    saveSectors();
+    renderSectors();
+    toast('Sector saved · '+s.distance+' m');
+    if(AnalyserDrive.isSignedIn()&&confirm('Scan all Drive sessions for "'+name+'"?'))scanAllSectors(s.id);
+  },50);
+}
+window.startSectorCreate=function(){
+  if(_sectorCreate){cancelSectorCreate();return;}
+  if(!leafletMap||GPSTRACE.length<2){toast('No GPS track');return;}
+  _sectorCreate={i0:-1,markers:[]};
+  const b=document.getElementById('sectorAddBtn');if(b)b.textContent='✕ Cancel';
+  leafletMap.getContainer().style.cursor='crosshair';
+  leafletMap.on('click',_sectorMapClick);
+  toast('Click the sector start on the track',4000);
+};
+async function scanAllSectors(onlyId){
+  if(_sectorScanBusy)return;
+  if(!AnalyserDrive.isSignedIn()){toast('Sign in to Google Drive to scan sessions');return;}
+  if(!SECTORS_DB.some(s=>!s.deleted)){toast('No sectors saved');return;}
+  const lbl=document.getElementById('sectorlbl'), btn=document.getElementById('sectorScanBtn');
+  let files;
+  try{files=(await AnalyserDrive.list()).filter(f=>!_sumParseFn(f.name).erg);}catch(err){if(!driveAuthExpired(err))toast('Could not load sessions');return;}
+  _sectorScanBusy=true;if(btn)btn.disabled=true;
+  for(let k=0;k<files.length;k++){
+    const f=files[k];
+    if(lbl)lbl.textContent='Scanning '+(k+1)+'/'+files.length+'…';
+    try{
+      const session=await AnalyserDrive.fetchSession(f.id);
+      applySessionUnits(session);
+      const conv=sessionToAnalyserFmt(session);
+      updateSectorsFromData(conv,nameFromFilename(f.name)||conv.name||f.name,f.id,onlyId||null);
+    }catch(err){}
+  }
+  _sectorScanBusy=false;if(btn)btn.disabled=false;
+  renderSectors();
+  toast('Sector scan complete');
+}
+window.scanAllSectors=function(){scanAllSectors(null);};
+window.deleteSector=function(id){
+  const i=SECTORS_DB.findIndex(s=>s.id===id);if(i<0)return;
+  if(!confirm('Delete sector "'+SECTORS_DB[i].name+'" and all its results?'))return;
+  SECTORS_DB[i]={id,name:SECTORS_DB[i].name,deleted:true};
+  saveSectors();
+  renderSectors();
+};
+window.loadSectorBest=async function(id){
+  const s=SECTORS_DB.find(x=>x.id===id);
+  if(!s||!s.best||!s.best.fileId)return;
+  try{
+    const session=await AnalyserDrive.fetchSession(s.best.fileId);
+    applySessionUnits(session);
+    addSessionFromData(sessionToAnalyserFmt(session),s.best.label||'Session',true,s.best.fileId);
+  }catch(err){if(!driveAuthExpired(err))toast('Load failed: '+err.message);}
 };
 
 function switchSession(idx) {
@@ -6173,6 +6466,8 @@ function mountData(d,label){
   buildLaps();
   assignLapNumbers();
   buildMap();
+  cancelSectorCreate();
+  renderSectors();
   buildStrokeTable();
   schedRender();
   buildCurveSection();
@@ -7045,6 +7340,7 @@ async function showSummaryModal(){
           applySessionUnits(session);
           const conv=sessionToAnalyserFmt(session);
           updateRecords(recordsTrace(conv), nameFromFilename(f.name)||conv.name||f.name, conv.sum&&conv.sum.start_time, f.id, (conv.sum&&conv.sum.session_mode==='erg')?'erg':'water');
+          updateSectorsFromData(conv, nameFromFilename(f.name)||conv.name||f.name, f.id);
         }catch(err){}
       }
       render();
