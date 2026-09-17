@@ -236,8 +236,11 @@
   /* ── Map-left + Stroke-right row ── */
   #map-stroke-row { display: none; flex-wrap: wrap; gap: 12px; padding: 0 16px 12px; }
   #map-stroke-row.on { display: flex; }
-  .info-row { flex: 0 0 100%; display: flex; gap: 12px; min-width: 0; }
-  .info-col { flex: 1 1 0; min-width: 0; }
+  .info-row { flex: 0 0 100%; display: flex; gap: 12px; min-width: 0; align-items: stretch; }
+  .info-col { flex: 1 1 0; min-width: 0; height: 300px; overflow: auto; box-sizing: border-box; }
+  .info-col.brpill { margin-bottom: 0; }
+  .info-col .twrap { max-height: none !important; margin-bottom: 0 !important; }
+  .info-col .sec-hd { margin-bottom: 4px; }
   .map-col { flex: 0 0 calc(25% - 9px); min-width: 240px; }
   .map-col .sec-hd { margin-bottom: 4px; }
   .stroke-col { flex: 1; min-width: 280px; overflow: hidden; }
@@ -275,7 +278,7 @@
     #map-stroke-row { padding: 0 12px 10px; flex-direction: column; }
     .map-col, .stroke-col { flex: none; width: 100%; }
     .info-row { flex-direction: column; }
-    .info-col { flex: none; width: 100%; }
+    .info-col { flex: none; width: 100%; height: 300px; }
     .curve-layout { flex-direction: column; }
   }
 
@@ -715,20 +718,20 @@ body.light .hdrname{color:#fff;}
   <!-- Map (left) + Stroke data (right) -->
   <div id="map-stroke-row">
     <div class="info-row">
-    <div class="info-col">
+    <div class="info-col brpill">
       <div id="lapsec" style="display:none;">
         <div class="sec-hd" style="padding:0 0 4px;"><h2>Laps</h2></div>
         <div id="laptypebar" style="margin-bottom:6px;"></div>
         <div class="twrap" style="max-height:160px;margin-bottom:8px;"><table id="laptbl"><thead></thead><tbody></tbody></table></div>
       </div>
     </div>
-    <div class="info-col">
+    <div class="info-col brpill">
       <div id="sectorsec" style="display:none;">
         <div class="sec-hd" style="padding:0 0 4px;"><h2>Sectors</h2><span id="sectorlbl" style="font-size:10px;color:var(--muted);"></span><button class="hbtn" id="sectorScanBtn" style="margin-left:auto;font-size:10px;" onclick="window.scanAllSectors()">Scan all</button></div>
         <div id="sectorbody"></div>
       </div>
     </div>
-    <div class="info-col">
+    <div class="info-col brpill">
       <!-- Time in Heart Rate Zones -->
       <div id="hrzonesec" style="display:none;">
         <div class="sec-hd" style="padding:0 0 4px;"><h2>Time in Heart Rate Zones</h2></div>
@@ -738,7 +741,7 @@ body.light .hdrname{color:#fff;}
     </div>
     <div class="map-col">
       <div id="mapsec" style="display:none;">
-        <div class="sec-hd" style="padding:0 0 4px;"><h2>Route Map</h2><span id="maplbl" style="font-size:10px;color:var(--muted);"></span><button class="hbtn" id="sectorAddBtn" style="margin-left:auto;font-size:10px;" onclick="window.startSectorCreate()">＋ Sector</button></div>
+        <div class="sec-hd" style="padding:0 0 4px;"><h2>Route Map</h2><span id="maplbl" style="font-size:10px;color:var(--muted);"></span><button class="hbtn" id="sectorAddBtn" style="margin-left:auto;font-size:10px;" onclick="window.startSectorCreate()">＋ Create Sector</button></div>
         <div id="mapbox"></div>
       </div>
     </div>
@@ -1912,10 +1915,11 @@ function buildHRZoneTable(){
   const sec=document.getElementById('hrzonesec');
   const body=document.getElementById('hrzonebody');
   if(!sec||!body)return;
-  if(HR.length<10){sec.style.display='none';return;}
+  const _noHR='<div style="font-size:11px;color:var(--muted);padding:6px 0;">No heart rate data</div>';
+  if(HR.length<10){sec.style.display='';body.innerHTML=_noHR;return;}
   const ms=hrZoneTimes();
   const total=ms.reduce((a,b)=>a+b,0);
-  if(total<=0){sec.style.display='none';return;}
+  if(total<=0){sec.style.display='';body.innerHTML=_noHR;return;}
   sec.style.display='';
   const rangeLbl=i=>{
     if(i===0)return '\u2264 '+hrZones[0]+' bpm';
@@ -2631,7 +2635,7 @@ function renderSectors(){
   _sectorLayers=[];
   const cur=SESSIONS[activeSessionIdx];
   const erg=!!(cur&&cur.d&&cur.d.sum&&cur.d.sum.session_mode==='erg');
-  if(erg||GPSTRACE.length<2){box.style.display='none';return;}
+  if(erg||GPSTRACE.length<2){box.style.display='block';body.innerHTML='<div style="font-size:10px;color:var(--muted);padding:4px 0;">'+(erg?'Not available for erg sessions':'No GPS track')+'</div>';return;}
   box.style.display='block';
   const rows=[];
   SECTORS_DB.forEach(s=>{
@@ -2647,15 +2651,18 @@ function renderSectors(){
   if(!rows.length){body.innerHTML='<div style="font-size:10px;color:var(--muted);padding:4px 0;">No sectors in this session</div>';return;}
   rows.sort((a,b)=>a.h.startT-b.h.startT);
   const td='padding:4px 6px;border-bottom:1px solid var(--border);white-space:nowrap;';
-  let h='<div class="twrap" style="max-height:220px;margin-bottom:8px;"><table style="width:100%;font-size:10px;"><thead><tr><th style="text-align:left;">Sector</th><th>Time</th><th>Pace</th><th>Rate</th><th>Best</th></tr></thead><tbody>';
+  const sep='border-left:1px solid var(--border);';
+  let h='<div class="twrap"><table style="width:100%;font-size:10px;"><thead><tr><th style="text-align:left;">Sector</th><th>Time</th><th>Pace</th><th>Rate</th><th style="'+sep+'">PB</th><th>PB Pace</th><th>PB Date</th></tr></thead><tbody>';
   rows.forEach(r=>{
     const s=r.s, b=s.best, isPB=b&&Math.abs(b.timeMs-r.h.timeMs)<50;
-    const bestCell=b?('<div>'+fmtRecordTime(b.timeMs)+(isPB?' <span style="color:#2ee06a;font-weight:700;">PB</span>':'')+'</div><div style="color:var(--muted);">'+fmtPaceU(sectorPace(b.timeMs,s.distance))+'</div>'+(b.fileId?'<a href="#" style="color:var(--accent,#29b8ff);" onclick="event.preventDefault();window.loadSectorBest(\''+s.id+'\')">'+fmtRecordDate(b.date)+'</a>':'<div style="color:var(--muted);">'+fmtRecordDate(b.date)+'</div>')):'—';
+    const pbDate=b?(b.fileId?'<a href="#" style="color:var(--accent,#29b8ff);" onclick="event.preventDefault();window.loadSectorBest(\''+s.id+'\')">'+fmtRecordDate(b.date)+'</a>':fmtRecordDate(b.date)):'—';
     h+='<tr><td style="'+td+'text-align:left;"><div style="font-weight:600;">'+_secEsc(s.name)+'</div><div style="color:var(--muted);">'+s.distance+'m · <a href="#" style="color:var(--accent,#29b8ff);" onclick="event.preventDefault();window.openSectorCompare(\''+s.id+'\')">compare</a> · <a href="#" style="color:var(--muted);" onclick="event.preventDefault();window.deleteSector(\''+s.id+'\')">delete</a></div></td>'
-      +'<td style="'+td+'">'+fmtRecordTime(r.h.timeMs)+'</td>'
+      +'<td style="'+td+'">'+fmtRecordTime(r.h.timeMs)+(isPB?' <span style="color:#2ee06a;font-weight:700;">PB</span>':'')+'</td>'
       +'<td style="'+td+'">'+fmtPaceU(sectorPace(r.h.timeMs,s.distance))+'</td>'
       +'<td style="'+td+'">'+(r.rate!=null?r.rate.toFixed(1):'—')+'</td>'
-      +'<td style="'+td+'">'+bestCell+'</td></tr>';
+      +'<td style="'+td+sep+'">'+(b?fmtRecordTime(b.timeMs):'—')+'</td>'
+      +'<td style="'+td+'">'+(b?fmtPaceU(sectorPace(b.timeMs,s.distance)):'—')+'</td>'
+      +'<td style="'+td+'">'+pbDate+'</td></tr>';
   });
   h+='</tbody></table></div>';
   body.innerHTML=h;
@@ -2674,7 +2681,7 @@ function cancelSectorCreate(){
   if(_sectorCreate){_sectorCreate.markers.forEach(m=>{try{if(leafletMap)leafletMap.removeLayer(m);}catch{}});}
   _sectorCreate=null;
   if(leafletMap){leafletMap.off('click',_sectorMapClick);leafletMap.getContainer().style.cursor='';}
-  const b=document.getElementById('sectorAddBtn');if(b)b.textContent='＋ Sector';
+  const b=document.getElementById('sectorAddBtn');if(b)b.textContent='＋ Create Sector';
 }
 function _sectorMapClick(e){
   const c=_sectorCreate;if(!c)return;
@@ -6456,10 +6463,25 @@ function buildLaps(){
   const showLaps=LAPS.filter(l=>'stroke_rate_spm' in l);
   _showLaps=showLaps;
   activeLapTypes=new Set();
-  document.getElementById('lapsec').style.display=showLaps.length?'block':'none';
+  document.getElementById('lapsec').style.display='block';
   document.querySelector('#laptbl tbody').innerHTML='';
   document.getElementById('laptypebar').innerHTML='';
-  if(!showLaps.length)return;
+  if(!showLaps.length){
+    const _cs=SESSIONS[activeSessionIdx];
+    const sum=(_cs&&_cs.d&&_cs.d.sum)||_lastSum||{};
+    const dist=+sum.distance_m||0, time=+sum.duration_s||0;
+    const pace=(sum.avg_pace_s_per_500m!=null&&!isNaN(+sum.avg_pace_s_per_500m))?+sum.avg_pace_s_per_500m:(dist>0?time*500/dist:NaN);
+    const rv=ST.filter(s=>s.rate>5&&s.rate<50).map(s=>s.rate);
+    const rate=rv.length?(rv.reduce((a,b)=>a+b,0)/rv.length).toFixed(1):(sum.avg_rate_spm?(+sum.avg_rate_spm).toFixed(1):EM);
+    const bpm=HR.map(h=>h.bpm).filter(b=>b>40&&b<220);
+    const hasHR1=bpm.length>0;
+    document.querySelector('#laptbl thead').innerHTML='<tr><th style="text-align:left;">Type</th><th>Lap</th><th>Dist</th><th>Time</th><th>Pace</th><th>Rate</th>'+(hasHR1?'<th>HR avg</th><th>HR max</th>':'')+'</tr>';
+    document.querySelector('#laptbl tbody').innerHTML='<tr data-lap="1" style="cursor:pointer"><td>'+lapTypeChip('')+'</td><td>Lap 1</td><td>'+dist.toFixed(0)+'m</td><td>'+fmtTime(time)+'</td><td style="color:var(--mc-pace)">'+fmtPaceU(pace)+'</td><td style="color:var(--mc-rate)">'+rate+'</td>'
+      +(hasHR1?'<td style="color:var(--mc-hr)">'+Math.round(bpm.reduce((a,b)=>a+b,0)/bpm.length)+'</td><td style="color:var(--mc-hr)">'+Math.max(...bpm)+'</td>':'')+'</tr>';
+    const row=document.querySelector('#laptbl tbody tr');
+    if(row)row.addEventListener('click',()=>{if(!ST.length)return;selS=0-viewS;selE=ST.length-1-viewS;schedRender();updateSel(true);});
+    return;
+  }
   assignLapNumbers();
   const _lapAvgRate=n=>{const v=ST.filter(s=>s.lapNum===n&&s.rate>5&&s.rate<50).map(s=>s.rate);return v.length?+(v.reduce((a,b)=>a+b,0)/v.length).toFixed(1):null;};
   document.getElementById('map-stroke-row').classList.add('on');
