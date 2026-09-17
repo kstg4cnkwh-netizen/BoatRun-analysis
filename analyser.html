@@ -7242,8 +7242,8 @@ const VID = {
   cfg: {
     metrics: (()=>{ try{ const m=JSON.parse(localStorage.getItem('an_vid_metrics')||'null'); if(Array.isArray(m)) return m.filter(k=>typeof k==='string'); }catch(e){} return ['rate','pace','dps']; })(),
     showCurve: true, showBox: true,
-    curveX: 97, curveY: 3, curveScale: 1,
-    boxX: 3, boxY: 3, boxScale: 1,
+    curveX: 100, curveY: 0, curveScale: 1,
+    boxX: 0, boxY: 0, boxScale: 1,
     opacity: 0.82, curveOpacity: 0.82,
     vidWidth: 100, vidZoom: 1, vidPanX: 0, vidPanY: 0,
     curveAvg5: true, rate: 1,
@@ -7610,7 +7610,7 @@ function vidRenderBody(){
   const _gp = vidGoPro(a.name);
   const _srcTxt = a.syncSrc==='code' ? '\u2714' : a.syncSrc==='chain' ? '\u26D3' : '';
   const probe = a.probedMs ? new Date(a.probedMs).toLocaleTimeString() : 'No timestamp';
-  if(!VID.syncTab) VID.syncTab = (a.syncSrc==='code'||a.syncSrc==='chain') ? 'code' : (a.probedMs ? 'auto' : 'chart');
+  if(!VID.syncTab) VID.syncTab = 'auto';
   const segB=(m,l)=>`<button class="vid-clip-tab vid-seg${VID.syncTab===m?' on':''}" data-seg="${m}" onclick="vidSyncTabSet('${m}')">${l}</button>`;
   const segS=m=>VID.syncTab===m?'':'display:none;';
 
@@ -8285,11 +8285,17 @@ function vidSizeOverlay(){
   const cv=document.getElementById('vidOverlay');
   const el=document.getElementById('vidEl');
   if(!stage||!cv||!el) return;
-  const w=stage.clientWidth||el.clientWidth||640;
-  const h=el.clientHeight|| (w*9/16);
+  const bw=el.clientWidth||stage.clientWidth||640;
+  const bh=el.clientHeight||(bw*9/16);
+  let w=bw, h=bh, ox=0, oy=0;
+  if(el.videoWidth && el.videoHeight){
+    const s=Math.min(bw/el.videoWidth, bh/el.videoHeight);
+    w=el.videoWidth*s; h=el.videoHeight*s; ox=(bw-w)/2; oy=(bh-h)/2;
+  }
   const dpr=window.devicePixelRatio||1;
   cv.width=Math.round(w*dpr); cv.height=Math.round(h*dpr);
-  cv.style.height=h+'px';
+  cv.style.left=(el.offsetLeft+ox)+'px'; cv.style.top=(el.offsetTop+oy)+'px';
+  cv.style.width=w+'px'; cv.style.height=h+'px';
   cv._dpr=dpr; cv._w=w; cv._h=h;
 }
 
@@ -8393,8 +8399,9 @@ function vidBoxRect(W,H,st){
   });
   const bw=inner+pad*2;
   const bh=hh+rows*lh+pad*2;
-  const x=clamp(VID.cfg.boxX/100*W,0,Math.max(0,W-bw));
-  const y=clamp(VID.cfg.boxY/100*H,0,Math.max(0,H-bh));
+  const m=Math.round(Math.min(W,H)*0.025);
+  const x=clamp(VID.cfg.boxX/100*W,m,Math.max(m,W-bw-m));
+  const y=clamp(VID.cfg.boxY/100*H,m,Math.max(m,H-bh-m));
   return {x,y,bw,bh,fs,lh,pad,hh};
 }
 function vidDrawBox(ctx,W,H,st){
@@ -8460,8 +8467,9 @@ function vidCurveRect(W,H){
   const sc=VID.cfg.curveScale;
   const cw=Math.min(W*0.42*sc, W*0.9);
   const ch=cw*0.52;
-  const x=clamp(VID.cfg.curveX/100*W,0,Math.max(0,W-cw));
-  const y=clamp(VID.cfg.curveY/100*H,0,Math.max(0,H-ch));
+  const m=Math.round(Math.min(W,H)*0.025);
+  const x=clamp(VID.cfg.curveX/100*W,m,Math.max(m,W-cw-m));
+  const y=clamp(VID.cfg.curveY/100*H,m,Math.max(m,H-ch-m));
   return {x,y,cw,ch};
 }
 /* Corner grip for the box and the curve. Drawn only on the live overlay, never
@@ -8483,7 +8491,7 @@ function vidDrawGrip(ctx,x,y){
 function vidDrawGrips(ctx,W,H,st){
   if(VID.exporting) return;
   if(VID.cfg.showBox){ const br=vidBoxRect(W,H,st); vidDrawGrip(ctx,br.x+br.bw,br.y+br.bh); }
-  if(VID.cfg.showCurve){ const cr=vidCurveRect(W,H); vidDrawGrip(ctx,cr.x+cr.cw,cr.y+cr.ch); }
+  if(VID.cfg.showCurve){ const cr=vidCurveRect(W,H); vidDrawGrip(ctx,cr.x,cr.y+cr.ch); }
 }
 function vidDrawCurve(ctx,W,H,st){
   const r=vidCurveRect(W,H);
@@ -8651,9 +8659,9 @@ function vidWireDrag(){
       if(VID.cfg.showBox && near(br.x+br.bw,br.y+br.bh)){
         VID.drag='box-size'; VID._sc0=VID.cfg.boxScale;
         VID._ox=br.x; VID._oy=br.y; VID._d0=Math.max(14,Math.hypot(x-br.x,y-br.y));
-      } else if(VID.cfg.showCurve && near(cr.x+cr.cw,cr.y+cr.ch)){
+      } else if(VID.cfg.showCurve && near(cr.x,cr.y+cr.ch)){
         VID.drag='curve-size'; VID._sc0=VID.cfg.curveScale;
-        VID._ox=cr.x; VID._oy=cr.y; VID._d0=Math.max(14,Math.hypot(x-cr.x,y-cr.y));
+        VID._ox=cr.x+cr.cw; VID._oy=cr.y; VID._d0=Math.max(14,Math.hypot(x-VID._ox,y-cr.y));
       } else if(VID.cfg.showBox && x>=br.x&&x<=br.x+br.bw&&y>=br.y&&y<=br.y+br.bh){
         VID.drag='box'; VID.dragDX=x-br.x; VID.dragDY=y-br.y;
       } else if(VID.cfg.showCurve && x>=cr.x&&x<=cr.x+cr.cw&&y>=cr.y&&y<=cr.y+cr.ch){
@@ -8672,7 +8680,7 @@ function vidWireDrag(){
     if(VID.drag==='box-size'||VID.drag==='curve-size'){
       const sc=VID._sc0*(Math.hypot(x-VID._ox,y-VID._oy)/VID._d0);
       if(VID.drag==='box-size') VID.cfg.boxScale=clamp(sc,0.6,2.2);
-      else VID.cfg.curveScale=clamp(sc,0.5,2.4);
+      else { VID.cfg.curveScale=clamp(sc,0.5,2.4); const cr2=vidCurveRect(W,H); VID.cfg.curveX=clamp((VID._ox-cr2.cw)/W*100,0,100); }
       vidDraw(); return;
     }
     const nx=x-VID.dragDX, ny=y-VID.dragDY;
