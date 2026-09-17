@@ -308,6 +308,8 @@
   .vid-play,#addcurvebtn,.brpill-row .dzbtn-pri,.brpill-row .dzbtn-pri:hover{background:var(--acc);color:#fff;}
   .vid-panel .vid-clip-tab[style*="var(--b)"]{background:var(--acc)!important;border-color:var(--acc)!important;color:#fff!important;}
   .vid-panel{background:var(--s1);}
+  .vid-clip-tab.flagged{border:2px solid var(--acc)!important;color:var(--text);}
+  .vid-clip-tab.flagged.on{color:#04201D;}
   .sz-star.on{background:var(--acc-y);box-shadow:0 3px 9px rgba(255,182,72,.40);}
   .asc{border-left-color:var(--acc-2);}
   .asc:hover{border-left-color:var(--acc);}
@@ -398,7 +400,7 @@ body.light .hdrname{color:#fff;}
   .vid-clip-tab .x{margin-left:6px;opacity:.6;}
   .vid-clip-tab.open-already{opacity:.45;}
   .vid-clip-tab.flagged{border-color:var(--g);color:var(--g);}
-  .vid-tabs-hd{font-size:10px;letter-spacing:.06em;text-transform:uppercase;color:var(--muted);margin:0 0 4px;}
+  .vid-tabs-hd{font-size:11px;font-weight:600;text-transform:none;color:var(--muted);margin:0 0 4px;}
   .vid-mchips{display:flex;flex-wrap:wrap;gap:5px;}
   .vid-mchip{background:var(--s2);border:1px solid var(--border);color:var(--muted);border-radius:14px;padding:3px 10px;font-size:10px;cursor:pointer;user-select:none;}
   .vid-mchip.on{background:var(--b);color:#000;border-color:var(--b);}
@@ -7418,8 +7420,8 @@ async function vidScanMatches() {
     let names = [];
     if (_anVidDirHandle) {
       let perm = await _anVidDirHandle.queryPermission({ mode: 'read' });
-      if (perm !== 'granted') perm = await _anVidDirHandle.requestPermission({ mode: 'read' });
-      if (perm !== 'granted') { box.innerHTML = ''; return; }
+      if (perm !== 'granted') { try { perm = await _anVidDirHandle.requestPermission({ mode: 'read' }); } catch (e) {} }
+      if (perm !== 'granted') { box.innerHTML = '<div class="vid-tabs-hd">Available videos</div><button class="vid-clip-tab" onclick="vidScanMatches()">&#128193; Show videos</button>'; return; }
       for await (const [name, handle] of _anVidDirHandle.entries()) {
         if (handle.kind !== 'file') continue;
         names.push(name);
@@ -7444,11 +7446,11 @@ async function vidScanMatches() {
     others.sort((a, b) => a.ms - b.ms);
     let html = '';
     if (flagged.length) {
-      html += '<div class="vid-mini" style="margin-bottom:4px;">This session</div>' +
+      html += '<div class="vid-tabs-hd">This session</div>' +
         flagged.map(name => `<button class="vid-clip-tab flagged${vidIsOpen(name)?' open-already':''}" onclick="vidAddFromDir('${name.replace(/'/g, "\\'")}')">${vidLabel(name)}${vidIsOpen(name)?' \u2713 open':''}</button>`).join('');
     }
     if (others.length) {
-      html += '<div class="vid-mini" style="margin:6px 0 4px;">Nearby</div>' +
+      html += '<div class="vid-tabs-hd" style="margin-top:6px;">Available videos</div>' +
         others.map(m => `<button class="vid-clip-tab${vidIsOpen(m.name)?' open-already':''}" onclick="vidAddFromDir('${m.name.replace(/'/g, "\\'")}')">${vidLabel(m.name)}${vidIsOpen(m.name)?' \u2713 open':''}</button>`).join('');
     }
     if (!html) html = flags.length ? '<div class="vid-mini">Not found in folder</div>' : '';
@@ -7585,7 +7587,8 @@ function vidRenderBody(){
   }
   const a=VID.clips[VID.active];
   const cfg=VID.cfg;
-  const tabs=VID.clips.map((c,i)=>`<div class="vid-clip-tab${i===VID.active?' on':''}" onclick="vidSetActive(${i})">${vidLabel(c.name)}<span class="x" onclick="event.stopPropagation();vidRemoveClip(${i})">\u00D7</span></div>`).join('');
+  const _flagIds=(VID_FLAGS||[]).map(f=>f.id);
+  const tabs=VID.clips.map((c,i)=>`<div class="vid-clip-tab${i===VID.active?' on':''}${_flagIds.includes(c.name)?' flagged':''}" onclick="vidSetActive(${i})">${vidLabel(c.name)}<span class="x" onclick="event.stopPropagation();vidRemoveClip(${i})">\u00D7</span></div>`).join('');
   const mchips=VID_METRIC_ORDER.filter(k=>!vidKeyHidden(k)).map(k=>`<div class="vid-mchip${cfg.metrics.includes(k)?' on':''}" onclick="vidToggleMetric('${k}')">${VID_METRICS[k].l}</div>`).join('');
   let tplRowHtml='';
   if(isPro()){
