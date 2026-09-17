@@ -236,7 +236,9 @@
   /* ── Map-left + Stroke-right row ── */
   #map-stroke-row { display: none; flex-wrap: wrap; gap: 12px; padding: 0 16px 12px; }
   #map-stroke-row.on { display: flex; }
-  .map-col { flex: 0 0 25%; min-width: 240px; }
+  .info-row { flex: 0 0 100%; display: flex; gap: 12px; min-width: 0; }
+  .info-col { flex: 1 1 0; min-width: 0; }
+  .map-col { flex: 0 0 calc(25% - 9px); min-width: 240px; }
   .map-col .sec-hd { margin-bottom: 4px; }
   .stroke-col { flex: 1; min-width: 280px; overflow: hidden; }
   .stroke-col .twrap { max-height: 480px; }
@@ -272,6 +274,8 @@
     #statsstrip { margin-left: 12px; margin-right: 12px; }
     #map-stroke-row { padding: 0 12px 10px; flex-direction: column; }
     .map-col, .stroke-col { flex: none; width: 100%; }
+    .info-row { flex-direction: column; }
+    .info-col { flex: none; width: 100%; }
     .curve-layout { flex-direction: column; }
   }
 
@@ -710,24 +714,32 @@ body.light .hdrname{color:#fff;}
 
   <!-- Map (left) + Stroke data (right) -->
   <div id="map-stroke-row">
-    <div class="map-col">
+    <div class="info-row">
+    <div class="info-col">
       <div id="lapsec" style="display:none;">
         <div class="sec-hd" style="padding:0 0 4px;"><h2>Laps</h2></div>
         <div id="laptypebar" style="margin-bottom:6px;"></div>
         <div class="twrap" style="max-height:160px;margin-bottom:8px;"><table id="laptbl"><thead></thead><tbody></tbody></table></div>
       </div>
-      <div id="mapsec" style="display:none;">
-        <div class="sec-hd" style="padding:0 0 4px;"><h2>Route Map</h2><span id="maplbl" style="font-size:10px;color:var(--muted);"></span><button class="hbtn" id="sectorAddBtn" style="margin-left:auto;font-size:10px;" onclick="window.startSectorCreate()">＋ Sector</button></div>
-        <div id="mapbox"></div>
-      </div>
+    </div>
+    <div class="info-col">
       <div id="sectorsec" style="display:none;">
-        <div class="sec-hd" style="padding:8px 0 4px;"><h2>Sectors</h2><span id="sectorlbl" style="font-size:10px;color:var(--muted);"></span><button class="hbtn" id="sectorScanBtn" style="margin-left:auto;font-size:10px;" onclick="window.scanAllSectors()">Scan all</button></div>
+        <div class="sec-hd" style="padding:0 0 4px;"><h2>Sectors</h2><span id="sectorlbl" style="font-size:10px;color:var(--muted);"></span><button class="hbtn" id="sectorScanBtn" style="margin-left:auto;font-size:10px;" onclick="window.scanAllSectors()">Scan all</button></div>
         <div id="sectorbody"></div>
       </div>
+    </div>
+    <div class="info-col">
       <!-- Time in Heart Rate Zones -->
       <div id="hrzonesec" style="display:none;">
         <div class="sec-hd" style="padding:0 0 4px;"><h2>Time in Heart Rate Zones</h2></div>
         <div id="hrzonebody"></div>
+      </div>
+    </div>
+    </div>
+    <div class="map-col">
+      <div id="mapsec" style="display:none;">
+        <div class="sec-hd" style="padding:0 0 4px;"><h2>Route Map</h2><span id="maplbl" style="font-size:10px;color:var(--muted);"></span><button class="hbtn" id="sectorAddBtn" style="margin-left:auto;font-size:10px;" onclick="window.startSectorCreate()">＋ Sector</button></div>
+        <div id="mapbox"></div>
       </div>
     </div>
     <div class="stroke-col" id="tbsec">
