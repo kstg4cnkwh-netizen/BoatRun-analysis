@@ -239,6 +239,7 @@
   .info-row { flex: 0 0 100%; display: flex; gap: 12px; min-width: 0; align-items: stretch; }
   .info-col { flex: 1 1 0; min-width: 0; height: 300px; overflow: auto; box-sizing: border-box; }
   .info-col.brpill { margin-bottom: 0; }
+  .info-col.info-wide { flex: 2 1 0; }
   .info-col .twrap { max-height: none !important; margin-bottom: 0 !important; }
   .info-col .sec-hd { margin-bottom: 4px; }
   .map-col { flex: 0 0 calc(25% - 9px); min-width: 240px; }
@@ -278,7 +279,7 @@
     #map-stroke-row { padding: 0 12px 10px; flex-direction: column; }
     .map-col, .stroke-col { flex: none; width: 100%; }
     .info-row { flex-direction: column; }
-    .info-col { flex: none; width: 100%; height: 300px; }
+    .info-col, .info-col.info-wide { flex: none; width: 100%; height: 300px; }
     .curve-layout { flex-direction: column; }
   }
 
@@ -725,7 +726,7 @@ body.light .hdrname{color:#fff;}
         <div class="twrap" style="max-height:160px;margin-bottom:8px;"><table id="laptbl"><thead></thead><tbody></tbody></table></div>
       </div>
     </div>
-    <div class="info-col brpill">
+    <div class="info-col info-wide brpill">
       <div id="sectorsec" style="display:none;">
         <div class="sec-hd" style="padding:0 0 4px;"><h2>Sectors</h2><span id="sectorlbl" style="font-size:10px;color:var(--muted);"></span><button class="hbtn" id="sectorListBtn" style="margin-left:auto;font-size:10px;" onclick="window.showSectorList()">All sectors</button><button class="hbtn" id="sectorScanBtn" style="font-size:10px;" onclick="window.scanAllSectors()">Scan all</button><button class="hbtn" id="sectorAddBtn" style="font-size:10px;" onclick="window.startSectorCreate()">＋ Create Sector</button></div>
         <div id="sectorbody"></div>
@@ -2718,10 +2719,14 @@ function _sectorMapClick(e){
     return;
   }
   const i0=c.i0,i1=nr.i,editId=c.editId,oldSec=editId?SECTORS_DB.find(x=>x.id===editId):null;
+  const _hlPts=GPSTRACE.slice(i0,i1+1).filter(q=>q.lat!=null&&q.lon!=null).map(q=>[q.lat,q.lon]);
+  if(_hlPts.length>1){const _hl=L.polyline(_hlPts,{color:'#ff2fd0',weight:6,opacity:0.95}).addTo(leafletMap);c.markers.unshift(_hl);if(mapBaseLine)mapBaseLine.setStyle({opacity:0.25});leafletMap.fitBounds(_hl.getBounds(),{padding:[30,30]});}
   c.markers.push(L.circleMarker([p.lat,p.lon],{radius:7,fillColor:'#f54040',color:'#000',weight:2,fillOpacity:1}).addTo(leafletMap));
+  c.markers.forEach(m=>{if(m.bringToFront)m.bringToFront();});
   setTimeout(()=>{
     const name=(prompt('Sector name',oldSec?oldSec.name:'')||'').trim();
     cancelSectorCreate();
+    if(mapBaseLine)mapBaseLine.setStyle({opacity:curveGroups.length?0.25:0.85});
     if(!name)return;
     const s=buildSectorFromTrace(GPSTRACE,i0,i1,name);
     if(!s){toast('Sector must be at least '+SECTOR_MIN_M+' m');return;}
@@ -2734,7 +2739,7 @@ function _sectorMapClick(e){
     if(scanTraceForSector(s,GPSTRACE,_dg).length)toast('Sector saved · '+s.distance+' m');
     else toast('Sector saved · '+s.distance+' m — not detected in this session: '+_dg.reason,8000);
     if(AnalyserDrive.isSignedIn()&&confirm('Scan all Drive sessions for "'+name+'"?'))scanAllSectors(s.id);
-  },50);
+  },250);
 }
 window.startSectorCreate=function(editId){
   if(_sectorCreate){cancelSectorCreate();return;}
