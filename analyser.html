@@ -676,7 +676,7 @@ body.light .hdrname{color:#fff;}
   <div class="sec" id="videosec">
     <div class="sec-hd">
       <h2>Video Overlay</h2>
-      <button class="hbtn" id="vidDirBtn" style="margin-left:auto;font-size:10px;">&#128193; Folder</button>
+      <button class="hbtn" id="vidDirBtn" style="margin-left:auto;font-size:10px;">&#128193; Set video folder</button>
       <button class="hbtn" id="vidAddBtn" style="font-size:10px;">＋ Video</button>
     </div>
     <input type="file" id="vidFin" accept="video/*" multiple style="display:none">
@@ -7405,14 +7405,20 @@ async function chooseAnVidDir() {
   const fin = document.getElementById('vidDirFin');
   if (fin) fin.click();
 }
+function vidDirBtnUI() {
+  const b = document.getElementById('vidDirBtn'); if (!b) return;
+  const n = _anVidDirHandle ? _anVidDirHandle.name : (_anVidDirFiles ? (_anVidDirFiles._name || 'folder') : '');
+  b.innerHTML = n ? ('&#128193; /' + escHtml(n) + ' set') : '&#128193; Set video folder';
+}
 async function vidScanMatches() {
+  vidDirBtnUI();
   const box = document.getElementById('vidMatchBox');
   if (!box) return;
   if (!VID_SESS_T0) { box.innerHTML = ''; return; }
   const flags = VID_FLAGS || [];
   if (!_anVidDirHandle && !_anVidDirFiles) {
     if (flags.length) {
-      box.innerHTML = '<div class="vid-mini">' + flags.length + ' coach video' + (flags.length > 1 ? 's' : '') + ' \u00b7 <button class="vid-clip-tab" onclick="chooseAnVidDir()">&#128193; Folder</button></div>';
+      box.innerHTML = '<div class="vid-mini">' + flags.length + ' coach video' + (flags.length > 1 ? 's' : '') + ' \u00b7 <button class="vid-clip-tab" onclick="chooseAnVidDir()">&#128193; Open folder</button></div>';
     } else { box.innerHTML = ''; }
     return;
   }
@@ -7481,6 +7487,7 @@ function vidWire(){
     e.target.value='';
     if(!files.length) return;
     _anVidDirFiles=new Map();
+    _anVidDirFiles._name=(files[0].webkitRelativePath||'').split('/')[0]||'';
     files.forEach(f=>{
       const name=f.webkitRelativePath?f.webkitRelativePath.split('/').pop():f.name;
       _anVidDirFiles.set(name,f);
