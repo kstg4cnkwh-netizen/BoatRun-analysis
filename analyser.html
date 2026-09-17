@@ -7707,20 +7707,20 @@ function vidRenderBody(){
       </div>
     </div>
 
+    <div class="vid-panel vp-2">
+      <div class="vid-panel-hd">Metrics<label><input type="checkbox" id="vidShowBox" ${cfg.showBox?'checked':''}> Show</label></div>
+      <div class="vid-mchips">${mchips}</div>
+      <div class="vid-row" style="margin-top:6px;">
+        <div class="vid-slider"><span>Opacity</span><input type="range" id="vidOpacity" min="0" max="100" value="${Math.round(cfg.opacity*100)}"></div>
+      </div>
+    </div>
+
     <div class="vid-panel vp-1">
       <div class="vid-panel-hd">Curve<label><input type="checkbox" id="vidShowCurve" ${cfg.showCurve?'checked':''}> Show</label></div>
       <div class="vid-stack">
         <label><input type="checkbox" id="vidCurveAvg5" ${cfg.curveAvg5?'checked':''}> Avg 5</label>
         <div class="vid-slider"><span>Opacity</span><input type="range" id="vidCurveOpacity" min="0" max="100" value="${Math.round(cfg.curveOpacity*100)}"></div>
         ${tplRowHtml}
-      </div>
-    </div>
-
-    <div class="vid-panel vp-2">
-      <div class="vid-panel-hd">Metrics<label><input type="checkbox" id="vidShowBox" ${cfg.showBox?'checked':''}> Show</label></div>
-      <div class="vid-mchips">${mchips}</div>
-      <div class="vid-row" style="margin-top:6px;">
-        <div class="vid-slider"><span>Opacity</span><input type="range" id="vidOpacity" min="0" max="100" value="${Math.round(cfg.opacity*100)}"></div>
       </div>
     </div>
 
