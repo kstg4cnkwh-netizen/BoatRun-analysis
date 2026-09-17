@@ -1350,8 +1350,10 @@ const AnalyserDrive = {
     const content = await this.fetchSession(fileId);
     const wlm = Array.isArray(content.workoutLapMetrics) ? content.workoutLapMetrics : [];
     const dst = wlm.length ? wlm : (Array.isArray(content.laps) ? content.laps : []);
-    if (!dst.length) throw new Error('no laps in session file');
-    types.forEach((t, i) => { if (dst[i]) dst[i].type = t || null; });
+    let dstUse = dst;
+    if (!dstUse.length && types.length === 1) { content.laps = [{ n: 1, dist: content.distance, time: content.duration, pace: content.avgPace, rate: content.avgRate, startT: 0, startD: 0, type: null }]; dstUse = content.laps; }
+    if (!dstUse.length) throw new Error('no laps in session file');
+    types.forEach((t, i) => { if (dstUse[i]) dstUse[i].type = t || null; });
     const form = new FormData();
     form.append('metadata', new Blob([JSON.stringify({})], { type: 'application/json' }));
     form.append('file', new Blob([JSON.stringify(content)], { type: 'application/json' }));
@@ -2687,76 +2689,176 @@ function renderSectors(){
   body.innerHTML=h;
   refreshSelButtons();
 }
-function _sectorNearestIdx(latlng,minIdx){
-  const o={lat:latlng.lat,lon:latlng.lng}, from=Math.max(0,minIdx||0), ds=[];
+function _sectorNearestIdx(latlng,minIdx,maxIdx){
+  const o={lat:latlng.lat,lon:latlng.lng};
+  const from=Math.max(0,minIdx||0), to=Math.min(GPSTRACE.length-1,maxIdx==null?GPSTRACE.length-1:maxIdx);
+  const ds=[];
   let bm=Infinity;
-  for(let i=from;i<GPSTRACE.length;i++){
+  for(let i=from;i<=to;i++){
     const p=GPSTRACE[i];
     if(p.lat==null||p.lon==null){ds.push(Infinity);continue;}
     const xy=sectorXY(p.lat,p.lon,o),m=Math.hypot(xy[0],xy[1]);
     ds.push(m);if(m<bm)bm=m;
   }
   if(bm===Infinity)return {i:-1,m:Infinity};
+  const thr=Math.max(bm+15,30);
+  if(maxIdx!=null&&!minIdx){
+    /* Start limited to before the finish: take the LAST pass before it. */
+    let k=ds.length-1;while(k>=0&&ds[k]>thr)k--;
+    let bi=k,bv=ds[k];
+    while(k>=0&&ds[k]<=thr){if(ds[k]<bv){bv=ds[k];bi=k;}k--;}
+    return {i:from+bi,m:bv};
+  }
   if(!minIdx){
     let bi=-1;ds.forEach((m,k)=>{if(m===bm&&bi<0)bi=k;});
     return {i:from+bi,m:bm};
   }
   /* Finish: take the FIRST pass after the start that comes near the click,
-     not the closest point anywhere later in the session - otherwise a session
-     with several laps of the same stretch can pick a later lap and the sector
-     swallows the turns and rests in between. */
-  const thr=Math.max(bm+15,30);
+     not the closest point anywhere later in the session. */
   let k=0;while(k<ds.length&&ds[k]>thr)k++;
   let bi=k,bv=ds[k];
   while(k<ds.length&&ds[k]<=thr){if(ds[k]<bv){bv=ds[k];bi=k;}k++;}
   return {i:from+bi,m:bv};
 }
+function _sectorClearLayers(c){
+  if(!c)return;
+  ['line','start','finish'].forEach(k=>{if(c[k]){try{if(leafletMap)leafletMap.removeLayer(c[k]);}catch{}c[k]=null;}});
+}
 function cancelSectorCreate(){
-  if(_sectorCreate){_sectorCreate.markers.forEach(m=>{try{if(leafletMap)leafletMap.removeLayer(m);}catch{}});}
+  _sectorClearLayers(_sectorCreate);
   _sectorCreate=null;
-  if(leafletMap){leafletMap.off('click',_sectorMapClick);leafletMap.getContainer().style.cursor='';}
+  document.getElementById('sectorAdjust')?.remove();
+  if(leafletMap){leafletMap.off('click',_sectorMapClick);leafletMap.getContainer().style.cursor='';setTimeout(()=>{if(leafletMap)leafletMap.invalidateSize();},50);}
+  if(mapBaseLine)mapBaseLine.setStyle({opacity:curveGroups.length?0.25:0.85});
   const b=document.getElementById('sectorAddBtn');if(b)b.textContent='＋ Create Sector';
+}
+function _sectorEndIcon(col,lbl){
+  return L.divIcon({html:'<div style="width:18px;height:18px;border-radius:50%;background:'+col+';border:2px solid #000;box-shadow:0 1px 4px rgba(0,0,0,.7);display:flex;align-items:center;justify-content:center;font:700 9px -apple-system,sans-serif;color:#000;cursor:grab;">'+lbl+'</div>',iconSize:[22,22],iconAnchor:[11,11],className:''});
+}
+function _sectorTrackLen(i0,i1){
+  let m=0;
+  for(let i=i0+1;i<=i1;i++){
+    const a=GPSTRACE[i-1],b=GPSTRACE[i];
+    if(a.lat==null||b.lat==null)continue;
+    const xy=sectorXY(b.lat,b.lon,{lat:a.lat,lon:a.lon});m+=Math.hypot(xy[0],xy[1]);
+  }
+  return m;
+}
+function _sectorDrawEdit(fit){
+  const c=_sectorCreate;if(!c||!leafletMap)return;
+  _sectorClearLayers(c);
+  if(c.i0>=0&&c.i1>c.i0){
+    const pts=GPSTRACE.slice(c.i0,c.i1+1).filter(q=>q.lat!=null&&q.lon!=null).map(q=>[q.lat,q.lon]);
+    if(pts.length>1){c.line=L.polyline(pts,{color:'#ff2fd0',weight:6,opacity:0.95}).addTo(leafletMap);if(mapBaseLine)mapBaseLine.setStyle({opacity:0.25});if(fit)leafletMap.fitBounds(c.line.getBounds(),{padding:[30,30]});}
+  }
+  const mk=(idx,col,lbl,which)=>{
+    const p=GPSTRACE[idx];if(!p)return null;
+    const m=L.marker([p.lat,p.lon],{icon:_sectorEndIcon(col,lbl),draggable:true,zIndexOffset:1000}).addTo(leafletMap);
+    if(m.on)m.on('dragend',ev=>{const ll=ev.target.getLatLng();_sectorMoveEnd(which,ll);});
+    return m;
+  };
+  if(c.i0>=0)c.start=mk(c.i0,'#2ee06a','S','start');
+  if(c.i1>=0)c.finish=mk(c.i1,'#f54040','F','finish');
+  _sectorPanelUpdate();
+}
+function _sectorMoveEnd(which,latlng){
+  const c=_sectorCreate;if(!c)return;
+  let nr;
+  if(which==='start')nr=_sectorNearestIdx(latlng,0,c.i1-3);
+  else nr=_sectorNearestIdx(latlng,c.i0+3);
+  if(nr.i<0||nr.m>50){toast('Drop closer to the track');_sectorDrawEdit(false);return;}
+  if(which==='start')c.i0=nr.i;else c.i1=nr.i;
+  _sectorDrawEdit(false);
+}
+window.sectorNudge=function(which,metres){
+  const c=_sectorCreate;if(!c||c.i1<0)return;
+  let idx=which==='start'?c.i0:c.i1;
+  const dir=metres<0?-1:1, want=Math.abs(metres);
+  let moved=0,j=idx;
+  while(moved<want){
+    const n=j+dir;
+    if(n<0||n>=GPSTRACE.length)break;
+    if(which==='start'&&n>c.i1-3)break;
+    if(which==='finish'&&n<c.i0+3)break;
+    const a=GPSTRACE[j],b=GPSTRACE[n];
+    if(a.lat!=null&&b.lat!=null){const xy=sectorXY(b.lat,b.lon,{lat:a.lat,lon:a.lon});moved+=Math.hypot(xy[0],xy[1]);}
+    j=n;
+    if(want<=1)break;
+  }
+  if(j===idx){toast('Can\'t move that way');return;}
+  if(which==='start')c.i0=j;else c.i1=j;
+  _sectorDrawEdit(false);
+};
+function _sectorPanelUpdate(){
+  const c=_sectorCreate;if(!c)return;
+  let el=document.getElementById('sectorAdjust');
+  if(c.i1<0){if(el)el.remove();return;}
+  if(!el){
+    el=document.createElement('div');
+    el.id='sectorAdjust';
+    el.style.cssText='margin-top:8px;padding:10px;border-radius:12px;background:var(--pill,var(--s2));box-shadow:var(--pill-sh);font-size:11px;color:var(--text);';
+    const nb=(w,m,t)=>'<button class="hbtn" style="font-size:10px;padding:3px 7px;min-width:34px;" onclick="window.sectorNudge(\''+w+'\','+m+')">'+t+'</button>';
+    const row=(w,lbl,col)=>'<div style="display:flex;align-items:center;gap:4px;margin-bottom:6px;flex-wrap:wrap;"><span style="width:44px;font-weight:700;color:'+col+';">'+lbl+'</span>'+nb(w,-10,'−10m')+nb(w,-1,'‹')+nb(w,1,'›')+nb(w,10,'+10m')+'</div>';
+    const old=c.editId?SECTORS_DB.find(x=>x.id===c.editId):null;
+    el.innerHTML='<div style="display:flex;align-items:center;gap:8px;margin-bottom:8px;"><b>'+(c.editId?'Redraw sector':'New sector')+'</b><span id="sectorAdjustLen" style="color:var(--muted);"></span></div>'
+      +'<div style="color:var(--muted);font-size:10px;margin-bottom:8px;">Drag S or F, click the track to move the nearest end, or nudge along the track.</div>'
+      +row('start','Start','#2ee06a')+row('finish','Finish','#f54040')
+      +'<input type="text" id="sectorAdjustName" class="brsearch" placeholder="Sector name" style="width:100%;box-sizing:border-box;margin:4px 0 8px;" value="'+(old?_secEsc(old.name):'')+'">'
+      +'<div style="display:flex;gap:6px;"><button class="dzbtn dzbtn-pri" onclick="window.sectorSaveCreate()">Save sector</button><button class="dzbtn dzbtn-sec" onclick="cancelSectorCreate()"><span>Cancel</span></button></div>';
+    const mb=document.getElementById('mapbox');
+    if(mb&&mb.parentNode)mb.parentNode.insertBefore(el,mb.nextSibling);else document.body.appendChild(el);
+    const inp=document.getElementById('sectorAdjustName');
+    if(inp)inp.addEventListener('keydown',e=>{if(e.key==='Enter')window.sectorSaveCreate();});
+    setTimeout(()=>{if(leafletMap)leafletMap.invalidateSize();},50);
+  }
+  const len=document.getElementById('sectorAdjustLen');
+  if(len)len.textContent='≈ '+Math.round(_sectorTrackLen(c.i0,c.i1))+' m along track';
 }
 function _sectorMapClick(e){
   const c=_sectorCreate;if(!c)return;
-  const nr=_sectorNearestIdx(e.latlng,c.i0<0?0:c.i0+1);
-  if(nr.i<0||nr.m>50){toast('Click closer to the track');return;}
-  const p=GPSTRACE[nr.i];
   if(c.i0<0){
-    c.i0=nr.i;
-    c.markers.push(L.circleMarker([p.lat,p.lon],{radius:7,fillColor:'#2ee06a',color:'#000',weight:2,fillOpacity:1}).addTo(leafletMap));
+    const nr=_sectorNearestIdx(e.latlng,0);
+    if(nr.i<0||nr.m>50){toast('Click closer to the track');return;}
+    c.i0=nr.i;_sectorDrawEdit(false);
     toast('Click the sector finish on the track',4000);
     return;
   }
-  const i0=c.i0,i1=nr.i,editId=c.editId,oldSec=editId?SECTORS_DB.find(x=>x.id===editId):null;
-  const _hlPts=GPSTRACE.slice(i0,i1+1).filter(q=>q.lat!=null&&q.lon!=null).map(q=>[q.lat,q.lon]);
-  if(_hlPts.length>1){const _hl=L.polyline(_hlPts,{color:'#ff2fd0',weight:6,opacity:0.95}).addTo(leafletMap);c.markers.unshift(_hl);if(mapBaseLine)mapBaseLine.setStyle({opacity:0.25});leafletMap.fitBounds(_hl.getBounds(),{padding:[30,30]});}
-  c.markers.push(L.circleMarker([p.lat,p.lon],{radius:7,fillColor:'#f54040',color:'#000',weight:2,fillOpacity:1}).addTo(leafletMap));
-  c.markers.forEach(m=>{if(m.bringToFront)m.bringToFront();});
-  setTimeout(()=>{
-    const name=(prompt('Sector name',oldSec?oldSec.name:'')||'').trim();
-    cancelSectorCreate();
-    if(mapBaseLine)mapBaseLine.setStyle({opacity:curveGroups.length?0.25:0.85});
-    if(!name)return;
-    const s=buildSectorFromTrace(GPSTRACE,i0,i1,name);
-    if(!s){toast('Sector must be at least '+SECTOR_MIN_M+' m');return;}
-    if(editId){const ix=SECTORS_DB.findIndex(x=>x.id===editId);if(ix<0)return;s.id=editId;s.created=SECTORS_DB[ix].created||s.created;SECTORS_DB[ix]=s;}
-    else SECTORS_DB.push(s);
-    SESSIONS.forEach(x=>updateSectorsFromData(x.d,x.label,x.fileId,s.id));
-    saveSectors();
-    renderSectors();
-    const _dg={};
-    if(scanTraceForSector(s,GPSTRACE,_dg).length)toast('Sector saved · '+s.distance+' m');
-    else toast('Sector saved · '+s.distance+' m · this pass is not a result ('+_dg.reason+')',8000);
-    if(AnalyserDrive.isSignedIn()&&confirm('Scan all Drive sessions for "'+name+'"?'))runSectorScan(s.id);
-  },250);
+  if(c.i1<0){
+    const nr=_sectorNearestIdx(e.latlng,c.i0+3);
+    if(nr.i<0||nr.m>50){toast('Click closer to the track');return;}
+    c.i1=nr.i;_sectorDrawEdit(true);
+    return;
+  }
+  /* Adjusting: move whichever end is nearer the click. */
+  const o={lat:e.latlng.lat,lon:e.latlng.lng};
+  const dist=i=>{const p=GPSTRACE[i];const xy=sectorXY(p.lat,p.lon,o);return Math.hypot(xy[0],xy[1]);};
+  _sectorMoveEnd(dist(c.i0)<=dist(c.i1)?'start':'finish',e.latlng);
 }
+window.sectorSaveCreate=function(){
+  const c=_sectorCreate;if(!c||c.i0<0||c.i1<=c.i0)return;
+  const inp=document.getElementById('sectorAdjustName');
+  const name=((inp&&inp.value)||'').trim();
+  if(!name){toast('Enter a sector name');if(inp)inp.focus();return;}
+  const i0=c.i0,i1=c.i1,editId=c.editId;
+  const s=buildSectorFromTrace(GPSTRACE,i0,i1,name);
+  if(!s){toast('Sector must be at least '+SECTOR_MIN_M+' m');return;}
+  cancelSectorCreate();
+  if(editId){const ix=SECTORS_DB.findIndex(x=>x.id===editId);if(ix<0)return;s.id=editId;s.created=SECTORS_DB[ix].created||s.created;SECTORS_DB[ix]=s;}
+  else SECTORS_DB.push(s);
+  SESSIONS.forEach(x=>updateSectorsFromData(x.d,x.label,x.fileId,s.id));
+  saveSectors();
+  renderSectors();
+  const _dg={};
+  if(scanTraceForSector(s,GPSTRACE,_dg).length)toast('Sector saved · '+s.distance+' m');
+  else toast('Sector saved · '+s.distance+' m · this pass is not a result ('+_dg.reason+')',8000);
+  if(AnalyserDrive.isSignedIn())setTimeout(()=>{if(confirm('Scan all Drive sessions for "'+name+'"?'))runSectorScan(s.id);},300);
+};
 window.startSectorCreate=function(editId){
   if(!isPro()){showPlanModal('Sectors are a Pro feature.');return;}
   if(_sectorCreate){cancelSectorCreate();return;}
   if(!leafletMap||GPSTRACE.length<2){toast('No GPS track');return;}
   clearSectorHighlight();
-  _sectorCreate={i0:-1,markers:[],editId:(typeof editId==='string'?editId:null)};
+  _sectorCreate={i0:-1,i1:-1,line:null,start:null,finish:null,editId:(typeof editId==='string'?editId:null)};
   const b=document.getElementById('sectorAddBtn');if(b)b.textContent='✕ Cancel';
   leafletMap.getContainer().style.cursor='crosshair';
   leafletMap.on('click',_sectorMapClick);
@@ -6678,29 +6780,30 @@ function lapTypeChip(type){
   return `<span style="display:inline-block;padding:1px 6px;border-radius:10px;font-size:7.5px;font-weight:700;letter-spacing:.6px;color:${c};background:${bg};text-transform:uppercase;">${type}</span>`;
 }
 function buildLaps(){
-  const showLaps=LAPS.filter(l=>'stroke_rate_spm' in l);
+  let showLaps=LAPS.filter(l=>'stroke_rate_spm' in l);
+  if(!showLaps.length&&ST.length){
+    /* No laps recorded: treat the whole session as one real lap so it can be
+       typed, selected and added to curves like any other lap. */
+    const _cs=SESSIONS[activeSessionIdx];
+    const sum=(_cs&&_cs.d&&_cs.d.sum)||_lastSum||{};
+    const dist=+sum.distance_m||Math.max(0,(ST[ST.length-1].dist||0)-(ST[0].dist||0));
+    const time=+sum.duration_s||(ST[ST.length-1].elapsed||0);
+    const pace=(sum.avg_pace_s_per_500m!=null&&!isNaN(+sum.avg_pace_s_per_500m))?+sum.avg_pace_s_per_500m:(dist>0?time*500/dist:null);
+    const rv=ST.filter(q=>q.rate>5&&q.rate<50).map(q=>q.rate);
+    const lap={lap:1,distance_m:dist,time_s:time,pace_s_per_500m:pace,stroke_rate_spm:rv.length?+(rv.reduce((a,b)=>a+b,0)/rv.length).toFixed(1):(sum.avg_rate_spm||null),type:null,start_time_s:0,start_dist_m:0,_synthetic:true};
+    const bpm=HR.map(h=>h.bpm).filter(b=>b>40&&b<220);
+    if(bpm.length){lap.avg_hr_bpm=Math.round(bpm.reduce((a,b)=>a+b,0)/bpm.length);lap.max_hr_bpm=Math.max(...bpm);}
+    LAPS.push(lap);
+    if(_cs&&_cs.d)_cs.d.laps=(_cs.d.laps||[]).concat([lap]);
+    showLaps=[lap];
+  }
   _showLaps=showLaps;
   activeLapTypes=new Set();
   document.getElementById('lapsec').style.display='block';
   document.querySelector('#laptbl tbody').innerHTML='';
   document.getElementById('laptypebar').innerHTML='';
   document.getElementById('lapcurvebar').innerHTML='';
-  if(!showLaps.length){
-    const _cs=SESSIONS[activeSessionIdx];
-    const sum=(_cs&&_cs.d&&_cs.d.sum)||_lastSum||{};
-    const dist=+sum.distance_m||0, time=+sum.duration_s||0;
-    const pace=(sum.avg_pace_s_per_500m!=null&&!isNaN(+sum.avg_pace_s_per_500m))?+sum.avg_pace_s_per_500m:(dist>0?time*500/dist:NaN);
-    const rv=ST.filter(s=>s.rate>5&&s.rate<50).map(s=>s.rate);
-    const rate=rv.length?(rv.reduce((a,b)=>a+b,0)/rv.length).toFixed(1):(sum.avg_rate_spm?(+sum.avg_rate_spm).toFixed(1):EM);
-    const bpm=HR.map(h=>h.bpm).filter(b=>b>40&&b<220);
-    const hasHR1=bpm.length>0;
-    document.querySelector('#laptbl thead').innerHTML='<tr><th style="text-align:left;">Type</th><th>Lap</th><th>Dist</th><th>Time</th><th>Pace</th><th>Rate</th>'+(hasHR1?'<th>HR avg</th><th>HR max</th>':'')+'</tr>';
-    document.querySelector('#laptbl tbody').innerHTML='<tr data-lap="1" style="cursor:pointer"><td>'+lapTypeChip('')+'</td><td>Lap 1</td><td>'+dist.toFixed(0)+'m</td><td>'+fmtTime(time)+'</td><td style="color:var(--mc-pace)">'+fmtPaceU(pace)+'</td><td style="color:var(--mc-rate)">'+rate+'</td>'
-      +(hasHR1?'<td style="color:var(--mc-hr)">'+Math.round(bpm.reduce((a,b)=>a+b,0)/bpm.length)+'</td><td style="color:var(--mc-hr)">'+Math.max(...bpm)+'</td>':'')+'</tr>';
-    const row=document.querySelector('#laptbl tbody tr');
-    if(row)row.addEventListener('click',()=>{if(!ST.length)return;if(_lapIsSelected('all')){_selLapN=null;clearSelection();return;}if(typeof _sectorHL!=='undefined'&&_sectorHL)clearSectorHighlight();_selLapN='all';selS=0-viewS;selE=ST.length-1-viewS;schedRender();updateSel(true);});
-    return;
-  }
+  if(!showLaps.length)return;
   assignLapNumbers();
   const _lapAvgRate=n=>{const v=ST.filter(s=>s.lapNum===n&&s.rate>5&&s.rate<50).map(s=>s.rate);return v.length?+(v.reduce((a,b)=>a+b,0)/v.length).toFixed(1):null;};
   document.getElementById('map-stroke-row').classList.add('on');
@@ -6710,7 +6813,7 @@ function buildLaps(){
   const barTypes=availTypes.filter(t=>showLaps.some(l=>l.type===t));
   const typeColor=t=>({work:'var(--g)',rest:'var(--o)',warmup:'var(--b)',cooldown:'var(--p)'}[t]||'var(--muted)');
   const _wlm=(SESSIONS[activeSessionIdx]&&SESSIONS[activeSessionIdx].d&&SESSIONS[activeSessionIdx].d.workoutLapMetrics)||[];
-  const hasWorkLaps=showLaps.some(l=>l.type==='work')&&(showLaps.some(l=>l.type==='rest')||_wlm.some(l=>l&&l.type==='work'));
+  const hasWorkLaps=showLaps.some(l=>l.type==='work');
   const lapEditBtns=_lapEditMode?
     `<button class="laptypebtn" data-type="" style="--btc:var(--g);border-color:var(--g);color:var(--g);margin-left:8px;" onclick="saveLapTypes()" title="Apply the lap types and rebuild">✓ Save lap types</button>`+
     `<button class="laptypebtn" data-type="" style="--btc:var(--muted);border-color:var(--muted);color:var(--muted);" onclick="cancelLapTypes()" title="Discard the changes">✕ Cancel</button>`
