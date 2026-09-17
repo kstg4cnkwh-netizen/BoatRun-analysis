@@ -2639,7 +2639,7 @@ function renderSectors(){
   rows.forEach(r=>{
     const s=r.s, b=s.best, isPB=b&&Math.abs(b.timeMs-r.h.timeMs)<50;
     const bestCell=b?('<div>'+fmtRecordTime(b.timeMs)+(isPB?' <span style="color:#2ee06a;font-weight:700;">PB</span>':'')+'</div><div style="color:var(--muted);">'+fmtPaceU(sectorPace(b.timeMs,s.distance))+'</div>'+(b.fileId?'<a href="#" style="color:var(--accent,#29b8ff);" onclick="event.preventDefault();window.loadSectorBest(\''+s.id+'\')">'+fmtRecordDate(b.date)+'</a>':'<div style="color:var(--muted);">'+fmtRecordDate(b.date)+'</div>')):'—';
-    h+='<tr><td style="'+td+'text-align:left;"><div style="font-weight:600;">'+_secEsc(s.name)+'</div><div style="color:var(--muted);">'+s.distance+'m · <a href="#" style="color:var(--muted);" onclick="event.preventDefault();window.deleteSector(\''+s.id+'\')">delete</a></div></td>'
+    h+='<tr><td style="'+td+'text-align:left;"><div style="font-weight:600;">'+_secEsc(s.name)+'</div><div style="color:var(--muted);">'+s.distance+'m · <a href="#" style="color:var(--accent,#29b8ff);" onclick="event.preventDefault();window.openSectorCompare(\''+s.id+'\')">compare</a> · <a href="#" style="color:var(--muted);" onclick="event.preventDefault();window.deleteSector(\''+s.id+'\')">delete</a></div></td>'
       +'<td style="'+td+'">'+fmtRecordTime(r.h.timeMs)+'</td>'
       +'<td style="'+td+'">'+fmtPaceU(sectorPace(r.h.timeMs,s.distance))+'</td>'
       +'<td style="'+td+'">'+(r.rate!=null?r.rate.toFixed(1):'—')+'</td>'
@@ -2739,6 +2739,272 @@ window.loadSectorBest=async function(id){
     addSessionFromData(sessionToAnalyserFmt(session),s.best.label||'Session',true,s.best.fileId);
   }catch(err){if(!driveAuthExpired(err))toast('Load failed: '+err.message);}
 };
+// ══════════════════════════════════════════════════════════════════════════
+// SECTOR COMPARE — actual-track playback from start-line crossing
+// ══════════════════════════════════════════════════════════════════════════
+const SECTOR_CMP_COLORS=['#29b8ff','#ff5d8f','#2ee06a','#ffb020','#b57bff','#ff7a3d','#00e0c6','#f5f542'];
+const SECTOR_CMP_MAX=8;
+let _secCmp=null;
+function _secCmpInterpPos(tr,tRel){
+  if(!tr.length)return null;
+  if(tRel<=tr[0].t)return [tr[0].lat,tr[0].lon];
+  const n=tr.length;
+  if(tRel>=tr[n-1].t)return [tr[n-1].lat,tr[n-1].lon];
+  let lo=0,hi=n-1;
+  while(hi-lo>1){const m=(lo+hi)>>1;if(tr[m].t<=tRel)lo=m;else hi=m;}
+  const a=tr[lo],b=tr[hi],f=(tRel-a.t)/((b.t-a.t)||1);
+  return [a.lat+f*(b.lat-a.lat),a.lon+f*(b.lon-a.lon)];
+}
+function _secCmpInterpD(dtr,tRelS){
+  if(!dtr||!dtr.length)return 0;
+  const n=dtr.length;
+  if(tRelS<=dtr[0][0])return dtr[0][1];
+  if(tRelS>=dtr[n-1][0])return dtr[n-1][1];
+  let lo=0,hi=n-1;
+  while(hi-lo>1){const m=(lo+hi)>>1;if(dtr[m][0]<=tRelS)lo=m;else hi=m;}
+  const a=dtr[lo],b=dtr[hi],f=(tRelS-a[0])/((b[0]-a[0])||1);
+  return a[1]+f*(b[1]-a[1]);
+}
+function _secCmpTrim(trace,startT,endT){
+  const g=(trace||[]).filter(p=>p.lat!=null&&p.lon!=null&&p.t!=null);
+  const at=T=>{
+    for(let i=1;i<g.length;i++){
+      if(g[i].t>=T){const a=g[i-1],b=g[i],f=(T-a.t)/((b.t-a.t)||1);return {lat:a.lat+f*(b.lat-a.lat),lon:a.lon+f*(b.lon-a.lon),t:T-startT};}
+    }
+    return null;
+  };
+  const out=[];
+  const s=at(startT);if(s)out.push(s);
+  g.forEach(p=>{if(p.t>startT&&p.t<endT)out.push({lat:p.lat,lon:p.lon,t:p.t-startT});});
+  const e=at(endT);if(e)out.push(e);
+  return out;
+}
+function _secCmpHR(hr){
+  return (hr||[]).map(h=>({t:new Date(h.ts).getTime(),b:h.bpm})).filter(h=>isFinite(h.t)&&h.b>40&&h.b<220).sort((a,b)=>a.t-b.t);
+}
+function _secCmpHRAt(arr,ms){
+  if(!arr.length)return null;
+  let lo=0,hi=arr.length-1;
+  while(lo<hi){const m=(lo+hi)>>1;if(arr[m].t<ms)lo=m+1;else hi=m;}
+  let best=arr[lo];
+  if(lo>0&&Math.abs(arr[lo-1].t-ms)<Math.abs(best.t-ms))best=arr[lo-1];
+  return Math.abs(best.t-ms)<30000?best.b:null;
+}
+function _secCmpStrokeAt(strokes,ms){
+  let lo=0,hi=strokes.length-1,idx=-1;
+  while(lo<=hi){const m=(lo+hi)>>1;if(strokes[m].ms<=ms){idx=m;lo=m+1;}else hi=m-1;}
+  return idx>=0?strokes[idx]:null;
+}
+function _secCmpFmtElapsed(ms){
+  const s=Math.max(0,ms)/1000, m=Math.floor(s/60), ss=(s%60).toFixed(1);
+  return m+':'+(ss<10?'0':'')+ss;
+}
+window.openSectorCompare=function(id){
+  if(!isPro()){showPlanModal('Sector comparison is a Pro feature.');return;}
+  const sec=SECTORS_DB.find(s=>s.id===id&&!s.deleted);
+  if(!sec){toast('Sector not found');return;}
+  closeSectorCompare();
+  const overlay=document.createElement('div');
+  overlay.id='_seccmp_modal';
+  overlay.style.cssText='position:fixed;inset:0;background:rgba(0,0,0,.78);display:flex;align-items:center;justify-content:center;z-index:9999;padding:16px;';
+  const panel=document.createElement('div');
+  panel.style.cssText='background:var(--s1);border:1px solid var(--border);border-radius:10px;max-width:1100px;width:100%;max-height:92vh;overflow-y:auto;padding:14px 16px;';
+  panel.innerHTML='<div style="display:flex;align-items:center;gap:10px;margin-bottom:10px;"><div style="font-size:13px;font-weight:600;color:var(--text);">'+_secEsc(sec.name)+' · '+sec.distance+'m</div><button id="_seccmp_close" style="margin-left:auto;background:var(--s3);border:1px solid var(--border);color:var(--muted);border-radius:6px;padding:4px 10px;font-size:11px;cursor:pointer;">Close</button></div><div id="_seccmp_body"></div>';
+  overlay.appendChild(panel);
+  overlay.onclick=e=>{if(e.target===overlay)closeSectorCompare();};
+  document.body.appendChild(overlay);
+  document.getElementById('_seccmp_close').onclick=closeSectorCompare;
+  _secCmp={sec,overlay,picked:new Set(),map:null,raf:null,sess:[],simT:0,dur:0,speed:1,playing:false,lastFrame:0,lastCards:0};
+  _secCmpRenderPicker();
+};
+function closeSectorCompare(){
+  if(_secCmp){
+    if(_secCmp.raf)cancelAnimationFrame(_secCmp.raf);
+    if(_secCmp.map){try{_secCmp.map.remove();}catch{}}
+  }
+  document.getElementById('_seccmp_modal')?.remove();
+  _secCmp=null;
+}
+window.closeSectorCompare=closeSectorCompare;
+function _secCmpAvailable(r){
+  if(r.fileId)return true;
+  return SESSIONS.some(x=>x.label===r.label);
+}
+function _secCmpRenderPicker(){
+  const c=_secCmp;if(!c)return;
+  const sec=c.sec, body=document.getElementById('_seccmp_body');
+  const res=(sec.results||[]).slice().sort((a,b)=>new Date(b.date||0)-new Date(a.date||0)||a.startT-b.startT);
+  if(!res.length){body.innerHTML='<div class="sz-loading">No results for this sector yet. Use Scan all.</div>';return;}
+  const td='padding:5px 8px;border-bottom:1px solid var(--border);white-space:nowrap;font-size:11px;';
+  let h='<div style="font-size:11px;color:var(--muted);margin-bottom:6px;">Select up to '+SECTOR_CMP_MAX+' sessions</div>';
+  h+='<div class="twrap" style="max-height:340px;margin-bottom:10px;"><table style="width:100%;"><thead><tr><th></th><th style="text-align:left;">Date</th><th style="text-align:left;">Session</th><th>Time</th><th>Pace</th><th>Rate</th></tr></thead><tbody>';
+  res.forEach(r=>{
+    const ok=_secCmpAvailable(r), isPB=sec.best&&sec.best.key===r.key;
+    h+='<tr style="opacity:'+(ok?1:0.45)+';"><td style="'+td+'"><input type="checkbox" data-key="'+_secEsc(r.key)+'" '+(ok?'':'disabled')+(c.picked.has(r.key)?' checked':'')+'></td>'
+      +'<td style="'+td+'text-align:left;">'+fmtRecordDate(r.date)+'</td>'
+      +'<td style="'+td+'text-align:left;">'+_secEsc(r.label)+(ok?'':' <span style="color:var(--muted);">(not on Drive)</span>')+'</td>'
+      +'<td style="'+td+'">'+fmtRecordTime(r.timeMs)+(isPB?' <span style="color:#2ee06a;font-weight:700;">PB</span>':'')+'</td>'
+      +'<td style="'+td+'">'+fmtPaceU(sectorPace(r.timeMs,sec.distance))+'</td>'
+      +'<td style="'+td+'">'+(r.rate!=null?r.rate.toFixed(1):'—')+'</td></tr>';
+  });
+  h+='</tbody></table></div><div style="display:flex;gap:8px;align-items:center;"><button class="dzbtn dzbtn-pri" id="_seccmp_go">Compare</button><span id="_seccmp_status" style="font-size:11px;color:var(--muted);"></span></div>';
+  body.innerHTML=h;
+  body.querySelectorAll('input[type=checkbox]').forEach(cb=>{
+    cb.onchange=()=>{
+      if(cb.checked){if(c.picked.size>=SECTOR_CMP_MAX){cb.checked=false;toast('Maximum '+SECTOR_CMP_MAX+' sessions');return;}c.picked.add(cb.dataset.key);}
+      else c.picked.delete(cb.dataset.key);
+    };
+  });
+  document.getElementById('_seccmp_go').onclick=_secCmpLoad;
+}
+async function _secCmpLoad(){
+  const c=_secCmp;if(!c)return;
+  if(!c.picked.size){toast('Select at least one session');return;}
+  const sec=c.sec, status=document.getElementById('_seccmp_status'), btn=document.getElementById('_seccmp_go');
+  btn.disabled=true;
+  const results=(sec.results||[]).filter(r=>c.picked.has(r.key)).sort((a,b)=>a.timeMs-b.timeMs);
+  const cache={};
+  const out=[];
+  for(let k=0;k<results.length;k++){
+    const r=results[k];
+    if(status)status.textContent='Loading '+(k+1)+'/'+results.length+'…';
+    let d=null;
+    const loaded=SESSIONS.find(x=>(r.fileId&&x.fileId===r.fileId)||(!r.fileId&&x.label===r.label));
+    if(loaded)d=loaded.d;
+    else if(r.fileId){
+      try{
+        if(!cache[r.fileId]){const session=await AnalyserDrive.fetchSession(r.fileId);applySessionUnits(session);cache[r.fileId]=sessionToAnalyserFmt(session);}
+        d=cache[r.fileId];
+      }catch(err){if(driveAuthExpired(err)){closeSectorCompare();return;}}
+    }
+    if(!_secCmp)return;
+    if(!d)continue;
+    const hits=scanTraceForSector(sec,d.gpsTrace);
+    const h=hits.find(x=>Math.abs(x.startT-r.startT)<3000)||hits[0];
+    if(!h)continue;
+    const tr=_secCmpTrim(d.gpsTrace,h.startT,h.endT);
+    if(tr.length<2)continue;
+    const strokes=(d.strokes||[]).filter(s=>s.ms!=null&&s.ms>=h.startT-10000&&s.ms<=h.endT).sort((a,b)=>a.ms-b.ms);
+    out.push({r,h,tr,dtr:h.trace,strokes,hr:_secCmpHR(d.hr),color:SECTOR_CMP_COLORS[out.length%SECTOR_CMP_COLORS.length]});
+  }
+  if(!out.length){btn.disabled=false;if(status)status.textContent='Could not load any of the selected sessions';return;}
+  c.sess=out;
+  c.dur=Math.max(...out.map(s=>s.h.timeMs));
+  c.simT=0;
+  _secCmpBuildView();
+}
+function _secCmpBuildView(){
+  const c=_secCmp;if(!c)return;
+  const sec=c.sec, body=document.getElementById('_seccmp_body');
+  const sp=[1,2,4,8,16].map(v=>'<button class="hbtn" data-spd="'+v+'" style="font-size:11px;min-width:34px;">'+v+'×</button>').join('');
+  body.innerHTML='<div id="_seccmp_map" style="height:420px;border-radius:10px;overflow:hidden;background:#030d1e;margin-bottom:8px;"></div>'
+    +'<div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:10px;">'
+    +'<button class="hbtn" id="_seccmp_back" style="font-size:11px;">‹ Sessions</button>'
+    +'<button class="hbtn" id="_seccmp_play" style="font-size:11px;min-width:60px;">▶ Play</button>'
+    +'<button class="hbtn" id="_seccmp_reset" style="font-size:11px;">⟲</button>'
+    +'<span style="display:flex;gap:4px;">'+sp+'</span>'
+    +'<input type="range" id="_seccmp_scrub" min="0" max="'+Math.round(c.dur)+'" step="100" value="0" style="flex:1;min-width:160px;">'
+    +'<span id="_seccmp_clock" style="font-size:12px;font-weight:600;color:var(--text);min-width:56px;text-align:right;">0:00.0</span>'
+    +'</div><div id="_seccmp_cards" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(210px,1fr));gap:8px;"></div>';
+  const map=L.map('_seccmp_map',{zoomControl:true,attributionControl:true});
+  map.attributionControl.setPrefix('');
+  L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}',{maxZoom:19,attribution:'Esri'}).addTo(map);
+  c.map=map;
+  const o=sec.origin, datum=L.polyline(sec.ref.map(p=>sectorLatLon(p[0],p[1],o)),{color:'#ffb020',weight:2,opacity:0.8,dashArray:'6 6'}).addTo(map);
+  [[true,'#2ee06a'],[false,'#f54040']].forEach(([st,col])=>{
+    const g=sectorGate(sec.ref,st), nx=-g.uy, ny=g.ux;
+    L.polyline([sectorLatLon(g.x+nx*SECTOR_GATE_HALF_M,g.y+ny*SECTOR_GATE_HALF_M,o),sectorLatLon(g.x-nx*SECTOR_GATE_HALF_M,g.y-ny*SECTOR_GATE_HALF_M,o)],{color:col,weight:3,opacity:0.95}).addTo(map);
+  });
+  c.sess.forEach(s=>{
+    L.polyline(s.tr.map(p=>[p.lat,p.lon]),{color:s.color,weight:2,opacity:0.25}).addTo(map);
+    s.line=L.polyline([],{color:s.color,weight:3,opacity:0.95}).addTo(map);
+    const icon=L.divIcon({html:'<div style="width:13px;height:13px;background:'+s.color+';border:2px solid #000;transform:rotate(45deg);box-shadow:0 0 4px rgba(0,0,0,.6);"></div>',iconSize:[17,17],iconAnchor:[8,8],className:''});
+    s.marker=L.marker([s.tr[0].lat,s.tr[0].lon],{icon,zIndexOffset:1000}).bindTooltip(fmtRecordDate(s.r.date)).addTo(map);
+  });
+  map.fitBounds(datum.getBounds(),{padding:[30,30]});
+  setTimeout(()=>{if(_secCmp&&_secCmp.map)_secCmp.map.invalidateSize();},120);
+  document.getElementById('_seccmp_back').onclick=()=>{_secCmpPause();if(c.map){c.map.remove();c.map=null;}_secCmpRenderPicker();};
+  document.getElementById('_seccmp_play').onclick=()=>{c.playing?_secCmpPause():_secCmpPlay();};
+  document.getElementById('_seccmp_reset').onclick=()=>{_secCmpPause();c.simT=0;_secCmpDraw(true);};
+  document.getElementById('_seccmp_scrub').oninput=e=>{c.simT=+e.target.value;_secCmpDraw(true);};
+  body.querySelectorAll('button[data-spd]').forEach(b=>{b.onclick=()=>{c.speed=+b.dataset.spd;_secCmpSpeedUI();};});
+  _secCmpSpeedUI();
+  _secCmpDraw(true);
+}
+function _secCmpSpeedUI(){
+  const c=_secCmp;if(!c)return;
+  document.querySelectorAll('#_seccmp_body button[data-spd]').forEach(b=>{
+    const on=+b.dataset.spd===c.speed;
+    b.style.background=on?'#29b8ff':'';b.style.color=on?'#000':'';
+  });
+}
+function _secCmpPlay(){
+  const c=_secCmp;if(!c)return;
+  if(c.simT>=c.dur)c.simT=0;
+  c.playing=true;c.lastFrame=performance.now();
+  const pb=document.getElementById('_seccmp_play');if(pb)pb.textContent='❚❚ Pause';
+  const step=now=>{
+    if(!_secCmp||!_secCmp.playing)return;
+    const dt=now-c.lastFrame;c.lastFrame=now;
+    c.simT=Math.min(c.dur,c.simT+dt*c.speed);
+    _secCmpDraw(false);
+    if(c.simT>=c.dur){_secCmpPause();_secCmpDraw(true);return;}
+    c.raf=requestAnimationFrame(step);
+  };
+  c.raf=requestAnimationFrame(step);
+}
+function _secCmpPause(){
+  const c=_secCmp;if(!c)return;
+  c.playing=false;
+  if(c.raf){cancelAnimationFrame(c.raf);c.raf=null;}
+  const pb=document.getElementById('_seccmp_play');if(pb)pb.textContent='▶ Play';
+}
+function _secCmpDraw(force){
+  const c=_secCmp;if(!c)return;
+  const t=c.simT, tS=t/1000;
+  c.sess.forEach(s=>{
+    const pos=_secCmpInterpPos(s.tr,t);
+    if(pos)s.marker.setLatLng(pos);
+    const pts=[];
+    for(const p of s.tr){if(p.t>t)break;pts.push([p.lat,p.lon]);}
+    if(pos)pts.push(pos);
+    s.line.setLatLngs(pts);
+    s.dNow=Math.min(c.sec.distance,_secCmpInterpD(s.dtr,tS));
+    s.done=t>=s.h.timeMs;
+    if(s.done)s.dNow=c.sec.distance;
+  });
+  const clk=document.getElementById('_seccmp_clock');if(clk)clk.textContent=_secCmpFmtElapsed(t);
+  const sc=document.getElementById('_seccmp_scrub');if(sc&&document.activeElement!==sc)sc.value=Math.round(t);
+  const now=performance.now();
+  if(!force&&now-c.lastCards<100)return;
+  c.lastCards=now;
+  _secCmpCards();
+}
+function _secCmpCards(){
+  const c=_secCmp;if(!c)return;
+  const box=document.getElementById('_seccmp_cards');if(!box)return;
+  const lead=Math.max(...c.sess.map(s=>s.dNow||0));
+  const keys=METRIC_DEFS.filter(m=>!hid[m.k]&&!ERG_ONLY_KEYS.includes(m.k));
+  box.innerHTML=c.sess.map(s=>{
+    const abs=s.h.startT+Math.min(c.simT,s.h.timeMs);
+    const st=_secCmpStrokeAt(s.strokes,abs);
+    const gap=s.dNow-lead;
+    const gapTxt=s.done?fmtRecordTime(s.h.timeMs):(Math.abs(gap)<0.5?'Leader':Math.round(gap)+' m');
+    const row=(l,v)=>'<div style="display:flex;justify-content:space-between;gap:8px;font-size:11px;padding:1px 0;"><span style="color:var(--muted);">'+l+'</span><span style="color:var(--text);font-weight:600;">'+v+'</span></div>';
+    let h='<div style="border:2px solid '+s.color+';border-radius:8px;padding:8px 10px;background:var(--s2,rgba(255,255,255,.03));">';
+    h+='<div style="display:flex;align-items:center;gap:6px;margin-bottom:4px;"><span style="width:10px;height:10px;background:'+s.color+';transform:rotate(45deg);display:inline-block;"></span><span style="font-size:11px;font-weight:700;color:var(--text);">'+fmtRecordDate(s.r.date)+'</span><span style="margin-left:auto;font-size:12px;font-weight:700;color:'+(s.done?'#2ee06a':(Math.abs(gap)<0.5?'#2ee06a':'#f54040'))+';">'+gapTxt+'</span></div>';
+    h+=row('Elapsed',_secCmpFmtElapsed(Math.min(c.simT,s.h.timeMs)));
+    h+=row('To go',Math.max(0,Math.round(c.sec.distance-s.dNow))+' m');
+    keys.forEach(m=>{
+      let v='—';
+      if(m.k==='hr'){const b=_secCmpHRAt(s.hr,abs);if(b!=null)v=f0(b)+' bpm';}
+      else if(st){try{if(m.filter(st))v=m.fmtAvg(m.val(st));}catch{}}
+      h+=row(m.l,v);
+    });
+    h+='</div>';
+    return h;
+  }).join('');
+}
 
 function switchSession(idx) {
   if (idx<0||idx>=SESSIONS.length) return;
