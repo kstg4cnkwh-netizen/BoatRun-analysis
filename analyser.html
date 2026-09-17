@@ -276,56 +276,6 @@
   }
 
 
-  /* ══ BoatRun site theme (index / guide) ══ */
-  body{
-    color-scheme:dark;
-    --bg:#081226; --s1:#0F1C3A; --s2:#0E1B38; --s3:#16274B; --dim:#0B1730;
-    --border:rgba(255,255,255,.10); --frame-ln:rgba(255,255,255,.12);
-    --text:#EFF3FA; --muted:rgba(239,243,250,.62); --faint:rgba(239,243,250,.38);
-    --grid-ln:rgba(255,255,255,.06); --grid-lb:rgba(239,243,250,.45);
-    --sel-fill:rgba(47,211,198,.08); --sel-stk:rgba(47,211,198,.45);
-    --acc:#FF5A3C; --acc-2:#2FD3C6; --acc-g:#2FD3C6; --acc-y:#FFB648; --acc-o:#FFB648; --acc-p:#B38CFF; --acc-r:#FF5A3C;
-    --acc-dim:rgba(255,90,60,.14); --acc-2-dim:rgba(47,211,198,.16);
-    --pill:rgba(255,255,255,.05); --seg:#16274B; --seg-txt:#EFF3FA;
-    font-family:'Inter',-apple-system,BlinkMacSystemFont,Helvetica Neue,sans-serif;
-  }
-  body.light{
-    color-scheme:light;
-    --bg:#F6F5F1; --s1:#FFFFFF; --s2:#FBFAF7; --s3:#EFEDE7; --dim:#F1EFEA;
-    --border:#E2DFD6; --frame-ln:#DAD6CC;
-    --text:#0E1420; --muted:#5E6677; --faint:#8A90A0;
-    --grid-ln:#EEEBE4; --grid-lb:#7A8090;
-    --sel-fill:rgba(31,181,169,.07); --sel-stk:rgba(31,181,169,.45);
-    --acc:#F04A2C; --acc-2:#1FB5A9; --acc-g:#1FB5A9; --acc-y:#F5A524; --acc-o:#F5A524; --acc-p:#8B5CF6; --acc-r:#E5412A;
-    --acc-dim:rgba(240,74,44,.10); --acc-2-dim:rgba(31,181,169,.12);
-    --pill:#ECEAE4; --seg:#FFFFFF; --seg-txt:#0E1420;
-  }
-  .sec-hd h2,#dz h2,.vid-panel-hd{font-family:'Space Grotesk',-apple-system,sans-serif;color:var(--text);}
-  .sec-hd h2::before{content:"";display:inline-block;width:6px;height:6px;margin-right:7px;border-radius:1.5px;background:var(--acc);transform:rotate(45deg);vertical-align:middle;}
-  .card .val{font-family:'Space Grotesk',-apple-system,sans-serif;font-weight:600;}
-  .sess-tab.on,.filt-chip.on,.segbtn.on{background:var(--acc-2);color:#04201D;box-shadow:0 2px 8px var(--acc-2-dim);}
-  .vid-clip-tab.on,.vid-mchip.on{background:var(--acc-2);color:#04201D;}
-  .vid-play,#addcurvebtn,.brpill-row .dzbtn-pri,.brpill-row .dzbtn-pri:hover{background:var(--acc);color:#fff;}
-  .vid-panel .vid-clip-tab[style*="var(--b)"]{background:var(--acc)!important;border-color:var(--acc)!important;color:#fff!important;}
-  .vid-panel{background:var(--s1);}
-  .vid-clip-tab.flagged{border:2px solid var(--acc)!important;color:var(--text);}
-  .vid-clip-tab.flagged.on{color:#04201D;}
-  .sz-star.on{background:var(--acc-y);box-shadow:0 3px 9px rgba(255,182,72,.40);}
-  .asc{border-left-color:var(--acc-2);}
-  .asc:hover{border-left-color:var(--acc);}
-  .hmenu .hbtn:hover{color:var(--acc);}
-  .sec-hd .hbtn:hover{background:var(--acc);color:#fff;}
-  .segbtn:hover,.zoom-btn:hover,.sumnav button:hover,.brpill-row .dzbtn:hover{color:var(--acc);}
-  .hbtn:hover{border-color:var(--acc);color:var(--acc);}
-  body.light .hdr-tabs .hbtn.hicon-btn:hover{color:var(--acc);}
-  #stripcontext{color:var(--acc-2);}
-  select{background-image:linear-gradient(45deg,transparent 50%,var(--acc-2) 50%),linear-gradient(135deg,var(--acc-2) 50%,transparent 50%);}
-  select:focus,.brsearch:focus{box-shadow:0 0 0 2px var(--acc-2);}
-  input[type=range]{accent-color:var(--acc-2);}
-  tbody tr.hl td{background:var(--acc-2-dim)!important;}
-  tbody tr.hl.stroke-pin td,tbody tr.stroke-pin td{background:var(--acc-y)!important;color:#000!important;}
-  tbody tr.best td{color:var(--acc-2);}
-  thead th{font-family:'Space Grotesk',-apple-system,sans-serif;}
 </style>
 <style>
 #startup{min-height:calc(100vh - 52px);display:flex;flex-direction:column;align-items:center;justify-content:flex-start;padding:28px 16px 40px;box-sizing:border-box;}
@@ -564,6 +514,69 @@ body.light .hdrname{color:#fff;}
   tbody tr.hl td{background:rgba(10,132,255,.16)!important;}
   tbody tr.hl.stroke-pin td,tbody tr.stroke-pin td{background:#ffd60a!important;color:#000!important;}
   tbody tr.best td{color:var(--acc-g);font-weight:700;}
+  /* ══ BoatRun site theme (index / guide) ══ */
+  body{
+    color-scheme:dark;
+    --bg:#081226; --s1:#0F1C3A; --s2:#0E1B38; --s3:#16274B; --dim:#0B1730;
+    --border:rgba(255,255,255,.10); --frame-ln:rgba(255,255,255,.12);
+    --text:#EFF3FA; --muted:rgba(239,243,250,.62); --faint:rgba(239,243,250,.38);
+    --grid-ln:rgba(255,255,255,.06); --grid-lb:rgba(239,243,250,.45);
+    --sel-fill:rgba(47,211,198,.08); --sel-stk:rgba(47,211,198,.45);
+    --acc:#FF5A3C; --acc-2:#2FD3C6; --acc-g:#2FD3C6; --acc-y:#FFB648; --acc-o:#FFB648; --acc-p:#B38CFF; --acc-r:#FF5A3C;
+    --acc-dim:rgba(255,90,60,.14); --acc-2-dim:rgba(47,211,198,.16);
+    --pill:rgba(255,255,255,.05); --seg:#16274B; --seg-txt:#EFF3FA;
+    font-family:'Inter',-apple-system,BlinkMacSystemFont,Helvetica Neue,sans-serif;
+  }
+  body.light{
+    color-scheme:light;
+    --bg:#F6F5F1; --s1:#FFFFFF; --s2:#FBFAF7; --s3:#EFEDE7; --dim:#F1EFEA;
+    --border:#E2DFD6; --frame-ln:#DAD6CC;
+    --text:#0E1420; --muted:#5E6677; --faint:#8A90A0;
+    --grid-ln:#EEEBE4; --grid-lb:#7A8090;
+    --sel-fill:rgba(31,181,169,.07); --sel-stk:rgba(31,181,169,.45);
+    --acc:#F04A2C; --acc-2:#1FB5A9; --acc-g:#1FB5A9; --acc-y:#F5A524; --acc-o:#F5A524; --acc-p:#8B5CF6; --acc-r:#E5412A;
+    --acc-dim:rgba(240,74,44,.10); --acc-2-dim:rgba(31,181,169,.12);
+    --pill:#ECEAE4; --seg:#FFFFFF; --seg-txt:#0E1420;
+  }
+  .sec-hd h2,#dz h2,.vid-panel-hd{font-family:'Space Grotesk',-apple-system,sans-serif;color:var(--text);}
+  .sec-hd h2::before{content:"";display:inline-block;width:6px;height:6px;margin-right:7px;border-radius:1.5px;background:var(--acc);transform:rotate(45deg);vertical-align:middle;}
+  .card .val{font-family:'Space Grotesk',-apple-system,sans-serif;font-weight:600;}
+  .sess-tab.on,.filt-chip.on,.segbtn.on{background:var(--acc-2);color:#04201D;box-shadow:0 2px 8px var(--acc-2-dim);}
+  .vid-clip-tab.on,.vid-mchip.on{background:var(--acc-2);color:#04201D;}
+  .vid-play,#addcurvebtn,.brpill-row .dzbtn-pri,.brpill-row .dzbtn-pri:hover{background:var(--acc);color:#fff;}
+  .vid-panel .vid-clip-tab[style*="var(--b)"]{background:var(--acc)!important;border-color:var(--acc)!important;color:#fff!important;}
+  .vid-panel{background:var(--s1);}
+  .vid-clip-tab.flagged{border:2px solid var(--acc)!important;color:var(--text);}
+  .vid-clip-tab.flagged.on{color:#04201D;}
+  .sz-star.on{background:var(--acc-y);box-shadow:0 3px 9px rgba(255,182,72,.40);}
+  .asc{border-left-color:var(--acc-2);}
+  .asc:hover{border-left-color:var(--acc);}
+  .hmenu .hbtn:hover{color:var(--acc);}
+  .sec-hd .hbtn:hover{background:var(--acc);color:#fff;}
+  .segbtn:hover,.zoom-btn:hover,.sumnav button:hover,.brpill-row .dzbtn:hover{color:var(--acc);}
+  .hbtn:hover{border-color:var(--acc);color:var(--acc);}
+  body.light .hdr-tabs .hbtn.hicon-btn:hover{color:var(--acc);}
+  #stripcontext{color:var(--acc-2);}
+  select{background-image:linear-gradient(45deg,transparent 50%,var(--acc-2) 50%),linear-gradient(135deg,var(--acc-2) 50%,transparent 50%);}
+  select:focus,.brsearch:focus{box-shadow:0 0 0 2px var(--acc-2);}
+  input[type=range]{accent-color:var(--acc-2);}
+  tbody tr.hl td{background:var(--acc-2-dim)!important;}
+  tbody tr.hl.stroke-pin td,tbody tr.stroke-pin td{background:var(--acc-y)!important;color:#000!important;}
+  tbody tr.best td{color:var(--acc-2);}
+  thead th{font-family:'Space Grotesk',-apple-system,sans-serif;}
+
+  /* ══ Video controls compact ══ */
+  .vid-ctrls{display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:6px;margin-top:6px;}
+  .vid-ctrls.hide{display:none;}
+  .vid-panel{padding:6px 8px;border-radius:12px;}
+  .vid-panel-hd{margin-bottom:4px;}
+  .vid-ctrls .vid-row{gap:4px;}
+  .vid-ctrls .vid-row[style*="margin-top"]{margin-top:4px!important;}
+  .vid-ctrls .vid-clip-tab{padding:3px 8px;}
+  .vid-ctrls .vid-mchip{padding:2px 8px;}
+  .vid-ctrls .vid-mchips{gap:4px;}
+  .vid-ctrls .vid-slider input[type=range]{width:80px;}
+  .vid-clip-tabs{margin-bottom:0;}
 </style>
 
 <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" crossorigin=""/>
@@ -7214,7 +7227,11 @@ function vidBiasText(src){
   return b ? ('\u00b7 Lag ' + (b>0?'+':'') + b + ' s') : '\u00b7 Lag 0 s';
 }
 function vidLearnBias(a){
-  if(!a || a._autoRaw == null) return;
+  if(!a) return;
+  if(a._autoRaw == null && a.probedMs && VID_SESS_T0 && a.syncSrc!=='code' && a.syncSrc!=='chain'){
+    const r = vidAutoOffset(a); if(r) a._autoRaw = r.raw;
+  }
+  if(a._autoRaw == null) return;
   const b = Math.round((a.offset - a._autoRaw)*10)/10;
   if(!isFinite(b) || Math.abs(b) > 600) return;
   VID_BIAS[a.probeSource || 'mp4'] = b;
@@ -7244,10 +7261,11 @@ const VID = {
     showCurve: true, showBox: true,
     curveX: 100, curveY: 0, curveScale: 1,
     boxX: 0, boxY: 0, boxScale: 1,
-    opacity: 0.82, curveOpacity: 0.82,
+    opacity: 0.62, curveOpacity: 0.72,
     vidWidth: 100, vidZoom: 1, vidPanX: 0, vidPanY: 0,
     curveAvg5: true, rate: 1,
     showTpl: false, tplIdx: -1,
+    hideCtrls: (()=>{ try{ return localStorage.getItem('an_vid_hidectrls')==='1'; }catch(e){ return false; } })(),
   }
 };
 
@@ -7634,10 +7652,11 @@ function vidRenderBody(){
       <input type="range" id="vidSeek" min="0" max="1000" value="0">
       <span class="vid-mini" id="vidTime" style="min-width:78px;text-align:right;">0:00 / 0:00</span>
       <button class="vid-clip-tab" id="vidFS" title="Fullscreen">\u26F6</button>
+      <button class="vid-clip-tab" id="vidCtrlTgl" title="Show / hide video controls">${VID.cfg.hideCtrls?'Controls \u25BE':'Hide \u25B4'}</button>
     </div>
   </div>
 
-  <div class="vid-ctrls">
+  <div class="vid-ctrls${VID.cfg.hideCtrls?' hide':''}" id="vidCtrls">
 
     <div class="vid-panel">
       <div class="vid-panel-hd">Sync</div>
@@ -7685,7 +7704,7 @@ function vidRenderBody(){
       <div class="vid-mchips">${mchips}</div>
       <div class="vid-row" style="margin-top:8px;">
         <label><input type="checkbox" id="vidShowBox" ${cfg.showBox?'checked':''}> Show</label>
-        <div class="vid-slider"><span style="min-width:0;">Opacity</span><input type="range" id="vidOpacity" min="20" max="100" value="${Math.round(cfg.opacity*100)}"></div>
+        <div class="vid-slider"><span style="min-width:0;">Opacity</span><input type="range" id="vidOpacity" min="0" max="100" value="${Math.round(cfg.opacity*100)}"></div>
       </div>
     </div>
 
@@ -7694,7 +7713,7 @@ function vidRenderBody(){
       <div class="vid-row">
         <label><input type="checkbox" id="vidShowCurve" ${cfg.showCurve?'checked':''}> Show</label>
         <label><input type="checkbox" id="vidCurveAvg5" ${cfg.curveAvg5?'checked':''}> Avg 5</label>
-        <div class="vid-slider"><span style="min-width:0;">Opacity</span><input type="range" id="vidCurveOpacity" min="20" max="100" value="${Math.round(cfg.curveOpacity*100)}"></div>
+        <div class="vid-slider"><span style="min-width:0;">Opacity</span><input type="range" id="vidCurveOpacity" min="0" max="100" value="${Math.round(cfg.curveOpacity*100)}"></div>
       </div>
       ${tplRowHtml}
     </div>
@@ -7753,6 +7772,13 @@ function vidRenderBody(){
   on('vidStepB','onclick',()=>vidSeekBy(-0.1));
   on('vidStepF','onclick',()=>vidSeekBy(0.1));
   on('vidFS','onclick',vidFullscreen);
+  on('vidCtrlTgl','onclick',e=>{
+    cfg.hideCtrls=!cfg.hideCtrls;
+    try{ localStorage.setItem('an_vid_hidectrls', cfg.hideCtrls?'1':'0'); }catch(_){}
+    const c=document.getElementById('vidCtrls'); if(c) c.classList.toggle('hide',cfg.hideCtrls);
+    e.target.textContent=cfg.hideCtrls?'Controls \u25BE':'Hide \u25B4';
+    requestAnimationFrame(()=>{ vidSizeOverlay(); vidDraw(); });
+  });
   on('vidRate','onchange',e=>{ cfg.rate=parseFloat(e.target.value)||1; el.playbackRate=cfg.rate; });
   { const rs=document.getElementById('vidRate'); if(rs) rs.value=String(cfg.rate); el.playbackRate=cfg.rate; }
   vidSyncBtnUI();
@@ -8363,8 +8389,8 @@ function vidDraw(){
   if(upd) upd.textContent=(st.sessT<0?'before start':('t '+fmtTime(st.sessT)+'  \u00B7  stroke '+(st.idx>=0?st.idx+1:'\u2013')));
   if(st.idx<0){ vidDrawGrips(ctx,W,H,null); vidDrawChartLine(); return; }
 
-  if(VID.cfg.showBox){ ctx.globalAlpha=VID.cfg.opacity; vidDrawBox(ctx,W,H,st); }
-  if(VID.cfg.showCurve){ ctx.globalAlpha=VID.cfg.curveOpacity; vidDrawCurve(ctx,W,H,st); }
+  if(VID.cfg.showBox){ ctx.globalAlpha=1; vidDrawBox(ctx,W,H,st); }
+  if(VID.cfg.showCurve){ ctx.globalAlpha=1; vidDrawCurve(ctx,W,H,st); }
   ctx.globalAlpha=1;
   vidDrawGrips(ctx,W,H,st);
   vidDrawChartLine();
@@ -8406,7 +8432,7 @@ function vidBoxRect(W,H,st){
 }
 function vidDrawBox(ctx,W,H,st){
   const r=vidBoxRect(W,H,st);
-  ctx.fillStyle='rgba(6,18,32,0.62)';
+  ctx.fillStyle='rgba(0,0,0,'+VID.cfg.opacity+')';
   vidRoundRect(ctx,r.x,r.y,r.bw,r.bh,8); ctx.fill();
   ctx.strokeStyle='rgba(120,170,230,0.35)'; ctx.lineWidth=1;
   vidRoundRect(ctx,r.x,r.y,r.bw,r.bh,8); ctx.stroke();
@@ -8474,15 +8500,15 @@ function vidCurveRect(W,H){
 }
 /* Corner grip for the box and the curve. Drawn only on the live overlay, never
    on the export canvas, so it cannot end up burned into a clip. */
-function vidDrawGrip(ctx,x,y){
+function vidDrawGrip(ctx,x,y,flip){
   ctx.save();
   ctx.globalAlpha=1;
   ctx.beginPath(); ctx.arc(x,y,13,0,Math.PI*2);
   ctx.fillStyle='rgba(0,0,0,0.6)'; ctx.fill();
   ctx.strokeStyle='#ffffff'; ctx.lineWidth=2; ctx.stroke();
   ctx.beginPath();
-  ctx.moveTo(x-6,y+5); ctx.lineTo(x+5,y-6);
-  ctx.moveTo(x-1,y+6); ctx.lineTo(x+6,y-1);
+  if(flip){ ctx.moveTo(x+6,y+5); ctx.lineTo(x-5,y-6); ctx.moveTo(x+1,y+6); ctx.lineTo(x-6,y-1); }
+  else { ctx.moveTo(x-6,y+5); ctx.lineTo(x+5,y-6); ctx.moveTo(x-1,y+6); ctx.lineTo(x+6,y-1); }
   ctx.lineWidth=2; ctx.stroke();
   ctx.restore();
 }
@@ -8491,7 +8517,7 @@ function vidDrawGrip(ctx,x,y){
 function vidDrawGrips(ctx,W,H,st){
   if(VID.exporting) return;
   if(VID.cfg.showBox){ const br=vidBoxRect(W,H,st); vidDrawGrip(ctx,br.x+br.bw,br.y+br.bh); }
-  if(VID.cfg.showCurve){ const cr=vidCurveRect(W,H); vidDrawGrip(ctx,cr.x,cr.y+cr.ch); }
+  if(VID.cfg.showCurve){ const cr=vidCurveRect(W,H); vidDrawGrip(ctx,cr.x,cr.y+cr.ch,true); }
 }
 function vidDrawCurve(ctx,W,H,st){
   const r=vidCurveRect(W,H);
@@ -8508,7 +8534,7 @@ function vidDrawCurve(ctx,W,H,st){
   const tplD=vidTplCurve(st);
 
   // background panel
-  ctx.fillStyle='rgba(4,14,28,0.72)';
+  ctx.fillStyle='rgba(0,0,0,'+VID.cfg.curveOpacity+')';
   vidRoundRect(ctx,r.x,r.y,r.cw,r.ch,8); ctx.fill();
   ctx.strokeStyle='rgba(100,140,200,0.28)'; ctx.lineWidth=1;
   vidRoundRect(ctx,r.x,r.y,r.cw,r.ch,8); ctx.stroke();
@@ -8891,8 +8917,8 @@ function vidExportFrame(){
 
   const st=vidCurrent();
   if(st && st.idx>=0){
-    if(VID.cfg.showBox){ cctx.globalAlpha=VID.cfg.opacity; vidDrawBox(cctx,Ow,Oh,st); }
-    if(VID.cfg.showCurve){ cctx.globalAlpha=VID.cfg.curveOpacity; vidDrawCurve(cctx,Ow,Oh,st); }
+    if(VID.cfg.showBox){ cctx.globalAlpha=1; vidDrawBox(cctx,Ow,Oh,st); }
+    if(VID.cfg.showCurve){ cctx.globalAlpha=1; vidDrawCurve(cctx,Ow,Oh,st); }
     cctx.globalAlpha=1;
   }
   vidDraw();
