@@ -300,9 +300,6 @@
     --acc-dim:rgba(240,74,44,.10); --acc-2-dim:rgba(31,181,169,.12);
     --pill:#ECEAE4; --seg:#FFFFFF; --seg-txt:#0E1420;
   }
-  #hdr{background:rgba(8,18,38,.94);backdrop-filter:blur(10px);-webkit-backdrop-filter:blur(10px);border-bottom:1px solid rgba(255,255,255,.08);}
-  #hdr h1{font-family:'Space Grotesk',-apple-system,sans-serif;letter-spacing:-.01em;}
-  #hdr h1 a::after{content:"";display:inline-block;width:8px;height:8px;margin-left:8px;border-radius:2px;background:#FF5A3C;transform:rotate(45deg);vertical-align:middle;}
   .sec-hd h2,#dz h2,.vid-panel-hd{font-family:'Space Grotesk',-apple-system,sans-serif;color:var(--text);}
   .sec-hd h2::before{content:"";display:inline-block;width:6px;height:6px;margin-right:7px;border-radius:1.5px;background:var(--acc);transform:rotate(45deg);vertical-align:middle;}
   .card .val{font-family:'Space Grotesk',-apple-system,sans-serif;font-weight:600;}
@@ -520,7 +517,6 @@ body.light .hdrname{color:#fff;}
   .hbtn.hicon-btn{border-radius:16px;box-shadow:0 2px 5px rgba(0,0,0,.22),inset 0 1px 0 rgba(255,255,255,.20);}
   .hbtn.hicon-btn:hover{background:rgba(255,255,255,.30);color:#fff;}
   body.light .hdr-tabs .hbtn.hicon-btn{border-radius:16px;box-shadow:0 3px 6px rgba(0,0,0,.18),inset 0 1px 0 rgba(255,255,255,.60);}
-  body.light .hdr-tabs .hbtn.hicon-btn:hover{color:var(--acc);}
 
   /* Files sub-menu */
   .hmenu{background:var(--pill);border:none;border-radius:20px;padding:8px;gap:6px;min-width:215px;box-shadow:0 10px 30px rgba(0,0,0,.35);}
@@ -7457,13 +7453,6 @@ async function vidScanMatches() {
     }
     if (!html) html = flags.length ? '<div class="vid-mini">Not found in folder</div>' : '';
     box.innerHTML = html;
-    if (isPro()) {
-      const key = String(VID_SESS_T0);
-      if (VID._autoKey !== key) { VID._autoKey = key; VID._autoDone = new Set(); }
-      const todo = flagged.concat(others.map(o => o.name)).filter(n => !vidIsOpen(n) && !VID._autoDone.has(n));
-      todo.forEach(n => VID._autoDone.add(n));
-      for (const n of todo) await vidAddFromDir(n);
-    }
   } catch (e) { box.innerHTML = ''; }
 }
 async function vidAddFromDir(name) {
@@ -7617,6 +7606,7 @@ function vidRenderBody(){
   const segS=m=>VID.syncTab===m?'':'display:none;';
 
   body.innerHTML=`
+  <div class="vid-tabs-hd">Open</div>
   <div class="vid-clip-tabs">${tabs}</div>
 
   <div id="vidStageWrap" style="margin-top:8px;">
