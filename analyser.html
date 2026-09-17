@@ -214,6 +214,9 @@
   #curvetbl, #curvetbl * { -webkit-user-select: none; user-select: none; -webkit-touch-callout: none; -webkit-tap-highlight-color: transparent; }
   #curvetbl tbody tr{cursor:pointer;}
   #curvetbl tbody tr.yhl td{background:#ffd60a !important;color:#000 !important;}
+  #laptbl tbody tr.yhl td, #sectorbody tbody tr.yhl td{background:#ffd60a !important;color:#000 !important;}
+  #laptbl tbody tr.yhl td *, #sectorbody tbody tr.yhl td *{color:#000 !important;}
+  #lapcurvebar:empty{display:none !important;}
   thead th { position: sticky; top: 0; background: var(--s2); color: var(--muted); padding: 7px 10px; border-bottom: 1px solid var(--border); text-align: right; font-size: 8px; text-transform: uppercase; letter-spacing: .7px; font-weight: 600; }
   thead th:first-child { text-align: left; }
   tbody tr { border-bottom: 1px solid var(--dim); transition: background .1s; scroll-margin-top: 30px; }
@@ -721,14 +724,14 @@ body.light .hdrname{color:#fff;}
     <div class="info-row">
     <div class="info-col brpill">
       <div id="lapsec" style="display:none;">
-        <div class="sec-hd" style="padding:0 0 4px;"><h2>Laps</h2></div>
-        <div id="laptypebar" style="margin-bottom:6px;"></div>
+        <div class="sec-hd" style="padding:0 0 4px;"><h2>Laps</h2><span id="laptypebar" style="display:flex;flex-wrap:wrap;align-items:center;gap:4px;"></span></div>
+        <div id="lapcurvebar" style="display:flex;flex-wrap:wrap;align-items:center;gap:4px;margin-bottom:6px;"></div>
         <div class="twrap" style="max-height:160px;margin-bottom:8px;"><table id="laptbl"><thead></thead><tbody></tbody></table></div>
       </div>
     </div>
     <div class="info-col info-wide brpill">
       <div id="sectorsec" style="display:none;">
-        <div class="sec-hd" style="padding:0 0 4px;"><h2>Sectors</h2><span id="sectorlbl" style="font-size:10px;color:var(--muted);"></span><button class="hbtn" id="sectorListBtn" style="margin-left:auto;font-size:10px;" onclick="window.showSectorList()">Sector list</button><button class="hbtn" id="sectorScanBtn" style="font-size:10px;" onclick="window.scanAllSectors()">Scan all</button><button class="hbtn" id="sectorAddBtn" style="font-size:10px;" onclick="window.startSectorCreate()">＋ Create Sector</button></div>
+        <div class="sec-hd" style="padding:0 0 4px;"><h2>Sectors</h2><span id="sectorlbl" style="font-size:10px;color:var(--muted);"></span><button class="hbtn" id="sectorListBtn" style="margin-left:auto;font-size:10px;" onclick="window.showSectorList()">Sector list</button><button class="hbtn" id="sectorScanBtn" style="font-size:10px;" onclick="window.scanAllSectors()">Scan all</button><button class="hbtn" id="sectorAddBtn" style="font-size:10px;" onclick="window.startSectorCreate()">＋ Create Sector</button><button class="hbtn" id="sectorCurveBtn" style="font-size:10px;display:none;" onclick="window.addSectorToCurves()">＋ Add to curves</button></div>
         <div id="sectorbody"></div>
       </div>
     </div>
@@ -2610,6 +2613,7 @@ function buildSectorFromTrace(trace,i0,i1,name){
     distance:Math.round(cum), corridor:SECTOR_CORRIDOR_M, ref, best:null, results:[], rev:Date.now()};
 }
 function updateSectorsFromData(d,label,fileId,onlyId){
+  if(!isPro())return false;
   if(!d||!d.gpsTrace||d.gpsTrace.length<2)return false;
   if(d.sum&&d.sum.session_mode==='erg')return false;
   const dateISO=(d.sum&&d.sum.start_time)||null;
@@ -2645,6 +2649,9 @@ function renderSectors(){
   _sectorHLRestore();
   const cur=SESSIONS[activeSessionIdx];
   const erg=!!(cur&&cur.d&&cur.d.sum&&cur.d.sum.session_mode==='erg');
+  const _hdBtns=['sectorListBtn','sectorScanBtn','sectorAddBtn'].map(i=>document.getElementById(i));
+  _hdBtns.forEach(b=>{if(b)b.style.display=isPro()?'':'none';});
+  if(!isPro()){box.style.display='block';const _l=document.getElementById('sectorlbl');if(_l)_l.textContent='';body.innerHTML='<div style="font-size:11px;color:var(--muted);padding:6px 0;">Sectors are a Pro feature — time yourself over the same stretch of water every session, with PBs and side-by-side playback.</div><button class="dzbtn dzbtn-pri" onclick="showPlanModal(\'Sectors are a Pro feature.\')">Upgrade to Pro</button>';return;}
   if(erg||GPSTRACE.length<2){box.style.display='block';body.innerHTML='<div style="font-size:10px;color:var(--muted);padding:4px 0;">'+(erg?'Not available for erg sessions':'No GPS track')+'</div>';return;}
   box.style.display='block';
   const rows=[];
@@ -2668,7 +2675,7 @@ function renderSectors(){
     const pbDate=b?(b.fileId?'<a href="#" style="color:var(--accent,#29b8ff);" onclick="event.preventDefault();event.stopPropagation();window.loadSectorBest(\''+s.id+'\')">'+fmtRecordDate(b.date)+'</a>':fmtRecordDate(b.date)):'—';
     const hk=s.id+'|'+Math.round(r.h.startT);
     const ck=((cur&&cur.fileId)||(cur&&cur.label)||'local')+'|'+Math.round(r.h.startT);
-    h+='<tr data-hl="'+hk+'" style="cursor:pointer;'+(_sectorHL&&_sectorHL.key===hk?'background:var(--s3);':'')+'" onclick="window.highlightSector(\''+s.id+'\','+Math.round(r.h.startT)+','+Math.round(r.h.endT)+')"><td style="'+td+'text-align:left;"><div style="font-weight:600;">'+_secEsc(s.name)+'</div><div style="color:var(--muted);">'+s.distance+'m · <a href="#" style="color:var(--accent,#29b8ff);" onclick="event.preventDefault();event.stopPropagation();window.openSectorCompare(\''+s.id+'\',\''+_secEsc(ck)+'\')">compare</a></div></td>'
+    h+='<tr data-hl="'+hk+'" style="cursor:pointer;" onclick="window.highlightSector(\''+s.id+'\','+Math.round(r.h.startT)+','+Math.round(r.h.endT)+')"><td style="'+td+'text-align:left;"><div style="font-weight:600;">'+_secEsc(s.name)+'</div><div style="color:var(--muted);">'+s.distance+'m · <a href="#" style="color:var(--accent,#29b8ff);" onclick="event.preventDefault();event.stopPropagation();window.openSectorCompare(\''+s.id+'\',\''+_secEsc(ck)+'\')">compare</a></div></td>'
       +'<td style="'+td+'">'+fmtRecordTime(r.h.timeMs)+(isPB?' <span style="color:#2ee06a;font-weight:700;">PB</span>':'')+'</td>'
       +'<td style="'+td+'">'+fmtPaceU(sectorPace(r.h.timeMs,s.distance))+'</td>'
       +'<td style="'+td+'">'+(r.rate!=null?r.rate.toFixed(1):'—')+'</td>'
@@ -2678,6 +2685,7 @@ function renderSectors(){
   });
   h+='</tbody></table></div>';
   body.innerHTML=h;
+  refreshSelButtons();
 }
 function _sectorNearestIdx(latlng,minIdx){
   const o={lat:latlng.lat,lon:latlng.lng}, from=Math.max(0,minIdx||0), ds=[];
@@ -2744,6 +2752,7 @@ function _sectorMapClick(e){
   },250);
 }
 window.startSectorCreate=function(editId){
+  if(!isPro()){showPlanModal('Sectors are a Pro feature.');return;}
   if(_sectorCreate){cancelSectorCreate();return;}
   if(!leafletMap||GPSTRACE.length<2){toast('No GPS track');return;}
   clearSectorHighlight();
@@ -2754,6 +2763,7 @@ window.startSectorCreate=function(editId){
   toast('Click the sector start on the track',4000);
 };
 async function runSectorScan(onlyId){
+  if(!isPro()){showPlanModal('Sectors are a Pro feature.');return;}
   if(_sectorScanBusy)return;
   if(!AnalyserDrive.isSignedIn()){toast('Sign in to Google Drive to scan sessions');return;}
   if(!SECTORS_DB.some(s=>!s.deleted)){toast('No sectors saved');return;}
@@ -2788,6 +2798,7 @@ async function runSectorScan(onlyId){
 }
 window.scanAllSectors=function(){runSectorScan(null);};
 window.showSectorList=function(){
+  if(!isPro()){showPlanModal('Sectors are a Pro feature.');return;}
   document.getElementById('_seclist_modal')?.remove();
   const overlay=document.createElement('div');
   overlay.id='_seclist_modal';
@@ -2844,23 +2855,27 @@ function clearSectorHighlight(){
   if(_sectorHL){try{if(leafletMap)leafletMap.removeLayer(_sectorHL.line);}catch{}}
   _sectorHL=null;
   if(mapBaseLine)mapBaseLine.setStyle({opacity:curveGroups.length?0.25:0.85});
-  document.querySelectorAll('#sectorbody tr[data-hl]').forEach(tr=>{tr.style.background='';});
+  refreshSelButtons();
 }
 window.highlightSector=function(id,t0,t1){
   if(!leafletMap)return;
   const key=id+'|'+t0, was=_sectorHL&&_sectorHL.key===key;
+  const _wasRng=_sectorHL&&_sectorHL.rng, _curR=_selAbsRange();
   clearSectorHighlight();
-  if(was){if(mapBaseLine)leafletMap.fitBounds(mapBaseLine.getBounds(),{padding:[20,20]});return;}
+  if(was){if(_wasRng&&_curR&&_wasRng[0]===_curR[0]&&_wasRng[1]===_curR[1])clearSelection();if(mapBaseLine)leafletMap.fitBounds(mapBaseLine.getBounds(),{padding:[20,20]});return;}
   const pts=GPSTRACE.filter(p=>p.lat!=null&&p.lon!=null&&p.t>=t0-1000&&p.t<=t1+1000).map(p=>[p.lat,p.lon]);
   if(pts.length<2)return;
   const line=L.polyline(pts,{color:'#ff2fd0',weight:6,opacity:0.95}).addTo(leafletMap);
   if(mapBaseLine)mapBaseLine.setStyle({opacity:0.25});
   leafletMap.fitBounds(line.getBounds(),{padding:[30,30]});
-  _sectorHL={key,line};
-  const tr=document.querySelector('#sectorbody tr[data-hl="'+key+'"]');
-  if(tr)tr.style.background='var(--s3)';
+  _sectorHL={key,line,rng:null};
+  const _idx=[];ST.forEach((st,k)=>{if(st.ms!=null&&st.ms>=t0&&st.ms<=t1)_idx.push(k);});
+  if(_idx.length>1){_sectorHL.rng=[_idx[0],_idx[_idx.length-1]];_selLapN=null;selS=_idx[0]-viewS;selE=_idx[_idx.length-1]-viewS;schedRender();updateSel(true);}
+  else if(_selLapN!=null){_selLapN=null;clearSelection();}
+  refreshSelButtons();
 };
 window.editSector=function(id){
+  if(!isPro()){showPlanModal('Sectors are a Pro feature.');return;}
   const sec=SECTORS_DB.find(x=>x.id===id&&!x.deleted);
   if(!sec)return;
   document.getElementById('_secedit_modal')?.remove();
@@ -2900,6 +2915,7 @@ window.deleteSector=function(id){
   renderSectors();
 };
 window.loadSectorBest=async function(id){
+  if(!isPro()){showPlanModal('Sectors are a Pro feature.');return;}
   const s=SECTORS_DB.find(x=>x.id===id);
   if(!s||!s.best||!s.best.fileId)return;
   try{
@@ -5161,6 +5177,7 @@ document.addEventListener('mouseup',e=>{
 
 // ── Selection → stats strip ──────────────────────────────────────────────
 function updateSel(doScroll=true){
+  refreshSelButtons();
   if(selS<0||selE<0||selS===selE){hlRows([],false);updateStatsStrip();return;}
   const vlen=viewE-viewS+1;
   const s2=clamp(Math.min(selS,selE),0,vlen-1),e2=clamp(Math.max(selS,selE),0,vlen-1);
@@ -5171,8 +5188,44 @@ function updateSel(doScroll=true){
   updateStatsStrip();
 }
 
+let _selLapN=null;
+function _selAbsRange(){
+  if(selS<0||selE<0||selS===selE)return null;
+  const vlen=viewE-viewS+1;
+  return [viewS+clamp(Math.min(selS,selE),0,vlen-1),viewS+clamp(Math.max(selS,selE),0,vlen-1)];
+}
+function _lapIsSelected(lapN){
+  const r=_selAbsRange();
+  if(!r||_selLapN==null||_selLapN!==lapN)return false;
+  const lr=lapN==='all'?[0,ST.length-1]:lapStrokeRange(lapN);
+  return !!(lr&&lr[0]===r[0]&&lr[1]===r[1]);
+}
+function refreshSelButtons(){
+  const r=_selAbsRange();
+  const lapOn=_selLapN!=null&&_lapIsSelected(_selLapN);
+  if(!lapOn&&!r)_selLapN=null;
+  const lb=document.getElementById('lapAddCurveBtn');
+  if(lb)lb.style.display=(lapOn&&_selLapN!=='all'&&curveGroups.length<8)?'':'none';
+  document.querySelectorAll('#laptbl tbody tr[data-lap]').forEach(tr=>{
+    const key=(typeof _showLaps==='undefined'||!_showLaps||!_showLaps.length)?'all':+tr.dataset.lap;
+    tr.classList.toggle('yhl',lapOn&&_selLapN===key);
+  });
+  const hl=(typeof _sectorHL!=='undefined')?_sectorHL:null;
+  const secSelMatch=!!(hl&&hl.rng&&r&&hl.rng[0]===r[0]&&hl.rng[1]===r[1]);
+  const sb=document.getElementById('sectorCurveBtn');
+  if(sb)sb.style.display=(secSelMatch&&curveGroups.length<8)?'':'none';
+  document.querySelectorAll('#sectorbody tr[data-hl]').forEach(tr=>{
+    tr.classList.toggle('yhl',!!(hl&&tr.dataset.hl===hl.key&&(!hl.rng||secSelMatch)));
+  });
+}
+window.addSectorToCurves=function(){
+  if(selS<0||selE<0){toast('Tap a sector row first');return;}
+  if(curveGroups.length>=8){toast('8 curve groups max');return;}
+  pinSelection();
+};
 function clearSelection(){
   selS=-1;selE=-1;ovAbsSelS=-1;ovAbsSelE=-1;
+  refreshSelButtons();
   hlRows([]);schedRender();
 }
 
@@ -5258,6 +5311,7 @@ function pinSelection(){
   selS=-1;selE=-1;
   tplFocusIdx=-1;
   hlRows([]);
+  refreshSelButtons();
   buildCurveSection();
   updateStatsStrip();
   schedRender();
@@ -6630,6 +6684,7 @@ function buildLaps(){
   document.getElementById('lapsec').style.display='block';
   document.querySelector('#laptbl tbody').innerHTML='';
   document.getElementById('laptypebar').innerHTML='';
+  document.getElementById('lapcurvebar').innerHTML='';
   if(!showLaps.length){
     const _cs=SESSIONS[activeSessionIdx];
     const sum=(_cs&&_cs.d&&_cs.d.sum)||_lastSum||{};
@@ -6643,7 +6698,7 @@ function buildLaps(){
     document.querySelector('#laptbl tbody').innerHTML='<tr data-lap="1" style="cursor:pointer"><td>'+lapTypeChip('')+'</td><td>Lap 1</td><td>'+dist.toFixed(0)+'m</td><td>'+fmtTime(time)+'</td><td style="color:var(--mc-pace)">'+fmtPaceU(pace)+'</td><td style="color:var(--mc-rate)">'+rate+'</td>'
       +(hasHR1?'<td style="color:var(--mc-hr)">'+Math.round(bpm.reduce((a,b)=>a+b,0)/bpm.length)+'</td><td style="color:var(--mc-hr)">'+Math.max(...bpm)+'</td>':'')+'</tr>';
     const row=document.querySelector('#laptbl tbody tr');
-    if(row)row.addEventListener('click',()=>{if(!ST.length)return;selS=0-viewS;selE=ST.length-1-viewS;schedRender();updateSel(true);});
+    if(row)row.addEventListener('click',()=>{if(!ST.length)return;if(_lapIsSelected('all')){_selLapN=null;clearSelection();return;}if(typeof _sectorHL!=='undefined'&&_sectorHL)clearSectorHighlight();_selLapN='all';selS=0-viewS;selE=ST.length-1-viewS;schedRender();updateSel(true);});
     return;
   }
   assignLapNumbers();
@@ -6654,19 +6709,22 @@ function buildLaps(){
   const availTypes=isErgSession()?['work','rest']:['warmup','work','rest','cooldown'];
   const barTypes=availTypes.filter(t=>showLaps.some(l=>l.type===t));
   const typeColor=t=>({work:'var(--g)',rest:'var(--o)',warmup:'var(--b)',cooldown:'var(--p)'}[t]||'var(--muted)');
-  const hasWorkLaps=showLaps.some(l=>l.type==='work');
-  const lapCurveBtns=_lapEditMode?
-    `<button class="laptypebtn" data-type="" style="--btc:var(--g);border-color:var(--g);color:var(--g);margin-left:12px;" onclick="saveLapTypes()" title="Apply the lap types and rebuild">✓ Save lap types</button>`+
+  const _wlm=(SESSIONS[activeSessionIdx]&&SESSIONS[activeSessionIdx].d&&SESSIONS[activeSessionIdx].d.workoutLapMetrics)||[];
+  const hasWorkLaps=showLaps.some(l=>l.type==='work')&&(showLaps.some(l=>l.type==='rest')||_wlm.some(l=>l&&l.type==='work'));
+  const lapEditBtns=_lapEditMode?
+    `<button class="laptypebtn" data-type="" style="--btc:var(--g);border-color:var(--g);color:var(--g);margin-left:8px;" onclick="saveLapTypes()" title="Apply the lap types and rebuild">✓ Save lap types</button>`+
     `<button class="laptypebtn" data-type="" style="--btc:var(--muted);border-color:var(--muted);color:var(--muted);" onclick="cancelLapTypes()" title="Discard the changes">✕ Cancel</button>`
     :
-    `<button class="laptypebtn" data-type="" style="--btc:var(--b);border-color:var(--b);color:var(--b);margin-left:12px;" onclick="editLapTypes()" title="Change which laps are warmup, work, rest or cooldown">✎ Edit lap types</button>`+
-    `<button class="laptypebtn" data-type="" style="--btc:var(--g);border-color:var(--g);color:var(--g);" onclick="addLapToCurves()" title="Add the selected lap to the curve comparison">＋ Add to curves</button>`+
+    `<button class="laptypebtn" data-type="" style="--btc:var(--b);border-color:var(--b);color:var(--b);margin-left:8px;" onclick="editLapTypes()" title="Change which laps are warmup, work, rest or cooldown">✎ Edit lap types</button>`;
+  const lapCurveBtns=_lapEditMode?'':
+    `<button class="laptypebtn" id="lapAddCurveBtn" data-type="" style="--btc:var(--g);border-color:var(--g);color:var(--g);display:none;" onclick="addLapToCurves()" title="Add the selected lap to the curve comparison">＋ Add to curves</button>`+
     (hasWorkLaps?`<button class="laptypebtn" data-type="" style="--btc:var(--g);border-color:var(--g);color:var(--g);" onclick="addWorkLapsToCurves()" title="Add every work interval as its own curve group">＋ Add all work intervals to curves</button>`:'');
   document.getElementById('laptypebar').innerHTML=((hasType&&barTypes.length)?
-    '<span style="font-size:10px;color:var(--muted);margin-right:6px;">Show:</span>'+
+    '<span style="font-size:10px;color:var(--muted);margin-right:2px;">Show:</span>'+
     `<button class="laptypebtn on" data-type="all" style="--btc:var(--muted)" onclick="showAllLaps()">All</button>`+
     barTypes.map(t=>`<button class="laptypebtn" data-type="${t}" style="--btc:${typeColor(t)}" onclick="toggleLapType('${t}')">${t}</button>`).join('')
-    :'')+lapCurveBtns;
+    :'')+lapEditBtns;
+  document.getElementById('lapcurvebar').innerHTML=lapCurveBtns;
   document.querySelector('#laptbl thead').innerHTML=`<tr>${hasType?'<th style="text-align:left;">Type</th>':''}<th>Lap</th><th>Dist</th><th>Time</th><th>Pace</th><th>Rate</th>${hasHR?'<th>HR avg</th><th>HR max</th>':''}${hasCal?'<th>Cal</th>':''}</tr>`;
   document.querySelector('#laptbl tbody').innerHTML=showLaps.map((l,i)=>`<tr data-lap="${i+1}" data-type="${l.type||''}" style="cursor:pointer">
     ${hasType?(_lapEditMode
@@ -6686,7 +6744,9 @@ function buildLaps(){
       const lapN=+row.dataset.lap;
       const idxs=ST.map((s,i)=>s.lapNum===lapN?i:-1).filter(i=>i>=0);
       if(!idxs.length)return;
-      selS=idxs[0]-viewS;selE=idxs[idxs.length-1]-viewS;
+      if(_lapIsSelected(lapN)){_selLapN=null;clearSelection();return;}
+      if(typeof _sectorHL!=='undefined'&&_sectorHL)clearSectorHighlight();
+      _selLapN=lapN;selS=idxs[0]-viewS;selE=idxs[idxs.length-1]-viewS;
       schedRender();
       updateSel(true);
     });
