@@ -2537,33 +2537,35 @@ function sectorProject(ref,x,y,hintD){
     const vx=B[0]-A[0],vy=B[1]-A[1],l2=vx*vx+vy*vy;
     let t=l2>0?((x-A[0])*vx+(y-A[1])*vy)/l2:0; t=t<0?0:t>1?1:t;
     const px=A[0]+t*vx,py=A[1]+t*vy,lat=Math.hypot(x-px,y-py);
-    if(!best||lat<best.lat)best={lat,d:A[2]+t*(B[2]-A[2])};
+    const d=A[2]+t*(B[2]-A[2]), cost=lat+0.1*Math.abs(d-hintD);
+    if(!best||cost<best.cost)best={lat,d,cost};
   }
-  return best||{lat:Infinity,d:hintD};
+  return best||{lat:Infinity,d:hintD,cost:Infinity};
 }
-function scanTraceForSector(sec,trace){
+function scanTraceForSector(sec,trace,diag){
   const out=[];
   if(!sec||!sec.ref||sec.ref.length<2||!trace||trace.length<2)return out;
   const o=sec.origin, ref=sec.ref, L=sec.distance, pts=[];
   for(const p of trace){if(p.lat==null||p.lon==null||p.t==null)continue;const xy=sectorXY(p.lat,p.lon,o);pts.push({x:xy[0],y:xy[1],t:p.t});}
   const sg=sectorGate(ref,true), fg=sectorGate(ref,false);
+  if(diag)diag.reason='never crossed the start line';
   let i=1;
   while(i<pts.length){
     const cs=sectorCross(pts[i-1],pts[i],sg);
     if(!cs){i++;continue;}
-    let hintD=0,maxD=0,offT=null,anc=pts[i],ok=true,fin=null,j=i;
+    let hintD=0,maxD=0,offT=null,anc=pts[i],ok=true,fin=null,j=i,why='never crossed the finish line';
     const tr=[[0,0]];
     for(;j<pts.length;j++){
       const p=pts[j];
       if(j>i){const fc=sectorCross(pts[j-1],p,fg);if(fc&&maxD>L*0.5){fin=fc;break;}}
       const pr=sectorProject(ref,p.x,p.y,hintD);
-      if(pr.lat>SECTOR_CORRIDOR_M){if(offT==null)offT=p.t;if(p.t-offT>SECTOR_OFFTRACK_MS){ok=false;break;}continue;}
+      if(pr.lat>SECTOR_CORRIDOR_M){if(offT==null)offT=p.t;if(p.t-offT>SECTOR_OFFTRACK_MS){ok=false;why='left the 100 m corridor at '+Math.round(maxD)+' m';break;}continue;}
       offT=null;
       hintD=pr.d;
-      if(pr.d<maxD-SECTOR_BACKTRACK_M){ok=false;break;}
+      if(pr.d<maxD-SECTOR_BACKTRACK_M){ok=false;why='went backwards at '+Math.round(maxD)+' m';break;}
       if(pr.d>maxD)maxD=pr.d;
       if(Math.hypot(p.x-anc.x,p.y-anc.y)>=10)anc=p;
-      else if(p.t-anc.t>SECTOR_STOP_MS){ok=false;break;}
+      else if(p.t-anc.t>SECTOR_STOP_MS){ok=false;why='stopped for over 20 s at '+Math.round(maxD)+' m';break;}
       const ts=Math.round((p.t-cs.t)/100)/10;
       if(ts-tr[tr.length-1][0]>=1)tr.push([ts,Math.round(maxD*10)/10]);
     }
@@ -2572,7 +2574,7 @@ function scanTraceForSector(sec,trace){
       tr.push([Math.round(timeMs/100)/10,L]);
       out.push({startT:cs.t,endT:fin.t,timeMs,trace:tr});
       i=j+1;
-    }else i++;
+    }else{if(diag)diag.reason=why;i++;}
   }
   return out;
 }
@@ -2587,6 +2589,8 @@ function buildSectorFromTrace(trace,i0,i1,name){
   const raw=[];
   for(let i=i0;i<=i1;i++){const p=trace[i];if(p.lat==null||p.lon==null)continue;raw.push(sectorXY(p.lat,p.lon,o));}
   if(raw.length<2)return null;
+  const sm=raw.map((q,i)=>{if(i===0||i===raw.length-1)return q;const a=Math.max(0,i-2),b=Math.min(raw.length-1,i+2);let sx=0,sy=0;for(let k=a;k<=b;k++){sx+=raw[k][0];sy+=raw[k][1];}return [sx/(b-a+1),sy/(b-a+1)];});
+  raw.length=0;sm.forEach(q=>raw.push(q));
   const ref=[[0,0,0]];let cum=0,last=raw[0];
   for(let i=1;i<raw.length;i++){
     const seg=Math.hypot(raw[i][0]-last[0],raw[i][1]-last[1]);
@@ -2710,7 +2714,9 @@ function _sectorMapClick(e){
     SESSIONS.forEach(x=>updateSectorsFromData(x.d,x.label,x.fileId,s.id));
     saveSectors();
     renderSectors();
-    toast('Sector saved · '+s.distance+' m');
+    const _dg={};
+    if(scanTraceForSector(s,GPSTRACE,_dg).length)toast('Sector saved · '+s.distance+' m');
+    else toast('Sector saved · '+s.distance+' m — not detected in this session: '+_dg.reason,8000);
     if(AnalyserDrive.isSignedIn()&&confirm('Scan all Drive sessions for "'+name+'"?'))scanAllSectors(s.id);
   },50);
 }
