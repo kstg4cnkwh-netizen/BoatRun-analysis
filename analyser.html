@@ -8467,6 +8467,7 @@ function vidWire(){
     };
     mc.addEventListener('mousedown',h,true);
     mc.addEventListener('touchstart',h,true);
+    vidInitBarDrag(mc);
   }
   const fsc=()=>setTimeout(()=>{ vidSizeOverlay(); vidDraw(); },80);
   document.addEventListener('fullscreenchange',fsc);
@@ -9369,6 +9370,18 @@ function vidDrawCoverage(ctx,g){
     const f=b>a?(e-a)/(b-a):0;
     return PL+((xs[lo]+(xs[hi]-xs[lo])*f)-xMin)/xRng*pw;
   };
+  const pe=px=>{
+    const X=i=>PL+(xs[i]-xMin)/xRng*pw;
+    if(px<=X(0)) return e0;
+    if(px>=X(N-1)) return eN;
+    let lo=0, hi=N-1;
+    while(hi-lo>1){ const m=(lo+hi)>>1; if(X(m)<=px) lo=m; else hi=m; }
+    const a=X(lo), b=X(hi);
+    const f=b>a?(px-a)/(b-a):0;
+    return (view[lo].elapsed||0)+((view[hi].elapsed||0)-(view[lo].elapsed||0))*f;
+  };
+  VID._pxToE=pe;
+  VID._handles=[];
   const rows=[];
   const BH=13;
   ctx.save();
@@ -9392,6 +9405,12 @@ function vidDrawCoverage(ctx,g){
     ctx.beginPath(); if(ctx.roundRect) ctx.roundRect(x0,y+1,x1-x0,BH-2,3); else ctx.rect(x0,y+1,x1-x0,BH-2); ctx.fill();
     ctx.globalAlpha=1;
     if(i===VID.active){ ctx.strokeStyle='#000'; ctx.lineWidth=1.5; ctx.stroke(); }
+    const hx=Math.min(Math.max((x0+x1)/2,PL+13),PL+pw-13), hy=y-8;
+    ctx.fillStyle=col;
+    ctx.beginPath(); if(ctx.roundRect) ctx.roundRect(hx-13,hy,26,9,[4,4,0,0]); else ctx.rect(hx-13,hy,26,9); ctx.fill();
+    ctx.strokeStyle='#000'; ctx.lineWidth=1; ctx.stroke();
+    ctx.beginPath(); for(let k=-4;k<=4;k+=4){ ctx.moveTo(hx+k,hy+2); ctx.lineTo(hx+k,hy+7); } ctx.stroke();
+    VID._handles.push({i:i,x0:hx-13,x1:hx+13,y0:hy,y1:hy+9+BH});
     let name=vidLabel(c.name);
     const room=x1-x0-8;
     if(room>12){
@@ -9401,6 +9420,60 @@ function vidDrawCoverage(ctx,g){
     }
   });
   ctx.restore();
+}
+function vidHandleAt(mc,ev){
+  if(!VID._handles || !VID._handles.length) return null;
+  const r=mc.getBoundingClientRect();
+  const p=ev.touches?ev.touches[0]:ev;
+  const x=p.clientX-r.left, y=p.clientY-r.top;
+  for(let n=VID._handles.length-1;n>=0;n--){
+    const h=VID._handles[n];
+    if(x>=h.x0-6 && x<=h.x1+6 && y>=h.y0-6 && y<=h.y1+2) return {h:h,x:x};
+  }
+  return null;
+}
+function vidInitBarDrag(mc){
+  let D=null;
+  const down=ev=>{
+    if(VID.syncMode || VID_EXPORT) return;
+    const hit=vidHandleAt(mc,ev); if(!hit) return;
+    ev.preventDefault(); ev.stopImmediatePropagation();
+    if(hit.h.i!==VID.active) vidSetActive(hit.h.i);
+    const c=VID.clips[hit.h.i]; if(!c || !VID._pxToE) return;
+    D={c:c, off0:c.offset||0, e0:VID._pxToE(hit.x), pe:VID._pxToE, left:mc.getBoundingClientRect().left};
+    mc.style.cursor='grabbing';
+  };
+  const move=ev=>{
+    if(!D) return;
+    if(ev.cancelable) ev.preventDefault();
+    const p=ev.touches?ev.touches[0]:ev;
+    const x=p.clientX-D.left;
+    D.c.offset=Math.round((D.off0+(D.pe(x)-D.e0))*10)/10;
+    if(VID.clips[VID.active]===D.c){ const inp=document.getElementById('vidOffset'); if(inp) inp.value=D.c.offset; }
+    vidDraw();
+  };
+  const up=()=>{
+    if(!D) return;
+    const c=D.c; D=null;
+    mc.style.cursor='';
+    if(c.syncSrc==='clock') c.syncSrc=null;
+    c._autoRaw=null; c._autoPending=false;
+    vidDraw(); vidQueueSaveSync();
+    toast('Video moved \u2014 offset '+c.offset+'s',2500);
+  };
+  mc.addEventListener('mousedown',down,true);
+  mc.addEventListener('touchstart',down,{capture:true,passive:false});
+  window.addEventListener('mousemove',move);
+  window.addEventListener('touchmove',move,{passive:false});
+  window.addEventListener('mouseup',up);
+  window.addEventListener('touchend',up);
+  window.addEventListener('touchcancel',up);
+  mc.addEventListener('mousemove',ev=>{
+    if(D) return;
+    const over=!!vidHandleAt(mc,ev);
+    if(over){ mc.style.cursor='grab'; mc._vidHover=true; }
+    else if(mc._vidHover){ mc.style.cursor=''; mc._vidHover=false; }
+  });
 }
 function vidDrawChartLine(){
   const lc=document.getElementById('vidLineC'); if(!lc) return;
