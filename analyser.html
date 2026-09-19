@@ -8666,6 +8666,13 @@ function vidRenderBody(){
         <button class="vid-clip-tab" id="vidExportCancel" style="display:none;">Stop</button>
         <span class="vid-mini" id="vidExportStatus"></span>
       </div>
+      <div class="vid-row">
+        <button class="vid-clip-tab" id="vidSecInBtn" title="Set start to current video time">In</button>
+        <input class="vid-num" id="vidSecIn" type="text" inputmode="decimal" placeholder="start" style="width:64px;">
+        <button class="vid-clip-tab" id="vidSecOutBtn" title="Set end to current video time">Out</button>
+        <input class="vid-num" id="vidSecOut" type="text" inputmode="decimal" placeholder="end" style="width:64px;">
+        <button class="vid-clip-tab" id="vidSecClr" title="Export whole video">&times;</button>
+      </div>
     </div>
 
   </div>`;
@@ -8700,6 +8707,12 @@ function vidRenderBody(){
   on('vidExportBtn','onclick',vidExport);
   on('vidExportMp4Btn','onclick',vidExportMp4);
   on('vidExportCancel','onclick',vidCancelExport);
+  on('vidSecInBtn','onclick',()=>vidSecSet('in'));
+  on('vidSecOutBtn','onclick',()=>vidSecSet('out'));
+  on('vidSecIn','onchange',e=>vidSecType('in',e.target.value));
+  on('vidSecOut','onchange',e=>vidSecType('out',e.target.value));
+  on('vidSecClr','onclick',vidSecClear);
+  vidSecUI();
   on('vidCurveAvg5','onchange',e=>{ cfg.curveAvg5=e.target.checked; vidDraw(); });
   on('vidShowTpl','onchange',e=>{
     if(e.target.checked && !isPro()){ e.target.checked=false; showPlanModal('Stroke template overlay is a Pro feature.'); return; }
@@ -9746,6 +9759,8 @@ function vidExportRun(mode){
     mode='webm';
   }
   if(!el.videoWidth){ toast('Press play once so the video loads, then export'); return; }
+  const SR=vidSecRange(a);
+  if(!(SR.t1>SR.t0+0.2)){ toast('Out must be after In'); return; }
 
   let Ow=el.videoWidth, Oh=el.videoHeight;
   const cap=1280;
@@ -9780,11 +9795,12 @@ function vidExportRun(mode){
   };
 
   VID.exporting=true;
-  VID_EXPORT={rec,comp,cctx,stream,clip:a,el,Ow,Oh,raf:null,started:false,cancelled:false,mode,direct,mime};
+  VID_EXPORT={rec,comp,cctx,stream,clip:a,el,Ow,Oh,raf:null,started:false,cancelled:false,mode,direct,mime,t0:SR.t0,t1:SR.t1};
   vidExportUI(true);
 
   el.muted=true;
-  el.currentTime=0;
+  el.pause();
+  el.currentTime=SR.t0;
   const begin=()=>{
     if(!VID_EXPORT||VID_EXPORT.started) return;
     VID_EXPORT.started=true;
@@ -9797,6 +9813,44 @@ function vidExportRun(mode){
   setTimeout(begin,350); // fallback if seeked doesn't fire
 }
 
+function vidSecFmt(t){
+  if(t==null || !isFinite(t)) return '';
+  const m=Math.floor(t/60), sec=t-m*60;
+  return m+':'+(sec<10?'0':'')+sec.toFixed(1);
+}
+function vidSecUI(){
+  const a=VID.clips[VID.active];
+  const i=document.getElementById('vidSecIn'), o=document.getElementById('vidSecOut');
+  if(i) i.value=a?vidSecFmt(a.expIn):'';
+  if(o) o.value=a?vidSecFmt(a.expOut):'';
+}
+function vidSecSet(which){
+  const a=VID.clips[VID.active]; if(!a || !a.el) return;
+  const t=Math.round(a.el.currentTime*10)/10;
+  if(which==='in') a.expIn=t; else a.expOut=t;
+  if(a.expIn!=null && a.expOut!=null && a.expOut<=a.expIn) toast('Out must be after In');
+  vidSecUI();
+}
+function vidSecType(which,v){
+  const a=VID.clips[VID.active]; if(!a) return;
+  const t=vidParseTime(v);
+  const val=(isNaN(t) || t<0) ? null : Math.round(t*10)/10;
+  if(which==='in') a.expIn=val; else a.expOut=val;
+  vidSecUI();
+}
+function vidSecClear(){
+  const a=VID.clips[VID.active]; if(!a) return;
+  a.expIn=null; a.expOut=null;
+  vidSecUI();
+  toast('Export set to whole video');
+}
+function vidSecRange(a){
+  const dur=(a.el && isFinite(a.el.duration)) ? a.el.duration : 0;
+  let t0=(a.expIn!=null) ? a.expIn : 0;
+  let t1=(a.expOut!=null && a.expOut>0) ? a.expOut : dur;
+  if(dur){ t0=Math.min(Math.max(0,t0),dur); t1=Math.min(t1,dur); }
+  return {t0:t0, t1:t1};
+}
 function vidExport(){ vidExportRun('webm'); }
 function vidExportMp4(){
   if(!window.MediaRecorder){ toast('This browser cannot record video \u2014 try Chrome'); return; }
@@ -9903,10 +9957,10 @@ function vidExportFrame(){
     cctx.globalAlpha=1;
   }
   vidDraw();
-  const dur=el.duration||0;
-  vidExportProgress(el.currentTime,dur);
+  const t0=X.t0||0, t1=X.t1||el.duration||0;
+  vidExportProgress(Math.max(0,el.currentTime-t0),t1-t0);
 
-  if(el.ended || (dur && el.currentTime>=dur-0.06)){ vidFinishExport(); return; }
+  if(el.ended || (t1 && el.currentTime>=t1-0.03)){ vidFinishExport(); return; }
   X.raf=requestAnimationFrame(vidExportFrame);
 }
 
