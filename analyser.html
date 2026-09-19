@@ -645,6 +645,7 @@ body.light .hdrname{color:#fff;}
   <div id="unitsbar" class="brsettings"></div>
   <!-- Summary cards -->
   <div id="cards"></div>
+  <div id="chartBlock">
   <!-- Overview minimap -->
   <div class="sec">
     <div class="ovbox"><canvas id="ovC" height="44"></canvas></div>
@@ -654,6 +655,7 @@ body.light .hdrname{color:#fff;}
   <div class="sec">
     <div class="sec-hd">
       <h2>Stroke Chart</h2>
+      <button class="hbtn" id="chartMoveBtn" style="font-size:10px;" onclick="window.toggleChartPos()" title="Move the charts">Move down &#9660;</button>
       <div style="display:flex;align-items:center;gap:6px;margin-left:auto;flex-wrap:wrap;">
         <button class="zoom-btn" onclick="window.zoomChart(1)">＋</button>
         <input type="range" id="zoomSlider" min="0" max="100" value="100" style="width:70px;cursor:pointer;accent-color:var(--acc);" oninput="window.zoomSlide(this.value)">
@@ -683,6 +685,7 @@ body.light .hdrname{color:#fff;}
 
   <!-- Stats strip: selection or view averages -->
   <div id="statsstrip"><div id="stripcontext"></div><div id="stripinner"></div></div>
+  </div>
 
   <!-- Curve comparison -->
   <div class="sec" id="curvesec">
@@ -8666,11 +8669,12 @@ function vidRenderBody(){
         <button class="vid-clip-tab" id="vidExportCancel" style="display:none;">Stop</button>
         <span class="vid-mini" id="vidExportStatus"></span>
       </div>
+      <div class="vid-mini" style="margin-top:4px;">To export a section: scroll the video to the start point and press Start, then scroll to the finish point and press Finish.</div>
       <div class="vid-row">
-        <button class="vid-clip-tab" id="vidSecInBtn" title="Set start to current video time">In</button>
+        <button class="vid-clip-tab" id="vidSecInBtn" title="Set start to current video time">Start</button>
         <input class="vid-num" id="vidSecIn" type="text" inputmode="decimal" placeholder="start" style="width:64px;">
-        <button class="vid-clip-tab" id="vidSecOutBtn" title="Set end to current video time">Out</button>
-        <input class="vid-num" id="vidSecOut" type="text" inputmode="decimal" placeholder="end" style="width:64px;">
+        <button class="vid-clip-tab" id="vidSecOutBtn" title="Set finish to current video time">Finish</button>
+        <input class="vid-num" id="vidSecOut" type="text" inputmode="decimal" placeholder="finish" style="width:64px;">
         <button class="vid-clip-tab" id="vidSecClr" title="Export whole video">&times;</button>
       </div>
     </div>
@@ -9760,7 +9764,7 @@ function vidExportRun(mode){
   }
   if(!el.videoWidth){ toast('Press play once so the video loads, then export'); return; }
   const SR=vidSecRange(a);
-  if(!(SR.t1>SR.t0+0.2)){ toast('Out must be after In'); return; }
+  if(!(SR.t1>SR.t0+0.2)){ toast('Finish must be after Start'); return; }
 
   let Ow=el.videoWidth, Oh=el.videoHeight;
   const cap=1280;
@@ -9828,7 +9832,7 @@ function vidSecSet(which){
   const a=VID.clips[VID.active]; if(!a || !a.el) return;
   const t=Math.round(a.el.currentTime*10)/10;
   if(which==='in') a.expIn=t; else a.expOut=t;
-  if(a.expIn!=null && a.expOut!=null && a.expOut<=a.expIn) toast('Out must be after In');
+  if(a.expIn!=null && a.expOut!=null && a.expOut<=a.expIn) toast('Finish must be after Start');
   vidSecUI();
 }
 function vidSecType(which,v){
@@ -10010,6 +10014,21 @@ function vidExportProgress(t,dur){
 window.addEventListener('resize',()=>{ if(VID.clips.length){ vidSizeOverlay(); vidDraw(); } });
 
 // ── Init ─────────────────────────────────────────────────────────────────────
+window.toggleChartPos=function(){ setChartPos(localStorage.getItem('an_chart_pos')==='down'?'top':'down', true); };
+function setChartPos(pos, scroll){
+  const blk=document.getElementById('chartBlock');
+  const row=document.getElementById('map-stroke-row');
+  const cards=document.getElementById('cards');
+  const btn=document.getElementById('chartMoveBtn');
+  if(!blk || !row || !cards) return;
+  if(pos==='down') row.parentNode.insertBefore(blk,row);
+  else cards.parentNode.insertBefore(blk,cards.nextSibling);
+  try{ localStorage.setItem('an_chart_pos',pos); }catch(e){}
+  if(btn) btn.innerHTML=pos==='down'?'Move to top &#9650;':'Move down &#9660;';
+  try{ schedRender(); }catch(e){}
+  if(scroll) setTimeout(()=>blk.scrollIntoView({behavior:'smooth',block:'start'}),60);
+}
+try{ if(localStorage.getItem('an_chart_pos')==='down') setChartPos('down', false); }catch(e){}
 AnalyserDrive.init();
 if(AnalyserDrive.isSignedIn()) pullPrefsAndApply().catch(()=>{});
 AnalyserAuth.init();
