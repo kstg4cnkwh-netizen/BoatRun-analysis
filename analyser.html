@@ -9381,7 +9381,7 @@ function vidDrawCoverage(ctx,g){
     return (view[lo].elapsed||0)+((view[hi].elapsed||0)-(view[lo].elapsed||0))*f;
   };
   VID._pxToE=pe;
-  VID._handles=[];
+  VID._playHandle=null;
   const rows=[];
   const BH=13;
   ctx.save();
@@ -9405,12 +9405,6 @@ function vidDrawCoverage(ctx,g){
     ctx.beginPath(); if(ctx.roundRect) ctx.roundRect(x0,y+1,x1-x0,BH-2,3); else ctx.rect(x0,y+1,x1-x0,BH-2); ctx.fill();
     ctx.globalAlpha=1;
     if(i===VID.active){ ctx.strokeStyle='#000'; ctx.lineWidth=1.5; ctx.stroke(); }
-    const hx=Math.min(Math.max((x0+x1)/2,PL+13),PL+pw-13), hy=y-8;
-    ctx.fillStyle=col;
-    ctx.beginPath(); if(ctx.roundRect) ctx.roundRect(hx-13,hy,26,9,[4,4,0,0]); else ctx.rect(hx-13,hy,26,9); ctx.fill();
-    ctx.strokeStyle='#000'; ctx.lineWidth=1; ctx.stroke();
-    ctx.beginPath(); for(let k=-4;k<=4;k+=4){ ctx.moveTo(hx+k,hy+2); ctx.lineTo(hx+k,hy+7); } ctx.stroke();
-    VID._handles.push({i:i,x0:hx-13,x1:hx+13,y0:hy,y1:hy+9+BH});
     let name=vidLabel(c.name);
     const room=x1-x0-8;
     if(room>12){
@@ -9422,14 +9416,11 @@ function vidDrawCoverage(ctx,g){
   ctx.restore();
 }
 function vidHandleAt(mc,ev){
-  if(!VID._handles || !VID._handles.length) return null;
+  const h=VID._playHandle; if(!h) return null;
   const r=mc.getBoundingClientRect();
   const p=ev.touches?ev.touches[0]:ev;
   const x=p.clientX-r.left, y=p.clientY-r.top;
-  for(let n=VID._handles.length-1;n>=0;n--){
-    const h=VID._handles[n];
-    if(x>=h.x0-6 && x<=h.x1+6 && y>=h.y0-6 && y<=h.y1+2) return {h:h,x:x};
-  }
+  if(x>=h.x0-8 && x<=h.x1+8 && y>=h.y0-8 && y<=h.y1+8) return {h:h,x:x};
   return null;
 }
 function vidInitBarDrag(mc){
@@ -9437,29 +9428,31 @@ function vidInitBarDrag(mc){
   const down=ev=>{
     if(VID.syncMode || VID_EXPORT) return;
     const hit=vidHandleAt(mc,ev); if(!hit) return;
+    const c=VID.clips[VID.active]; if(!c || !c.el || !VID._pxToE) return;
     ev.preventDefault(); ev.stopImmediatePropagation();
-    if(hit.h.i!==VID.active) vidSetActive(hit.h.i);
-    const c=VID.clips[hit.h.i]; if(!c || !VID._pxToE) return;
-    D={c:c, off0:c.offset||0, e0:VID._pxToE(hit.x), pe:VID._pxToE, left:mc.getBoundingClientRect().left};
+    D={c:c, pe:VID._pxToE, left:mc.getBoundingClientRect().left, dx:hit.x-(hit.h.x0+hit.h.x1)/2};
+    try{ c.el.pause(); }catch(e){}
     mc.style.cursor='grabbing';
   };
   const move=ev=>{
     if(!D) return;
     if(ev.cancelable) ev.preventDefault();
     const p=ev.touches?ev.touches[0]:ev;
-    const x=p.clientX-D.left;
-    D.c.offset=Math.round((D.off0+(D.pe(x)-D.e0))*10)/10;
-    if(VID.clips[VID.active]===D.c){ const inp=document.getElementById('vidOffset'); if(inp) inp.value=D.c.offset; }
+    const x=p.clientX-D.left-D.dx;
+    const el=D.c.el;
+    const dur=(isFinite(el.duration) && el.duration) || 0;
+    let t=D.pe(x)-(D.c.offset||0);
+    if(t<0) t=0;
+    if(dur && t>dur-0.05) t=dur-0.05;
+    try{ el.currentTime=t; }catch(e){}
+    if(typeof vidUpdTime==='function') vidUpdTime();
     vidDraw();
   };
   const up=()=>{
     if(!D) return;
-    const c=D.c; D=null;
+    D=null;
     mc.style.cursor='';
-    if(c.syncSrc==='clock') c.syncSrc=null;
-    c._autoRaw=null; c._autoPending=false;
-    vidDraw(); vidQueueSaveSync();
-    toast('Video moved \u2014 offset '+c.offset+'s',2500);
+    vidDraw();
   };
   mc.addEventListener('mousedown',down,true);
   mc.addEventListener('touchstart',down,{capture:true,passive:false});
@@ -9501,7 +9494,10 @@ function vidDrawChartLine(){
   ctx.beginPath(); ctx.moveTo(px,PT); ctx.lineTo(px,PT+ph); ctx.stroke();
   ctx.setLineDash([]);
   ctx.fillStyle=_lc;
-  ctx.beginPath(); ctx.moveTo(px-4,PT); ctx.lineTo(px+4,PT); ctx.lineTo(px,PT+7); ctx.closePath(); ctx.fill();
+  ctx.beginPath(); if(ctx.roundRect) ctx.roundRect(px-9,PT,18,13,3); else ctx.rect(px-9,PT,18,13); ctx.fill();
+  ctx.strokeStyle='#000'; ctx.lineWidth=1; ctx.stroke();
+  ctx.beginPath(); for(let k=-3;k<=3;k+=3){ ctx.moveTo(px+k,PT+3); ctx.lineTo(px+k,PT+10); } ctx.stroke();
+  VID._playHandle={x0:px-9,x1:px+9,y0:PT,y1:PT+13};
   ctx.restore();
 }
 
