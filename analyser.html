@@ -1340,6 +1340,24 @@ const AnalyserDrive = {
     const r=await this._api(`https://www.googleapis.com/upload/drive/v3/files/${fileId}?uploadType=multipart`,{
       method:'PATCH',body:form}, 'Sync save', 45000, fileId);
     this._ok(r, 'Sync save');
+    if (vidSync && Object.keys(vidSync).length) {
+      markSessHasVideo(fileId);
+      try {
+        const mResp = await this._api(`https://www.googleapis.com/drive/v3/files/${fileId}?fields=name`, {}, 'Video flag', null, fileId);
+        if (mResp.ok) {
+          const { name } = await mResp.json();
+          if (name && !/_VID1/.test(name)) {
+            const newName = name.replace(/\.json$/, '_VID1.json');
+            const r2 = await this._api(`https://www.googleapis.com/drive/v3/files/${fileId}`, {
+              method: 'PATCH',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ name: newName })
+            }, 'Video flag', null, fileId);
+            if (r2.ok) this._invalidateFolder();
+          }
+        }
+      } catch (e) {}
+    }
   },
   /* Lap types are edited by hand in the Analyser's lap table and have to
      survive a reload, so they get written back into the ORIGINAL Metrics
@@ -2332,7 +2350,23 @@ function recordsTrace(d) {
   }
   return pts;
 }
+function sessVidIds(){
+  try{ return new Set(JSON.parse(localStorage.getItem('_ad_vid_ids')||'[]')); }catch(e){ return new Set(); }
+}
+function markSessHasVideo(fileId){
+  if(!fileId) return;
+  const ids=sessVidIds();
+  if(ids.has(fileId)) return;
+  ids.add(fileId);
+  try{ localStorage.setItem('_ad_vid_ids',JSON.stringify([...ids])); }catch(e){}
+}
+function sessHasVideo(f){
+  if(!f) return false;
+  return /_VID1/.test(String(f.name||'')) || sessVidIds().has(f.id);
+}
+const VID_BADGE='<span class="asc-badge" title="Has video" style="background:rgba(46,204,113,.18);color:#2ecc71;">&#127909; Video</span>';
 function addSessionFromData(d, label, replace, fileId, squadCode) {
+  if (fileId && d && d.vidSync && Object.keys(d.vidSync).length) markSessHasVideo(fileId);
   if (!replace && SESSIONS.length) {
     const curErg = !!(SESSIONS[0].d.sum && SESSIONS[0].d.sum.session_mode === 'erg');
     const newErg = !!(d.sum && d.sum.session_mode === 'erg');
@@ -4403,7 +4437,8 @@ function showDrivePicker(files, onSelect) {
       dateDiv.innerHTML='<span>'+dateStr+'</span>'
         +(p.squadCode?'<span class="asc-badge">'+p.squadCode+'</span>':'')
         +(p.axis?'<span class="asc-badge">AX:'+p.axis+'</span>':'')
-        +(p.workout?'<span class="asc-badge">'+p.workout+'</span>':'');
+        +(p.workout?'<span class="asc-badge">'+p.workout+'</span>':'')
+        +(sessHasVideo(f)?VID_BADGE:'');
 
       const statsDiv=document.createElement('div');
       statsDiv.className='asc-stats';
@@ -4411,7 +4446,7 @@ function showDrivePicker(files, onSelect) {
       if(p.durS!=null) statsDiv.innerHTML+='<div><span class="asc-v">'+fmtTime(p.durS)+'</span><span class="asc-l">time</span></div>';
       if(pace!=null) statsDiv.innerHTML+='<div><span class="asc-v">'+fmtPace(pace)+'</span><span class="asc-l">avg pace</span></div>';
       if(p.strokes!=null) statsDiv.innerHTML+='<div><span class="asc-v">'+p.strokes+'</span><span class="asc-l">strokes</span></div>';
-      if(!p.distM&&!p.durS) statsDiv.innerHTML='<span style="color:var(--muted);font-size:.8rem;">'+f.name.replace('RowSess_','').replace('.json','').replace('_FAV1','').replace(/_NM[A-Za-z0-9\-~]*/,'')+'</span>';
+      if(!p.distM&&!p.durS) statsDiv.innerHTML='<span style="color:var(--muted);font-size:.8rem;">'+f.name.replace('RowSess_','').replace('.json','').replace('_FAV1','').replace('_VID1','').replace(/_NM[A-Za-z0-9\-~]*/,'')+'</span>';
 
       if(p.name){const nameDiv=document.createElement('div');nameDiv.style.cssText='font-weight:700;font-size:.85rem;color:var(--text);margin-bottom:2px;';nameDiv.textContent=p.name;btn.appendChild(nameDiv);}
       btn.appendChild(dateDiv);btn.appendChild(statsDiv);
@@ -7406,7 +7441,8 @@ async function showStartup(){
         dateDiv.innerHTML='<span>'+dateStr+'</span>'
           +(p.squadCode?'<span class="asc-badge">'+p.squadCode+'</span>':'')
           +(p.axis?'<span class="asc-badge">AX:'+p.axis+'</span>':'')
-          +(p.workout?'<span class="asc-badge">'+p.workout+'</span>':'');
+          +(p.workout?'<span class="asc-badge">'+p.workout+'</span>':'')
+          +(sessHasVideo(f)?VID_BADGE:'');
 
         const statsDiv=document.createElement('div');
         statsDiv.className='asc-stats';
@@ -7414,7 +7450,7 @@ async function showStartup(){
         if(p.durS!=null) statsDiv.innerHTML+='<div><span class="asc-v">'+fmtTime(p.durS)+'</span><span class="asc-l">time</span></div>';
         if(pace!=null) statsDiv.innerHTML+='<div><span class="asc-v">'+fmtPace(pace)+'</span><span class="asc-l">avg pace</span></div>';
         if(p.strokes!=null) statsDiv.innerHTML+='<div><span class="asc-v">'+p.strokes+'</span><span class="asc-l">strokes</span></div>';
-        if(!p.distM&&!p.durS) statsDiv.innerHTML='<span style="color:var(--muted);font-size:.8rem;">'+f.name.replace('RowSess_','').replace('.json','').replace('_FAV1','').replace(/_NM[A-Za-z0-9\-~]*/,'')+'</span>';
+        if(!p.distM&&!p.durS) statsDiv.innerHTML='<span style="color:var(--muted);font-size:.8rem;">'+f.name.replace('RowSess_','').replace('.json','').replace('_FAV1','').replace('_VID1','').replace(/_NM[A-Za-z0-9\-~]*/,'')+'</span>';
 
         if(p.name){const nameDiv=document.createElement('div');nameDiv.style.cssText='font-weight:700;font-size:.85rem;color:var(--text);margin-bottom:2px;';nameDiv.textContent=p.name;btn.appendChild(nameDiv);}
         btn.appendChild(dateDiv);btn.appendChild(statsDiv);
@@ -8393,6 +8429,11 @@ async function vidScanMatches() {
     const flagged = [];
     for (const f of flags) {
       if (names.includes(f.id)) flagged.push(f.id);
+    }
+    const _vs = (SESSIONS[activeSessionIdx] && SESSIONS[activeSessionIdx].d && SESSIONS[activeSessionIdx].d.vidSync) || {};
+    const _synced = Object.keys(_vs).map(k => k.replace(/:\d+$/, ''));
+    for (const name of names) {
+      if (_synced.includes(name) && !flagged.includes(name)) flagged.push(name);
     }
     const lo = VID_SESS_T0 - 15 * 60 * 1000;
     const hi = VID_SESS_T0 + VID_SESS_DUR_MS + 15 * 60 * 1000;
