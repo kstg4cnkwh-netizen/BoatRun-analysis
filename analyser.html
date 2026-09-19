@@ -8669,13 +8669,14 @@ function vidRenderBody(){
         <button class="vid-clip-tab" id="vidExportCancel" style="display:none;">Stop</button>
         <span class="vid-mini" id="vidExportStatus"></span>
       </div>
-      <div class="vid-mini" style="margin-top:4px;">To export a section: scroll the video to the start point and press Start, then scroll to the finish point and press Finish.</div>
+      <div class="vid-mini" style="margin-top:4px;">To export a section: scroll the video to the start point and press Start, then scroll to the finish point and press Finish. Or highlight a section on the stroke chart and press Use highlight.</div>
       <div class="vid-row">
         <button class="vid-clip-tab" id="vidSecInBtn" title="Set start to current video time">Start</button>
         <input class="vid-num" id="vidSecIn" type="text" inputmode="decimal" placeholder="start" style="width:64px;">
         <button class="vid-clip-tab" id="vidSecOutBtn" title="Set finish to current video time">Finish</button>
         <input class="vid-num" id="vidSecOut" type="text" inputmode="decimal" placeholder="finish" style="width:64px;">
         <button class="vid-clip-tab" id="vidSecClr" title="Export whole video">&times;</button>
+        <button class="vid-clip-tab" id="vidSecSelBtn" title="Use the section highlighted on the stroke chart">Use highlight</button>
       </div>
     </div>
 
@@ -8716,6 +8717,7 @@ function vidRenderBody(){
   on('vidSecIn','onchange',e=>vidSecType('in',e.target.value));
   on('vidSecOut','onchange',e=>vidSecType('out',e.target.value));
   on('vidSecClr','onclick',vidSecClear);
+  on('vidSecSelBtn','onclick',vidSecFromSel);
   vidSecUI();
   on('vidCurveAvg5','onchange',e=>{ cfg.curveAvg5=e.target.checked; vidDraw(); });
   on('vidShowTpl','onchange',e=>{
@@ -9841,6 +9843,23 @@ function vidSecType(which,v){
   const val=(isNaN(t) || t<0) ? null : Math.round(t*10)/10;
   if(which==='in') a.expIn=val; else a.expOut=val;
   vidSecUI();
+}
+function vidSecFromSel(){
+  const a=VID.clips[VID.active]; if(!a) return;
+  const i0=getSelAbsS(), i1=getSelAbsE();
+  if(i0<0 || i1<0 || i0===i1 || !ST[i0] || !ST[i1]){ toast('Highlight a section on the stroke chart first'); return; }
+  const e0=ST[i0].elapsed||0;
+  const e1=ST[i1+1] ? (ST[i1+1].elapsed||0) : (ST[i1].elapsed||0)+2;
+  const dur=(a.el && isFinite(a.el.duration)) ? a.el.duration : 0;
+  let t0=Math.round((e0-a.offset)*10)/10, t1=Math.round((e1-a.offset)*10)/10;
+  if(t1<=0 || (dur && t0>=dur)){ toast('Highlighted section is not in this video'); return; }
+  let cut=false;
+  if(t0<0){ t0=0; cut=true; }
+  if(dur && t1>dur){ t1=Math.round(dur*10)/10; cut=true; }
+  a.expIn=t0; a.expOut=t1;
+  vidSecUI();
+  if(a.el){ try{ a.el.currentTime=t0; }catch(e){} }
+  toast('Export set to highlight '+vidSecFmt(t0)+' \u2013 '+vidSecFmt(t1)+(cut?' (trimmed to video)':''),3500);
 }
 function vidSecClear(){
   const a=VID.clips[VID.active]; if(!a) return;
