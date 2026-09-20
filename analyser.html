@@ -2537,6 +2537,24 @@ function schedulePushSectorsToPrefs(){
     }).catch(()=>{});
   },2000);
 }
+let _sectorsPullT=0,_sectorsPulling=false;
+function pullSectorsFromDrive(force,after){
+  if(!AnalyserDrive.isSignedIn())return;
+  if(_sectorsPulling)return;
+  if(!force&&Date.now()-_sectorsPullT<15000)return;
+  _sectorsPulling=true;_sectorsPullT=Date.now();
+  AnalyserDrive.pullPrefs().then(cur=>{
+    if(!cur||!Array.isArray(cur.sectors))return;
+    const before=JSON.stringify(SECTORS_DB);
+    SECTORS_DB=mergeSectors(SECTORS_DB,cur.sectors);
+    if(JSON.stringify(SECTORS_DB)===before)return;
+    try{localStorage.setItem('br_sectors',JSON.stringify(SECTORS_DB));}catch{}
+    if(SESSIONS.length)renderSectors();
+    if(typeof after==='function')after();
+  }).catch(()=>{}).finally(()=>{_sectorsPulling=false;});
+}
+document.addEventListener('visibilitychange',()=>{if(document.visibilityState==='visible')pullSectorsFromDrive(false);});
+window.addEventListener('focus',()=>pullSectorsFromDrive(false));
 function sectorPickBest(a,b){if(!a)return b||null;if(!b)return a;return b.timeMs<a.timeMs?b:a;}
 function mergeSectors(a,b){
   const map={};
@@ -2936,6 +2954,53 @@ async function runSectorScan(onlyId){
   toast('Scan complete · '+files.length+' sessions · '+newRes+' new results · '+newPB+' new PB'+(newPB===1?'':'s'),6000);
 }
 window.scanAllSectors=function(){runSectorScan(null);};
+window.shareSectors=async function(ids){
+  const list=SECTORS_DB.filter(x=>!x.deleted&&ids.includes(x.id));
+  if(!list.length){toast('Nothing to share');return;}
+  const out={type:'boatrun-sectors',v:1,exported:new Date().toISOString(),
+    sectors:list.map(x=>({id:x.id,name:x.name,created:x.created,origin:x.origin,finish:x.finish,bearing:x.bearing,distance:x.distance,corridor:x.corridor,ref:x.ref,rev:x.rev}))};
+  const base=list.length===1?String(list[0].name||'sector').replace(/[^A-Za-z0-9_-]+/g,'_').slice(0,40):'sectors_'+list.length;
+  const fname='BoatRun_'+base+'.json';
+  const blob=new Blob([JSON.stringify(out)],{type:'application/json'});
+  try{
+    const file=new File([blob],fname,{type:'application/json'});
+    if(navigator.canShare&&navigator.canShare({files:[file]})){
+      await navigator.share({files:[file],title:'BoatRun sectors',text:list.length===1?('Sector: '+list[0].name):(list.length+' BoatRun sectors')});
+      return;
+    }
+  }catch(e){if(e&&e.name==='AbortError')return;}
+  const a=document.createElement('a');
+  a.href=URL.createObjectURL(blob);a.download=fname;
+  document.body.appendChild(a);a.click();
+  setTimeout(()=>{URL.revokeObjectURL(a.href);a.remove();},1000);
+  toast('Sector file saved — send it to the other rower');
+};
+window.importSectorsFile=function(after){
+  const inp=document.createElement('input');
+  inp.type='file';inp.accept='.json,application/json';
+  inp.onchange=async()=>{
+    const f=inp.files&&inp.files[0];if(!f)return;
+    let data=null;
+    try{data=JSON.parse(await f.text());}catch(e){toast('Not a sector file');return;}
+    const arr=data&&data.type==='boatrun-sectors'&&Array.isArray(data.sectors)?data.sectors:null;
+    if(!arr){toast('Not a BoatRun sector file');return;}
+    let added=0,skipped=0;
+    arr.forEach(x=>{
+      if(!x||!x.id||!x.origin||!Array.isArray(x.ref)||x.ref.length<2||!(x.distance>0)){skipped++;return;}
+      const cur=SECTORS_DB.find(s=>s.id===x.id);
+      if(cur&&!cur.deleted){skipped++;return;}
+      const id=cur?('sec_'+Date.now().toString(36)+Math.random().toString(36).slice(2,6)):x.id;
+      SECTORS_DB.push({id,name:String(x.name||'Sector').slice(0,60),created:x.created||new Date().toISOString(),
+        origin:x.origin,finish:x.finish||null,bearing:x.bearing,distance:x.distance,corridor:x.corridor||SECTOR_CORRIDOR_M,
+        ref:x.ref,best:null,results:[],rev:x.rev||Date.now()});
+      added++;
+    });
+    if(added){saveSectors();if(SESSIONS.length)renderSectors();}
+    toast(added?('Imported '+added+' sector'+(added>1?'s':'')+(skipped?' · '+skipped+' already saved':'')+' — tap Scan all for past results'):'No new sectors (already saved)',4000);
+    if(typeof after==='function')after();
+  };
+  inp.click();
+};
 window.showSectorList=function(){
   if(!isPro()){showPlanModal('Sectors are a Pro feature.');return;}
   document.getElementById('_seclist_modal')?.remove();
@@ -2950,7 +3015,7 @@ window.showSectorList=function(){
   const render=()=>{
     const list=SECTORS_DB.filter(x=>!x.deleted).sort((a,b)=>String(a.name).localeCompare(String(b.name)));
     const td='padding:6px 8px;border-bottom:1px solid var(--border);white-space:nowrap;font-size:11px;';
-    let h='<div style="display:flex;align-items:center;gap:10px;margin-bottom:12px;"><div style="font-size:13px;font-weight:600;color:var(--text);">Sector list</div><span style="font-size:11px;color:var(--muted);">'+list.length+' saved</span><button id="_seclist_close" style="margin-left:auto;background:var(--s3);border:1px solid var(--border);color:var(--muted);border-radius:6px;padding:4px 10px;font-size:11px;cursor:pointer;">Close</button></div>';
+    let h='<div style="display:flex;align-items:center;gap:10px;margin-bottom:12px;"><div style="font-size:13px;font-weight:600;color:var(--text);">Sector list</div><span style="font-size:11px;color:var(--muted);">'+list.length+' saved</span><button id="_seclist_import" style="margin-left:auto;background:var(--s3);border:1px solid var(--border);color:var(--text);border-radius:6px;padding:4px 10px;font-size:11px;cursor:pointer;">Import</button>'+(list.length?'<button id="_seclist_shareall" style="background:var(--s3);border:1px solid var(--border);color:var(--text);border-radius:6px;padding:4px 10px;font-size:11px;cursor:pointer;">Share all</button>':'')+'<button id="_seclist_close" style="background:var(--s3);border:1px solid var(--border);color:var(--muted);border-radius:6px;padding:4px 10px;font-size:11px;cursor:pointer;">Close</button></div>';
     if(!list.length){
       h+='<div class="sz-loading">No sectors yet. Open a session and click ＋ Create Sector above the Route Map.</div>';
     }else{
@@ -2964,12 +3029,16 @@ window.showSectorList=function(){
           +'<td style="'+td+'">'+(b?fmtRecordTime(b.timeMs):'—')+'</td>'
           +'<td style="'+td+'">'+(b?fmtPaceU(sectorPace(b.timeMs,x.distance)):'—')+'</td>'
           +'<td style="'+td+'">'+pbDate+'</td>'
-          +'<td style="'+td+'text-align:right;"><a href="#" style="color:var(--accent,#29b8ff);" data-act="compare" data-id="'+x.id+'">compare</a> · <a href="#" style="color:var(--accent,#29b8ff);" data-act="edit" data-id="'+x.id+'">edit</a> · <a href="#" style="color:#f54040;" data-act="delete" data-id="'+x.id+'">delete</a></td></tr>';
+          +'<td style="'+td+'text-align:right;"><a href="#" style="color:var(--accent,#29b8ff);" data-act="compare" data-id="'+x.id+'">compare</a> · <a href="#" style="color:var(--accent,#29b8ff);" data-act="share" data-id="'+x.id+'">share</a> · <a href="#" style="color:var(--accent,#29b8ff);" data-act="edit" data-id="'+x.id+'">edit</a> · <a href="#" style="color:#f54040;" data-act="delete" data-id="'+x.id+'">delete</a></td></tr>';
       });
       h+='</tbody></table></div>';
     }
     panel.innerHTML=h;
     document.getElementById('_seclist_close').onclick=()=>overlay.remove();
+    if(!render._pulled){render._pulled=true;pullSectorsFromDrive(true,()=>{if(document.getElementById('_seclist_modal'))render();});}
+    document.getElementById('_seclist_import').onclick=()=>window.importSectorsFile(render);
+    const _sa=document.getElementById('_seclist_shareall');
+    if(_sa)_sa.onclick=()=>window.shareSectors(list.map(x=>x.id));
     panel.querySelectorAll('tr[data-row]').forEach(tr=>{tr.onclick=()=>{overlay.remove();window.openSectorCompare(tr.dataset.row);};});
     panel.querySelectorAll('a[data-act]').forEach(a=>{
       a.onclick=e=>{
@@ -2980,6 +3049,7 @@ window.showSectorList=function(){
         else if(act==='edit'){overlay.remove();window.editSector(id);}
         else if(act==='compare'){overlay.remove();window.openSectorCompare(id);}
         else if(act==='best'){overlay.remove();window.loadSectorBest(id);}
+        else if(act==='share'){window.shareSectors([id]);}
       };
     });
   };
