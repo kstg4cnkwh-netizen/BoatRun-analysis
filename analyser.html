@@ -1572,10 +1572,34 @@ function _normRecords(obj) {
   else out = { water: obj, erg: {} };
   if (!out.water.dur) out.water.dur = {};
   if (!out.erg.dur) out.erg.dur = {};
+  out.gen = (obj && obj.gen) || 0;
+  out.excl = (obj && obj.excl && typeof obj.excl === 'object') ? { ...obj.excl } : {};
   return out;
+}
+/* Manually excluded results, keyed mode|target|session. An excluded session
+   can never set that PB again, so a rescan finds the next best instead. */
+function recExclKey(m, target, fileId, dateISO) { return m + '|' + target + '|' + (fileId || dateISO || ''); }
+function recIsExcl(db, m, target, fileId, dateISO) { return !!(db.excl && db.excl[recExclKey(m, target, fileId, dateISO)]); }
+function recDropExcluded(db) {
+  ['water', 'erg'].forEach(m => {
+    Object.keys(db[m] || {}).forEach(d => {
+      if (d === 'dur') return;
+      const r = db[m][d];
+      if (r && recIsExcl(db, m, d, r.fileId, r.date)) delete db[m][d];
+    });
+    Object.keys((db[m] && db[m].dur) || {}).forEach(ms => {
+      const r = db[m].dur[ms];
+      if (r && recIsExcl(db, m, 'dur' + ms, r.fileId, r.date)) delete db[m].dur[ms];
+    });
+  });
+  return db;
 }
 function mergeRecords(a, b) {
   const A = _normRecords(a), B = _normRecords(b);
+  /* A Reset stamps a new generation. The newer generation wins outright, so a
+     reset on one browser clears the PBs everywhere instead of being refilled
+     by another browser's older copy. */
+  if (A.gen !== B.gen) return A.gen > B.gen ? A : B;
   function mergeDur(am, bm) {
     const out = { ...(am || {}) };
     Object.keys(bm || {}).forEach(ms => {
@@ -1592,13 +1616,23 @@ function mergeRecords(a, b) {
     out.dur = mergeDur(am.dur, bm.dur);
     return out;
   }
-  return { water: mergeMode(A.water, B.water), erg: mergeMode(A.erg, B.erg) };
+  return recDropExcluded({ water: mergeMode(A.water, B.water), erg: mergeMode(A.erg, B.erg), gen: A.gen, excl: { ...A.excl, ...B.excl } });
 }
 let _recordsPushTimer = null;
 function schedulePushRecordsToPrefs() {
   if (!AnalyserDrive.isSignedIn()) return;
   clearTimeout(_recordsPushTimer);
-  _recordsPushTimer = setTimeout(() => { AnalyserDrive.pushPrefs({ records: RECORDS_DB }).catch(() => {}); }, 2000);
+  _recordsPushTimer = setTimeout(() => {
+    /* Merge with Drive first — pushing the local copy on its own overwrote
+       better PBs saved from another browser. */
+    AnalyserDrive.pullPrefs().then(cur => {
+      if (cur && cur.records) {
+        RECORDS_DB = mergeRecords(RECORDS_DB, cur.records);
+        try { localStorage.setItem('br_records', JSON.stringify(RECORDS_DB)); } catch {}
+      }
+      return AnalyserDrive.pushPrefs({ records: RECORDS_DB });
+    }).catch(() => {});
+  }, 2000);
 }
 function pushUnitsToPrefs() {
   if (!AnalyserDrive.isSignedIn()) return;
@@ -2333,10 +2367,32 @@ function loadFiles(fileList, replace) {
    GPS track, but an erg session has no GPS at all, so its gpsTrace is empty and
    every best-effort scan returned nothing. Build the equivalent trace from the
    PM5 stroke list instead: elapsed seconds -> ms, cumulative session distance. */
+/* GPS distance can arrive in lumps — after a GPS gap the missing distance is
+   added in one step lasting a fraction of a second, which reads as an
+   impossible speed (e.g. 676 m in 0.17 s). Rebuild the cumulative distance
+   with every step capped at a speed no boat can reach, so a PB window can
+   never be faster than real rowing. Capping only removes distance, so PBs
+   can only get more conservative, never faster. */
+const RECORDS_MAX_MPS = 7;
+function recordsCleanWater(trace) {
+  const pts = (trace || []).filter(p => p && p.dist != null && p.t != null && !isNaN(p.dist) && !isNaN(p.t));
+  if (pts.length < 2) return pts;
+  const out = [{ ...pts[0], dist: 0 }];
+  let cum = 0;
+  for (let i = 1; i < pts.length; i++) {
+    const dt = Math.max(0, (pts[i].t - pts[i - 1].t) / 1000);
+    let dd = pts[i].dist - pts[i - 1].dist;
+    if (!(dd > 0)) dd = 0;
+    dd = Math.min(dd, RECORDS_MAX_MPS * dt);
+    cum += dd;
+    out.push({ ...pts[i], dist: cum });
+  }
+  return out;
+}
 function recordsTrace(d) {
   if (!d) return [];
   const erg = !!(d.sum && d.sum.session_mode === 'erg');
-  if (!erg) return d.gpsTrace || [];
+  if (!erg) return recordsCleanWater(d.gpsTrace || []);
   const pts = (d.strokes || [])
     .filter(s => s.dist != null && !isNaN(s.dist) && s.elapsed != null && !isNaN(s.elapsed))
     .map(s => ({ t: s.elapsed * 1000, dist: s.dist }))
@@ -2437,6 +2493,7 @@ function updateRecords(gpsTrace, label, dateISO, fileId, mode) {
   let changed=false;
   Object.keys(efforts).forEach(d=>{
     const cur=RECORDS_DB[m][d];
+    if (recIsExcl(RECORDS_DB, m, d, fileId, dateISO)) return;
     if (!cur || efforts[d]<cur.timeMs) {
       RECORDS_DB[m][d]={timeMs:efforts[d], date:dateISO||null, label:label||'', fileId:fileId||null};
       changed=true;
@@ -2445,6 +2502,7 @@ function updateRecords(gpsTrace, label, dateISO, fileId, mode) {
   if(!RECORDS_DB[m].dur) RECORDS_DB[m].dur={};
   Object.keys(durations).forEach(ms=>{
     const cur=RECORDS_DB[m].dur[ms];
+    if (recIsExcl(RECORDS_DB, m, 'dur' + ms, fileId, dateISO)) return;
     if (!cur || durations[ms]>cur.distM) {
       RECORDS_DB[m].dur[ms]={distM:durations[ms], date:dateISO||null, label:label||'', fileId:fileId||null};
       changed=true;
@@ -2495,6 +2553,23 @@ function renderRecords() {
   el.innerHTML='<div class="brpill">'+grpHTML('On-Water Personal Bests','water')+grpHTML('Erg Personal Bests','erg')+'</div>';
 }
 
+window.excludeRecord=function(mode, target){
+  const m = mode==='erg' ? 'erg' : 'water';
+  const isDur = String(target).startsWith('dur');
+  const r = isDur ? (RECORDS_DB[m].dur||{})[String(target).slice(3)] : RECORDS_DB[m][target];
+  if (!r) return;
+  if (!confirm('Exclude this result'+(r.label?' ('+r.label+')':'')+'? The next best will be found by rescanning.')) return;
+  if (!RECORDS_DB.excl) RECORDS_DB.excl = {};
+  RECORDS_DB.excl[recExclKey(m, target, r.fileId, r.date)] = true;
+  recDropExcluded(RECORDS_DB);
+  try{localStorage.setItem('br_records',JSON.stringify(RECORDS_DB));}catch{}
+  schedulePushRecordsToPrefs();
+  renderRecords();
+  if (typeof window._sumRender==='function' && document.getElementById('_summary_modal')) {
+    window._sumRender();
+    document.getElementById('_sum-rescan')?.click();
+  }
+};
 window.loadRecordSession=async function(dist, mode){
   const m = mode==='erg' ? 'erg' : 'water';
   const r=RECORDS_DB[m][dist];
@@ -8014,14 +8089,14 @@ function _sumRecordsCardsHTML(mode){
     const lbl=d>=1000?(d/1000)+'km':d+'m';
     const val=r?fmtRecordTime(r.timeMs):'—';
     const dateStr=r?fmtRecordDate(r.date):'';
-    return '<div class="card cb" style="cursor:'+(r&&r.fileId?'pointer':'default')+';" onclick="'+(r&&r.fileId?'window.loadRecordSession(\''+d+'\',\''+mode+'\');document.getElementById(\'_summary_modal\')?.remove();':'')+'"><div class="lbl">'+lbl+'</div><div class="val">'+val+'</div><div class="sub">'+dateStr+'</div></div>';
+    return '<div class="card cb" style="cursor:'+(r&&r.fileId?'pointer':'default')+';" onclick="'+(r&&r.fileId?'window.loadRecordSession(\''+d+'\',\''+mode+'\');document.getElementById(\'_summary_modal\')?.remove();':'')+'"><div class="lbl">'+(r?'<button title="Exclude this result" onclick="event.stopPropagation();window.excludeRecord(\''+mode+'\',\''+d+'\')" style="float:right;margin:-4px -4px 0 0;background:none;border:0;color:var(--muted);font-size:14px;line-height:1;padding:2px 4px;cursor:pointer;">\u2715</button>':'')+lbl+'</div><div class="val">'+val+'</div><div class="sub">'+dateStr+'</div></div>';
   }).join('');
   const durTargets=[{ms:1800000,lbl:'30 min'},{ms:3600000,lbl:'1 hour'}];
   out+=durTargets.map(t=>{
     const r=RECORDS_DB[mode].dur&&RECORDS_DB[mode].dur[t.ms];
     const val=r?fmtRecordDist(r.distM,mode):'—';
     const dateStr=r?fmtRecordDate(r.date):'';
-    return '<div class="card cb" style="cursor:'+(r&&r.fileId?'pointer':'default')+';" onclick="'+(r&&r.fileId?'window.loadRecordDurationSession(\''+t.ms+'\',\''+mode+'\');document.getElementById(\'_summary_modal\')?.remove();':'')+'"><div class="lbl">'+t.lbl+'</div><div class="val">'+val+'</div><div class="sub">'+dateStr+'</div></div>';
+    return '<div class="card cb" style="cursor:'+(r&&r.fileId?'pointer':'default')+';" onclick="'+(r&&r.fileId?'window.loadRecordDurationSession(\''+t.ms+'\',\''+mode+'\');document.getElementById(\'_summary_modal\')?.remove();':'')+'"><div class="lbl">'+(r?'<button title="Exclude this result" onclick="event.stopPropagation();window.excludeRecord(\''+mode+'\',\''+'dur'+t.ms+'\')" style="float:right;margin:-4px -4px 0 0;background:none;border:0;color:var(--muted);font-size:14px;line-height:1;padding:2px 4px;cursor:pointer;">\u2715</button>':'')+t.lbl+'</div><div class="val">'+val+'</div><div class="sub">'+dateStr+'</div></div>';
   }).join('');
   return out;
 }
@@ -8046,6 +8121,14 @@ async function showSummaryModal(){
   let files;
   try{ files=await AnalyserDrive.list(); }catch(err){ body.innerHTML='<div class="sz-loading">Could not load sessions.</div>'; return; }
   if(!files.length){ body.innerHTML='<div class="sz-loading">No sessions on Drive</div>'; return; }
+  try{
+    const cur=await AnalyserDrive.pullPrefs();
+    if(cur&&cur.records){
+      RECORDS_DB=mergeRecords(RECORDS_DB,cur.records);
+      try{localStorage.setItem('br_records',JSON.stringify(RECORDS_DB));}catch{}
+      try{renderRecords();}catch{}
+    }
+  }catch{}
   function render(){
     const onwater=files.filter(f=>!_sumParseFn(f.name).erg);
     const erg=files.filter(f=>_sumParseFn(f.name).erg);
@@ -8053,7 +8136,7 @@ async function showSummaryModal(){
     html+=_sumGroupHTML('On-Water','onwater',onwater,_sumOffsets.onwater.m,_sumOffsets.onwater.w);
     html+=_sumGroupHTML('Erg','erg',erg,_sumOffsets.erg.m,_sumOffsets.erg.w);
     html+=_sumGroupHTML('Combined','combined',files,_sumOffsets.combined.m,_sumOffsets.combined.w);
-    html+='<div class="brpill-row" style="margin-bottom:10px;"><button class="dzbtn dzbtn-sec" id="_sum-rescan"><img src="icons/Scan.svg"><span>Scan All for Records</span></button><button class="dzbtn dzbtn-sec" id="_sum-resetrecords"><img src="icons/Reset.svg"><span>Reset Records</span></button></div>';
+    html+='<div class="brpill-row" style="margin-bottom:10px;"><button class="dzbtn dzbtn-sec" id="_sum-rescan"><img src="icons/Scan.svg"><span>Scan All for Records</span></button><button class="dzbtn dzbtn-sec" id="_sum-resetrecords"><img src="icons/Reset.svg"><span>Reset Records</span></button>'+(Object.keys(RECORDS_DB.excl||{}).length?'<button class="dzbtn dzbtn-sec" id="_sum-clearexcl"><span>Clear Exclusions ('+Object.keys(RECORDS_DB.excl).length+')</span></button>':'')+'</div>';
     html+='<div class="brpill"><div class="sumgrp"><div class="sumgrp-hd">On-Water Personal Bests</div><div class="sumgrp-cards">'+_sumRecordsCardsHTML('water')+'</div></div><div class="sumgrp"><div class="sumgrp-hd">Erg Personal Bests</div><div class="sumgrp-cards">'+_sumRecordsCardsHTML('erg')+'</div></div></div>';
     body.innerHTML=html;
     body.querySelectorAll('button[data-nav]').forEach(btn=>{
@@ -8083,10 +8166,20 @@ async function showSummaryModal(){
       }
       render();
     };
+    const clrBtn=document.getElementById('_sum-clearexcl');
+    if(clrBtn) clrBtn.onclick=()=>{
+      if(!confirm('Clear all excluded results? Scan All for Records afterwards to restore them.'))return;
+      RECORDS_DB={...RECORDS_DB,excl:{},gen:Date.now()};
+      try{localStorage.setItem('br_records',JSON.stringify(RECORDS_DB));}catch{}
+      if(AnalyserDrive.isSignedIn())AnalyserDrive.pushPrefs({records:RECORDS_DB}).catch(()=>{});
+      toast('Exclusions cleared');
+      render();
+    };
+    window._sumRender=render;
     const resetBtn=document.getElementById('_sum-resetrecords');
     if(resetBtn) resetBtn.onclick=()=>{
       if(!confirm('Reset all Personal Bests? Re-scan to restore.'))return;
-      RECORDS_DB={water:{dur:{}},erg:{dur:{}}};
+      RECORDS_DB={water:{dur:{}},erg:{dur:{}},gen:Date.now(),excl:{...(RECORDS_DB.excl||{})}};
       try{localStorage.setItem('br_records',JSON.stringify(RECORDS_DB));}catch{}
       if(AnalyserDrive.isSignedIn())AnalyserDrive.pushPrefs({records:RECORDS_DB}).catch(()=>{});
       toast('Personal Bests reset');
