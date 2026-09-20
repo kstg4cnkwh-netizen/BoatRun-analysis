@@ -7345,8 +7345,10 @@ async function showStartup(){
     return;
   }
 
+  document.getElementById('app').style.display='none';
   el.innerHTML=`<div class="sz-list">
     <div class="brpill-row">
+      ${SESSIONS.length ? '<button class="dzbtn dzbtn-sec" id="sz-back"><span>&#10005; Back to session</span></button>' : ''}
       <button class="dzbtn dzbtn-sec" id="sz-coach"><img src="icons/Import.svg"><span>Coach Sessions</span></button>
       <button class="dzbtn dzbtn-sec" id="sz-squad"><img src="icons/Import.svg"><span>From Squad</span></button>
       <button class="dzbtn dzbtn-sec" id="sz-openfile"><img src="icons/Open.svg"><span>Open file</span></button>
@@ -7367,6 +7369,7 @@ async function showStartup(){
   document.getElementById('sz-squad').onclick=loadFromSquad;
   document.getElementById('sz-openfile').onclick=()=>document.getElementById('fin').click();
   document.getElementById('sz-demo').onclick=()=>{ location.href = location.pathname + '?demo=demo1'; };
+  const _backBtn=document.getElementById('sz-back'); if(_backBtn) _backBtn.onclick=()=>{el.style.display='none';el.innerHTML='';document.getElementById('app').style.display='block';};
   try{
     const cached=AnalyserDrive.cachedList('RowSess_');
     const files=cached||await AnalyserDrive.list();
