@@ -713,11 +713,11 @@ body.light .hdrname{color:#fff;}
   <div class="sec" id="videosec">
     <div class="sec-hd">
       <h2>Video Overlay</h2>
-      <button class="hbtn" id="vidDirBtn" style="margin-left:auto;font-size:10px;">&#128193; Set video folder</button>
-      <button class="hbtn" id="vidAddBtn" style="font-size:10px;">＋ Video</button>
+      <label class="hbtn" id="vidDirBtn" for="vidDirFin" style="margin-left:auto;font-size:10px;display:inline-block;">&#128193; Set video folder</label>
+      <label class="hbtn" id="vidAddBtn" for="vidFin" style="font-size:10px;display:inline-block;">＋ Video</label>
     </div>
-    <input type="file" id="vidFin" accept="video/*" multiple style="display:none">
-    <input type="file" id="vidDirFin" accept="video/*" multiple webkitdirectory style="display:none">
+    <input type="file" id="vidFin" accept="video/*,.mp4,.mov,.m4v,.webm" multiple style="position:absolute;left:-9999px;width:1px;height:1px;opacity:0;">
+    <input type="file" id="vidDirFin" accept="video/*,.mp4,.mov,.m4v,.webm" multiple webkitdirectory style="position:absolute;left:-9999px;width:1px;height:1px;opacity:0;">
     <div id="vidMatchBox" style="margin:6px 0;"></div>
     <div id="vidBody"></div>
   </div>
@@ -8607,7 +8607,7 @@ async function vidScanMatches() {
     for (const name of names) {
       if (flagged.includes(name)) continue;
       const m = /_([0-9]{13})\.(webm|mp4|mov)$/i.exec(name);
-      if (!m) continue;
+      if (!m) { if (_anVidDirFiles && _anVidDirFiles._ios) others.push({ name, ms: 0 }); continue; }
       const ms = parseInt(m[1], 10);
       if (ms >= lo && ms <= hi) others.push({ name, ms });
     }
@@ -8642,14 +8642,18 @@ async function vidAddFromDir(name) {
 }
 
 function vidWire(){
-  document.getElementById('vidAddBtn').onclick=()=>{if(!isPro()){showPlanModal('Video overlay is a Pro feature.');return;}document.getElementById('vidFin').click();};
-  document.getElementById('vidDirBtn').onclick=chooseAnVidDir;
-  document.getElementById('vidDirFin').onchange=e=>{
+  const _ios=/iPad|iPhone|iPod/.test(navigator.userAgent)||(navigator.platform==='MacIntel'&&navigator.maxTouchPoints>1);
+  const dirFin=document.getElementById('vidDirFin');
+  if(_ios && dirFin) dirFin.removeAttribute('webkitdirectory');
+  document.getElementById('vidAddBtn').onclick=e=>{if(!isPro()){e.preventDefault();showPlanModal('Video overlay is a Pro feature.');}};
+  document.getElementById('vidDirBtn').onclick=e=>{if(window.showDirectoryPicker){e.preventDefault();chooseAnVidDir();}};
+  dirFin.onchange=e=>{
     const files=[...e.target.files];
     e.target.value='';
     if(!files.length) return;
     _anVidDirFiles=new Map();
-    _anVidDirFiles._name=(files[0].webkitRelativePath||'').split('/')[0]||'';
+    _anVidDirFiles._name=(files[0].webkitRelativePath||'').split('/')[0]||(_ios?'selected':'');
+    _anVidDirFiles._ios=_ios;
     files.forEach(f=>{
       const name=f.webkitRelativePath?f.webkitRelativePath.split('/').pop():f.name;
       _anVidDirFiles.set(name,f);
@@ -8661,6 +8665,8 @@ function vidWire(){
   document.getElementById('vidFin').onchange=e=>{
     const files=[...e.target.files];
     e.target.value='';
+    if(!files.length) return;
+    if(!isPro()){showPlanModal('Video overlay is a Pro feature.');return;}
     files.forEach(vidAddClip);
   };
   const mc=document.getElementById('mainC');
