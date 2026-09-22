@@ -713,11 +713,9 @@ body.light .hdrname{color:#fff;}
   <div class="sec" id="videosec">
     <div class="sec-hd">
       <h2>Video Overlay</h2>
-      <label class="hbtn" id="vidDirBtn" for="vidDirFin" style="margin-left:auto;font-size:10px;display:inline-block;">&#128193; Set video folder</label>
-      <label class="hbtn" id="vidAddBtn" for="vidFin" style="font-size:10px;display:inline-block;">＋ Video</label>
+      <label class="hbtn" id="vidAddBtn" for="vidFin" style="margin-left:auto;font-size:10px;display:inline-block;">＋ Add video</label>
     </div>
     <input type="file" id="vidFin" accept="video/*,.mp4,.mov,.m4v,.webm" multiple style="position:absolute;left:-9999px;width:1px;height:1px;opacity:0;">
-    <input type="file" id="vidDirFin" accept="video/*,.mp4,.mov,.m4v,.webm" multiple webkitdirectory style="position:absolute;left:-9999px;width:1px;height:1px;opacity:0;">
     <div id="vidMatchBox" style="margin:6px 0;"></div>
     <div id="vidBody"></div>
   </div>
@@ -8559,24 +8557,25 @@ async function chooseAnVidDir() {
     } catch (e) {}
     return;
   }
-  const fin = document.getElementById('vidDirFin');
+  const fin = document.getElementById('vidFin');
   if (fin) fin.click();
 }
 function vidDirBtnUI() {
-  const b = document.getElementById('vidDirBtn'); if (!b) return;
-  const n = _anVidDirHandle ? _anVidDirHandle.name : (_anVidDirFiles ? (_anVidDirFiles._name || 'folder') : '');
-  b.innerHTML = n ? ('&#128193; /' + escHtml(n) + ' set') : '&#128193; Set video folder';
+  const n = _anVidDirHandle ? _anVidDirHandle.name : '';
+  return n ? '<div class="vid-mini">&#128193; ' + escHtml(n) + ' \u00b7 <button class="vid-clip-tab" onclick="chooseAnVidDir()">Change folder</button></div>' : '';
 }
 async function vidScanMatches() {
-  vidDirBtnUI();
   const box = document.getElementById('vidMatchBox');
   if (!box) return;
   if (!VID_SESS_T0) { box.innerHTML = ''; return; }
   const flags = VID_FLAGS || [];
-  if (!_anVidDirHandle && !_anVidDirFiles) {
-    if (flags.length) {
-      box.innerHTML = '<div class="vid-mini">' + flags.length + ' coach video' + (flags.length > 1 ? 's' : '') + ' \u00b7 <button class="vid-clip-tab" onclick="chooseAnVidDir()">&#128193; Open folder</button></div>';
-    } else { box.innerHTML = ''; }
+  if (!_anVidDirHandle) {
+    const cv = flags.length ? flags.length + ' coach video' + (flags.length > 1 ? 's' : '') + ' for this session' : '';
+    if (window.showDirectoryPicker) {
+      box.innerHTML = '<div class="vid-mini">' + (cv ? cv + ' \u00b7 ' : '') + '<button class="vid-clip-tab" onclick="chooseAnVidDir()">&#128193; Link video folder</button></div>';
+    } else {
+      box.innerHTML = cv ? '<div class="vid-mini">' + cv + ' \u2014 tap \uff0b Add video</div>' : '';
+    }
     return;
   }
   try {
@@ -8584,7 +8583,7 @@ async function vidScanMatches() {
     if (_anVidDirHandle) {
       let perm = await _anVidDirHandle.queryPermission({ mode: 'read' });
       if (perm !== 'granted') { try { perm = await _anVidDirHandle.requestPermission({ mode: 'read' }); } catch (e) {} }
-      if (perm !== 'granted') { box.innerHTML = '<div class="vid-tabs-hd">Available videos</div><button class="vid-clip-tab" onclick="vidScanMatches()">&#128193; Show videos</button>'; return; }
+      if (perm !== 'granted') { box.innerHTML = vidDirBtnUI() + '<button class="vid-clip-tab" onclick="vidScanMatches()">&#128193; Show videos in folder</button>'; return; }
       for await (const [name, handle] of _anVidDirHandle.entries()) {
         if (handle.kind !== 'file') continue;
         names.push(name);
@@ -8621,8 +8620,8 @@ async function vidScanMatches() {
       html += '<div class="vid-tabs-hd" style="margin-top:6px;">Available videos</div>' +
         others.map(m => `<button class="vid-clip-tab${vidIsOpen(m.name)?' open-already':''}" onclick="vidAddFromDir('${m.name.replace(/'/g, "\\'")}')">${vidLabel(m.name)}${vidIsOpen(m.name)?' \u2713 open':''}</button>`).join('');
     }
-    if (!html) html = flags.length ? '<div class="vid-mini">Not found in folder</div>' : '';
-    box.innerHTML = html;
+    if (!html) html = flags.length ? '<div class="vid-mini">Coach videos not found in folder</div>' : '<div class="vid-mini">No videos for this session in folder</div>';
+    box.innerHTML = vidDirBtnUI() + html;
   } catch (e) { box.innerHTML = ''; }
 }
 async function vidAddFromDir(name) {
@@ -8642,26 +8641,7 @@ async function vidAddFromDir(name) {
 }
 
 function vidWire(){
-  const _ios=/iPad|iPhone|iPod/.test(navigator.userAgent)||(navigator.platform==='MacIntel'&&navigator.maxTouchPoints>1);
-  const dirFin=document.getElementById('vidDirFin');
-  if(_ios && dirFin) dirFin.removeAttribute('webkitdirectory');
   document.getElementById('vidAddBtn').onclick=e=>{if(!isPro()){e.preventDefault();showPlanModal('Video overlay is a Pro feature.');}};
-  document.getElementById('vidDirBtn').onclick=e=>{if(window.showDirectoryPicker){e.preventDefault();chooseAnVidDir();}};
-  dirFin.onchange=e=>{
-    const files=[...e.target.files];
-    e.target.value='';
-    if(!files.length) return;
-    _anVidDirFiles=new Map();
-    _anVidDirFiles._name=(files[0].webkitRelativePath||'').split('/')[0]||(_ios?'selected':'');
-    _anVidDirFiles._ios=_ios;
-    files.forEach(f=>{
-      const name=f.webkitRelativePath?f.webkitRelativePath.split('/').pop():f.name;
-      _anVidDirFiles.set(name,f);
-    });
-    _anVidDirHandle=null;
-    toast('Video folder set: '+files.length+' file'+(files.length>1?'s':''));
-    vidScanMatches();
-  };
   document.getElementById('vidFin').onchange=e=>{
     const files=[...e.target.files];
     e.target.value='';
