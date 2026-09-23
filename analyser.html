@@ -226,14 +226,7 @@
   tbody td:first-child { color: var(--text); text-align: left; }
   .curve-stats-col .twrap { max-height: none; overflow: visible; }
 
-  tbody tr.hl-g0 td { background: rgba(255,201,71,.09) !important; }
-  tbody tr.hl-g1 td { background: rgba(192,132,252,.09) !important; }
-  tbody tr.hl-g2 td { background: rgba(41,184,255,.09) !important; }
-  tbody tr.hl-g3 td { background: rgba(245,64,64,.09) !important; }
-  tbody tr.hl-g4 td { background: rgba(84,160,255,.09) !important; }
-  tbody tr.hl-g5 td { background: rgba(253,121,168,.09) !important; }
-  tbody tr.hl-g6 td { background: rgba(225,112,85,.09) !important; }
-  tbody tr.hl-g7 td { background: rgba(0,206,201,.09) !important; }
+  tbody tr.hl-g td { background: var(--hlbg) !important; }
   tbody tr.stroke-pin td { background: #ffd60a !important; color: #000 !important; }
 
   /* ── Map-left + Stroke-right row ── */
@@ -2839,24 +2832,34 @@ function renderSectors(){
   if(!rows.length){body.innerHTML='<div style="font-size:10px;color:var(--muted);padding:4px 0;">No sectors in this session'+(nAll?' · <a href="#" style="color:var(--accent,#29b8ff);" onclick="event.preventDefault();window.showSectorList()">sector list ('+nAll+')</a>':'')+'</div>';return;}
   rows.sort((a,b)=>a.h.startT-b.h.startT);
   const td='padding:4px 6px;border-bottom:1px solid var(--border);white-space:nowrap;';
-  const sep='border-left:1px solid var(--border);';
-  let h='<div class="twrap"><table style="width:100%;font-size:10px;"><thead><tr><th style="text-align:left;">Sector</th><th>Time</th><th>Pace</th><th>Rate</th><th style="'+sep+'">PB</th><th>PB Pace</th><th>PB Date</th></tr></thead><tbody>';
+  const box2='background:var(--s1);border-radius:14px;padding:8px 10px;box-shadow:var(--pill-sh);';
+  let h='<div class="sumgrp-hd">This session</div><div class="twrap" style="'+box2+'margin-bottom:12px;"><table style="width:100%;font-size:10px;"><thead><tr><th style="text-align:left;">Sector</th><th>Time</th><th>Pace</th><th>Rate</th></tr></thead><tbody>';
   rows.forEach(r=>{
     const s=r.s, b=s.best, isPB=b&&Math.abs(b.timeMs-r.h.timeMs)<50;
     const pbDate=b?(b.fileId?'<a href="#" style="color:var(--accent,#29b8ff);" onclick="event.preventDefault();event.stopPropagation();window.loadSectorBest(\''+s.id+'\')">'+fmtRecordDate(b.date)+'</a>':fmtRecordDate(b.date)):'—';
     const hk=s.id+'|'+Math.round(r.h.startT);
     const ck=((cur&&cur.fileId)||(cur&&cur.label)||'local')+'|'+Math.round(r.h.startT);
-    h+='<tr data-hl="'+hk+'" style="cursor:pointer;" onclick="window.highlightSector(\''+s.id+'\','+Math.round(r.h.startT)+','+Math.round(r.h.endT)+')"><td style="'+td+'text-align:left;"><div style="font-weight:600;">'+_secEsc(s.name)+'</div><div style="color:var(--muted);">'+s.distance+'m · <a href="#" style="color:var(--accent,#29b8ff);" onclick="event.preventDefault();event.stopPropagation();window.openSectorCompare(\''+s.id+'\',\''+_secEsc(ck)+'\')">compare</a></div></td>'
+    h+='<tr data-hl="'+hk+'" data-t1="'+Math.round(r.h.endT)+'" style="cursor:pointer;" onclick="window.highlightSector(\''+s.id+'\','+Math.round(r.h.startT)+','+Math.round(r.h.endT)+')"><td style="'+td+'text-align:left;"><div style="font-weight:600;">'+_secEsc(s.name)+'</div><div style="color:var(--muted);">'+s.distance+'m · <a href="#" style="color:var(--accent,#29b8ff);" onclick="event.preventDefault();event.stopPropagation();window.openSectorCompare(\''+s.id+'\',\''+_secEsc(ck)+'\')">compare</a></div></td>'
       +'<td style="'+td+'">'+fmtRecordTime(r.h.timeMs)+(isPB?' <span style="color:#2ee06a;font-weight:700;">PB</span>':'')+'</td>'
       +'<td style="'+td+'">'+fmtPaceU(sectorPace(r.h.timeMs,s.distance))+'</td>'
-      +'<td style="'+td+'">'+(r.rate!=null?r.rate.toFixed(1):'—')+'</td>'
-      +'<td style="'+td+sep+'">'+(b?fmtRecordTime(b.timeMs):'—')+'</td>'
-      +'<td style="'+td+'">'+(b?fmtPaceU(sectorPace(b.timeMs,s.distance)):'—')+'</td>'
+      +'<td style="'+td+'">'+(r.rate!=null?r.rate.toFixed(1):'—')+'</td></tr>';
+  });
+  h+='</tbody></table></div>';
+  const _pbSeen=new Set();
+  h+='<div class="sumgrp-hd">Personal bests</div><div class="twrap" style="'+box2+'"><table style="width:100%;font-size:10px;"><thead><tr><th style="text-align:left;">Sector</th><th>PB</th><th>PB Pace</th><th>PB Date</th></tr></thead><tbody>';
+  rows.forEach(r=>{
+    const s=r.s, b=s.best;
+    if(_pbSeen.has(s.id))return; _pbSeen.add(s.id);
+    const pbDate=b?(b.fileId?'<a href="#" style="color:var(--accent,#29b8ff);" onclick="event.preventDefault();event.stopPropagation();window.loadSectorBest(\''+s.id+'\')">'+fmtRecordDate(b.date)+'</a>':fmtRecordDate(b.date)):'—';
+    h+='<tr><td style="'+td+'text-align:left;font-weight:600;">'+_secEsc(s.name)+'</td>'
+      +'<td style="'+td+'">'+(b?fmtRecordTime(b.timeMs):'')+'</td>'
+      +'<td style="'+td+'">'+(b?fmtPaceU(sectorPace(b.timeMs,s.distance)):'')+'</td>'
       +'<td style="'+td+'">'+pbDate+'</td></tr>';
   });
   h+='</tbody></table></div>';
   body.innerHTML=h;
   refreshSelButtons();
+  applyGroupHighlights();
 }
 function _sectorNearestIdx(latlng,minIdx,maxIdx){
   const o={lat:latlng.lat,lon:latlng.lng};
@@ -5685,7 +5688,9 @@ function pinAbsRange(absS,absE){
 function addLapToCurves(){
   if(selS<0||selE<0){toast('Tap a lap row first');return;}
   if(curveGroups.length>=MAX_GROUPS){toast(MAX_GROUPS+' curve groups max');return;}
+  const _lapN=_selLapN, _n0=curveGroups.length;
   pinSelection();
+  if(curveGroups.length>_n0&&_lapN!=null){curveGroups[curveGroups.length-1].lapN=_lapN;applyGroupHighlights();}
 }
 window.addLapToCurves=addLapToCurves;
 
@@ -5702,7 +5707,7 @@ function addWorkLapsToCurves(){
     if(curveGroups.length>=MAX_GROUPS){skipped++;continue;}
     const rng=lapStrokeRange(+r.dataset.lap);
     if(!rng)continue;
-    if(pinAbsRange(rng[0],rng[1]))added++;
+    if(pinAbsRange(rng[0],rng[1])){added++;curveGroups[curveGroups.length-1].lapN=+r.dataset.lap;}
   }
   selS=-1;selE=-1;
   tplFocusIdx=-1;
@@ -7079,6 +7084,7 @@ function buildLaps(){
       updateSel(true);
     });
   });
+  applyGroupHighlights();
 }
 function applyLapTypeFilter(){
   document.querySelectorAll('.laptypebtn').forEach(b=>{
@@ -7199,27 +7205,43 @@ function hlRows(idxs, doScroll=true){
   if(doScroll&&idxs.length){const f=document.querySelector(`#stb tr[data-i="${idxs[0]}"]`);if(f)f.scrollIntoView({block:'center',behavior:'smooth'});}
 }
 function applyGroupHighlights(){
-  // Build map: absStrokeIdx → [groupIdx, ...]
+  // Build map: absStrokeIdx -> [groupIdx, ...]
   const groupMap=new Map();
+  const mine=[];
   for(let gi=0;gi<curveGroups.length;gi++){
     const g=curveGroups[gi];
-      if(g.sessionIdx!==activeSessionIdx)continue;
-  for(let i=g.absS;i<=g.absE;i++){
+    if(g.sessionIdx!==activeSessionIdx)continue;
+    mine.push(gi);
+    for(let i=g.absS;i<=g.absE;i++){
       if(!groupMap.has(i))groupMap.set(i,[]);
       groupMap.get(i).push(gi);
     }
   }
-  document.querySelectorAll('#stb tr').forEach(r=>{
-    r.classList.remove('hl-g0','hl-g1','hl-g2','hl-g3','hl-g4','hl-g5','hl-g6','hl-g7');
+  const W=4;
+  const shade=(r,groups)=>{
     const firstTd=r.querySelector('td');
-    if(!firstTd)return;
-    const groups=groupMap.get(+r.dataset.i)||[];
-    if(!groups.length){firstTd.style.boxShadow='';return;}
-    // Background from first/dominant group
-    r.classList.add('hl-g'+groups[0]);
-    // Stack inset box-shadows left to right for each group colour (4px each)
-    const W=4;
-    firstTd.style.boxShadow=groups.map((gi,n)=>`inset ${(n+1)*W}px 0 0 ${GROUP_COLORS[gi]}`).join(',');
+    r.classList.remove('hl-g');
+    if(firstTd)firstTd.style.boxShadow='';
+    if(!groups.length||!firstTd)return;
+    r.style.setProperty('--hlbg',hexToRgba(curveGroups[groups[0]].color,.14));
+    r.classList.add('hl-g');
+    firstTd.style.boxShadow=groups.map((gi,n)=>`inset ${(n+1)*W}px 0 0 ${curveGroups[gi].color}`).join(',');
+  };
+  // Groups covering at least half of the stroke range a..b
+  const covering=(a,b)=>{
+    const len=b-a+1;
+    return mine.filter(gi=>{const g=curveGroups[gi];const ov=Math.min(b,g.absE)-Math.max(a,g.absS)+1;return ov>0&&ov>=len*0.5;});
+  };
+  document.querySelectorAll('#stb tr').forEach(r=>shade(r,groupMap.get(+r.dataset.i)||[]));
+  document.querySelectorAll('#laptbl tbody tr[data-lap]').forEach(r=>{
+    const lapN=+r.dataset.lap;
+    shade(r,mine.filter(gi=>curveGroups[gi].lapN===lapN));
+  });
+  document.querySelectorAll('tr[data-hl][data-t1]').forEach(r=>{
+    const t0=+String(r.dataset.hl).split('|')[1], t1=+r.dataset.t1;
+    let a=-1,b=-1;
+    ST.forEach((st,k)=>{if(st.ms!=null&&st.ms>=t0&&st.ms<=t1){if(a<0)a=k;b=k;}});
+    shade(r,a>=0&&b>a?covering(a,b):[]);
   });
 }
 window.toggleTable=function(){
