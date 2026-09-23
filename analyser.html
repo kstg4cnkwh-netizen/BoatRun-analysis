@@ -509,7 +509,7 @@ body.light .hdrname{color:#fff;}
 
   /* Charts */
   .cbox{padding:14px 14px 6px;}
-  .ovbox{padding:7px 9px 3px;}
+  .ovbox{padding:7px 14px 3px;margin-bottom:8px;}
   .hint{color:var(--muted);opacity:.75;font-size:9px;}
   #cards{gap:8px;}
   #statsstrip{padding:12px 16px;}
@@ -606,6 +606,14 @@ body.light .hdrname{color:#fff;}
   #videosec.secpill{background:var(--sp-video);}
   .info-row.secpill{background:var(--sp-info);}
   .ms-pill.secpill{background:var(--sp-map);}
+  .brpill{background:var(--sp-chart);}
+  .brpill:nth-child(5n+2){background:var(--sp-curve);}
+  .brpill:nth-child(5n+3){background:var(--sp-info);}
+  .brpill:nth-child(5n+4){background:var(--sp-video);}
+  .brpill:nth-child(5n+5){background:var(--sp-map);}
+  .brpill-row{background:var(--sp-info);}
+  .asc,.asc:hover{border-left-color:#0a84ff;}
+  .asc.erg,.asc.erg:hover{border-left-color:#ff3b30;}
   .info-col.inpill{background:var(--s1);border-radius:16px;padding:10px;box-shadow:var(--pill-sh);}
   .secpill{background:var(--secpill);border-radius:22px;padding:12px;margin:0 16px 14px;box-shadow:var(--pill-sh);box-sizing:border-box;}
   .sec.secpill{padding:12px;}
@@ -642,7 +650,7 @@ body.light .hdrname{color:#fff;}
   </div>
   <button class="hbtn hicon-btn" id="openbtn"><img class="hicon-img" src="icons/Open.svg"><span class="hicon-txt">Open</span></button>
   <button class="hbtn hicon-btn" id="summarybtn" title="Summary and personal bests"><img class="hicon-img" src="icons/Win.svg"><span class="hicon-txt">Summary</span></button>
-  <button class="hbtn hicon-btn" id="gdrivebtn" title="Google Drive sign-in status — click to sign in or re-sign in"><span id="gdrivedot" style="display:inline-block;width:8px;height:8px;border-radius:50%;background:#c0392b;margin-right:5px;"></span><span class="hicon-txt" id="gdrivelabel">Drive: Signed out</span></button>
+  <button class="hbtn hicon-btn" id="gdrivebtn" title="Step 1 of 2: sign in to your BoatRun account"><span id="gdrivedot" style="display:inline-block;width:8px;height:8px;border-radius:50%;background:#e67e22;margin-right:5px;"></span><span class="hicon-txt" id="gdrivelabel">Sign in</span></button>
   <button class="hbtn hicon-btn" id="reorderbtn" title="Reorder and show/hide tiles"><img class="hicon-img" src="icons/Tiles.svg"><span class="hicon-txt">Tiles</span></button>
   <button class="hbtn hicon-btn" id="infobtn" title="What the metrics mean"><img class="hicon-img" src="icons/Metrics.svg"><span class="hicon-txt">Metrics</span></button>
   <a class="hbtn hicon-btn" href="./stroke-curve.html" target="_blank" rel="noopener" title="How to read your stroke curve"><img class="hicon-img" src="icons/Curve.svg"><span class="hicon-txt">Explanation</span></a>
@@ -663,11 +671,6 @@ body.light .hdrname{color:#fff;}
   <!-- Summary cards -->
   <div id="cards"></div>
   <div id="chartBlock" class="secpill">
-  <!-- Overview minimap -->
-  <div class="sec">
-    <div class="ovbox"><canvas id="ovC" height="44"></canvas></div>
-  </div>
-
   <!-- Main chart -->
   <div class="sec">
     <div class="sec-hd">
@@ -695,6 +698,7 @@ body.light .hdrname{color:#fff;}
         </select>
       </div>
     </div>
+    <div class="ovbox"><canvas id="ovC" height="44"></canvas></div>
     <div class="cbox"><canvas id="mainC" height="250"></canvas><canvas id="vidLineC"></canvas>
     </div>
     <div id="panBarWrap" style="display:none;padding:1px 11px 0;"><input type="range" id="panSlider" min="0" max="100" value="0" style="width:100%;cursor:pointer;accent-color:var(--acc);margin:0;" oninput="window.panSlide(this.value)"></div>
@@ -1415,29 +1419,42 @@ const AnalyserDrive = {
     this._invalidateFolder();
     return newName;
   },
+  // Reads every BoatRunPrefs.json in appDataFolder (browsers that once failed
+  // the lookup each created their own copy) and merges them, newest winning.
+  async _prefsRaw() {
+    const q = encodeURIComponent("name='BoatRunPrefs.json' and trashed=false");
+    const ob = encodeURIComponent('modifiedTime desc');
+    const r = await this._api(`https://www.googleapis.com/drive/v3/files?spaces=appDataFolder&q=${q}&orderBy=${ob}&fields=files(id,modifiedTime)`, {}, 'Prefs', 15000);
+    if (!r.ok) return { ok: false };
+    const d = await r.json();
+    const files = d.files || [];
+    if (!files.length) { localStorage.removeItem('_ad_prefs_fid'); return { ok: true, data: null, ids: [] }; }
+    let data = null;
+    for (const f of files.slice().reverse()) {
+      const r2 = await this._api(`https://www.googleapis.com/drive/v3/files/${f.id}?alt=media`, {}, 'Prefs', 15000);
+      if (!r2.ok) return { ok: false };
+      let pf = null; try { pf = await r2.json(); } catch {}
+      if (!pf) continue;
+      if (!data) { data = pf; continue; }
+      const sec = mergeSectors(data.sectors || [], pf.sectors || []);
+      const rec = (data.records || pf.records) ? mergeRecords(data.records, pf.records) : null;
+      data = { ...data, ...pf, sectors: sec };
+      if (rec) data.records = rec;
+    }
+    localStorage.setItem('_ad_prefs_fid', files[0].id);
+    return { ok: true, data, ids: files.map(f => f.id) };
+  },
   async pullPrefs() {
     if (!(await this.ensureToken())) return null;
-    try {
-      let fid = localStorage.getItem('_ad_prefs_fid');
-      if (!fid) {
-        const q = encodeURIComponent("name='BoatRunPrefs.json' and trashed=false");
-        const r = await this._api(`https://www.googleapis.com/drive/v3/files?spaces=appDataFolder&q=${q}&fields=files(id)`, {}, 'Prefs', 10000);
-        if (!r.ok) return null;
-        const d = await r.json();
-        if (d.files && d.files.length) { fid = d.files[0].id; localStorage.setItem('_ad_prefs_fid', fid); }
-      }
-      if (!fid) return null;
-      const r2 = await this._api(`https://www.googleapis.com/drive/v3/files/${fid}?alt=media`, {}, 'Prefs', 10000);
-      if (!r2.ok) return null;
-      return await r2.json();
-    } catch { return null; }
+    try { const x = await this._prefsRaw(); return x.ok ? x.data : null; } catch { return null; }
   },
   async pushPrefs(patch) {
     if (!(await this.ensureToken())) return false;
     try {
-      const cur = (await this.pullPrefs()) || {};
-      const merged = { ...cur, ...patch, updatedAt: Date.now() };
-      let fid = localStorage.getItem('_ad_prefs_fid');
+      const x = await this._prefsRaw();
+      if (!x.ok) return false;
+      const merged = { ...(x.data || {}), ...patch, updatedAt: Date.now() };
+      const fid = x.ids[0] || null;
       const meta = { name: 'BoatRunPrefs.json', mimeType: 'application/json', ...((!fid) ? { parents: ['appDataFolder'] } : {}) };
       const form = new FormData();
       form.append('metadata', new Blob([JSON.stringify(meta)], { type: 'application/json' }));
@@ -1449,6 +1466,9 @@ const AnalyserDrive = {
       if (!r.ok) return false;
       const rd = await r.json();
       if (rd && rd.id) localStorage.setItem('_ad_prefs_fid', rd.id);
+      for (const id of x.ids.slice(1)) {
+        try { await this._api(`https://www.googleapis.com/drive/v3/files/${id}`, { method: 'DELETE' }, 'Prefs', 10000); } catch {}
+      }
       return true;
     } catch { return false; }
   },
@@ -1545,18 +1565,7 @@ const AnalyserDrive = {
     sessionStorage.removeItem('_ad_token'); sessionStorage.removeItem('_ad_token_exp');
     this._updateBtn();
   },
-  _updateBtn() {
-    const dot = document.getElementById('gdrivedot');
-    const label = document.getElementById('gdrivelabel');
-    if (!dot || !label) return;
-    if (this.isSignedIn()) {
-      dot.style.background = '#2ecc71';
-      label.textContent = this.isLegacyLinked() ? 'Drive: Signed in +archive' : 'Drive: Signed in';
-    } else {
-      dot.style.background = '#c0392b';
-      label.textContent = 'Drive: Signed out';
-    }
-  },
+  _updateBtn() { try { updateDriveBtn(); } catch {} },
 };
 async function runLegacyMigration() {
   if (!AnalyserDrive.isSignedIn()) { toast('Connect Google Drive first'); return; }
@@ -1686,10 +1695,13 @@ async function pullPrefsAndApply() {
     RECORDS_DB = mergeRecords(RECORDS_DB, prefs.records);
     try { localStorage.setItem('br_records', JSON.stringify(RECORDS_DB)); } catch {}
   }
-  if (Array.isArray(prefs.sectors)) {
-    SECTORS_DB = mergeSectors(SECTORS_DB, prefs.sectors);
+  if (Array.isArray(prefs.sectors) || SECTORS_DB.length) {
+    const remote = Array.isArray(prefs.sectors) ? prefs.sectors : [];
+    SECTORS_DB = mergeSectors(SECTORS_DB, remote);
     try { localStorage.setItem('br_sectors', JSON.stringify(SECTORS_DB)); } catch {}
     if (SESSIONS.length) renderSectors();
+    const _srt = a => JSON.stringify(a.slice().sort((p, q) => String(p.id).localeCompare(String(q.id))));
+    if (_srt(SECTORS_DB) !== _srt(mergeSectors([], remote))) schedulePushSectorsToPrefs();
   }
   if (prefs.tiles) {
     if (prefs.tiles.vis && typeof prefs.tiles.vis === 'object') {
@@ -3985,6 +3997,7 @@ async function showAddComparePicker() {
 
                         const btn = document.createElement('div');
                         btn.className = 'asc';
+                        if (p && p.erg) btn.classList.add('erg');
                         btn.style.marginBottom = '0';
                         if (name) { const nd=document.createElement('div');nd.style.cssText='font-weight:700;font-size:.85rem;color:var(--text);margin-bottom:2px;';nd.textContent=name;btn.appendChild(nd); }
                         const dd = document.createElement('div'); dd.className='asc-date';
@@ -4585,7 +4598,7 @@ function showDrivePicker(files, onSelect) {
 
       const btn=document.createElement('div');
       btn.className='asc';
-      if(p.erg)btn.style.borderLeftColor='var(--r)';
+      if(p.erg)btn.classList.add('erg');
       btn.onclick=async()=>{
         if(btn.dataset.added)return;
         btn.style.opacity='.55';btn.style.pointerEvents='none';
@@ -5212,7 +5225,7 @@ function drawOv(){
   const canvas=document.getElementById('ovC');
   const C=pal();
   const dpr=window.devicePixelRatio||1;
-  const W=Math.floor(canvas.parentElement.clientWidth-18);
+  const W=Math.floor(canvas.parentElement.clientWidth-22);
   const H=44;
   canvas.width=W*dpr;canvas.height=H*dpr;
   canvas.style.width=W+'px';canvas.style.height=H+'px';
@@ -5220,12 +5233,12 @@ function drawOv(){
   ctx.scale(dpr,dpr);ctx.clearRect(0,0,W,H);
   const N=ST.length;
   if(N<2)return;
-  const P=4,pw=W-P*2,ph=H-P*2;
+  const P=4,XL=48,XR=38,pw=W-XL-XR,ph=H-P*2;
   const xs=new Float32Array(N);
   let xMin=Infinity,xMax=-Infinity;
   for(let i=0;i<N;i++){xs[i]=getX(ST[i]);if(xs[i]<xMin)xMin=xs[i];if(xs[i]>xMax)xMax=xs[i];}
   const xRng=xMax-xMin||1;
-  const toXov=v=>P+(v-xMin)/xRng*pw;
+  const toXov=v=>XL+(v-xMin)/xRng*pw;
   let pMin=Infinity,pMax=-Infinity;
   for(let i=0;i<N;i++){const v=ST[i].pace;if(v>50&&v<500){if(v<pMin)pMin=v;if(v>pMax)pMax=v;}}
   if(pMin===Infinity){pMin=100;pMax=300;}
@@ -5276,7 +5289,7 @@ function drawOv(){
   }
 
   drawLapLines(ctx,computeLapBoundaryXValues(),toXov,xMin,xRng,P,ph,false);
-  canvas._g={P,pw,ph,N,W,H,xs,xMin,xRng};
+  canvas._g={P:XL,pw,ph,N,W,H,xs,xMin,xRng};
   setupOvEvents(canvas);
 }
 
@@ -7347,15 +7360,15 @@ async function showStartup(){
     el.innerHTML=`<div class="sz-prompt">
       <img class="ico" src="icons/icon-192.png" alt="BoatRun">
       <h2>BoatRun Analyser</h2>
-      <p>Connect Google Drive to access your sessions</p>
+      <p>${AnalyserAuth.user ? 'Step 2 of 2: link Google Drive to access your sessions' : 'Step 1 of 2: sign in to your BoatRun account'}</p>
       <div class="brpill-row brpill-col">
-        <button class="dzbtn dzbtn-pri" id="sz-signin">Connect Google Drive</button>
+        <button class="dzbtn dzbtn-pri" id="sz-signin">${AnalyserAuth.user ? 'Link Google Drive \u00b7 Step 2 of 2' : 'Sign in \u00b7 Step 1 of 2'}</button>
         <button class="dzbtn dzbtn-sec" id="sz-squad"><img src="icons/Import.svg"><span>From Squad</span></button>
         <button class="dzbtn dzbtn-sec" id="sz-openfile"><img src="icons/Open.svg"><span>Open file</span></button>
         <button class="dzbtn dzbtn-sec" id="sz-demo"><span>See a demo session</span></button>
       </div>
     </div>`;
-    document.getElementById('sz-signin').onclick=()=>AnalyserDrive.signIn();
+    document.getElementById('sz-signin').onclick=()=>{ if(!AnalyserAuth.user){ showPlanModal(); return; } AnalyserDrive.signIn(); };
     document.getElementById('sz-squad').onclick=loadFromSquad;
     document.getElementById('sz-openfile').onclick=()=>document.getElementById('fin').click();
     document.getElementById('sz-demo').onclick=()=>{ location.href = location.pathname + '?demo=demo1'; };
@@ -7594,7 +7607,7 @@ async function showStartup(){
         };
 
         const btn=document.createElement('div');btn.className='asc';
-        if(p.erg)btn.style.borderLeftColor='var(--r)';
+        if(p.erg)btn.classList.add('erg');
         btn.onclick=async()=>{
           btn.style.opacity='.5';btn.style.pointerEvents='none';
           try{const session=await AnalyserDrive.fetchSession(f.id);applySessionUnits(session);addSessionFromData(sessionToAnalyserFmt(session),p.name||f.name.replace('RowSess_','').replace('.json',''),true,f.id);}
@@ -8306,9 +8319,9 @@ function showPlanModal(msg){
   document.body.appendChild(overlay);
   document.getElementById('_plan_close').onclick=()=>overlay.remove();
   const signinBtn=document.getElementById('_plan_signin');
-  if(signinBtn) signinBtn.onclick=async()=>{const ok=await AnalyserAuth.signInGoogle();if(ok){overlay.remove();showPlanModal(msg);}};
+  if(signinBtn) signinBtn.onclick=async()=>{const ok=await AnalyserAuth.signInGoogle();if(ok){overlay.remove();showPlanModal(msg);offerDriveAfterSignIn();}};
   const appleBtn=document.getElementById('_plan_apple');
-  if(appleBtn) appleBtn.onclick=async()=>{const ok=await AnalyserAuth.signInApple();if(ok){overlay.remove();showPlanModal(msg);}};
+  if(appleBtn) appleBtn.onclick=async()=>{const ok=await AnalyserAuth.signInApple();if(ok){overlay.remove();showPlanModal(msg);offerDriveAfterSignIn();}};
   const linkBtn=document.getElementById('_plan_linkapple');
   if(linkBtn) linkBtn.onclick=async()=>{const ok=await AnalyserAuth.linkApple();if(ok){overlay.remove();showPlanModal(msg);}};
   const linkGBtn=document.getElementById('_plan_linkgoogle');
@@ -8327,7 +8340,29 @@ document.getElementById('reorderbtn').onclick=showReorderModal;
 document.getElementById('summarybtn').onclick=showSummaryModal;
 document.getElementById('aboutbtn').onclick=showAboutModal;
 document.getElementById('planbtn').onclick=()=>showPlanModal();
-document.getElementById('gdrivebtn').onclick=()=>{ if (AnalyserDrive.isSignedIn()) { toast('Already signed in to Google Drive'); return; } AnalyserDrive.signIn(); };
+document.getElementById('gdrivebtn').onclick=handleDriveBtnTap;
+function updateDriveBtn(){
+  const dot=document.getElementById('gdrivedot'), label=document.getElementById('gdrivelabel'), btn=document.getElementById('gdrivebtn');
+  if(!dot||!label) return;
+  let acct=false; try{ acct=!!AnalyserAuth.user; }catch{}
+  const linked=AnalyserDrive.isSignedIn();
+  if(!acct){ dot.style.background='#e67e22'; label.textContent='Sign in'; if(btn) btn.title='Step 1 of 2: sign in to your BoatRun account'; }
+  else if(!linked){ dot.style.background='#e67e22'; label.textContent='Link Drive'; if(btn) btn.title='Step 2 of 2: link Google Drive'; }
+  else { dot.style.background='#2ecc71'; label.textContent=AnalyserDrive.isLegacyLinked()?'Drive linked +archive':'Drive linked'; if(btn) btn.title='Google Drive linked \u2014 tap to open sessions or unlink'; }
+}
+function handleDriveBtnTap(){
+  if(!AnalyserAuth.user){ showPlanModal(); return; }
+  if(!AnalyserDrive.isSignedIn()){ AnalyserDrive.signIn(); return; }
+  if(confirm('Drive linked.\n\nOK = Open sessions\nCancel = Unlink Drive')){ showStartup(); return; }
+  if(confirm('Unlink Google Drive?')){ AnalyserDrive.signOut(); updateDriveBtn(); toast('Drive unlinked'); showStartup(); }
+}
+function offerDriveAfterSignIn(){
+  try{
+    if(!AnalyserAuth.user) return;
+    if(AnalyserDrive.isSignedIn()) return;
+    setTimeout(()=>{ if(confirm('Signed in \u2713  (step 1 of 2)\n\nStep 2: link Google Drive so your sessions open in the Analyser.\n\nOK = Link Drive\nCancel = Later')) AnalyserDrive.signIn(); },400);
+  }catch{}
+}
 document.getElementById('filemenubtn').onclick=(e)=>{e.stopPropagation();const m=document.getElementById('filemenu');const willOpen=!m.classList.contains('open');if(willOpen){const r=e.currentTarget.getBoundingClientRect();const mw=Math.min(215,window.innerWidth-24);let left=r.right-mw;if(left<12)left=12;if(left+mw>window.innerWidth-12)left=window.innerWidth-12-mw;m.style.left=left+'px';m.style.top=(r.bottom+4)+'px';}m.classList.toggle('open');};
 document.addEventListener('click',()=>{document.getElementById('filemenu').classList.remove('open');});
 document.getElementById('fin').onchange=e=>{
@@ -10390,6 +10425,7 @@ function setChartPos(pos, scroll){
 try{ if(localStorage.getItem('an_chart_pos')==='down') setChartPos('down', false); }catch(e){}
 AnalyserDrive.init();
 if(AnalyserDrive.isSignedIn()) pullPrefsAndApply().catch(()=>{});
+AnalyserAuth.onChange(()=>{ try{ updateDriveBtn(); }catch{} if(document.querySelector('#startup .sz-prompt')) showStartup(); });
 AnalyserAuth.init();
 loadAnVidDir();
 (function(){
