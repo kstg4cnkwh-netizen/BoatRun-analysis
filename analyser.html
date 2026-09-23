@@ -598,6 +598,17 @@ body.light .hdrname{color:#fff;}
   .vid-ctrls .vid-mchips{gap:4px;}
   .vid-ctrls .vid-slider input[type=range]{width:80px;}
   .vid-clip-tabs{margin-bottom:0;}
+  /* ══ Section pills ══ */
+  :root{--secpill:rgba(47,211,198,.07);}
+  body.light{--secpill:rgba(31,181,169,.10);}
+  .secpill{background:var(--secpill);border-radius:22px;padding:12px;margin:0 16px 14px;box-shadow:var(--pill-sh);box-sizing:border-box;}
+  .sec.secpill{padding:12px;}
+  #chartBlock.secpill{padding:12px 12px 2px;}
+  #chartBlock.secpill>.sec{padding:0 0 10px;}
+  #chartBlock.secpill #statsstrip{margin:0 0 10px;}
+  #map-stroke-row .secpill{margin:0;}
+  .ms-pill{flex:0 0 100%;display:flex;flex-wrap:wrap;gap:12px;min-width:0;}
+  @media (max-width:700px){ .secpill{margin:0 12px 12px;} .ms-pill{flex-direction:column;} }
 </style>
 
 <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" crossorigin=""/>
@@ -645,7 +656,7 @@ body.light .hdrname{color:#fff;}
   <div id="unitsbar" class="brsettings"></div>
   <!-- Summary cards -->
   <div id="cards"></div>
-  <div id="chartBlock">
+  <div id="chartBlock" class="secpill">
   <!-- Overview minimap -->
   <div class="sec">
     <div class="ovbox"><canvas id="ovC" height="44"></canvas></div>
@@ -688,7 +699,7 @@ body.light .hdrname{color:#fff;}
   </div>
 
   <!-- Curve comparison -->
-  <div class="sec" id="curvesec">
+  <div class="sec secpill" id="curvesec">
     <div class="sec-hd">
       <h2>Curve Comparison</h2>
       <div id="groupchips" style="display:flex;gap:6px;flex-wrap:wrap;"></div>
@@ -710,7 +721,7 @@ body.light .hdrname{color:#fff;}
   </div>
 
   <!-- Video overlay -->
-  <div class="sec" id="videosec">
+  <div class="sec secpill" id="videosec">
     <div class="sec-hd">
       <h2>Video Overlay</h2>
       <label class="hbtn" id="vidAddBtn" for="vidFin" style="margin-left:auto;font-size:10px;display:inline-block;">＋ Add video</label>
@@ -722,21 +733,21 @@ body.light .hdrname{color:#fff;}
 
   <!-- Map (left) + Stroke data (right) -->
   <div id="map-stroke-row">
-    <div class="info-row">
-    <div class="info-col brpill">
+    <div class="info-row secpill">
+    <div class="info-col">
       <div id="lapsec" style="display:none;">
         <div class="sec-hd" style="padding:0 0 4px;"><h2>Laps</h2><span id="laptypebar" style="display:flex;flex-wrap:wrap;align-items:center;gap:4px;"></span></div>
         <div id="lapcurvebar" style="display:flex;flex-wrap:wrap;align-items:center;gap:4px;margin-bottom:6px;"></div>
         <div class="twrap" style="max-height:160px;margin-bottom:8px;"><table id="laptbl"><thead></thead><tbody></tbody></table></div>
       </div>
     </div>
-    <div class="info-col info-wide brpill">
+    <div class="info-col info-wide">
       <div id="sectorsec" style="display:none;">
         <div class="sec-hd" style="padding:0 0 4px;"><h2>Sectors</h2><span id="sectorlbl" style="font-size:10px;color:var(--muted);"></span><button class="hbtn" id="sectorListBtn" style="margin-left:auto;font-size:10px;" onclick="window.showSectorList()">Sector list</button><button class="hbtn" id="sectorScanBtn" style="font-size:10px;" onclick="window.scanAllSectors()">Scan all</button><button class="hbtn" id="sectorAddBtn" style="font-size:10px;" onclick="window.startSectorCreate()">＋ Create Sector</button><button class="hbtn" id="sectorCurveBtn" style="font-size:10px;display:none;" onclick="window.addSectorToCurves()">＋ Add to curves</button></div>
         <div id="sectorbody"></div>
       </div>
     </div>
-    <div class="info-col brpill">
+    <div class="info-col">
       <!-- Time in Heart Rate Zones -->
       <div id="hrzonesec" style="display:none;">
         <div class="sec-hd" style="padding:0 0 4px;"><h2>Time in Heart Rate Zones</h2></div>
@@ -744,6 +755,7 @@ body.light .hdrname{color:#fff;}
       </div>
     </div>
     </div>
+    <div class="ms-pill secpill">
     <div class="map-col">
       <div id="mapsec" style="display:none;">
         <div class="sec-hd" style="padding:0 0 4px;"><h2>Route Map</h2><span id="maplbl" style="font-size:10px;color:var(--muted);"></span></div>
@@ -759,6 +771,7 @@ body.light .hdrname{color:#fff;}
       <div id="tblwrap">
         <div class="twrap"><table><thead id="sth"></thead><tbody id="stb"></tbody></table></div>
       </div>
+    </div>
     </div>
   </div>
 </div>
