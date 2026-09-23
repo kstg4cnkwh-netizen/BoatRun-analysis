@@ -224,7 +224,7 @@
   tbody tr.hl td { background: rgba(41,184,255,.08) !important; }
   tbody td { padding: 6px 10px; color: var(--muted); text-align: right; }
   tbody td:first-child { color: var(--text); text-align: left; }
-  .curve-stats-col .twrap { max-height: none; overflow: visible; }
+  .curve-stats-col .twrap { max-height: none; overflow-x: auto; overflow-y: visible; }
 
   tbody tr.hl-g td { background: var(--hlbg) !important; }
   tbody tr.stroke-pin td { background: #ffd60a !important; color: #000 !important; }
@@ -747,7 +747,7 @@ body.light .hdrname{color:#fff;}
   <!-- Map (left) + Stroke data (right) -->
   <div id="map-stroke-row">
     <div class="info-row secpill">
-    <div class="info-col inpill">
+    <div class="info-col info-wide inpill">
       <div id="lapsec" style="display:none;">
         <div class="sec-hd" style="padding:0 0 4px;"><h2>Laps</h2><span id="laptypebar" style="display:flex;flex-wrap:wrap;align-items:center;gap:4px;"></span></div>
         <div id="lapcurvebar" style="display:flex;flex-wrap:wrap;align-items:center;gap:4px;margin-bottom:6px;"></div>
