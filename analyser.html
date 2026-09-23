@@ -599,8 +599,14 @@ body.light .hdrname{color:#fff;}
   .vid-ctrls .vid-slider input[type=range]{width:80px;}
   .vid-clip-tabs{margin-bottom:0;}
   /* ══ Section pills ══ */
-  :root{--secpill:rgba(47,211,198,.07);}
-  body.light{--secpill:rgba(31,181,169,.10);}
+  :root{--secpill:rgba(47,211,198,.22);--sp-chart:rgba(10,132,255,.24);--sp-curve:rgba(179,140,255,.24);--sp-video:rgba(255,182,72,.24);--sp-info:rgba(47,211,198,.22);--sp-map:rgba(255,90,60,.22);}
+  body.light{--secpill:rgba(31,181,169,.24);--sp-chart:rgba(0,122,255,.20);--sp-curve:rgba(139,92,246,.22);--sp-video:rgba(245,165,36,.28);--sp-info:rgba(31,181,169,.24);--sp-map:rgba(240,74,44,.20);}
+  #chartBlock.secpill{background:var(--sp-chart);}
+  #curvesec.secpill{background:var(--sp-curve);}
+  #videosec.secpill{background:var(--sp-video);}
+  .info-row.secpill{background:var(--sp-info);}
+  .ms-pill.secpill{background:var(--sp-map);}
+  .info-col.inpill{background:var(--s1);border-radius:16px;padding:10px;box-shadow:var(--pill-sh);}
   .secpill{background:var(--secpill);border-radius:22px;padding:12px;margin:0 16px 14px;box-shadow:var(--pill-sh);box-sizing:border-box;}
   .sec.secpill{padding:12px;}
   #chartBlock.secpill{padding:12px 12px 2px;}
@@ -734,20 +740,20 @@ body.light .hdrname{color:#fff;}
   <!-- Map (left) + Stroke data (right) -->
   <div id="map-stroke-row">
     <div class="info-row secpill">
-    <div class="info-col">
+    <div class="info-col inpill">
       <div id="lapsec" style="display:none;">
         <div class="sec-hd" style="padding:0 0 4px;"><h2>Laps</h2><span id="laptypebar" style="display:flex;flex-wrap:wrap;align-items:center;gap:4px;"></span></div>
         <div id="lapcurvebar" style="display:flex;flex-wrap:wrap;align-items:center;gap:4px;margin-bottom:6px;"></div>
         <div class="twrap" style="max-height:160px;margin-bottom:8px;"><table id="laptbl"><thead></thead><tbody></tbody></table></div>
       </div>
     </div>
-    <div class="info-col info-wide">
+    <div class="info-col info-wide inpill">
       <div id="sectorsec" style="display:none;">
         <div class="sec-hd" style="padding:0 0 4px;"><h2>Sectors</h2><span id="sectorlbl" style="font-size:10px;color:var(--muted);"></span><button class="hbtn" id="sectorListBtn" style="margin-left:auto;font-size:10px;" onclick="window.showSectorList()">Sector list</button><button class="hbtn" id="sectorScanBtn" style="font-size:10px;" onclick="window.scanAllSectors()">Scan all</button><button class="hbtn" id="sectorAddBtn" style="font-size:10px;" onclick="window.startSectorCreate()">＋ Create Sector</button><button class="hbtn" id="sectorCurveBtn" style="font-size:10px;display:none;" onclick="window.addSectorToCurves()">＋ Add to curves</button></div>
         <div id="sectorbody"></div>
       </div>
     </div>
-    <div class="info-col">
+    <div class="info-col inpill">
       <!-- Time in Heart Rate Zones -->
       <div id="hrzonesec" style="display:none;">
         <div class="sec-hd" style="padding:0 0 4px;"><h2>Time in Heart Rate Zones</h2></div>
