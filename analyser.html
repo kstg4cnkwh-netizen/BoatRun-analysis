@@ -183,7 +183,7 @@
   .tpl-chip-x:hover { background: rgba(0,0,0,.18); }
   .grp-chip { display: inline-flex; align-items: center; gap: 5px; padding: 4px 10px; border-radius: 12px; font-size: 10px; font-weight: 700; cursor: pointer; border: none; transition: opacity .15s; }
   .grp-chip:hover { opacity: .75; }
-  .grp-chip.focused { box-shadow: 0 0 0 2px #c084fc; }
+  .grp-chip.focused { box-shadow: 0 0 0 2px #fff; }
   .grp-chip-x { display: inline-flex; align-items: center; justify-content: center; margin: -4px -10px -4px 2px; padding: 4px 9px 4px 7px; border-left: 1px solid rgba(0,0,0,.28); border-radius: 0 12px 12px 0; font-size: 11px; line-height: 1; }
   .grp-chip-x:hover { background: rgba(0,0,0,.18); }
   #clearcurvebtn { background: none; border: 1px solid var(--border); color: var(--muted); padding: 4px 10px; border-radius: 6px; font-family: -apple-system, BlinkMacSystemFont, Helvetica Neue, sans-serif; font-size: 10px; cursor: pointer; margin-left: auto; transition: color .15s, border-color .15s; }
@@ -621,6 +621,10 @@ body.light .hdrname{color:#fff;}
   #chartBlock.secpill>.sec{padding:0 0 10px;}
   #chartBlock.secpill #statsstrip{margin:0 0 10px;}
   #map-stroke-row .secpill{margin:0;}
+  #topBlock.secpill{margin-top:10px;}
+  #topBlock .brsettings{margin:0 0 10px;}
+  #topBlock #cards{padding:0;}
+  body .hdr-tabs .hmenu, body.light .hdr-tabs .hmenu{background:var(--acc-o);}
   .ms-pill{flex:0 0 100%;display:flex;flex-wrap:wrap;gap:12px;min-width:0;}
   @media (max-width:700px){ .secpill{margin:0 12px 12px;} .ms-pill{flex-direction:column;} }
 </style>
@@ -667,9 +671,11 @@ body.light .hdrname{color:#fff;}
   <!-- Loaded session tabs (shown when 2+ files loaded) -->
   <div id="sesstabs"></div>
   <!-- Units toggle bar -->
+  <div id="topBlock" class="secpill">
   <div id="unitsbar" class="brsettings"></div>
   <!-- Summary cards -->
   <div id="cards"></div>
+  </div>
   <div id="chartBlock" class="secpill">
   <!-- Main chart -->
   <div class="sec">
@@ -1898,10 +1904,10 @@ function curvesAreForce(){
 }
 function curveAxisLabel(){ return curvesAreForce() ? 'force (N)' : 'accel (m/s\u00B2)'; }
 function curveValUnit(){  return curvesAreForce() ? 'N' : 'm/s\u00B2'; }
-const GROUP_COLORS = ['#c084fc','#29b8ff','#f54040','#54a0ff','#fd79a8','#e17055','#00cec9','#ffc947'];
-const GROUP_BG     = ['rgba(192,132,252,.14)','rgba(41,184,255,.14)','rgba(245,64,64,.14)','rgba(84,160,255,.14)','rgba(253,121,168,.14)','rgba(225,112,85,.14)','rgba(0,206,201,.14)','rgba(255,201,71,.14)'];
+const GROUP_COLORS = ['#1E88E5','#E53935','#FB8C00','#43A047','#AB47BC','#26C6DA','#D81B60','#FFB300','#5C6BC0','#C0CA33','#00897B','#D84315'];
+const GROUP_BG     = ['rgba(30,136,229,.14)','rgba(229,57,53,.14)','rgba(251,140,0,.14)','rgba(67,160,71,.14)','rgba(171,71,188,.14)','rgba(38,198,218,.14)','rgba(216,27,96,.14)','rgba(255,179,0,.14)','rgba(92,107,192,.14)','rgba(192,202,51,.14)','rgba(0,137,123,.14)','rgba(216,67,21,.14)']; const MAX_GROUPS = GROUP_COLORS.length;
 function hexToRgba(hex,a){const h=hex.replace('#','');const r=parseInt(h.substring(0,2),16),g=parseInt(h.substring(2,4),16),b=parseInt(h.substring(4,6),16);return`rgba(${r},${g},${b},${a})`;}
-function nextCurveColor(){const used=curveGroups.map(g=>g.color);const idx=GROUP_COLORS.findIndex(c=>!used.includes(c));return GROUP_COLORS[idx>=0?idx:curveGroups.length%GROUP_COLORS.length];}
+function nextCurveColor(){const used=curveGroups.map(g=>g.color);const idx=GROUP_COLORS.findIndex(c=>!used.includes(c));return GROUP_COLORS[idx>=0?idx:curveGroups.length%GROUP_COLORS.length];} function grpText(hex){const h=(hex||'#888').replace('#','');const r=parseInt(h.substring(0,2),16),g=parseInt(h.substring(2,4),16),b=parseInt(h.substring(4,6),16);return (0.299*r+0.587*g+0.114*b)>150?'#000':'#fff';}
 
 // Canonical metric order — used by stats strip, curve stats, cards
 // filter: returns valid values from a stroke array
@@ -5165,7 +5171,7 @@ function drawMain(){
     ctx.textAlign='center';ctx.font='bold 8px -apple-system, BlinkMacSystemFont, Helvetica Neue, sans-serif';
     {const tx=Math.min(px2-9,Math.max(px1+9,(px1+px2)/2)), tw=ctx.measureText(g.label).width+8;
      ctx.fillStyle=g.color;ctx.beginPath();if(ctx.roundRect)ctx.roundRect(tx-tw/2,PT+1,tw,11,3);else ctx.rect(tx-tw/2,PT+1,tw,11);ctx.fill();
-     ctx.fillStyle='#000';ctx.fillText(g.label,tx,PT+9.5);}
+     ctx.fillStyle=grpText(g.color);ctx.fillText(g.label,tx,PT+9.5);}
     ctx.font='9px -apple-system, BlinkMacSystemFont, Helvetica Neue, sans-serif';
   });
 
@@ -5522,7 +5528,7 @@ function refreshSelButtons(){
   const lapOn=_selLapN!=null&&_lapIsSelected(_selLapN);
   if(!lapOn&&!r)_selLapN=null;
   const lb=document.getElementById('lapAddCurveBtn');
-  if(lb)lb.style.display=(lapOn&&_selLapN!=='all'&&curveGroups.length<8)?'':'none';
+  if(lb)lb.style.display=(lapOn&&_selLapN!=='all'&&curveGroups.length<MAX_GROUPS)?'':'none';
   document.querySelectorAll('#laptbl tbody tr[data-lap]').forEach(tr=>{
     const key=(typeof _showLaps==='undefined'||!_showLaps||!_showLaps.length)?'all':+tr.dataset.lap;
     tr.classList.toggle('yhl',lapOn&&_selLapN===key);
@@ -5530,14 +5536,14 @@ function refreshSelButtons(){
   const hl=(typeof _sectorHL!=='undefined')?_sectorHL:null;
   const secSelMatch=!!(hl&&hl.rng&&r&&hl.rng[0]===r[0]&&hl.rng[1]===r[1]);
   const sb=document.getElementById('sectorCurveBtn');
-  if(sb)sb.style.display=(secSelMatch&&curveGroups.length<8)?'':'none';
+  if(sb)sb.style.display=(secSelMatch&&curveGroups.length<MAX_GROUPS)?'':'none';
   document.querySelectorAll('#sectorbody tr[data-hl]').forEach(tr=>{
     tr.classList.toggle('yhl',!!(hl&&tr.dataset.hl===hl.key&&(!hl.rng||secSelMatch)));
   });
 }
 window.addSectorToCurves=function(){
   if(selS<0||selE<0){toast('Tap a sector row first');return;}
-  if(curveGroups.length>=8){toast('8 curve groups max');return;}
+  if(curveGroups.length>=MAX_GROUPS){toast(MAX_GROUPS+' curve groups max');return;}
   pinSelection();
 };
 function clearSelection(){
@@ -5570,7 +5576,7 @@ function updateStatsStrip(){
 
   function sp(l,v,c){return`<div class="sp-stat"><div class="l">${l}</div><div class="v" style="color:${c||'var(--text)'}">${v}</div></div>`;}
   let html='';
-  if(curveGroups.length<8){
+  if(curveGroups.length<MAX_GROUPS){
     html+='<button id="addcurvebtn" onclick="pinSelection()">＋ Add to curves</button>';
   }
   if(strokes.length>1){
@@ -5607,7 +5613,7 @@ function updateStatsStrip(){
 // CURVE COMPARISON — pin / remove / draw / stats
 // ══════════════════════════════════════════════════════════════════════════
 function pinSelection(){
-  if(curveGroups.length>=8||selS<0||selE<0)return;
+  if(curveGroups.length>=MAX_GROUPS||selS<0||selE<0)return;
   const vlen=viewE-viewS+1;
   const s2=clamp(Math.min(selS,selE),0,vlen-1);
   const e2=clamp(Math.max(selS,selE),0,vlen-1);
@@ -5648,7 +5654,7 @@ window.removeCurveGroup=removeCurveGroup;
 /* Pin an absolute stroke range as a curve group. Same as pinSelection() but
    takes absolute ST indices, so it can be driven from the lap table. */
 function pinAbsRange(absS,absE){
-  if(curveGroups.length>=8)return false;
+  if(curveGroups.length>=MAX_GROUPS)return false;
   const n=ST.length;
   const a=clamp(Math.min(absS,absE),0,n-1);
   const b=clamp(Math.max(absS,absE),0,n-1);
@@ -5674,7 +5680,7 @@ function pinAbsRange(absS,absE){
    single-lap button just reuses pinSelection(). */
 function addLapToCurves(){
   if(selS<0||selE<0){toast('Tap a lap row first');return;}
-  if(curveGroups.length>=8){toast('8 curve groups max');return;}
+  if(curveGroups.length>=MAX_GROUPS){toast(MAX_GROUPS+' curve groups max');return;}
   pinSelection();
 }
 window.addLapToCurves=addLapToCurves;
@@ -5689,7 +5695,7 @@ function addWorkLapsToCurves(){
   if(!rows.length){toast('No work intervals in this session');return;}
   let added=0,skipped=0;
   for(const r of rows){
-    if(curveGroups.length>=8){skipped++;continue;}
+    if(curveGroups.length>=MAX_GROUPS){skipped++;continue;}
     const rng=lapStrokeRange(+r.dataset.lap);
     if(!rng)continue;
     if(pinAbsRange(rng[0],rng[1]))added++;
@@ -5702,7 +5708,7 @@ function addWorkLapsToCurves(){
   applyGroupHighlights();
   updateStatsStrip();
   schedRender();
-  toast(added+' curve group'+(added===1?'':'s')+' added'+(skipped?' \u2014 8 group max reached':''));
+  toast(added+' curve group'+(added===1?'':'s')+' added'+(skipped?' \u2014 '+MAX_GROUPS+' group max reached':''));
 }
 window.addWorkLapsToCurves=addWorkLapsToCurves;
 
@@ -6252,7 +6258,7 @@ function buildCurveSection(){
   // Curve group pills — body focuses, right-edge cap removes
   const _chipHost=document.getElementById('groupchips');
   _chipHost.innerHTML=curveGroups.map((g,i)=>
-    `<span class="grp-chip${tplFocusIdx===i?' focused':''}" data-tplfocus="${i}" title="Tap to show this curve on its own with the active stroke template over it" style="background:${g.color};color:#000;${tplFocusIdx>=0&&tplFocusIdx!==i?'opacity:.32;':''}">${g.label}${g.sessionLabel?' \u00b7 '+shortName(g.sessionLabel):''} (${g.strokes.length})<span class="grp-chip-x" data-grpdel="${i}" title="Remove this curve group">\u00d7</span></span>`
+    `<span class="grp-chip${tplFocusIdx===i?' focused':''}" data-tplfocus="${i}" title="Tap to show this curve on its own with the active stroke template over it" style="background:${g.color};color:${grpText(g.color)};${tplFocusIdx>=0&&tplFocusIdx!==i?'opacity:.32;':''}">${g.label}${g.sessionLabel?' \u00b7 '+shortName(g.sessionLabel):''} (${g.strokes.length})<span class="grp-chip-x" data-grpdel="${i}" title="Remove this curve group">\u00d7</span></span>`
   ).join('');
   _chipHost.querySelectorAll('[data-grpdel]').forEach(x=>{
     x.onclick=e=>{e.stopPropagation();removeCurveGroup(+x.dataset.grpdel);};
@@ -10416,7 +10422,7 @@ function setChartPos(pos, scroll){
   const btn=document.getElementById('chartMoveBtn');
   if(!blk || !row || !cards) return;
   if(pos==='down') row.parentNode.insertBefore(blk,row);
-  else cards.parentNode.insertBefore(blk,cards.nextSibling);
+  else { const top=document.getElementById('topBlock')||cards; top.parentNode.insertBefore(blk,top.nextSibling); }
   try{ localStorage.setItem('an_chart_pos',pos); }catch(e){}
   if(btn) btn.innerHTML=pos==='down'?'Move to top &#9650;':'Move down &#9660;';
   try{ schedRender(); }catch(e){}
