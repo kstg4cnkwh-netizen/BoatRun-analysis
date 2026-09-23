@@ -620,6 +620,11 @@ body.light .hdrname{color:#fff;}
   body .hdr-tabs .hmenu, body.light .hdr-tabs .hmenu{background:#fc4c02;}
   body .hdr-tabs, body.light .hdr-tabs{background:#fc4c02;}
   .sz-list>.brpill{background:var(--sp-chart);}
+  .info-col.info-fixed{display:flex;flex-direction:column;overflow:hidden;}
+  #lapsec,#sectorsec{flex:1 1 auto;min-height:0;flex-direction:column;}
+  #lapsec>.sec-hd,#lapsec>#lapcurvebar,#sectorsec>.sec-hd{flex:0 0 auto;}
+  #lapsec>.twrap{flex:1 1 auto;min-height:0;overflow:auto !important;}
+  #sectorbody{flex:1 1 auto;min-height:0;overflow:auto;}
   .card.dim{opacity:.55;background:#c8c8cc;filter:grayscale(1);}
   body:not(.light) .card.dim{background:#3a3a3c;}
   .ms-pill{flex:0 0 100%;display:flex;flex-wrap:wrap;gap:12px;min-width:0;}
@@ -747,14 +752,14 @@ body.light .hdrname{color:#fff;}
   <!-- Map (left) + Stroke data (right) -->
   <div id="map-stroke-row">
     <div class="info-row secpill">
-    <div class="info-col info-wide inpill">
+    <div class="info-col info-wide info-fixed inpill">
       <div id="lapsec" style="display:none;">
         <div class="sec-hd" style="padding:0 0 4px;"><h2>Laps</h2><span id="laptypebar" style="display:flex;flex-wrap:wrap;align-items:center;gap:4px;"></span></div>
         <div id="lapcurvebar" style="display:flex;flex-wrap:wrap;align-items:center;gap:4px;margin-bottom:6px;"></div>
         <div class="twrap" style="max-height:160px;margin-bottom:8px;"><table id="laptbl"><thead></thead><tbody></tbody></table></div>
       </div>
     </div>
-    <div class="info-col info-wide inpill">
+    <div class="info-col info-wide info-fixed inpill">
       <div id="sectorsec" style="display:none;">
         <div class="sec-hd" style="padding:0 0 4px;"><h2>Sectors</h2><span id="sectorlbl" style="font-size:10px;color:var(--muted);"></span><button class="hbtn" id="sectorListBtn" style="margin-left:auto;font-size:10px;" onclick="window.showSectorList()">Sector list</button><button class="hbtn" id="sectorScanBtn" style="font-size:10px;" onclick="window.scanAllSectors()">Scan all</button><button class="hbtn" id="sectorAddBtn" style="font-size:10px;" onclick="window.startSectorCreate()">＋ Create Sector</button><button class="hbtn" id="sectorCurveBtn" style="font-size:10px;display:none;" onclick="window.addSectorToCurves()">＋ Add to curves</button></div>
         <div id="sectorbody"></div>
@@ -2815,9 +2820,9 @@ function renderSectors(){
   const erg=!!(cur&&cur.d&&cur.d.sum&&cur.d.sum.session_mode==='erg');
   const _hdBtns=['sectorListBtn','sectorScanBtn','sectorAddBtn'].map(i=>document.getElementById(i));
   _hdBtns.forEach(b=>{if(b)b.style.display=isPro()?'':'none';});
-  if(!isPro()){box.style.display='block';const _l=document.getElementById('sectorlbl');if(_l)_l.textContent='';body.innerHTML='<div style="font-size:11px;color:var(--muted);padding:6px 0;">Sectors are a Pro feature — time yourself over the same stretch of water every session, with PBs and side-by-side playback.</div><button class="dzbtn dzbtn-pri" onclick="showPlanModal(\'Sectors are a Pro feature.\')">Upgrade to Pro</button>';return;}
-  if(erg||GPSTRACE.length<2){box.style.display='block';body.innerHTML='<div style="font-size:10px;color:var(--muted);padding:4px 0;">'+(erg?'Not available for erg sessions':'No GPS track')+'</div>';return;}
-  box.style.display='block';
+  if(!isPro()){box.style.display='flex';const _l=document.getElementById('sectorlbl');if(_l)_l.textContent='';body.innerHTML='<div style="font-size:11px;color:var(--muted);padding:6px 0;">Sectors are a Pro feature — time yourself over the same stretch of water every session, with PBs and side-by-side playback.</div><button class="dzbtn dzbtn-pri" onclick="showPlanModal(\'Sectors are a Pro feature.\')">Upgrade to Pro</button>';return;}
+  if(erg||GPSTRACE.length<2){box.style.display='flex';body.innerHTML='<div style="font-size:10px;color:var(--muted);padding:4px 0;">'+(erg?'Not available for erg sessions':'No GPS track')+'</div>';return;}
+  box.style.display='flex';
   const rows=[];
   SECTORS_DB.forEach(s=>{
     if(s.deleted)return;
@@ -7029,7 +7034,7 @@ function buildLaps(){
   }
   _showLaps=showLaps;
   activeLapTypes=new Set();
-  document.getElementById('lapsec').style.display='block';
+  document.getElementById('lapsec').style.display='flex';
   document.querySelector('#laptbl tbody').innerHTML='';
   document.getElementById('laptypebar').innerHTML='';
   document.getElementById('lapcurvebar').innerHTML='';
