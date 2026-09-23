@@ -1,0 +1,422 @@
+<!DOCTYPE html>
+<html lang="en-AU">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Australian Boat Race live</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@500;600;700&family=Barlow:wght@400;500;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
+<style>
+:root{
+  --bg:#E9EFF1; --panel:#FFFFFF; --ink:#12303E; --muted:#587482; --line:#C6D4DA; --water:#D2E1E7; --warn:#A8501A;
+  --num:'Barlow Condensed','Arial Narrow',sans-serif; --body:'Barlow',system-ui,sans-serif;
+}
+@media (prefers-color-scheme:dark){
+  :root{ --bg:#0D1D25; --panel:#142A34; --ink:#E3EDF1; --muted:#8EA8B4; --line:#284450; --water:#1A3541; --warn:#E08A4F; }
+}
+*{box-sizing:border-box}
+html,body{margin:0;background:var(--bg);color:var(--ink);font-family:var(--body);font-size:16px;line-height:1.45}
+body{padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}
+.wrap{max-width:980px;margin:0 auto;padding:18px 16px 40px}
+header h1{font-family:var(--num);font-weight:700;font-size:clamp(30px,6.5vw,46px);line-height:1;margin:0}
+header p{margin:6px 0 0;color:var(--muted)}
+.tabs{display:flex;gap:8px;overflow-x:auto;margin:18px 0 14px;padding-bottom:2px}
+.tabs button{font:600 15px var(--body);border:1px solid var(--line);background:var(--panel);color:var(--ink);padding:8px 14px;border-radius:999px;white-space:nowrap;cursor:pointer}
+.tabs button[aria-selected="true"]{background:var(--ink);color:var(--bg);border-color:var(--ink)}
+.tabs button:focus-visible,.crew:focus-visible,dialog button:focus-visible{outline:3px solid #4A9BC4;outline-offset:2px}
+.racehead{display:flex;justify-content:space-between;align-items:baseline;gap:12px;flex-wrap:wrap}
+.racehead h2{font-family:var(--num);font-weight:600;font-size:26px;margin:0}
+.status{font-weight:600;font-size:14px;padding:3px 10px;border-radius:999px;background:var(--water)}
+.status.racing{background:#C8452F;color:#fff}
+.gap{font-family:var(--num);font-weight:600;font-size:clamp(26px,6vw,40px);line-height:1.1;margin:14px 0 2px}
+.gapsub{color:var(--muted);margin:0 0 12px;min-height:1.45em}
+.strip{background:var(--water);border-radius:10px;overflow:hidden}
+.strip svg{display:block;width:100%;height:auto}
+.course{margin-top:8px}
+.crews{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:14px}
+.crew{background:var(--panel);border:1px solid var(--line);border-top:8px solid var(--c);border-radius:10px;padding:12px 14px;text-align:left;color:var(--ink);font:inherit;cursor:pointer;width:100%}
+.crew.stale{opacity:.55}
+.crew .nm{font-weight:600;font-size:17px}
+.crew .togo{font-family:var(--num);font-weight:700;font-size:clamp(44px,11vw,72px);line-height:1;margin-top:6px;font-variant-numeric:tabular-nums}
+.crew .togo small{display:block;font-family:var(--body);font-size:14px;font-weight:500;color:var(--muted);margin-top:2px}
+.crew .row{display:flex;gap:18px;margin-top:10px}
+.crew .row div{font-family:var(--num);font-size:28px;font-weight:600;font-variant-numeric:tabular-nums;line-height:1}
+.crew .row span{display:block;font-family:var(--body);font-size:13px;font-weight:500;color:var(--muted);margin-top:3px}
+.crew .note{font-size:13px;color:var(--warn);min-height:1.4em;margin-top:8px}
+.crew .more{font-size:13px;color:var(--muted);margin-top:2px}
+#map{height:340px;border-radius:10px;margin-top:14px;border:1px solid var(--line);z-index:0}
+footer{color:var(--muted);font-size:13px;margin-top:18px}
+dialog{border:none;border-radius:12px;padding:0;max-width:560px;width:calc(100% - 24px);background:var(--panel);color:var(--ink)}
+dialog::backdrop{background:rgba(5,20,28,.55)}
+.dlghead{border-top:8px solid var(--c);padding:16px 18px 8px}
+.dlghead h3{font-family:var(--num);font-size:28px;margin:0;line-height:1.05}
+.dlghead p{margin:4px 0 0;color:var(--muted)}
+dialog table{width:100%;border-collapse:collapse}
+dialog td{padding:9px 18px;border-top:1px solid var(--line);vertical-align:top}
+dialog td:first-child{font-weight:600;white-space:nowrap;width:1%;color:var(--muted)}
+dialog td .deg{display:block;font-size:14px;color:var(--muted)}
+dialog form{padding:12px 18px 16px;text-align:right}
+dialog form button{font:600 15px var(--body);padding:8px 18px;border-radius:999px;border:1px solid var(--line);background:var(--bg);color:var(--ink);cursor:pointer}
+@media (max-width:420px){ .crew{padding:10px} .crew .row{gap:12px} .crew .row div{font-size:24px} }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header><h1 id="title"></h1><p id="sub"></p></header>
+  <nav class="tabs" id="tabs" role="tablist"></nav>
+  <section aria-live="polite">
+    <div class="racehead"><h2 id="raceName"></h2><span class="status" id="status"></span></div>
+    <div class="gap" id="gap"></div>
+    <p class="gapsub" id="gapsub"></p>
+  </section>
+  <div class="strip" aria-hidden="true"><svg id="close" viewBox="0 0 1000 150" style="color:inherit"></svg></div>
+  <div class="strip course" aria-hidden="true"><svg id="coursebar" viewBox="0 0 1000 56"></svg></div>
+  <div class="crews" id="crews"></div>
+  <div id="map"></div>
+  <footer id="foot">Tap a crew to see who is in the boat. Numbers are smoothed and run a few seconds behind the water.</footer>
+</div>
+<dialog id="dlg"><div class="dlghead" id="dlghead"></div><table id="dlgtbl"></table><form method="dialog"><button>Close</button></form></dialog>
+
+<script>
+/* ═══════════════ EDIT THIS SECTION ═══════════════ */
+const WORKER = 'https://boatrun-race.davidmacready74.workers.dev';
+const EVENT_TITLE = 'The Australian Boat Race';
+const EVENT_SUB = 'Live from the water';
+
+// Course centreline, start to finish, [lat, lon]. Add a point at every bend.
+const COURSE_LONG = [
+  [-31.9050, 152.4400], [-31.9050, 152.4640], [-31.9050, 152.4875]
+];
+const COURSE_SHORT = [
+  [-31.9050, 152.4664], [-31.9050, 152.4770], [-31.9050, 152.4875]
+];
+
+// phone = the rower name typed into BoatRun Metrics on that boat's phone.
+// crew = [seat, name, degree]
+const RACES = [
+  { name: "Men's eights", code: 'ABRMEN8', course: COURSE_LONG, boatLen: 17.5,
+    crews: [
+      { phone: 'SYD M8', short: 'Sydney', name: 'University of Sydney', colour: '#E3A92B',
+        crew: [['Bow','',''],['2','',''],['3','',''],['4','',''],['5','',''],['6','',''],['7','',''],['Stroke','',''],['Cox','','']] },
+      { phone: 'MEL M8', short: 'Melbourne', name: 'University of Melbourne', colour: '#1C4E8C',
+        crew: [['Bow','',''],['2','',''],['3','',''],['4','',''],['5','',''],['6','',''],['7','',''],['Stroke','',''],['Cox','','']] }
+    ] },
+  { name: "Women's eights", code: 'ABRWOM8', course: COURSE_LONG, boatLen: 17.5,
+    crews: [
+      { phone: 'SYD W8', short: 'Sydney', name: 'University of Sydney', colour: '#E3A92B',
+        crew: [['Bow','',''],['2','',''],['3','',''],['4','',''],['5','',''],['6','',''],['7','',''],['Stroke','',''],['Cox','','']] },
+      { phone: 'MEL W8', short: 'Melbourne', name: 'University of Melbourne', colour: '#1C4E8C',
+        crew: [['Bow','',''],['2','',''],['3','',''],['4','',''],['5','',''],['6','',''],['7','',''],['Stroke','',''],['Cox','','']] }
+    ] },
+  { name: 'Race 3', code: 'ABRRACE', course: COURSE_SHORT, boatLen: 17.5,
+    crews: [
+      { phone: 'SYD R3', short: 'Sydney', name: 'University of Sydney', colour: '#E3A92B',
+        crew: [['Bow','',''],['2','',''],['3','',''],['4','',''],['5','',''],['6','',''],['7','',''],['Stroke','',''],['Cox','','']] },
+      { phone: 'MEL R3', short: 'Melbourne', name: 'University of Melbourne', colour: '#1C4E8C',
+        crew: [['Bow','',''],['2','',''],['3','',''],['4','',''],['5','',''],['6','',''],['7','',''],['Stroke','',''],['Cox','','']] }
+    ] },
+  { name: 'Race 4', code: 'ABR2KMB', course: COURSE_SHORT, boatLen: 17.5,
+    crews: [
+      { phone: 'SYD R4', short: 'Sydney', name: 'University of Sydney', colour: '#E3A92B',
+        crew: [['Bow','',''],['2','',''],['3','',''],['4','',''],['5','',''],['6','',''],['7','',''],['Stroke','',''],['Cox','','']] },
+      { phone: 'MEL R4', short: 'Melbourne', name: 'University of Melbourne', colour: '#1C4E8C',
+        crew: [['Bow','',''],['2','',''],['3','',''],['4','',''],['5','',''],['6','',''],['7','',''],['Stroke','',''],['Cox','','']] }
+    ] }
+];
+/* ═══════════════ END OF EDIT SECTION ═══════════════ */
+
+const DEMO = new URLSearchParams(location.search).has('demo');
+const S = { race: 0, trk: {}, lastOk: 0, map: null, line: null, marks: [], polling: false, t0: Date.now() };
+
+/* ── course geometry ── */
+function mkCourse(pts){
+  const o = pts[0], kx = 111320 * Math.cos(o[0] * Math.PI / 180), ky = 110540;
+  const xy = pts.map(p => [(p[1] - o[1]) * kx, (p[0] - o[0]) * ky]);
+  const cum = [0];
+  for (let i = 1; i < xy.length; i++) cum.push(cum[i - 1] + Math.hypot(xy[i][0] - xy[i - 1][0], xy[i][1] - xy[i - 1][1]));
+  return { pts, o, kx, ky, xy, cum, len: cum[cum.length - 1] };
+}
+function project(c, lat, lon, prevD){
+  const x = (lon - c.o[1]) * c.kx, y = (lat - c.o[0]) * c.ky, n = c.xy.length - 1;
+  const run = win => {
+    let best = null;
+    for (let i = 0; i < n; i++){
+      if (win && (c.cum[i + 1] < prevD - 250 || c.cum[i] > prevD + 500)) continue;
+      const [ax, ay] = c.xy[i], [bx, by] = c.xy[i + 1];
+      const dx = bx - ax, dy = by - ay, L = Math.hypot(dx, dy) || 1;
+      let t = ((x - ax) * dx + (y - ay) * dy) / (L * L);
+      const tMin = i === 0 ? -300 / L : 0, tMax = i === n - 1 ? 1 + 300 / L : 1;
+      t = Math.max(tMin, Math.min(tMax, t));
+      const px = ax + t * dx, py = ay + t * dy, e = Math.hypot(x - px, y - py);
+      if (!best || e < best.e) best = { e, d: c.cum[i] + t * L, off: (dx * (y - ay) - dy * (x - ax)) / L };
+    }
+    return best;
+  };
+  return (prevD != null && run(true)) || run(false);
+}
+function pointAt(c, d, off){
+  let i = 0;
+  while (i < c.cum.length - 2 && c.cum[i + 1] < d) i++;
+  const L = (c.cum[i + 1] - c.cum[i]) || 1, t = (d - c.cum[i]) / L;
+  const [ax, ay] = c.xy[i], [bx, by] = c.xy[i + 1], ux = (bx - ax) / L, uy = (by - ay) / L;
+  const x = ax + (bx - ax) * t - uy * off, y = ay + (by - ay) * t + ux * off;
+  return [c.o[0] + y / c.ky, c.o[1] + x / c.kx];
+}
+RACES.forEach(r => { r._c = mkCourse(r.course); });
+
+/* ── smoothing / tracking ── */
+function trk(ri, ci){
+  const k = ri + '_' + ci;
+  if (!S.trk[k]) S.trk[k] = { D: null, V: 0, tRef: 0, off: 0, rate: 0, pace: 0, lastT: 0, seen: 0, disp: null, fin: null, live: false };
+  return S.trk[k];
+}
+function feed(tr, b, c, serverNow){
+  if (!b || b.t === tr.lastT) return;
+  tr.lastT = b.t;
+  const tL = Date.now() - Math.min(60000, Math.max(0, serverNow - b.t));
+  tr.seen = tL; tr.live = !!b.lv;
+  if (b.r > 0) tr.rate = tr.rate ? tr.rate + 0.3 * (b.r - tr.rate) : b.r;
+  if (b.p > 60 && b.p < 600) tr.pace = tr.pace ? tr.pace + 0.3 * (b.p - tr.pace) : b.p;
+  const v = (b.lv && b.p > 60 && b.p < 600) ? 500 / b.p : 0;
+  tr.V = b.lv ? tr.V + 0.35 * (v - tr.V) : 0;
+  if (b.la == null || b.lo == null) return;
+  const pr = project(c, b.la, b.lo, tr.D);
+  if (!pr) return;
+  if (tr.D == null) tr.D = pr.d;
+  else {
+    const pred = tr.D + tr.V * Math.max(0, tL - tr.tRef) / 1000, e = pr.d - pred;
+    tr.D = Math.abs(e) > 150 ? pr.d : pred + 0.35 * e;
+  }
+  tr.tRef = tL;
+  tr.off += 0.3 * (pr.off - tr.off);
+}
+function dispD(tr, c, now){
+  if (tr.D == null) return null;
+  let d = tr.D + tr.V * Math.min(6000, Math.max(0, now - tr.tRef)) / 1000;
+  if (tr.disp != null && d < tr.disp && d > tr.disp - 30) d = tr.disp;
+  tr.disp = d;
+  if (tr.fin == null && d >= c.len && tr.V > 0.5) tr.fin = tr.tRef + (c.len - tr.D) / tr.V * 1000;
+  if (tr.fin != null && d < c.len * 0.5) tr.fin = null;
+  return d;
+}
+
+/* ── data ── */
+const norm = s => String(s || '').trim().toUpperCase();
+function assign(race, boats){
+  const ids = Object.keys(boats).sort(), used = new Set(), map = {};
+  race.crews.forEach((cr, ci) => { const id = ids.find(i => !used.has(i) && norm(boats[i].n) === norm(cr.phone)); if (id){ map[ci] = id; used.add(id); } });
+  race.crews.forEach((cr, ci) => { if (map[ci]) return; const id = ids.find(i => !used.has(i)); if (id){ map[ci] = id; used.add(id); } });
+  return map;
+}
+function demoData(ri){
+  const race = RACES[ri], c = race._c, s = (Date.now() - S.t0) / 1000, boats = {};
+  race.crews.forEach((cr, ci) => {
+    const base = ci ? 5.22 : 5.28, surge = 0.12 * Math.sin(s / (14 + ci * 3));
+    let d = -40 + base * s + 6 * Math.sin(s / 25 + ci), v = base + surge;
+    if (d > c.len + 60){ d = c.len + 60; v = 0; }
+    const p = pointAt(c, Math.max(-60, d), (ci ? -7 : 7) + (Math.random() - .5) * 3);
+    boats['demo' + ci] = { n: cr.phone, r: Math.round(36 - Math.min(4, s / 60) + Math.sin(s / 9)), p: v > 0 ? Math.round(500 / v) : 0,
+      la: p[0] + (Math.random() - .5) * 2e-5, lo: p[1] + (Math.random() - .5) * 2e-5, lv: v > 0 ? 1 : 0, t: Date.now() - 1500 };
+  });
+  return { now: Date.now(), boats };
+}
+async function getData(ri){
+  if (DEMO) return demoData(ri);
+  const r = await fetch(WORKER + '/race/' + RACES[ri].code, { cache: 'no-store' });
+  if (!r.ok) throw new Error('http ' + r.status);
+  return r.json();
+}
+async function poll(){
+  const ri = S.race;
+  try {
+    const j = await getData(ri);
+    const race = RACES[ri], boats = j.boats || {}, map = assign(race, boats);
+    race.crews.forEach((cr, ci) => { if (map[ci]) feed(trk(ri, ci), boats[map[ci]], race._c, j.now || Date.now()); });
+    S.lastOk = Date.now();
+  } catch (e) {}
+}
+async function pickStartRace(){
+  if (DEMO) return;
+  for (let i = 0; i < RACES.length; i++){
+    try {
+      const j = await getData(i);
+      if (Object.values(j.boats || {}).some(b => b.lv)) { selectRace(i); return; }
+    } catch (e) {}
+  }
+}
+
+/* ── formatting ── */
+const fmtPace = s => { if (!(s > 0)) return '–:––'; s = Math.round(s); return Math.floor(s / 60) + ':' + String(s % 60).padStart(2, '0'); };
+const fmtM = m => Math.round(m).toLocaleString('en-AU');
+const esc = s => String(s || '').replace(/[&<>"]/g, ch => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[ch]));
+function lengthsTxt(m, bl){
+  const l = m / bl;
+  if (l < 0.2) return 'overlapping';
+  if (l < 0.9) return 'about ' + (l < 0.4 ? 'a quarter' : l < 0.65 ? 'half' : 'three quarters') + ' of a length';
+  return (l < 1.5 ? 'about 1 length' : 'about ' + Math.round(l) + ' lengths');
+}
+
+/* ── drawing ── */
+function hull(x1, x2, y, col, label){
+  const h = 9, w = x2 - x1, tip = Math.min(18, w * 0.25);
+  return `<path d="M${x1},${y} Q${x1 + tip},${y - h} ${x1 + tip * 2},${y - h} L${x2 - tip * 2},${y - h} Q${x2 - tip},${y - h} ${x2},${y} Q${x2 - tip},${y + h} ${x2 - tip * 2},${y + h} L${x1 + tip * 2},${y + h} Q${x1 + tip},${y + h} ${x1},${y} Z" fill="${col}"/>`
+    + `<text x="${x1 - 8}" y="${y + 6}" text-anchor="end" font-family="Barlow Condensed,Arial Narrow,sans-serif" font-weight="600" font-size="20" fill="currentColor">${esc(label)}</text>`;
+}
+const vw = el => el.clientWidth && el.clientWidth < 600 ? 520 : 1000;
+function drawClose(race, rows){
+  const svg = document.getElementById('close'), c = race._c, have = rows.filter(r => r.d != null), VW = vw(svg);
+  svg.setAttribute('viewBox', '0 0 ' + VW + ' 150');
+  svg.style.color = getComputedStyle(document.body).color;
+  if (!have.length){ svg.innerHTML = `<text x="${VW / 2}" y="82" text-anchor="middle" font-size="20" fill="currentColor" opacity=".6">Waiting for crews</text>`; return; }
+  const ds = have.map(r => Math.min(r.d, c.len + 40)), hi = Math.max(...ds), lo = Math.min(...ds);
+  const W = Math.min(400, Math.max(70, hi - lo + race.boatLen * 2.5)), left = hi + race.boatLen * 0.8 - W;
+  const X = d => 110 + (d - left) / W * (VW - 130);
+  let s = '';
+  const step = W > 200 ? 50 : W > 100 ? 20 : 10;
+  for (let m = Math.ceil(left / step) * step; m <= left + W; m += step){
+    const x = X(m); if (x < 110) continue;
+    const togo = c.len - m;
+    s += `<line x1="${x}" y1="18" x2="${x}" y2="138" stroke="currentColor" stroke-opacity=".14"/>`;
+    if (togo >= 0) s += `<text x="${x}" y="14" text-anchor="middle" font-size="12" fill="currentColor" opacity=".6">${fmtM(togo)}</text>`;
+  }
+  if (c.len > left && c.len < left + W) s += `<line x1="${X(c.len)}" y1="18" x2="${X(c.len)}" y2="142" stroke="#C8452F" stroke-width="3"/>`;
+  rows.forEach((r, i) => {
+    const y = 55 + i * 55;
+    s += `<line x1="110" y1="${y}" x2="${VW - 20}" y2="${y}" stroke="currentColor" stroke-opacity=".08" stroke-dasharray="4 6"/>`;
+    if (r.d == null) return;
+    const d = Math.min(r.d, c.len + 40);
+    s += hull(X(d - race.boatLen), X(d), y, r.cr.colour, r.cr.short);
+  });
+  svg.innerHTML = s;
+}
+function drawCourse(race, rows){
+  const svg = document.getElementById('coursebar'), c = race._c, VW = vw(svg), X = d => 30 + Math.max(0, Math.min(1, d / c.len)) * (VW - 60);
+  svg.setAttribute('viewBox', '0 0 ' + VW + ' 56');
+  svg.style.color = getComputedStyle(document.body).color;
+  let s = `<line x1="30" y1="30" x2="${VW - 30}" y2="30" stroke="currentColor" stroke-opacity=".3" stroke-width="3"/>`;
+  for (let m = 0; m <= c.len + 1; m += (VW < 600 ? 1000 : 500)){
+    const togo = c.len - m;
+    s += `<line x1="${X(m)}" y1="23" x2="${X(m)}" y2="37" stroke="currentColor" stroke-opacity=".35"/>`
+      + `<text x="${X(m)}" y="52" text-anchor="middle" font-size="12" fill="currentColor" opacity=".6">${togo < 50 ? '' : (togo / 1000).toFixed(1) + ' km'}</text>`;
+  }
+  s += `<line x1="${VW - 30}" y1="18" x2="${VW - 30}" y2="42" stroke="#C8452F" stroke-width="3"/><text x="${VW - 30}" y="13" text-anchor="end" font-size="12" fill="currentColor" opacity=".7">Finish</text>`;
+  rows.forEach(r => { if (r.d != null) s += `<circle cx="${X(r.d)}" cy="30" r="8" fill="${r.cr.colour}" stroke="var(--panel)" stroke-width="2"/>`; });
+  svg.innerHTML = s;
+}
+function buildCrews(){
+  const race = RACES[S.race], el = document.getElementById('crews');
+  el.innerHTML = race.crews.map((cr, ci) =>
+    `<button class="crew" style="--c:${cr.colour}" data-ci="${ci}">
+       <div class="nm">${esc(cr.name)}</div>
+       <div class="togo" id="tg${ci}">–<small>m to go</small></div>
+       <div class="row"><div id="pc${ci}">–:––<span>per 500 m</span></div><div id="rt${ci}">–<span>strokes/min</span></div></div>
+       <div class="note" id="nt${ci}"></div>
+       <div class="more">Tap for crew</div>
+     </button>`).join('');
+  el.querySelectorAll('.crew').forEach(b => b.onclick = () => openCrew(+b.dataset.ci));
+}
+function openCrew(ci){
+  const cr = RACES[S.race].crews[ci], d = document.getElementById('dlg');
+  document.getElementById('dlghead').style.setProperty('--c', cr.colour);
+  document.getElementById('dlghead').innerHTML = `<h3>${esc(cr.name)}</h3><p>${esc(RACES[S.race].name)}</p>`;
+  document.getElementById('dlgtbl').innerHTML = cr.crew.map(p =>
+    `<tr><td>${esc(p[0])}</td><td>${esc(p[1]) || '–'}${p[2] ? `<span class="deg">${esc(p[2])}</span>` : ''}</td></tr>`).join('');
+  d.showModal();
+}
+function initMap(){
+  if (typeof L === 'undefined') { document.getElementById('map').style.display = 'none'; return; }
+  S.map = L.map('map', { zoomControl: true, attributionControl: true });
+  L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { maxZoom: 18, attribution: '&copy; OpenStreetMap' }).addTo(S.map);
+}
+function mapRace(){
+  if (!S.map) return;
+  const race = RACES[S.race];
+  if (S.line) S.line.remove();
+  S.marks.forEach(m => m.remove());
+  S.line = L.polyline(race.course, { color: '#4A9BC4', weight: 5, opacity: .8 }).addTo(S.map);
+  S.marks = race.crews.map(cr => L.circleMarker(race.course[0], { radius: 9, color: '#fff', weight: 2, fillColor: cr.colour, fillOpacity: 1, opacity: 0 }).addTo(S.map).bindTooltip(cr.short));
+  S.map.fitBounds(S.line.getBounds(), { padding: [20, 20] });
+}
+function selectRace(i){
+  S.race = i;
+  document.querySelectorAll('.tabs button').forEach((b, j) => b.setAttribute('aria-selected', j === i ? 'true' : 'false'));
+  buildCrews(); mapRace(); poll(); render();
+}
+function render(){
+  const race = RACES[S.race], c = race._c, now = Date.now();
+  const rows = race.crews.map((cr, ci) => {
+    const tr = trk(S.race, ci), d = dispD(tr, c, now);
+    return { cr, ci, tr, d, stale: !tr.seen || now - tr.seen > 20000 };
+  });
+  document.getElementById('raceName').textContent = race.name + ', ' + fmtM(c.len) + ' m';
+  const st = document.getElementById('status');
+  const anyLive = rows.some(r => !r.stale && r.tr.live), allFin = rows.every(r => r.tr.fin != null);
+  let stTxt = 'Waiting for crews', racing = false;
+  if (allFin) stTxt = 'Result';
+  else if (anyLive && rows.some(r => r.d != null && r.d > 20)) { stTxt = 'Racing'; racing = true; }
+  else if (rows.some(r => !r.stale)) stTxt = 'On the water';
+  if (!DEMO && S.lastOk && now - S.lastOk > 15000) stTxt = 'Reconnecting';
+  st.textContent = stTxt; st.classList.toggle('racing', racing);
+
+  rows.forEach(r => {
+    const tg = document.getElementById('tg' + r.ci);
+    if (!tg) return;
+    const togo = r.d == null ? null : Math.max(0, c.len - Math.max(0, r.d));
+    tg.innerHTML = r.tr.fin != null ? 'Finished' : (togo == null ? '–' : fmtM(togo)) + '<small>m to go</small>';
+    const moving = r.tr.live && !r.stale;
+    document.getElementById('pc' + r.ci).innerHTML = (moving ? fmtPace(r.tr.pace) : '–:––') + '<span>per 500 m</span>';
+    document.getElementById('rt' + r.ci).innerHTML = (moving && r.tr.rate ? Math.round(r.tr.rate) : '–') + '<span>strokes/min</span>';
+    document.getElementById('nt' + r.ci).textContent = r.tr.seen && r.stale ? 'Signal lost' : '';
+    tg.parentElement.classList.toggle('stale', !!(r.tr.seen && r.stale));
+  });
+
+  const gapEl = document.getElementById('gap'), sub = document.getElementById('gapsub');
+  const have = rows.filter(r => r.d != null);
+  if (have.length === 2){
+    const [a, b] = have;
+    if (a.tr.fin != null && b.tr.fin != null){
+      const w = a.tr.fin <= b.tr.fin ? a : b, l = w === a ? b : a;
+      gapEl.textContent = w.cr.short + ' win';
+      sub.textContent = 'by ' + ((l.tr.fin - w.tr.fin) / 1000).toFixed(1) + ' seconds';
+    } else if (a.tr.fin != null || b.tr.fin != null){
+      const w = a.tr.fin != null ? a : b, l = w === a ? b : a;
+      gapEl.textContent = w.cr.short + ' have finished';
+      sub.textContent = l.cr.short + ' ' + fmtM(Math.max(0, c.len - l.d)) + ' m to go';
+    } else {
+      const lead = a.d >= b.d ? a : b, trail = lead === a ? b : a, gm = lead.d - trail.d;
+      if (gm < 1.5 || lead.d < 5){ gapEl.textContent = 'Level'; sub.textContent = lead.d < 5 ? 'On the start' : 'Bow ball to bow ball'; }
+      else {
+        gapEl.textContent = lead.cr.short + ' lead by ' + fmtM(gm) + ' m';
+        const secs = trail.tr.V > 0.5 ? (gm / trail.tr.V).toFixed(1) + ' seconds, ' : '';
+        sub.textContent = secs + lengthsTxt(gm, race.boatLen);
+      }
+    }
+  } else { gapEl.textContent = have.length ? 'Waiting for both crews' : 'Waiting for crews'; sub.textContent = ''; }
+
+  drawClose(race, rows);
+  drawCourse(race, rows);
+  if (S.map) rows.forEach((r, i) => {
+    const m = S.marks[i]; if (!m) return;
+    if (r.d == null) { m.setStyle({ opacity: 0, fillOpacity: 0 }); return; }
+    m.setLatLng(pointAt(c, Math.max(-50, Math.min(r.d, c.len + 50)), r.tr.off));
+    m.setStyle({ opacity: 1, fillOpacity: r.stale ? .4 : 1 });
+  });
+}
+
+/* ── start ── */
+document.getElementById('title').textContent = EVENT_TITLE;
+document.getElementById('sub').textContent = DEMO ? 'Demo, simulated crews' : EVENT_SUB;
+document.getElementById('tabs').innerHTML = RACES.map((r, i) => `<button role="tab" aria-selected="false">${esc(r.name)}</button>`).join('');
+document.querySelectorAll('.tabs button').forEach((b, i) => b.onclick = () => selectRace(i));
+initMap();
+selectRace(0);
+pickStartRace();
+setInterval(poll, 2000);
+setInterval(render, 200);
+document.addEventListener('visibilitychange', () => { if (!document.hidden) poll(); });
+</script>
+</body>
+</html>
