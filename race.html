@@ -305,10 +305,17 @@ function lengthsTxt(m, bl){
 }
 
 /* ── drawing ── */
-function hull(x1, x2, y, col, label){
-  const h = 9, w = x2 - x1, tip = Math.min(18, w * 0.25);
-  return `<path d="M${x1},${y} Q${x1 + tip},${y - h} ${x1 + tip * 2},${y - h} L${x2 - tip * 2},${y - h} Q${x2 - tip},${y - h} ${x2},${y} Q${x2 - tip},${y + h} ${x2 - tip * 2},${y + h} L${x1 + tip * 2},${y + h} Q${x1 + tip},${y + h} ${x1},${y} Z" fill="${col}"/>`
-    + `<text x="${x1 - 8}" y="${y + 6}" text-anchor="end" font-family="Barlow Condensed,Arial Narrow,sans-serif" font-weight="600" font-size="26" fill="currentColor">${esc(label)}</text>`;
+function hull(x1, x2, y, cr, label, ratio){
+  const w = x2 - x1, a = cr.boat ? BOAT_ASPECT[cr.boat] : 0;
+  let shape;
+  if (a > 0){
+    const bh = w * a;
+    shape = `<image href="${esc(cr.boat)}" x="${x1}" y="${y - bh / 2}" width="${w}" height="${bh}" preserveAspectRatio="none"/>`;
+  } else {
+    const h = Math.max(1, w * ratio / 2), m = x1 + w * 0.47;
+    shape = `<path d="M${x1},${y} C${x1 + w * 0.18},${y - h * 0.75} ${x1 + w * 0.32},${y - h} ${m},${y - h} C${x1 + w * 0.68},${y - h} ${x1 + w * 0.86},${y - h * 0.6} ${x2},${y} C${x1 + w * 0.86},${y + h * 0.6} ${x1 + w * 0.68},${y + h} ${m},${y + h} C${x1 + w * 0.32},${y + h} ${x1 + w * 0.18},${y + h * 0.75} ${x1},${y} Z" fill="${cr.colour}"/>`;
+  }
+  return shape + `<text x="${x1 - 8}" y="${y + 8}" text-anchor="end" font-family="Barlow Condensed,Arial Narrow,sans-serif" font-weight="600" font-size="26" fill="currentColor">${esc(label)}</text>`;
 }
 const vw = el => el.clientWidth && el.clientWidth < 600 ? 520 : Math.max(1000, Math.round(el.clientWidth * 1.4));
 function drawClose(race, rows){
@@ -317,7 +324,9 @@ function drawClose(race, rows){
   svg.style.color = getComputedStyle(document.body).color;
   if (!have.length){ svg.innerHTML = `<text x="${VW / 2}" y="82" text-anchor="middle" font-size="20" fill="currentColor" opacity=".6">Waiting for crews</text>`; return; }
   const ds = have.map(r => Math.min(r.d, c.len + 40)), hi = Math.max(...ds), lo = Math.min(...ds);
-  const W = Math.min(400, Math.max(70, hi - lo + race.boatLen * 2.5)), left = hi + race.boatLen * 0.8 - W;
+  const maxA = Math.max(0, ...race.crews.map(cr => (cr.boat && BOAT_ASPECT[cr.boat]) || 0));
+  const minW = maxA > 0 ? race.boatLen * (VW - 130) * maxA / 50 : 70;
+  const W = Math.max(minW, Math.min(400, Math.max(70, hi - lo + race.boatLen * 2.5))), left = hi + race.boatLen * 0.8 - W;
   const X = d => 110 + (d - left) / W * (VW - 130);
   let s = '';
   const step = W > 200 ? 50 : W > 100 ? 20 : 10;
@@ -329,11 +338,12 @@ function drawClose(race, rows){
   }
   if (c.len > left && c.len < left + W) s += `<line x1="${X(c.len)}" y1="18" x2="${X(c.len)}" y2="142" stroke="#C8452F" stroke-width="3"/>`;
   rows.forEach((r, i) => {
-    const y = 55 + i * 55;
+    const lane = race.swapLanes === false ? i : rows.length - 1 - i;
+    const y = 55 + lane * 55;
     s += `<line x1="110" y1="${y}" x2="${VW - 20}" y2="${y}" stroke="currentColor" stroke-opacity=".08" stroke-dasharray="4 6"/>`;
     if (r.d == null) return;
     const d = Math.min(r.d, c.len + 40);
-    s += hull(X(d - race.boatLen), X(d), y, r.cr.colour, r.cr.short);
+    s += hull(X(d - race.boatLen), X(d), y, r.cr, r.cr.short, (race.boatBeam || 0.6) / race.boatLen);
   });
   svg.innerHTML = s;
 }
@@ -349,7 +359,7 @@ function buildCrews(){
       <div class="stat"><b id="pc${ci}">–:––</b><span>per 500 m</span></div>
       <div class="stat"><b id="rt${ci}">–</b><span>strokes per min</span></div>
       <div class="note" id="nt${ci}"></div>`;
-    ls.innerHTML = `<h3>Crew</h3><table>${cr.crew.map(p =>
+    ls.innerHTML = `<h3>Crew</h3><table>${cr.crew.filter(p => !(/^coach/i.test(p[0]) && !p[1])).map(p =>
       `<tr><td>${esc(p[0])}</td><td>${esc(p[1]) || '–'}${p[2] ? `<span class="deg">${esc(p[2])}</span>` : ''}</td></tr>`).join('')}</table>`;
   });
 }
@@ -455,6 +465,8 @@ document.getElementById('sub').textContent = DEMO ? 'Demo, simulated crews' : EV
     ? `<button data-i="${i}" aria-selected="false"><b>${esc(r.name)}</b><span class="rs" id="rs${i}"></span></button>` : '').join('');
 });
 document.querySelectorAll('.races button').forEach(b => b.onclick = () => selectRace(+b.dataset.i));
+const BOAT_ASPECT = {};
+RACES.forEach(r => r.crews.forEach(cr => { if (cr.boat && !(cr.boat in BOAT_ASPECT)) { BOAT_ASPECT[cr.boat] = 0; const im = new Image(); im.onload = () => { if (im.naturalWidth) BOAT_ASPECT[cr.boat] = im.naturalHeight / im.naturalWidth; }; im.src = cr.boat; } }));
 initMap();
 selectRace(0);
 pickStartRace();
