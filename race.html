@@ -155,16 +155,16 @@ const COURSE_SHORT = courseTail(COURSE_LONG, 2000);
 const RACES = [
   { name: "College Women", code: 'ABRCOLW', side: 'left', start: '9:15am', course: COURSE_SHORT, boatLen: 17.5,
     crews: [
-      { phone: 'SYD R4', short: 'YY', name: 'YY College', logo: '', colour: '#EE5D31',
+      { phone: 'SYD CW', short: 'YY', name: 'YY College', logo: '', colour: '#EE5D31',
         crew: [['Bow','',''],['2','',''],['3','',''],['4','',''],['5','',''],['6','',''],['7','',''],['Stroke','',''],['Cox','',''],['Coach','',''],['Coach','',''],['Coach','','']] },
-      { phone: 'MEL R4', short: 'ZZ', name: 'ZZ College', logo: '', colour: '#173E80',
+      { phone: 'MEL CW', short: 'ZZ', name: 'ZZ College', logo: '', colour: '#173E80',
         crew: [['Bow','',''],['2','',''],['3','',''],['4','',''],['5','',''],['6','',''],['7','',''],['Stroke','',''],['Cox','',''],['Coach','',''],['Coach','',''],['Coach','','']] }
     ] },
   { name: "College Men", code: 'ABRCOLM', side: 'left', start: '9:30am', course: COURSE_SHORT, boatLen: 17.5,
     crews: [
-      { phone: 'SYD R3', short: 'WW', name: 'WW College', logo: '', colour: '#EE5D31',
+      { phone: 'SYD CM', short: 'WW', name: 'WW College', logo: '', colour: '#EE5D31',
         crew: [['Bow','',''],['2','',''],['3','',''],['4','',''],['5','',''],['6','',''],['7','',''],['Stroke','',''],['Cox','',''],['Coach','',''],['Coach','',''],['Coach','','']] },
-      { phone: 'MEL R3', short: 'XX', name: 'XX College', logo: '', colour: '#173E80',
+      { phone: 'MEL CM', short: 'XX', name: 'XX College', logo: '', colour: '#173E80',
         crew: [['Bow','',''],['2','',''],['3','',''],['4','',''],['5','',''],['6','',''],['7','',''],['Stroke','',''],['Cox','',''],['Coach','',''],['Coach','',''],['Coach','','']] }
     ] },
   { name: "Men's eights", code: 'ABRMEN8', side: 'right', start: '10:00am', course: COURSE_LONG, boatLen: 17.5,
@@ -356,8 +356,10 @@ function drawClose(race, rows){
   }
   if (c.len > left && c.len < left + W) g += `<line x1="${X(c.len)}" y1="18" x2="${X(c.len)}" y2="142" stroke="#C8452F" stroke-width="3"/>`;
   rows.forEach((r, i) => {
-    const lane = race.swapLanes === false ? i : rows.length - 1 - i;
-    const y = 55 + lane * 55;
+    const off = S.results[race.code] || {}, sn = String(off.sydney || '').toLowerCase();
+    const sydTop = sn === 'north' ? true : sn === 'south' ? false : race.swapLanes === false;
+    const lane = sydTop ? i : rows.length - 1 - i;
+    const y = 50 + lane * 70;
     g += `<line x1="110" y1="${y}" x2="${VW - 20}" y2="${y}" stroke="currentColor" stroke-opacity=".08" stroke-dasharray="4 6"/>`;
     if (r.d == null) return;
     const d = Math.min(r.d, c.len + 40), xs = X(d - race.boatLen);
