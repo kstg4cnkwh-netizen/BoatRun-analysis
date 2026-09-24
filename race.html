@@ -20,7 +20,7 @@
 *{box-sizing:border-box}
 html,body{margin:0;background:var(--bg);color:var(--ink);font-family:var(--body);font-size:16px;line-height:1.45}
 body{padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}
-.wrap{max-width:1180px;margin:0 auto;padding:18px 16px 40px}
+.wrap{max-width:none;margin:0;padding:max(12px,1.2vw) max(16px,2vw) 24px}
 header.top{display:flex;align-items:center;justify-content:space-between;gap:14px}
 header .ttl{flex:1;text-align:center;min-width:0}
 .corner{width:80px;height:80px;object-fit:contain;flex:none}
@@ -76,6 +76,28 @@ footer{color:var(--muted);font-size:13px;margin-top:18px}
   .stat span{text-align:left;font-size:13px}
   .card td{font-size:14px}
   .card td .deg{font-size:13px}
+}
+@media (min-width:1200px){
+  html,body{font-size:1.25vw}
+  .corner{width:7vw;height:7vw}
+  header h1{font-size:3.6vw}
+  .tabs button{font-size:1.2vw;padding:.6vw 1.2vw}
+  .racehead h2{font-size:2vw}
+  .status{font-size:1.1vw;padding:.25vw .8vw}
+  .gap{font-size:3.2vw}
+  .board{grid-template-columns:1fr 1.3fr 1fr;gap:1vw}
+  #map{min-height:calc(100vh - 20vw)}
+  .card{padding:1.2vw}
+  .emb.wide{height:6.5vw}
+  .chead .nm{font-size:2vw}
+  .stat b{font-size:4.2vw}
+  .stat span{font-size:1.1vw}
+  .note{font-size:1vw}
+  .card h3{font-size:1.6vw}
+  .card td{font-size:1.15vw}
+  .card td .deg{font-size:1vw}
+  footer{font-size:1vw}
+  .brlogo{width:2.5vw;height:2.5vw}
 }
 </style>
 </head>
@@ -288,7 +310,7 @@ function hull(x1, x2, y, col, label){
   return `<path d="M${x1},${y} Q${x1 + tip},${y - h} ${x1 + tip * 2},${y - h} L${x2 - tip * 2},${y - h} Q${x2 - tip},${y - h} ${x2},${y} Q${x2 - tip},${y + h} ${x2 - tip * 2},${y + h} L${x1 + tip * 2},${y + h} Q${x1 + tip},${y + h} ${x1},${y} Z" fill="${col}"/>`
     + `<text x="${x1 - 8}" y="${y + 6}" text-anchor="end" font-family="Barlow Condensed,Arial Narrow,sans-serif" font-weight="600" font-size="20" fill="currentColor">${esc(label)}</text>`;
 }
-const vw = el => el.clientWidth && el.clientWidth < 600 ? 520 : 1000;
+const vw = el => el.clientWidth && el.clientWidth < 600 ? 520 : Math.max(1000, el.clientWidth);
 function drawClose(race, rows){
   const svg = document.getElementById('close'), c = race._c, have = rows.filter(r => r.d != null), VW = vw(svg);
   svg.setAttribute('viewBox', '0 0 ' + VW + ' 150');
