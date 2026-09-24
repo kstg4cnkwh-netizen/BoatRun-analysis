@@ -128,6 +128,10 @@ footer{display:flex;align-items:center;gap:10px;color:var(--muted);font-size:13p
 const WORKER = 'https://boatrun-race.davidmacready74.workers.dev';
 const EVENT_TITLE = 'The Australian Boat Race 2026';
 const EVENT_LOGO = 'emblems/boatrace.png';
+const RESULTS_URL = 'results.json';
+async function loadResults(){
+  try { const r = await fetch(RESULTS_URL + '?t=' + Date.now(), { cache: 'no-store' }); if (r.ok) S.results = (await r.json()) || {}; } catch (e) {}
+}
 const EVENT_SUB = 'Live from the water';
 const BOATRUN_LOGO = 'icons/icon-192.png';
 const ICON_LEFT = 'emblems/sydney.png';
@@ -136,7 +140,7 @@ const ICON_RIGHT = 'emblems/melbourne.svg';
 
 // Course centreline, start to finish, [lat, lon]. Add a point at every bend.
 const COURSE_LONG = [
-  [-33.83898308138718, 151.17587655902042], [-33.84665395961514, 151.18704933162556], [-33.84944654816737, 151.19057664965], [-33.85395603768015, 151.19418916278542],[-33.85659419304149, 151.19655669992156],[-33.86855917965614, 151.20050657005478],[-33.87220256900091, 151.20089284327517]
+  [-33.838431712043494, 151.17780568479176], [-33.84223276882402, 151.18047344745563], [-33.84665395961514, 151.18704933162556], [-33.84944654816737, 151.19057664965], [-33.85395603768015, 151.19418916278542],[-33.85659419304149, 151.19655669992156],[-33.86855917965614, 151.20050657005478],[-33.87220256900091, 151.20089284327517]
 ];
 const COURSE_SHORT = [
   [-33.85659419304149, 151.19655669992156],[-33.86855917965614, 151.20050657005478],[-33.87220256900091, 151.20089284327517]
@@ -178,7 +182,7 @@ const RACES = [
 /* ═══════════════ END OF EDIT SECTION ═══════════════ */
 
 const DEMO = new URLSearchParams(location.search).has('demo');
-const S = { race: 0, trk: {}, lastOk: 0, map: null, line: null, marks: [], polling: false, t0: Date.now() };
+const S = { race: 0, trk: {}, results: {}, lastOk: 0, map: null, line: null, marks: [], polling: false, t0: Date.now() };
 
 /* ── course geometry ── */
 function mkCourse(pts){
@@ -400,10 +404,12 @@ function raceRows(ri, now){
   });
 }
 function raceStatus(ri, rows, now){
+  const off = S.results[RACES[ri].code];
+  if (off && off.winner) return { txt: 'Result: ' + off.winner + ' won', cls: '' };
   const race = RACES[ri];
   if (rows.length && rows.every(r => r.tr.fin != null)){
     const w = rows.reduce((a, b) => a.tr.fin <= b.tr.fin ? a : b);
-    return { txt: 'Result: ' + w.cr.short + ' won', cls: '' };
+    return { txt: 'Provisional: ' + w.cr.short + ' won', cls: '' };
   }
   if (rows.some(r => !r.stale && r.tr.live) && rows.some(r => r.d != null && r.d > 20)) return { txt: 'Racing', cls: 'racing' };
   if (rows.some(r => !r.stale)) return { txt: 'On the water', cls: '' };
@@ -439,11 +445,11 @@ function render(){
     const [a, b] = have;
     if (a.tr.fin != null && b.tr.fin != null){
       const w = a.tr.fin <= b.tr.fin ? a : b, l = w === a ? b : a;
-      gapEl.textContent = w.cr.short + ' win';
-      sub.textContent = 'by ' + ((l.tr.fin - w.tr.fin) / 1000).toFixed(1) + ' seconds';
+      gapEl.textContent = w.cr.short + ' win (provisional)';
+      sub.textContent = 'by ' + ((l.tr.fin - w.tr.fin) / 1000).toFixed(1) + ' seconds (provisional, awaiting official result)';
     } else if (a.tr.fin != null || b.tr.fin != null){
       const w = a.tr.fin != null ? a : b, l = w === a ? b : a;
-      gapEl.textContent = w.cr.short + ' have finished';
+      gapEl.textContent = w.cr.short + ' finished first (provisional)';
       sub.textContent = l.cr.short + ' ' + fmtM(Math.max(0, c.len - l.d)) + ' m to go';
     } else {
       const lead = a.d >= b.d ? a : b, trail = lead === a ? b : a, gm = lead.d - trail.d;
@@ -456,6 +462,11 @@ function render(){
     }
   } else { gapEl.textContent = have.length ? 'Waiting for both crews' : 'Waiting for crews'; sub.textContent = ''; }
 
+  const off = S.results[race.code];
+  if (off && off.winner){
+    document.getElementById('gap').textContent = off.winner + ' won';
+    document.getElementById('gapsub').textContent = [off.margin ? 'by ' + off.margin : '', off.time ? 'in ' + off.time : ''].filter(Boolean).join(' ') + ' (official result)';
+  }
   drawClose(race, rows);
   if (S.map) rows.forEach((r, i) => {
     const m = S.marks[i]; if (!m) return;
@@ -482,6 +493,8 @@ selectRace(0);
 pickStartRace();
 setInterval(poll, 2000);
 setInterval(render, 200);
+loadResults();
+setInterval(loadResults, 30000);
 document.addEventListener('visibilitychange', () => { if (!document.hidden) poll(); });
 </script>
 </body>
