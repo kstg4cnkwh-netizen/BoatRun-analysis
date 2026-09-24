@@ -1,6 +1,6 @@
 {
   "ABRCOLW": { "sydney": "south", "winner": "", "margin": "", "time": "" },
-  "ABRCOLM": { "sydney": "south", "winner": "", "margin": "", "time": "" },
+  "ABRCOLM": { "sydney": "north", "winner": "", "margin": "", "time": "" },
   "ABRMEN8": { "sydney": "south", "winner": "", "margin": "", "time": "" },
   "ABRWOM8": { "sydney": "south", "winner": "", "margin": "", "time": "" }
 }
