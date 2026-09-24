@@ -146,33 +146,33 @@ const COURSE_SHORT = [
 // side = which side of the page the race button goes. start = start time shown before the race, e.g. '10:30'.
 // crew = [seat, name, degree]
 const RACES = [
-  { name: "College Women", code: 'ABRCOLW', side: 'right', start: '9:15am', course: COURSE_SHORT, boatLen: 17.5,
+  { name: "College Women", code: 'ABRCOLW', side: 'left', start: '9:15am', course: COURSE_SHORT, boatLen: 17.5,
     crews: [
       { phone: 'SYD R4', short: 'YY', name: 'YY College', logo: '', colour: '#E3A92B',
-        crew: [['Bow','',''],['2','',''],['3','',''],['4','',''],['5','',''],['6','',''],['7','',''],['Stroke','',''],['Cox','',''],['Coach','','']] },
+        crew: [['Bow','',''],['2','',''],['3','',''],['4','',''],['5','',''],['6','',''],['7','',''],['Stroke','',''],['Cox','',''],['Coach','',''],['Coach','',''],['Coach','','']] },
       { phone: 'MEL R4', short: 'ZZ', name: 'ZZ College', logo: '', colour: '#1C4E8C',
-        crew: [['Bow','',''],['2','',''],['3','',''],['4','',''],['5','',''],['6','',''],['7','',''],['Stroke','',''],['Cox','',''],['Coach','','']] }
+        crew: [['Bow','',''],['2','',''],['3','',''],['4','',''],['5','',''],['6','',''],['7','',''],['Stroke','',''],['Cox','',''],['Coach','',''],['Coach','',''],['Coach','','']] }
     ] },
-  { name: "College Men", code: 'ABRCOLM', side: 'right', start: '9:30am', course: COURSE_SHORT, boatLen: 17.5,
+  { name: "College Men", code: 'ABRCOLM', side: 'left', start: '9:30am', course: COURSE_SHORT, boatLen: 17.5,
     crews: [
       { phone: 'SYD R3', short: 'WW', name: 'WW College', logo: '', colour: '#E3A92B',
-        crew: [['Bow','',''],['2','',''],['3','',''],['4','',''],['5','',''],['6','',''],['7','',''],['Stroke','',''],['Cox','',''],['Coach','','']] },
+        crew: [['Bow','',''],['2','',''],['3','',''],['4','',''],['5','',''],['6','',''],['7','',''],['Stroke','',''],['Cox','',''],['Coach','',''],['Coach','',''],['Coach','','']] },
       { phone: 'MEL R3', short: 'XX', name: 'XX College', logo: '', colour: '#1C4E8C',
-        crew: [['Bow','',''],['2','',''],['3','',''],['4','',''],['5','',''],['6','',''],['7','',''],['Stroke','',''],['Cox','',''],['Coach','','']] }
+        crew: [['Bow','',''],['2','',''],['3','',''],['4','',''],['5','',''],['6','',''],['7','',''],['Stroke','',''],['Cox','',''],['Coach','',''],['Coach','',''],['Coach','','']] }
     ] },
-  { name: "Men's eights", code: 'ABRMEN8', side: 'left', start: '10:00am', course: COURSE_LONG, boatLen: 17.5,
+  { name: "Men's eights", code: 'ABRMEN8', side: 'right', start: '10:00am', course: COURSE_LONG, boatLen: 17.5,
     crews: [
       { phone: 'SYD M8', short: 'Sydney', name: 'University of Sydney', logo: 'emblems/sydney.svg', colour: '#E3A92B',
-        crew: [['Bow','',''],['2','',''],['3','',''],['4','',''],['5','',''],['6','',''],['7','',''],['Stroke','',''],['Cox','',''],['Coach','','']] },
+        crew: [['Bow','',''],['2','',''],['3','',''],['4','',''],['5','',''],['6','',''],['7','',''],['Stroke','',''],['Cox','',''],['Coach','',''],['Coach','',''],['Coach','','']] },
       { phone: 'MEL M8', short: 'Melbourne', name: 'University of Melbourne', logo: 'emblems/melbourne.png', colour: '#1C4E8C',
-        crew: [['Bow','',''],['2','',''],['3','',''],['4','',''],['5','',''],['6','',''],['7','',''],['Stroke','',''],['Cox','',''],['Coach','','']] }
+        crew: [['Bow','',''],['2','',''],['3','',''],['4','',''],['5','',''],['6','',''],['7','',''],['Stroke','',''],['Cox','',''],['Coach','',''],['Coach','',''],['Coach','','']] }
     ] },
-  { name: "Women's eights", code: 'ABRWOM8', side: 'left', start: '11:10am', course: COURSE_LONG, boatLen: 17.5,
+  { name: "Women's eights", code: 'ABRWOM8', side: 'right', start: '11:10am', course: COURSE_LONG, boatLen: 17.5,
     crews: [
       { phone: 'SYD W8', short: 'Sydney', name: 'University of Sydney', logo: 'emblems/sydney.svg', colour: '#E3A92B',
-        crew: [['Bow','',''],['2','',''],['3','',''],['4','',''],['5','',''],['6','',''],['7','',''],['Stroke','',''],['Cox','',''],['Coach','','']] },
+        crew: [['Bow','',''],['2','',''],['3','',''],['4','',''],['5','',''],['6','',''],['7','',''],['Stroke','',''],['Cox','',''],['Coach','',''],['Coach','',''],['Coach','','']] },
       { phone: 'MEL W8', short: 'Melbourne', name: 'University of Melbourne', logo: 'emblems/melbourne.png', colour: '#1C4E8C',
-        crew: [['Bow','',''],['2','',''],['3','',''],['4','',''],['5','',''],['6','',''],['7','',''],['Stroke','',''],['Cox','',''],['Coach','','']] }
+        crew: [['Bow','',''],['2','',''],['3','',''],['4','',''],['5','',''],['6','',''],['7','',''],['Stroke','',''],['Cox','',''],['Coach','',''],['Coach','',''],['Coach','','']] }
     ] }
 ];
 /* ═══════════════ END OF EDIT SECTION ═══════════════ */
@@ -316,8 +316,8 @@ function hull(x1, x2, y, cr, label, ratio){
     const bh = w * a;
     shape = `<image href="${esc(cr.boat)}" x="${x1}" y="${y - bh / 2}" width="${w}" height="${bh}" preserveAspectRatio="none"/>`;
   } else {
-    const h = Math.max(1, w * ratio / 2), m = x1 + w * 0.47;
-    shape = `<path d="M${x1},${y} C${x1 + w * 0.18},${y - h * 0.75} ${x1 + w * 0.32},${y - h} ${m},${y - h} C${x1 + w * 0.68},${y - h} ${x1 + w * 0.86},${y - h * 0.6} ${x2},${y} C${x1 + w * 0.86},${y + h * 0.6} ${x1 + w * 0.68},${y + h} ${m},${y + h} C${x1 + w * 0.32},${y + h} ${x1 + w * 0.18},${y + h * 0.75} ${x1},${y} Z" fill="${cr.colour}"/>`;
+    const h = Math.max(1.5, w * ratio / 2), m = x1 + w * 0.47, e = h * 0.5;
+    shape = `<path d="M${x1},${y - e} C${x1 + w * 0.1},${y - h * 0.95} ${x1 + w * 0.3},${y - h} ${m},${y - h} C${x1 + w * 0.7},${y - h} ${x1 + w * 0.9},${y - h * 0.9} ${x2},${y - e} A${e},${e} 0 0 1 ${x2},${y + e} C${x1 + w * 0.9},${y + h * 0.9} ${x1 + w * 0.7},${y + h} ${m},${y + h} C${x1 + w * 0.3},${y + h} ${x1 + w * 0.1},${y + h * 0.95} ${x1},${y + e} A${e},${e} 0 0 1 ${x1},${y - e} Z" fill="${cr.colour}"/>`;
   }
   return shape + `<text x="${x1 - 8}" y="${y + 8}" text-anchor="end" font-family="Barlow Condensed,Arial Narrow,sans-serif" font-weight="600" font-size="26" fill="currentColor">${esc(label)}</text>`;
 }
@@ -352,6 +352,11 @@ function drawClose(race, rows){
   svg.innerHTML = s;
 }
 const initials = s => String(s || '').split(/\s+/).map(w => w[0] || '').join('').slice(0, 3).toUpperCase();
+function crewRows(list){
+  const rows = list.filter(p => !(/^coach/i.test(p[0]) && !p[1]));
+  if (!rows.some(p => /^coach/i.test(p[0]))) rows.push(['Coach', '', '']);
+  return rows;
+}
 function buildCrews(){
   const race = RACES[S.race];
   race.crews.slice(0, 2).forEach((cr, ci) => {
@@ -363,7 +368,7 @@ function buildCrews(){
       <div class="stat"><b id="pc${ci}">–:––</b><span>per 500 m</span></div>
       <div class="stat"><b id="rt${ci}">–</b><span>strokes per min</span></div>
       <div class="note" id="nt${ci}"></div>`;
-    ls.innerHTML = `<h3>Crew</h3><table>${cr.crew.filter(p => !(/^coach/i.test(p[0]) && !p[1])).map(p =>
+    ls.innerHTML = `<h3>Crew</h3><table>${crewRows(cr.crew).map(p =>
       `<tr><td>${esc(p[0])}</td><td>${esc(p[1]) || '–'}${p[2] ? `<span class="deg">${esc(p[2])}</span>` : ''}</td></tr>`).join('')}</table>`;
   });
 }
