@@ -20,102 +20,101 @@
 *{box-sizing:border-box}
 html,body{margin:0;background:var(--bg);color:var(--ink);font-family:var(--body);font-size:16px;line-height:1.45}
 body{padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}
-.wrap{max-width:none;margin:0;padding:max(12px,1.2vw) max(16px,2vw) 24px}
-header.top{display:flex;align-items:center;justify-content:space-between;gap:14px}
-header .ttl{flex:1;text-align:center;min-width:0}
-.corner{width:80px;height:80px;object-fit:contain;flex:none}
-footer{display:flex;align-items:center;gap:10px}
-.brlogo{width:32px;height:32px;border-radius:7px;object-fit:contain;flex:none}
-header h1{font-family:var(--num);font-weight:700;font-size:clamp(28px,5.5vw,44px);line-height:1;margin:0}
-header p{margin:4px 0 0;color:var(--muted)}
-.tabs{display:flex;gap:8px;overflow-x:auto;margin:18px 0 14px;padding-bottom:2px}
-.tabs button{font:600 15px var(--body);border:1px solid var(--line);background:var(--panel);color:var(--ink);padding:8px 14px;border-radius:999px;white-space:nowrap;cursor:pointer}
-.tabs button[aria-selected="true"]{background:var(--ink);color:var(--bg);border-color:var(--ink)}
-.tabs button:focus-visible{outline:3px solid #4A9BC4;outline-offset:2px}
-.racehead{display:flex;justify-content:space-between;align-items:baseline;gap:12px;flex-wrap:wrap}
-.racehead h2{font-family:var(--num);font-weight:600;font-size:26px;margin:0}
-.status{font-weight:600;font-size:14px;padding:3px 10px;border-radius:999px;background:var(--water)}
-.status.racing{background:#C8452F;color:#fff}
-.gap{font-family:var(--num);font-weight:600;font-size:clamp(26px,5vw,40px);line-height:1.1;margin:14px 0 2px}
-.gapsub{color:var(--muted);margin:0 0 12px;min-height:1.45em}
-.strip{background:var(--water);border-radius:10px;overflow:hidden}
+.wrap{padding:max(10px,1vw) max(12px,1.5vw) 16px}
+header.top{display:grid;grid-template-columns:1fr 1fr;grid-template-areas:"icoL icoR" "ttl ttl" "rl rr";gap:10px 12px;align-items:center}
+#icoL{grid-area:icoL;justify-self:start} #icoR{grid-area:icoR;justify-self:end}
+#racesL{grid-area:rl} #racesR{grid-area:rr}
+.corner{width:96px;height:96px;object-fit:contain}
+.ttl{grid-area:ttl;text-align:center;min-width:0}
+header h1{font-family:var(--num);font-weight:700;font-size:clamp(26px,5vw,44px);line-height:1;margin:0}
+#sub{margin:2px 0 0;color:var(--muted)}
+.ttl h2{font-family:var(--num);font-weight:600;font-size:clamp(20px,3.5vw,28px);margin:8px 0 0}
+.gap{font-family:var(--num);font-weight:700;font-size:clamp(26px,5vw,40px);line-height:1.1;margin:2px 0 0}
+.gapsub{color:var(--muted);margin:0;min-height:1.45em}
+.races{display:flex;flex-direction:column;gap:6px;align-self:center}
+.races button{display:block;width:100%;text-align:left;font:inherit;border:1px solid var(--line);background:var(--panel);color:var(--ink);padding:8px 12px;border-radius:10px;cursor:pointer}
+.races button b{display:block;font-weight:600;font-size:16px;line-height:1.2}
+.races button .rs{display:block;font-size:13px;color:var(--muted)}
+.races button .rs.racing{color:#C8452F;font-weight:700}
+.races button[aria-selected="true"]{background:var(--ink);color:var(--bg);border-color:var(--ink)}
+.races button[aria-selected="true"] .rs{color:var(--bg);opacity:.85}
+.races button[aria-selected="true"] .rs.racing{color:#FF8A73;opacity:1}
+.races button:focus-visible{outline:3px solid #4A9BC4;outline-offset:2px}
+.strip{background:var(--water);border-radius:10px;overflow:hidden;margin-top:10px}
 .strip svg{display:block;width:100%;height:auto}
-.board{display:grid;gap:12px;margin-top:14px;grid-template-columns:1fr minmax(300px,1.1fr) 1fr;
-  grid-template-areas:"st0 map st1" "ls0 map ls1";grid-template-rows:auto 1fr}
+.board{display:grid;gap:10px;margin-top:10px;grid-template-columns:1fr 1fr;grid-template-areas:"st0 st1" "map map" "ls0 ls1"}
 #st0{grid-area:st0} #st1{grid-area:st1} #ls0{grid-area:ls0} #ls1{grid-area:ls1}
-#map{grid-area:map;min-height:640px;border-radius:10px;border:1px solid var(--line);z-index:0}
-.card{background:var(--panel);border:1px solid var(--line);border-top:8px solid var(--c);border-radius:10px;padding:14px}
+#map{grid-area:map;min-height:460px;border-radius:10px;border:1px solid var(--line);z-index:0}
+.card{background:var(--panel);border:1px solid var(--line);border-top:8px solid var(--c);border-radius:10px;padding:10px}
 .card.stale{opacity:.55}
-.chead{display:flex;align-items:center;gap:12px;margin-bottom:10px}
-.emb{width:64px;height:64px;flex:none;object-fit:contain}
-.emb.ph{border-radius:50%;display:flex;align-items:center;justify-content:center;color:#fff;font:700 22px var(--num);letter-spacing:.02em}
-.emb.wide{width:100%;height:80px;object-position:left center}
-.chead .nm{font-family:var(--num);font-weight:600;font-size:24px;line-height:1.1}
-.stat{display:flex;align-items:baseline;justify-content:space-between;gap:10px;padding:8px 0;border-top:1px solid var(--line)}
-.stat b{font-family:var(--num);font-weight:700;font-size:clamp(32px,4vw,48px);line-height:1;font-variant-numeric:tabular-nums}
-.stat span{font-size:14px;color:var(--muted);text-align:right}
+.chead{display:flex;flex-direction:column;align-items:flex-start;gap:6px;margin-bottom:8px}
+.emb{width:44px;height:44px;flex:none;object-fit:contain}
+.emb.ph{border-radius:50%;display:flex;align-items:center;justify-content:center;color:#fff;font:700 16px var(--num);letter-spacing:.02em}
+.emb.wide{width:100%;height:56px;object-position:left center}
+.chead .nm{font-family:var(--num);font-weight:600;font-size:19px;line-height:1.1}
+.stat{display:flex;flex-direction:column;align-items:flex-start;gap:2px;padding:8px 0;border-top:1px solid var(--line)}
+.stat b{font-family:var(--num);font-weight:700;font-size:34px;line-height:1;font-variant-numeric:tabular-nums}
+.stat span{font-size:13px;color:var(--muted)}
 .note{font-size:13px;color:var(--warn);min-height:1.4em;margin-top:4px}
 .card h3{font-family:var(--num);font-weight:600;font-size:20px;margin:0 0 6px}
 .card table{width:100%;border-collapse:collapse}
-.card td{padding:7px 0;border-top:1px solid var(--line);vertical-align:top}
-.card td:first-child{font-weight:600;white-space:nowrap;width:1%;color:var(--muted);padding-right:12px}
-.card td .deg{display:block;font-size:14px;color:var(--muted)}
-footer{color:var(--muted);font-size:13px;margin-top:18px}
-@media (max-width:860px){
-  .board{grid-template-columns:1fr 1fr;grid-template-areas:"st0 st1" "map map" "ls0 ls1";grid-template-rows:auto}
-  #map{min-height:460px}
-  .card{padding:10px}
-  .emb{width:44px;height:44px}
-  .emb.ph{font-size:16px}
-  .emb.wide{width:100%;height:56px}
-  .chead{flex-direction:column;align-items:flex-start;gap:6px}
-  .chead .nm{font-size:19px}
-  .corner{width:48px;height:48px}
-  .stat{flex-direction:column;align-items:flex-start;gap:2px}
-  .stat b{font-size:34px}
-  .stat span{text-align:left;font-size:13px}
-  .card td{font-size:14px}
-  .card td .deg{font-size:13px}
-}
+.card td{padding:6px 0;border-top:1px solid var(--line);vertical-align:top;font-size:14px}
+.card td:first-child{font-weight:600;white-space:nowrap;width:1%;color:var(--muted);padding-right:10px}
+.card td .deg{display:block;font-size:13px;color:var(--muted)}
+footer{display:flex;align-items:center;gap:10px;color:var(--muted);font-size:13px;margin-top:14px}
+.brlogo{width:32px;height:32px;border-radius:7px;object-fit:contain;flex:none}
 @media (min-width:1200px){
-  html,body{font-size:1.25vw}
-  .corner{width:7vw;height:7vw}
-  header h1{font-size:3.6vw}
-  .tabs button{font-size:1.2vw;padding:.6vw 1.2vw}
-  .racehead h2{font-size:2vw}
-  .status{font-size:1.1vw;padding:.25vw .8vw}
-  .gap{font-size:3.2vw}
-  .board{grid-template-columns:1fr 1.3fr 1fr;gap:1vw}
-  #map{min-height:calc(100vh - 20vw)}
-  .card{padding:1.2vw}
-  .emb.wide{height:6.5vw}
-  .chead .nm{font-size:2vw}
-  .stat b{font-size:4.2vw}
-  .stat span{font-size:1.1vw}
-  .note{font-size:1vw}
-  .card h3{font-size:1.6vw}
-  .card td{font-size:1.15vw}
-  .card td .deg{font-size:1vw}
-  footer{font-size:1vw}
-  .brlogo{width:2.5vw;height:2.5vw}
+  html,body{font-size:1vw}
+  .wrap{height:100vh;display:flex;flex-direction:column;padding:.8vw 1.2vw .5vw}
+  header.top{flex:none;grid-template-columns:auto 16vw 1fr 16vw auto;grid-template-areas:"icoL rl ttl rr icoR";gap:1.2vw}
+  .corner{width:14vw;height:14vw}
+  header h1{font-size:2.6vw}
+  .ttl h2{font-size:1.7vw;margin-top:.4vw}
+  .gap{font-size:3vw}
+  .races{gap:.6vw}
+  .races button{padding:.6vw .9vw;border-radius:.6vw}
+  .races button b{font-size:1.25vw}
+  .races button .rs{font-size:1vw}
+  .strip{flex:none;margin-top:.6vw;border-radius:.6vw}
+  .board{flex:1;min-height:0;margin-top:.6vw;gap:.8vw;grid-template-columns:1fr 1fr 1.6fr 1fr 1fr;grid-template-areas:"ls0 st0 map st1 ls1";grid-template-rows:minmax(0,1fr)}
+  #map{min-height:0;height:100%;border-radius:.6vw}
+  .card{padding:.9vw;overflow:auto;min-height:0;border-radius:.6vw;border-top-width:.45vw}
+  .emb.wide{height:5vw}
+  .emb.ph{width:3.5vw;height:3.5vw;font-size:1.3vw}
+  .chead .nm{font-size:1.6vw}
+  .stat{padding:.5vw 0;gap:.1vw}
+  .stat b{font-size:4vw}
+  .stat span{font-size:1vw}
+  .note{font-size:.9vw}
+  .card h3{font-size:1.3vw;margin-bottom:.3vw}
+  .card td{font-size:.95vw;padding:.3vw 0;line-height:1.25}
+  .card td:first-child{padding-right:.6vw}
+  .card td .deg{font-size:.85vw}
+  footer{flex:none;margin-top:.4vw;font-size:.8vw;gap:.5vw}
+  .brlogo{width:1.4vw;height:1.4vw;border-radius:.3vw}
 }
 </style>
 </head>
 <body>
 <div class="wrap">
-  <header class="top"><img class="corner" id="icoL" alt=""><div class="ttl"><h1 id="title"></h1><p id="sub"></p></div><img class="corner" id="icoR" alt=""></header>
-  <nav class="tabs" id="tabs" role="tablist"></nav>
-  <section aria-live="polite">
-    <div class="racehead"><h2 id="raceName"></h2><span class="status" id="status"></span></div>
-    <div class="gap" id="gap"></div>
-    <p class="gapsub" id="gapsub"></p>
-  </section>
+  <header class="top">
+    <img class="corner" id="icoL" alt="">
+    <nav class="races" id="racesL"></nav>
+    <section class="ttl" aria-live="polite">
+      <h1 id="title"></h1><p id="sub"></p>
+      <h2 id="raceName"></h2>
+      <div class="gap" id="gap"></div>
+      <p class="gapsub" id="gapsub"></p>
+    </section>
+    <nav class="races" id="racesR"></nav>
+    <img class="corner" id="icoR" alt="">
+  </header>
   <div class="strip" aria-hidden="true"><svg id="close" viewBox="0 0 1000 150" style="color:inherit"></svg></div>
   <div class="board">
+    <div class="card" id="ls0"></div>
     <div class="card" id="st0"></div>
     <div id="map"></div>
     <div class="card" id="st1"></div>
-    <div class="card" id="ls0"></div>
     <div class="card" id="ls1"></div>
   </div>
   <footer id="foot"><img class="brlogo" id="brlogo" alt="BoatRun"><span>Numbers are smoothed and run a few seconds behind the water. Live tracking by BoatRun.</span></footer>
@@ -140,35 +139,36 @@ const COURSE_SHORT = [
 ];
 
 // phone = the rower name typed into BoatRun Metrics on that boat's phone.
+// side = which side of the page the race button goes. start = start time shown before the race, e.g. '10:30'.
 // crew = [seat, name, degree]
 const RACES = [
-  { name: "Men's eights", code: 'ABRMEN8', course: COURSE_LONG, boatLen: 17.5,
+  { name: "Men's eights", code: 'ABRMEN8', side: 'left', start: '', course: COURSE_LONG, boatLen: 17.5,
     crews: [
       { phone: 'SYD M8', short: 'Sydney', name: 'University of Sydney', logo: 'emblems/sydney.svg', colour: '#E3A92B',
-        crew: [['Bow','',''],['2','',''],['3','',''],['4','',''],['5','',''],['6','',''],['7','',''],['Stroke','',''],['Cox','','']] },
+        crew: [['Bow','',''],['2','',''],['3','',''],['4','',''],['5','',''],['6','',''],['7','',''],['Stroke','',''],['Cox','',''],['Coach','','']] },
       { phone: 'MEL M8', short: 'Melbourne', name: 'University of Melbourne', logo: 'emblems/melbourne.png', colour: '#1C4E8C',
-        crew: [['Bow','',''],['2','',''],['3','',''],['4','',''],['5','',''],['6','',''],['7','',''],['Stroke','',''],['Cox','','']] }
+        crew: [['Bow','',''],['2','',''],['3','',''],['4','',''],['5','',''],['6','',''],['7','',''],['Stroke','',''],['Cox','',''],['Coach','','']] }
     ] },
-  { name: "Women's eights", code: 'ABRWOM8', course: COURSE_LONG, boatLen: 17.5,
+  { name: "Women's eights", code: 'ABRWOM8', side: 'left', start: '', course: COURSE_LONG, boatLen: 17.5,
     crews: [
       { phone: 'SYD W8', short: 'Sydney', name: 'University of Sydney', logo: 'emblems/sydney.svg', colour: '#E3A92B',
-        crew: [['Bow','',''],['2','',''],['3','',''],['4','',''],['5','',''],['6','',''],['7','',''],['Stroke','',''],['Cox','','']] },
+        crew: [['Bow','',''],['2','',''],['3','',''],['4','',''],['5','',''],['6','',''],['7','',''],['Stroke','',''],['Cox','',''],['Coach','','']] },
       { phone: 'MEL W8', short: 'Melbourne', name: 'University of Melbourne', logo: 'emblems/melbourne.png', colour: '#1C4E8C',
-        crew: [['Bow','',''],['2','',''],['3','',''],['4','',''],['5','',''],['6','',''],['7','',''],['Stroke','',''],['Cox','','']] }
+        crew: [['Bow','',''],['2','',''],['3','',''],['4','',''],['5','',''],['6','',''],['7','',''],['Stroke','',''],['Cox','',''],['Coach','','']] }
     ] },
-  { name: "College Men", code: 'ABRCOLM', course: COURSE_SHORT, boatLen: 17.5,
+  { name: "College Men", code: 'ABRCOLM', side: 'right', start: '', course: COURSE_SHORT, boatLen: 17.5,
     crews: [
       { phone: 'SYD R3', short: 'WW', name: 'WW College', logo: '', colour: '#E3A92B',
-        crew: [['Bow','',''],['2','',''],['3','',''],['4','',''],['5','',''],['6','',''],['7','',''],['Stroke','',''],['Cox','','']] },
+        crew: [['Bow','',''],['2','',''],['3','',''],['4','',''],['5','',''],['6','',''],['7','',''],['Stroke','',''],['Cox','',''],['Coach','','']] },
       { phone: 'MEL R3', short: 'XX', name: 'XX College', logo: '', colour: '#1C4E8C',
-        crew: [['Bow','',''],['2','',''],['3','',''],['4','',''],['5','',''],['6','',''],['7','',''],['Stroke','',''],['Cox','','']] }
+        crew: [['Bow','',''],['2','',''],['3','',''],['4','',''],['5','',''],['6','',''],['7','',''],['Stroke','',''],['Cox','',''],['Coach','','']] }
     ] },
-  { name: "College Women", code: 'ABRCOLW', course: COURSE_SHORT, boatLen: 17.5,
+  { name: "College Women", code: 'ABRCOLW', side: 'right', start: '', course: COURSE_SHORT, boatLen: 17.5,
     crews: [
       { phone: 'SYD R4', short: 'YY', name: 'YY College', logo: '', colour: '#E3A92B',
-        crew: [['Bow','',''],['2','',''],['3','',''],['4','',''],['5','',''],['6','',''],['7','',''],['Stroke','',''],['Cox','','']] },
+        crew: [['Bow','',''],['2','',''],['3','',''],['4','',''],['5','',''],['6','',''],['7','',''],['Stroke','',''],['Cox','',''],['Coach','','']] },
       { phone: 'MEL R4', short: 'ZZ', name: 'ZZ College', logo: '', colour: '#1C4E8C',
-        crew: [['Bow','',''],['2','',''],['3','',''],['4','',''],['5','',''],['6','',''],['7','',''],['Stroke','',''],['Cox','','']] }
+        crew: [['Bow','',''],['2','',''],['3','',''],['4','',''],['5','',''],['6','',''],['7','',''],['Stroke','',''],['Cox','',''],['Coach','','']] }
     ] }
 ];
 /* ═══════════════ END OF EDIT SECTION ═══════════════ */
@@ -274,8 +274,7 @@ async function getData(ri){
   if (!r.ok) throw new Error('http ' + r.status);
   return r.json();
 }
-async function poll(){
-  const ri = S.race;
+async function pollOne(ri){
   try {
     const j = await getData(ri);
     const race = RACES[ri], boats = j.boats || {}, map = assign(race, boats);
@@ -283,6 +282,7 @@ async function poll(){
     S.lastOk = Date.now();
   } catch (e) {}
 }
+function poll(){ RACES.forEach((r, ri) => pollOne(ri)); }
 async function pickStartRace(){
   if (DEMO) return;
   for (let i = 0; i < RACES.length; i++){
@@ -308,9 +308,9 @@ function lengthsTxt(m, bl){
 function hull(x1, x2, y, col, label){
   const h = 9, w = x2 - x1, tip = Math.min(18, w * 0.25);
   return `<path d="M${x1},${y} Q${x1 + tip},${y - h} ${x1 + tip * 2},${y - h} L${x2 - tip * 2},${y - h} Q${x2 - tip},${y - h} ${x2},${y} Q${x2 - tip},${y + h} ${x2 - tip * 2},${y + h} L${x1 + tip * 2},${y + h} Q${x1 + tip},${y + h} ${x1},${y} Z" fill="${col}"/>`
-    + `<text x="${x1 - 8}" y="${y + 6}" text-anchor="end" font-family="Barlow Condensed,Arial Narrow,sans-serif" font-weight="600" font-size="20" fill="currentColor">${esc(label)}</text>`;
+    + `<text x="${x1 - 8}" y="${y + 6}" text-anchor="end" font-family="Barlow Condensed,Arial Narrow,sans-serif" font-weight="600" font-size="26" fill="currentColor">${esc(label)}</text>`;
 }
-const vw = el => el.clientWidth && el.clientWidth < 600 ? 520 : Math.max(1000, el.clientWidth);
+const vw = el => el.clientWidth && el.clientWidth < 600 ? 520 : Math.max(1000, Math.round(el.clientWidth * 1.4));
 function drawClose(race, rows){
   const svg = document.getElementById('close'), c = race._c, have = rows.filter(r => r.d != null), VW = vw(svg);
   svg.setAttribute('viewBox', '0 0 ' + VW + ' 150');
@@ -324,8 +324,8 @@ function drawClose(race, rows){
   for (let m = Math.ceil(left / step) * step; m <= left + W; m += step){
     const x = X(m); if (x < 110) continue;
     const togo = c.len - m;
-    s += `<line x1="${x}" y1="18" x2="${x}" y2="138" stroke="currentColor" stroke-opacity=".14"/>`;
-    if (togo >= 0) s += `<text x="${x}" y="14" text-anchor="middle" font-size="12" fill="currentColor" opacity=".6">${fmtM(togo)}</text>`;
+    s += `<line x1="${x}" y1="22" x2="${x}" y2="138" stroke="currentColor" stroke-opacity=".14"/>`;
+    if (togo >= 0) s += `<text x="${x}" y="17" text-anchor="middle" font-size="17" fill="currentColor" opacity=".65">${fmtM(togo)}</text>`;
   }
   if (c.len > left && c.len < left + W) s += `<line x1="${X(c.len)}" y1="18" x2="${X(c.len)}" y2="142" stroke="#C8452F" stroke-width="3"/>`;
   rows.forEach((r, i) => {
@@ -369,25 +369,38 @@ function mapRace(){
 }
 function selectRace(i){
   S.race = i;
-  document.querySelectorAll('.tabs button').forEach((b, j) => b.setAttribute('aria-selected', j === i ? 'true' : 'false'));
+  document.querySelectorAll('.races button').forEach(b => b.setAttribute('aria-selected', +b.dataset.i === i ? 'true' : 'false'));
   buildCrews(); mapRace(); poll(); render();
   if (S.map) setTimeout(() => { S.map.invalidateSize(); if (S.line) S.map.fitBounds(S.line.getBounds(), { padding: [20, 20] }); }, 50);
 }
-function render(){
-  const race = RACES[S.race], c = race._c, now = Date.now();
-  const rows = race.crews.map((cr, ci) => {
-    const tr = trk(S.race, ci), d = dispD(tr, c, now);
+function raceRows(ri, now){
+  const race = RACES[ri];
+  return race.crews.map((cr, ci) => {
+    const tr = trk(ri, ci), d = dispD(tr, race._c, now);
     return { cr, ci, tr, d, stale: !tr.seen || now - tr.seen > 20000 };
   });
+}
+function raceStatus(ri, rows, now){
+  const race = RACES[ri];
+  if (rows.length && rows.every(r => r.tr.fin != null)){
+    const w = rows.reduce((a, b) => a.tr.fin <= b.tr.fin ? a : b);
+    return { txt: 'Result: ' + w.cr.short + ' won', cls: '' };
+  }
+  if (rows.some(r => !r.stale && r.tr.live) && rows.some(r => r.d != null && r.d > 20)) return { txt: 'Racing', cls: 'racing' };
+  if (rows.some(r => !r.stale)) return { txt: 'On the water', cls: '' };
+  return { txt: race.start ? 'Start ' + race.start : 'Waiting for crews', cls: '' };
+}
+function render(){
+  const race = RACES[S.race], c = race._c, now = Date.now();
+  let rows = null;
+  RACES.forEach((r, ri) => {
+    const rr = raceRows(ri, now), stt = raceStatus(ri, rr, now);
+    if (ri === S.race) rows = rr;
+    const el = document.getElementById('rs' + ri);
+    if (el){ el.textContent = stt.txt; el.classList.toggle('racing', stt.cls === 'racing'); }
+  });
   document.getElementById('raceName').textContent = race.name + ', ' + fmtM(c.len) + ' m';
-  const st = document.getElementById('status');
-  const anyLive = rows.some(r => !r.stale && r.tr.live), allFin = rows.every(r => r.tr.fin != null);
-  let stTxt = 'Waiting for crews', racing = false;
-  if (allFin) stTxt = 'Result';
-  else if (anyLive && rows.some(r => r.d != null && r.d > 20)) { stTxt = 'Racing'; racing = true; }
-  else if (rows.some(r => !r.stale)) stTxt = 'On the water';
-  if (!DEMO && S.lastOk && now - S.lastOk > 15000) stTxt = 'Reconnecting';
-  st.textContent = stTxt; st.classList.toggle('racing', racing);
+  document.getElementById('sub').textContent = (!DEMO && S.lastOk && now - S.lastOk > 15000) ? 'Reconnecting' : (DEMO ? 'Demo, simulated crews' : EVENT_SUB);
 
   rows.forEach(r => {
     const tg = document.getElementById('tg' + r.ci);
@@ -437,8 +450,11 @@ function render(){
 document.getElementById('title').textContent = EVENT_TITLE;
 [['icoL', ICON_LEFT], ['icoR', ICON_RIGHT], ['brlogo', BOATRUN_LOGO]].forEach(([id, src]) => { const im = document.getElementById(id); im.onerror = () => { im.style.visibility = 'hidden'; }; if (src) im.src = src; else im.style.visibility = 'hidden'; });
 document.getElementById('sub').textContent = DEMO ? 'Demo, simulated crews' : EVENT_SUB;
-document.getElementById('tabs').innerHTML = RACES.map((r, i) => `<button role="tab" aria-selected="false">${esc(r.name)}</button>`).join('');
-document.querySelectorAll('.tabs button').forEach((b, i) => b.onclick = () => selectRace(i));
+['left', 'right'].forEach(sd => {
+  document.getElementById(sd === 'left' ? 'racesL' : 'racesR').innerHTML = RACES.map((r, i) => (r.side || 'left') === sd
+    ? `<button data-i="${i}" aria-selected="false"><b>${esc(r.name)}</b><span class="rs" id="rs${i}"></span></button>` : '').join('');
+});
+document.querySelectorAll('.races button').forEach(b => b.onclick = () => selectRace(+b.dataset.i));
 initMap();
 selectRace(0);
 pickStartRace();
