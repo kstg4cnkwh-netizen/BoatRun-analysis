@@ -46,7 +46,7 @@ header h1{font-family:var(--num);font-weight:700;font-size:clamp(26px,5vw,44px);
 .strip svg{display:block;width:100%;height:auto}
 .board{display:grid;gap:10px;margin-top:10px;grid-template-columns:1fr 1fr;grid-template-areas:"st0 st1" "map map" "ls0 ls1"}
 #st0{grid-area:st0} #st1{grid-area:st1} #ls0{grid-area:ls0} #ls1{grid-area:ls1}
-#map{grid-area:map;min-height:460px;border-radius:10px;border:1px solid var(--line);z-index:0}
+#map{grid-area:map;min-height:320px;border-radius:10px;border:1px solid var(--line);z-index:0}
 .card{background:var(--panel);border:1px solid var(--line);border-top:8px solid var(--c);border-radius:10px;padding:10px}
 .card.stale{opacity:.55}
 .chead{display:flex;flex-direction:column;align-items:flex-start;gap:6px;margin-bottom:8px}
@@ -79,20 +79,24 @@ footer{display:flex;align-items:center;gap:10px;color:var(--muted);font-size:13p
   .races button b{font-size:1.25vw}
   .races button .rs{font-size:1vw}
   .strip{flex:none;margin-top:.6vw;border-radius:.6vw}
-  .board{flex:1;min-height:0;margin-top:.6vw;gap:.8vw;grid-template-columns:1fr 1fr 1.6fr 1fr 1fr;grid-template-areas:"ls0 st0 map st1 ls1";grid-template-rows:minmax(0,1fr)}
+  .board{flex:1;min-height:0;margin-top:.6vw;gap:.8vw;grid-template-columns:1.4fr 1fr 1fr 1.4fr;grid-template-areas:"st0 st0 st1 st1" "ls0 map map ls1";grid-template-rows:auto minmax(0,1fr)}
+  #st0,#st1{display:grid;grid-template-columns:1.25fr 1fr 1fr 1fr;align-items:center;overflow:hidden}
+  #st0 .chead,#st1 .chead{margin:0}
+  #st0 .stat,#st1 .stat{border-top:none;border-left:1px solid var(--line);padding:0 0 0 1vw}
+  #st0 .note,#st1 .note{grid-column:2 / -1;margin:0;min-height:0}
   #map{min-height:0;height:100%;border-radius:.6vw}
   .card{padding:.9vw;overflow:auto;min-height:0;border-radius:.6vw;border-top-width:.45vw}
-  .emb.wide{height:5vw}
+  .emb.wide{height:4.6vw}
   .emb.ph{width:3.5vw;height:3.5vw;font-size:1.3vw}
   .chead .nm{font-size:1.6vw}
   .stat{padding:.5vw 0;gap:.1vw}
-  .stat b{font-size:4vw}
+  .stat b{font-size:3.8vw}
   .stat span{font-size:1vw}
   .note{font-size:.9vw}
-  .card h3{font-size:1.3vw;margin-bottom:.3vw}
-  .card td{font-size:.95vw;padding:.3vw 0;line-height:1.25}
+  .card h3{display:none}
+  .card td{font-size:.92vw;padding:.25vw 0;line-height:1.2}
   .card td:first-child{padding-right:.6vw}
-  .card td .deg{font-size:.85vw}
+  .card td .deg{display:inline;font-size:.85vw;margin-left:.5vw}
   footer{flex:none;margin-top:.4vw;font-size:.8vw;gap:.5vw}
   .brlogo{width:1.4vw;height:1.4vw;border-radius:.3vw}
 }
@@ -142,9 +146,8 @@ const ICON_RIGHT = 'emblems/melbourne.svg';
 const COURSE_LONG = [
   [-33.834390522482124, 151.18223580383292], [-33.83442617012252, 151.17667826653332], [-33.83470243886306, 151.17575558676722], [-33.836368944085, 151.1693397427315], [-33.836288738696275, 151.16802009584376], [-33.83374492613281, 151.16195149072425], [-33.830528952343705, 151.15299640204188], [-33.83005347968226, 151.14655230713174]
 ];
-const COURSE_SHORT = [
-  [-33.85659419304149, 151.19655669992156],[-33.86855917965614, 151.20050657005478],[-33.87220256900091, 151.20089284327517]
-];
+// College course: the last 2000 m of the long course. Replace with a list of points if it's different.
+const COURSE_SHORT = courseTail(COURSE_LONG, 2000);
 
 // phone = the rower name typed into BoatRun Metrics on that boat's phone.
 // side = which side of the page the race button goes. start = start time shown before the race, e.g. '10:30'.
@@ -185,6 +188,14 @@ const DEMO = new URLSearchParams(location.search).has('demo');
 const S = { race: 0, trk: {}, results: {}, lastOk: 0, map: null, line: null, marks: [], polling: false, t0: Date.now() };
 
 /* ── course geometry ── */
+function courseTail(pts, metres){
+  const c = mkCourse(pts);
+  if (metres >= c.len) return pts;
+  const d0 = c.len - metres;
+  let i = 0;
+  while (c.cum[i + 1] <= d0) i++;
+  return [pointAt(c, d0, 0), ...pts.slice(i + 1)];
+}
 function mkCourse(pts){
   const o = pts[0], kx = 111320 * Math.cos(o[0] * Math.PI / 180), ky = 110540;
   const xy = pts.map(p => [(p[1] - o[1]) * kx, (p[0] - o[0]) * ky]);
@@ -313,47 +324,47 @@ function lengthsTxt(m, bl){
 }
 
 /* ── drawing ── */
-function hull(x1, x2, y, cr, label, ratio){
+function hull(x1, x2, y, cr, ratio){
   const w = x2 - x1, a = cr.boat ? BOAT_ASPECT[cr.boat] : 0;
-  let shape;
   if (a > 0){
     const bh = w * a;
-    shape = `<image href="${esc(cr.boat)}" x="${x1}" y="${y - bh / 2}" width="${w}" height="${bh}" preserveAspectRatio="none"/>`;
-  } else {
-    const h = Math.max(1.5, w * ratio / 2), m = x1 + w * 0.47, e = h * 0.5;
-    shape = `<path d="M${x1},${y - e} C${x1 + w * 0.1},${y - h * 0.95} ${x1 + w * 0.3},${y - h} ${m},${y - h} C${x1 + w * 0.7},${y - h} ${x1 + w * 0.9},${y - h * 0.9} ${x2},${y - e} A${e},${e} 0 0 1 ${x2},${y + e} C${x1 + w * 0.9},${y + h * 0.9} ${x1 + w * 0.7},${y + h} ${m},${y + h} C${x1 + w * 0.3},${y + h} ${x1 + w * 0.1},${y + h * 0.95} ${x1},${y + e} A${e},${e} 0 0 1 ${x1},${y - e} Z" fill="${cr.colour}"/>`;
+    return `<image href="${esc(cr.boat)}" x="${x1}" y="${y - bh / 2}" width="${w}" height="${bh}" preserveAspectRatio="none"/>`;
   }
-  return shape + `<text x="${x1 - 8}" y="${y + 8}" text-anchor="end" font-family="Barlow Condensed,Arial Narrow,sans-serif" font-weight="600" font-size="26" fill="currentColor">${esc(label)}</text>`;
+  const h = Math.max(1.5, w * ratio / 2), m = x1 + w * 0.47, e = h * 0.5;
+  return `<path d="M${x1},${y - e} C${x1 + w * 0.1},${y - h * 0.95} ${x1 + w * 0.3},${y - h} ${m},${y - h} C${x1 + w * 0.7},${y - h} ${x1 + w * 0.9},${y - h * 0.9} ${x2},${y - e} A${e},${e} 0 0 1 ${x2},${y + e} C${x1 + w * 0.9},${y + h * 0.9} ${x1 + w * 0.7},${y + h} ${m},${y + h} C${x1 + w * 0.3},${y + h} ${x1 + w * 0.1},${y + h * 0.95} ${x1},${y + e} A${e},${e} 0 0 1 ${x1},${y - e} Z" fill="${cr.colour}"/>`;
 }
-const vw = el => el.clientWidth && el.clientWidth < 600 ? 520 : Math.max(1000, Math.round(el.clientWidth * 1.4));
+const vw = el => el.clientWidth && el.clientWidth < 600 ? 520 : Math.max(1000, Math.round(el.clientWidth * 1.8));
 function drawClose(race, rows){
   const svg = document.getElementById('close'), c = race._c, have = rows.filter(r => r.d != null), VW = vw(svg);
   svg.setAttribute('viewBox', '0 0 ' + VW + ' 150');
   svg.style.color = getComputedStyle(document.body).color;
   if (!have.length){ svg.innerHTML = `<text x="${VW / 2}" y="82" text-anchor="middle" font-size="20" fill="currentColor" opacity=".6">Waiting for crews</text>`; return; }
+  const rev = c.xy[c.xy.length - 1][0] < c.xy[0][0];   // course heads west: boats move right to left, like the map
+  const M = x => rev ? VW - x : x;
   const ds = have.map(r => Math.min(r.d, c.len + 40)), hi = Math.max(...ds), lo = Math.min(...ds);
   const maxA = Math.max(0, ...race.crews.map(cr => (cr.boat && BOAT_ASPECT[cr.boat]) || 0));
   const minW = maxA > 0 ? race.boatLen * (VW - 130) * maxA / 50 : 70;
   const W = Math.max(minW, Math.min(400, Math.max(70, hi - lo + race.boatLen * 2.5))), left = hi + race.boatLen * 0.8 - W;
   const X = d => 110 + (d - left) / W * (VW - 130);
-  let s = '';
-  const step = W > 200 ? 50 : W > 100 ? 20 : 10;
+  let g = '', t = '';
+  const step = (W > 200 ? 50 : W > 100 ? 20 : 10) * (VW < 600 ? 2 : 1);
   for (let m = Math.ceil(left / step) * step; m <= left + W; m += step){
     const x = X(m); if (x < 110) continue;
     const togo = c.len - m;
-    s += `<line x1="${x}" y1="22" x2="${x}" y2="138" stroke="currentColor" stroke-opacity=".14"/>`;
-    if (togo >= 0) s += `<text x="${x}" y="17" text-anchor="middle" font-size="17" fill="currentColor" opacity=".65">${fmtM(togo)}</text>`;
+    g += `<line x1="${x}" y1="25" x2="${x}" y2="140" stroke="currentColor" stroke-opacity=".14"/>`;
+    if (togo >= 0) t += `<text x="${M(x)}" y="19" text-anchor="middle" font-size="22" fill="currentColor" opacity=".65">${fmtM(togo)}</text>`;
   }
-  if (c.len > left && c.len < left + W) s += `<line x1="${X(c.len)}" y1="18" x2="${X(c.len)}" y2="142" stroke="#C8452F" stroke-width="3"/>`;
+  if (c.len > left && c.len < left + W) g += `<line x1="${X(c.len)}" y1="18" x2="${X(c.len)}" y2="142" stroke="#C8452F" stroke-width="3"/>`;
   rows.forEach((r, i) => {
     const lane = race.swapLanes === false ? i : rows.length - 1 - i;
     const y = 55 + lane * 55;
-    s += `<line x1="110" y1="${y}" x2="${VW - 20}" y2="${y}" stroke="currentColor" stroke-opacity=".08" stroke-dasharray="4 6"/>`;
+    g += `<line x1="110" y1="${y}" x2="${VW - 20}" y2="${y}" stroke="currentColor" stroke-opacity=".08" stroke-dasharray="4 6"/>`;
     if (r.d == null) return;
-    const d = Math.min(r.d, c.len + 40);
-    s += hull(X(d - race.boatLen), X(d), y, r.cr, r.cr.short, (race.boatBeam || 0.6) / race.boatLen);
+    const d = Math.min(r.d, c.len + 40), xs = X(d - race.boatLen);
+    g += hull(xs, X(d), y, r.cr, (race.boatBeam || 0.6) / race.boatLen);
+    t += `<text x="${rev ? M(xs) + 10 : xs - 10}" y="${y + 10}" text-anchor="${rev ? 'start' : 'end'}" font-family="Barlow Condensed,Arial Narrow,sans-serif" font-weight="600" font-size="32" fill="currentColor">${esc(r.cr.short)}</text>`;
   });
-  svg.innerHTML = s;
+  svg.innerHTML = (rev ? `<g transform="translate(${VW},0) scale(-1,1)">${g}</g>` : g) + t;
 }
 const initials = s => String(s || '').split(/\s+/).map(w => w[0] || '').join('').slice(0, 3).toUpperCase();
 function crewRows(list){
