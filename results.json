@@ -1,6 +1,6 @@
 {
-  "ABRCOLW": { "winner": "", "margin": "", "time": "" },
-  "ABRCOLM": { "winner": "", "margin": "", "time": "" },
-  "ABRMEN8": { "winner": "", "margin": "", "time": "" },
-  "ABRWOM8": { "winner": "", "margin": "", "time": "" }
+  "ABRCOLW": { "sydney": "south", "winner": "", "margin": "", "time": "" },
+  "ABRCOLM": { "sydney": "south", "winner": "", "margin": "", "time": "" },
+  "ABRMEN8": { "sydney": "south", "winner": "", "margin": "", "time": "" },
+  "ABRWOM8": { "sydney": "south", "winner": "", "margin": "", "time": "" }
 }
