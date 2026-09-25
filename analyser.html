@@ -3211,12 +3211,12 @@ window.drawSector=function(editId){
   document.getElementById('_secdraw_modal')?.remove();
   const overlay=document.createElement('div');
   overlay.id='_secdraw_modal';
-  overlay.style.cssText='position:fixed;inset:0;background:rgba(0,0,0,.72);display:flex;align-items:center;justify-content:center;z-index:9998;padding:16px;';
+  overlay.style.cssText='position:fixed;inset:0;background:rgba(0,0,0,.72);display:flex;align-items:center;justify-content:center;z-index:9998;padding:8px;';
   const panel=document.createElement('div');
-  panel.style.cssText='background:var(--s1);border:1px solid var(--border);border-radius:10px;max-width:900px;width:100%;max-height:94vh;overflow-y:auto;padding:14px 16px;';
+  panel.style.cssText='background:var(--s1);border:1px solid var(--border);border-radius:10px;width:100%;height:100%;box-sizing:border-box;display:flex;flex-direction:column;overflow:hidden;padding:12px 14px;';
   panel.innerHTML='<div style="display:flex;align-items:center;gap:10px;margin-bottom:8px;"><div style="font-size:13px;font-weight:600;color:var(--text);">'+(edit?'Edit sector':'Draw sector')+'</div><span id="_secdraw_len" style="font-size:12px;font-weight:600;color:var(--text);"></span><button class="hbtn" id="_secdraw_close" style="margin-left:auto;font-size:11px;">Close</button></div>'
-    +'<div style="font-size:10px;color:var(--muted);margin-bottom:8px;">'+(edit?'Drag any point, including S and F. Tap the line to add a point, tap the map to extend the finish, right-click or long-press a point to remove it.':'Tap the start, then tap along the course to the finish. Follow the bends so the line stays within '+SECTOR_CORRIDOR_M+' m of where you row. Drag a point to move it, tap the line to add a point, right-click or long-press a point to remove it.')+'</div>'
-    +'<div id="_secdraw_map" style="height:62vh;min-height:320px;border-radius:10px;overflow:hidden;background:#030d1e;margin-bottom:8px;"></div>'
+    +'<div style="font-size:10px;color:var(--muted);margin-bottom:8px;">'+(edit?'Drag any point, including S and F. Tap a turn point to delete it. Long-press the line to add a turn point. Tap the map to extend the finish.':'Tap the start, then tap along the course to the finish. Follow the bends so the line stays within '+SECTOR_CORRIDOR_M+' m of where you row. Drag a point to move it, tap a turn point to delete it, long-press the line to add one.')+'</div>'
+    +'<div id="_secdraw_map" style="flex:1;min-height:300px;border-radius:10px;overflow:hidden;background:#030d1e;margin-bottom:8px;"></div>'
     +'<div style="display:flex;gap:6px;align-items:center;flex-wrap:wrap;"><button class="hbtn" id="_secdraw_undo" style="font-size:11px;">↶ Undo</button><button class="hbtn" id="_secdraw_clear" style="font-size:11px;">Clear</button>'
     +'<input type="text" id="_secdraw_name" class="brsearch" placeholder="Sector name" style="flex:1;min-width:140px;box-sizing:border-box;" value="'+(edit?_secEsc(edit.name):'')+'">'
     +'<button class="dzbtn dzbtn-pri" id="_secdraw_save">Save sector</button></div>';
@@ -3255,26 +3255,45 @@ window.drawSector=function(editId){
       m.on('dragstart',()=>snap());
       m.on('drag',ev=>{const ll=ev.target.getLatLng();pts[i]=[ll.lat,ll.lng];line.setLatLngs(pts);updLen();});
       m.on('dragend',ev=>{const ll=ev.target.getLatLng();pts[i]=[ll.lat,ll.lng];dirty=true;redraw();});
-      m.on('contextmenu',ev=>{if(ev.originalEvent)L.DomEvent.preventDefault(ev.originalEvent);snap();pts.splice(i,1);dirty=true;redraw();});
+      if(!first&&!last)m.on('click',()=>{snap();pts.splice(i,1);dirty=true;redraw();});
       marks.push(m);
     });
     updLen();
   };
-  line.on('click',e=>{
-    L.DomEvent.stopPropagation(e);
-    if(pts.length<2)return;
-    const o={lat:e.latlng.lat,lon:e.latlng.lng};
-    let bi=0,bd=Infinity;
+  line.on('click',e=>{L.DomEvent.stopPropagation(e);});
+  let _lpT=null,_lpX=0,_lpY=0,_noClickUntil=0;
+  const _segIdx=(cp)=>{
+    let bi=-1,bd=Infinity;
     for(let i=1;i<pts.length;i++){
-      const a=sectorXY(pts[i-1][0],pts[i-1][1],o), b=sectorXY(pts[i][0],pts[i][1],o);
-      const dx=b[0]-a[0],dy=b[1]-a[1],L2=dx*dx+dy*dy;
-      let t=L2?(-a[0]*dx-a[1]*dy)/L2:0;t=Math.max(0,Math.min(1,t));
-      const d=Math.hypot(a[0]+t*dx,a[1]+t*dy);
+      const a=map.latLngToContainerPoint(pts[i-1]),b=map.latLngToContainerPoint(pts[i]);
+      const dx=b.x-a.x,dy=b.y-a.y,L2=dx*dx+dy*dy;
+      let t=L2?((cp.x-a.x)*dx+(cp.y-a.y)*dy)/L2:0;t=Math.max(0,Math.min(1,t));
+      const d=Math.hypot(cp.x-a.x-t*dx,cp.y-a.y-t*dy);
       if(d<bd){bd=d;bi=i;}
     }
-    snap();pts.splice(bi,0,[e.latlng.lat,e.latlng.lng]);dirty=true;redraw();
+    return bd<=14?bi:-1;
+  };
+  const _lpCancel=()=>{if(_lpT){clearTimeout(_lpT);_lpT=null;}};
+  const mc=map.getContainer();
+  mc.addEventListener('pointerdown',ev=>{
+    _lpCancel();
+    if(pts.length<2||ev.target.closest('.leaflet-marker-icon,.leaflet-control'))return;
+    const cp=map.mouseEventToContainerPoint(ev);
+    const bi=_segIdx(cp);if(bi<0)return;
+    _lpX=ev.clientX;_lpY=ev.clientY;
+    _lpT=setTimeout(()=>{
+      _lpT=null;
+      const ll=map.containerPointToLatLng(cp);
+      snap();pts.splice(bi,0,[ll.lat,ll.lng]);dirty=true;redraw();
+      _noClickUntil=Date.now()+800;
+      if(navigator.vibrate)try{navigator.vibrate(20);}catch{}
+    },550);
   });
-  map.on('click',e=>{snap();pts.push([e.latlng.lat,e.latlng.lng]);dirty=true;redraw();});
+  mc.addEventListener('pointermove',ev=>{if(_lpT&&Math.hypot(ev.clientX-_lpX,ev.clientY-_lpY)>6)_lpCancel();});
+  mc.addEventListener('pointerup',_lpCancel);
+  mc.addEventListener('pointercancel',_lpCancel);
+  mc.addEventListener('contextmenu',ev=>ev.preventDefault());
+  map.on('click',e=>{if(Date.now()<_noClickUntil)return;snap();pts.push([e.latlng.lat,e.latlng.lng]);dirty=true;redraw();});
   if(edit&&pts.length>1)map.fitBounds(L.latLngBounds(pts),{padding:[40,40]});
   else if(leafletMap&&mapBaseLine)map.fitBounds(mapBaseLine.getBounds(),{padding:[20,20]});
   else if(others.length)map.fitBounds(L.featureGroup(others).getBounds(),{padding:[30,30]});
