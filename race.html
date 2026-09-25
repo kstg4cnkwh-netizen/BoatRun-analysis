@@ -65,6 +65,9 @@ header h1{font-family:var(--num);font-weight:700;font-size:clamp(26px,5vw,44px);
 .card td .deg{display:block;font-size:13px;color:var(--muted)}
 footer{display:flex;align-items:center;gap:10px;color:var(--muted);font-size:13px;margin-top:14px}
 .brlogo{width:32px;height:32px;border-radius:7px;object-fit:contain;flex:none}
+.getapp{margin-left:auto;flex:none;background:#EE5D31;color:#fff;font-family:var(--num);font-weight:700;font-size:16px;letter-spacing:.02em;text-decoration:none;padding:8px 14px;border-radius:8px;white-space:nowrap}
+.getapp:hover{filter:brightness(1.08)}
+@media (max-width:600px){ footer{flex-wrap:wrap} .getapp{margin-left:0;width:100%;text-align:center} }
 @media (min-width:1200px){
   html,body{font-size:1vw}
   .wrap{height:100vh;display:flex;flex-direction:column;padding:.8vw 1.2vw .5vw}
@@ -99,6 +102,7 @@ footer{display:flex;align-items:center;gap:10px;color:var(--muted);font-size:13p
   .card td .deg{display:inline;font-size:.85vw;margin-left:.5vw}
   footer{flex:none;margin-top:.4vw;font-size:.8vw;gap:.5vw}
   .brlogo{width:1.4vw;height:1.4vw;border-radius:.3vw}
+  .getapp{font-size:.9vw;padding:.35vw .9vw;border-radius:.4vw}
 }
 </style>
 </head>
@@ -124,7 +128,7 @@ footer{display:flex;align-items:center;gap:10px;color:var(--muted);font-size:13p
     <div class="card" id="st1"></div>
     <div class="card" id="ls1"></div>
   </div>
-  <footer id="foot"><img class="brlogo" id="brlogo" alt="BoatRun"><span>Numbers are smoothed and run a few seconds behind the water. Live tracking by BoatRun.</span></footer>
+  <footer id="foot"><img class="brlogo" id="brlogo" alt="BoatRun"><span>Numbers are smoothed and run a few seconds behind the water. Live tracking by BoatRun.</span><a class="getapp" href="https://boatrun.au/" target="_blank" rel="noopener">Get the BoatRun app ›</a></footer>
 </div>
 
 <script>
