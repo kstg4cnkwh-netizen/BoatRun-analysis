@@ -245,6 +245,8 @@
 
   /* ── Map — always dark regardless of theme ── */
   #mapbox { height: 320px; border-radius: 10px; overflow: hidden; background: #030d1e; box-shadow: 0 2px 12px rgba(0,0,0,.4); }
+  .map-col.big { flex: 0 0 100%; min-width: 0; }
+  .map-col.big #mapbox { height: 70vh; min-height: 420px; }
   .lap-marker { background: #29b8ff; color: #000; border-radius: 50%; width: 20px; height: 20px; display: flex; align-items: center; justify-content: center; font-size: 9px; font-weight: 700; font-family: -apple-system, BlinkMacSystemFont, Helvetica Neue, sans-serif; border: 2px solid #000; box-shadow: 0 1px 4px rgba(0,0,0,.7); }
   /* Hard-coded dark colours — intentionally NOT using CSS vars */
   .leaflet-popup-content-wrapper { background: #0b1f38 !important; color: #dce8fa !important; border: 1px solid #173358 !important; border-radius: 8px !important; font-family: -apple-system, BlinkMacSystemFont, Helvetica Neue, sans-serif !important; font-size: 11px !important; box-shadow: 0 6px 20px rgba(0,0,0,.6) !important; }
@@ -761,7 +763,7 @@ body.light .hdrname{color:#fff;}
     </div>
     <div class="info-col info-wide info-fixed inpill">
       <div id="sectorsec" style="display:none;">
-        <div class="sec-hd" style="padding:0 0 4px;"><h2>Sectors</h2><span id="sectorlbl" style="font-size:10px;color:var(--muted);"></span><button class="hbtn" id="sectorListBtn" style="margin-left:auto;font-size:10px;" onclick="window.showSectorList()">Sector list</button><button class="hbtn" id="sectorScanBtn" style="font-size:10px;" onclick="window.scanAllSectors()">Scan all</button><button class="hbtn" id="sectorAddBtn" style="font-size:10px;" onclick="window.startSectorCreate()">＋ Create Sector</button><button class="hbtn" id="sectorCurveBtn" style="font-size:10px;display:none;" onclick="window.addSectorToCurves()">＋ Add to curves</button></div>
+        <div class="sec-hd" style="padding:0 0 4px;"><h2>Sectors</h2><span id="sectorlbl" style="font-size:10px;color:var(--muted);"></span><button class="hbtn" id="sectorListBtn" style="margin-left:auto;font-size:10px;" onclick="window.showSectorList()">Sector list</button><button class="hbtn" id="sectorScanBtn" style="font-size:10px;" onclick="window.scanAllSectors()">Scan all</button><button class="hbtn" id="sectorAddBtn" style="font-size:10px;" onclick="window.startSectorCreate()">＋ Create Sector</button><button class="hbtn" id="sectorDrawBtn" style="font-size:10px;" onclick="window.drawSector()">✎ Draw</button><button class="hbtn" id="sectorCurveBtn" style="font-size:10px;display:none;" onclick="window.addSectorToCurves()">＋ Add to curves</button></div>
         <div id="sectorbody"></div>
       </div>
     </div>
@@ -776,7 +778,7 @@ body.light .hdrname{color:#fff;}
     <div class="ms-pill secpill">
     <div class="map-col">
       <div id="mapsec" style="display:none;">
-        <div class="sec-hd" style="padding:0 0 4px;"><h2>Route Map</h2><span id="maplbl" style="font-size:10px;color:var(--muted);"></span></div>
+        <div class="sec-hd" style="padding:0 0 4px;"><h2>Route Map</h2><span id="maplbl" style="font-size:10px;color:var(--muted);"></span><button class="hbtn" id="mapSizeBtn" style="margin-left:auto;font-size:10px;" onclick="window.toggleMapSize()">Larger ⤢</button></div>
         <div id="mapbox"></div>
       </div>
     </div>
@@ -2849,7 +2851,7 @@ function renderSectors(){
   _sectorHLRestore();
   const cur=SESSIONS[activeSessionIdx];
   const erg=!!(cur&&cur.d&&cur.d.sum&&cur.d.sum.session_mode==='erg');
-  const _hdBtns=['sectorListBtn','sectorScanBtn','sectorAddBtn'].map(i=>document.getElementById(i));
+  const _hdBtns=['sectorListBtn','sectorScanBtn','sectorAddBtn','sectorDrawBtn'].map(i=>document.getElementById(i));
   _hdBtns.forEach(b=>{if(b)b.style.display=isPro()?'':'none';});
   if(!isPro()){box.style.display='flex';const _l=document.getElementById('sectorlbl');if(_l)_l.textContent='';body.innerHTML='<div style="font-size:11px;color:var(--muted);padding:6px 0;">Sectors are a Pro feature — time yourself over the same stretch of water every session, with PBs and side-by-side playback.</div><button class="dzbtn dzbtn-pri" onclick="showPlanModal(\'Sectors are a Pro feature.\')">Upgrade to Pro</button>';return;}
   if(erg||GPSTRACE.length<2){box.style.display='flex';body.innerHTML='<div style="font-size:10px;color:var(--muted);padding:4px 0;">'+(erg?'Not available for erg sessions':'No GPS track')+'</div>';return;}
@@ -3154,6 +3156,95 @@ window.importSectorsFile=function(after){
   };
   inp.click();
 };
+function _secDrawTrace(pts){
+  const tr=[];
+  for(let i=0;i<pts.length;i++){
+    const a=pts[i];
+    if(i===0){tr.push({lat:a[0],lon:a[1]});continue;}
+    const p=pts[i-1], xy=sectorXY(a[0],a[1],{lat:p[0],lon:p[1]}), d=Math.hypot(xy[0],xy[1]), n=Math.max(1,Math.ceil(d/5));
+    for(let k=1;k<=n;k++)tr.push({lat:p[0]+(a[0]-p[0])*k/n,lon:p[1]+(a[1]-p[1])*k/n});
+  }
+  return tr;
+}
+function _secDrawLen(pts){
+  let m=0;
+  for(let i=1;i<pts.length;i++){const xy=sectorXY(pts[i][0],pts[i][1],{lat:pts[i-1][0],lon:pts[i-1][1]});m+=Math.hypot(xy[0],xy[1]);}
+  return m;
+}
+window.drawSector=function(){
+  if(!isPro()){showPlanModal('Sectors are a Pro feature.');return;}
+  if(_sectorCreate)cancelSectorCreate();
+  document.getElementById('_secdraw_modal')?.remove();
+  const overlay=document.createElement('div');
+  overlay.id='_secdraw_modal';
+  overlay.style.cssText='position:fixed;inset:0;background:rgba(0,0,0,.72);display:flex;align-items:center;justify-content:center;z-index:9998;padding:16px;';
+  const panel=document.createElement('div');
+  panel.style.cssText='background:var(--s1);border:1px solid var(--border);border-radius:10px;max-width:900px;width:100%;max-height:94vh;overflow-y:auto;padding:14px 16px;';
+  panel.innerHTML='<div style="display:flex;align-items:center;gap:10px;margin-bottom:8px;"><div style="font-size:13px;font-weight:600;color:var(--text);">Draw sector</div><span id="_secdraw_len" style="font-size:11px;color:var(--muted);"></span><button class="hbtn" id="_secdraw_close" style="margin-left:auto;font-size:11px;">Close</button></div>'
+    +'<div style="font-size:10px;color:var(--muted);margin-bottom:8px;">Tap the start, then tap along the course to the finish. Follow the bends so the line stays within '+SECTOR_CORRIDOR_M+' m of where you row. Drag a point to move it.</div>'
+    +'<div id="_secdraw_map" style="height:62vh;min-height:320px;border-radius:10px;overflow:hidden;background:#030d1e;margin-bottom:8px;"></div>'
+    +'<div style="display:flex;gap:6px;align-items:center;flex-wrap:wrap;"><button class="hbtn" id="_secdraw_undo" style="font-size:11px;">↶ Undo</button><button class="hbtn" id="_secdraw_clear" style="font-size:11px;">Clear</button>'
+    +'<input type="text" id="_secdraw_name" class="brsearch" placeholder="Sector name" style="flex:1;min-width:140px;box-sizing:border-box;">'
+    +'<button class="dzbtn dzbtn-pri" id="_secdraw_save">Save sector</button></div>';
+  overlay.appendChild(panel);
+  document.body.appendChild(overlay);
+  const map=L.map('_secdraw_map',{zoomControl:true,attributionControl:true,doubleClickZoom:false});
+  map.attributionControl.setPrefix('');
+  L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}',{maxZoom:19,attribution:'Esri'}).addTo(map);
+  const others=[];
+  SECTORS_DB.forEach(s=>{
+    if(s.deleted||!s.origin||!Array.isArray(s.ref))return;
+    others.push(L.polyline(s.ref.map(p=>sectorLatLon(p[0],p[1],s.origin)),{color:'#ffb020',weight:2,opacity:0.8,dashArray:'6 6'}).bindTooltip(s.name).addTo(map));
+  });
+  if(leafletMap&&mapBaseLine)map.fitBounds(mapBaseLine.getBounds(),{padding:[20,20]});
+  else if(others.length)map.fitBounds(L.featureGroup(others).getBounds(),{padding:[30,30]});
+  else{
+    map.setView([-25,134],4);
+    if(navigator.geolocation)navigator.geolocation.getCurrentPosition(p=>{try{map.setView([p.coords.latitude,p.coords.longitude],15);}catch{}},()=>{},{timeout:8000});
+  }
+  const pts=[];
+  const line=L.polyline([],{color:'#ff2fd0',weight:5,opacity:0.95}).addTo(map);
+  let marks=[];
+  const dot=(col,lbl,sz)=>L.divIcon({html:'<div style="width:'+sz+'px;height:'+sz+'px;border-radius:50%;background:'+col+';border:2px solid #000;box-shadow:0 1px 4px rgba(0,0,0,.7);display:flex;align-items:center;justify-content:center;font:700 9px -apple-system,sans-serif;color:#000;cursor:grab;">'+lbl+'</div>',iconSize:[sz+4,sz+4],iconAnchor:[(sz+4)/2,(sz+4)/2],className:''});
+  const redraw=()=>{
+    line.setLatLngs(pts);
+    marks.forEach(m=>{try{map.removeLayer(m);}catch{}});marks=[];
+    pts.forEach((p,i)=>{
+      const first=i===0, last=i===pts.length-1&&pts.length>1;
+      const icon=first?dot('#2ee06a','S',18):last?dot('#f54040','F',18):dot('#ff2fd0','',10);
+      const m=L.marker(p,{icon,draggable:true,zIndexOffset:first||last?1000:500}).addTo(map);
+      m.on('dragend',ev=>{const ll=ev.target.getLatLng();pts[i]=[ll.lat,ll.lng];redraw();});
+      marks.push(m);
+    });
+    const el=document.getElementById('_secdraw_len');
+    if(el)el.textContent=pts.length>1?('≈ '+Math.round(_secDrawLen(pts))+' m'):(pts.length?'Now tap the next point':'Tap the start');
+  };
+  map.on('click',e=>{pts.push([e.latlng.lat,e.latlng.lng]);redraw();});
+  const close=()=>{try{map.remove();}catch{}overlay.remove();};
+  document.getElementById('_secdraw_close').onclick=close;
+  document.getElementById('_secdraw_undo').onclick=()=>{pts.pop();redraw();};
+  document.getElementById('_secdraw_clear').onclick=()=>{pts.length=0;redraw();};
+  const save=()=>{
+    if(pts.length<2){toast('Tap at least a start and a finish');return;}
+    const inp=document.getElementById('_secdraw_name');
+    const name=((inp&&inp.value)||'').trim();
+    if(!name){toast('Enter a sector name');if(inp)inp.focus();return;}
+    const tr=_secDrawTrace(pts);
+    const s=buildSectorFromTrace(tr,0,tr.length-1,name);
+    if(!s){toast('Sector must be at least '+SECTOR_MIN_M+' m');return;}
+    SECTORS_DB.push(s);
+    SESSIONS.forEach(x=>updateSectorsFromData(x.d,x.label,x.fileId,s.id));
+    saveSectors();
+    if(SESSIONS.length)renderSectors();
+    close();
+    toast('Sector saved · '+s.distance+' m');
+    if(AnalyserDrive.isSignedIn())setTimeout(()=>{if(confirm('Scan all Drive sessions for "'+name+'"?'))runSectorScan(s.id);},300);
+  };
+  document.getElementById('_secdraw_save').onclick=save;
+  document.getElementById('_secdraw_name').addEventListener('keydown',e=>{if(e.key==='Enter')save();});
+  redraw();
+  setTimeout(()=>{try{map.invalidateSize();}catch{}},120);
+};
 window.showSectorList=function(){
   if(!isPro()){showPlanModal('Sectors are a Pro feature.');return;}
   document.getElementById('_seclist_modal')?.remove();
@@ -3168,9 +3259,9 @@ window.showSectorList=function(){
   const render=()=>{
     const list=SECTORS_DB.filter(x=>!x.deleted).sort((a,b)=>String(a.name).localeCompare(String(b.name)));
     const td='padding:6px 8px;border-bottom:1px solid var(--border);white-space:nowrap;font-size:11px;';
-    let h='<div style="display:flex;align-items:center;gap:10px;margin-bottom:12px;"><div style="font-size:13px;font-weight:600;color:var(--text);">Sector list</div><span style="font-size:11px;color:var(--muted);">'+list.length+' saved</span><button id="_seclist_import" style="margin-left:auto;background:var(--s3);border:1px solid var(--border);color:var(--text);border-radius:6px;padding:4px 10px;font-size:11px;cursor:pointer;">Import</button>'+(list.length?'<button id="_seclist_shareall" style="background:var(--s3);border:1px solid var(--border);color:var(--text);border-radius:6px;padding:4px 10px;font-size:11px;cursor:pointer;">Share all</button>':'')+'<button id="_seclist_close" style="background:var(--s3);border:1px solid var(--border);color:var(--muted);border-radius:6px;padding:4px 10px;font-size:11px;cursor:pointer;">Close</button></div>';
+    let h='<div style="display:flex;align-items:center;gap:10px;margin-bottom:12px;"><div style="font-size:13px;font-weight:600;color:var(--text);">Sector list</div><span style="font-size:11px;color:var(--muted);">'+list.length+' saved</span><button id="_seclist_draw" style="margin-left:auto;background:var(--s3);border:1px solid var(--border);color:var(--text);border-radius:6px;padding:4px 10px;font-size:11px;cursor:pointer;">✎ Draw</button><button id="_seclist_import" style="background:var(--s3);border:1px solid var(--border);color:var(--text);border-radius:6px;padding:4px 10px;font-size:11px;cursor:pointer;">Import</button>'+(list.length?'<button id="_seclist_shareall" style="background:var(--s3);border:1px solid var(--border);color:var(--text);border-radius:6px;padding:4px 10px;font-size:11px;cursor:pointer;">Share all</button>':'')+'<button id="_seclist_close" style="background:var(--s3);border:1px solid var(--border);color:var(--muted);border-radius:6px;padding:4px 10px;font-size:11px;cursor:pointer;">Close</button></div>';
     if(!list.length){
-      h+='<div class="sz-loading">No sectors yet. Open a session and click ＋ Create Sector above the Route Map.</div>';
+      h+='<div class="sz-loading">No sectors yet. Tap ✎ Draw to draw one on the map, or open a session and click ＋ Create Sector.</div>';
     }else{
       h+='<div class="twrap" style="max-height:none;"><table style="width:100%;"><thead><tr><th style="text-align:left;">Sector</th><th>Distance</th><th>Results</th><th>PB</th><th>PB Pace</th><th>PB Date</th><th></th></tr></thead><tbody>';
       list.forEach(x=>{
@@ -3190,6 +3281,7 @@ window.showSectorList=function(){
     document.getElementById('_seclist_close').onclick=()=>overlay.remove();
     if(!render._pulled){render._pulled=true;pullSectorsFromDrive(true,()=>{if(document.getElementById('_seclist_modal'))render();});}
     document.getElementById('_seclist_import').onclick=()=>window.importSectorsFile(render);
+    document.getElementById('_seclist_draw').onclick=()=>{overlay.remove();window.drawSector();};
     const _sa=document.getElementById('_seclist_shareall');
     if(_sa)_sa.onclick=()=>window.shareSectors(list.map(x=>x.id));
     panel.querySelectorAll('tr[data-row]').forEach(tr=>{tr.onclick=()=>{overlay.remove();window.openSectorCompare(tr.dataset.row);};});
@@ -6998,6 +7090,12 @@ function updateMapGroups(){
   });
 }
 
+window.toggleMapSize=function(){
+  const col=document.querySelector('.map-col');if(!col)return;
+  const big=col.classList.toggle('big');
+  const b=document.getElementById('mapSizeBtn');if(b)b.textContent=big?'Smaller ⤡':'Larger ⤢';
+  setTimeout(()=>{if(leafletMap){leafletMap.invalidateSize();if(mapBaseLine)leafletMap.fitBounds(mapBaseLine.getBounds(),{padding:[20,20]});}},80);
+};
 function buildMap(){
   const sec=document.getElementById('mapsec');
   if(!GPSTRACE.length){sec.style.display='none';return;}
