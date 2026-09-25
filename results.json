@@ -1,6 +1,19 @@
 {
-  "ABRCOLW": { "sydney": "south", "winner": "", "margin": "", "time": "" },
-  "ABRCOLM": { "sydney": "north", "winner": "", "margin": "", "time": "" },
-  "ABRMEN8": { "sydney": "south", "winner": "", "margin": "", "time": "" },
-  "ABRWOM8": { "sydney": "south", "winner": "", "margin": "", "time": "" }
+  "courses": {
+    "eights": [
+      [-33.834390522482124, 151.18223580383292],
+      [-33.83442617012252, 151.17667826653332],
+      [-33.83470243886306, 151.17575558676722],
+      [-33.836368944085, 151.1693397427315],
+      [-33.836288738696275, 151.16802009584376],
+      [-33.83374492613281, 151.16195149072425],
+      [-33.830528952343705, 151.15299640204188],
+      [-33.83005347968226, 151.14655230713174]
+    ],
+    "college": { "of": "eights", "lastMetres": 2000 }
+  },
+  "ABRCOLW": { "course": "college", "sydney": "south", "winner": "", "margin": "", "time": "" },
+  "ABRCOLM": { "course": "college", "sydney": "south", "winner": "", "margin": "", "time": "" },
+  "ABRMEN8": { "course": "eights", "sydney": "south", "winner": "", "margin": "", "time": "" },
+  "ABRWOM8": { "course": "eights", "sydney": "south", "winner": "", "margin": "", "time": "" }
 }
