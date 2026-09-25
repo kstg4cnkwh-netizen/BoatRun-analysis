@@ -138,7 +138,28 @@ const EVENT_TITLE = 'The Australian Boat Race 2026';
 const EVENT_LOGO = 'emblems/boatrace.png';
 const RESULTS_URL = 'results.json';
 async function loadResults(){
-  try { const r = await fetch(RESULTS_URL + '?t=' + Date.now(), { cache: 'no-store' }); if (r.ok) S.results = (await r.json()) || {}; } catch (e) {}
+  try { const r = await fetch(RESULTS_URL + '?t=' + Date.now(), { cache: 'no-store' }); if (r.ok) { S.results = (await r.json()) || {}; applyCourses(); } } catch (e) {}
+}
+// Courses in results.json: "courses": { "eights": [[lat, lon], ...], "college": { "of": "eights", "lastMetres": 2000 } }
+// and each race says which one it uses: "ABRMEN8": { "course": "eights", ... }
+function resolveCourse(cs, name, depth){
+  const v = cs && cs[name];
+  if (Array.isArray(v) && v.length >= 2) return v;
+  if (v && v.of && v.lastMetres && (depth || 0) < 3){ const base = resolveCourse(cs, v.of, (depth || 0) + 1); return base ? courseTail(base, v.lastMetres) : null; }
+  return null;
+}
+function applyCourses(){
+  const cs = S.results && S.results.courses;
+  if (!cs) return;
+  RACES.forEach((race, ri) => {
+    const e = S.results[race.code], pts = e && e.course ? resolveCourse(cs, e.course) : null;
+    if (!pts) return;
+    const key = JSON.stringify(pts);
+    if (race._ck === key) return;
+    race._ck = key; race.course = pts; race._c = mkCourse(pts);
+    race.crews.forEach((cr, ci) => { delete S.trk[ri + '_' + ci]; });
+    if (ri === S.race && S.map) mapRace();
+  });
 }
 const EVENT_SUB = 'Live from the water';
 const BOATRUN_LOGO = 'icons/icon-192.png';
