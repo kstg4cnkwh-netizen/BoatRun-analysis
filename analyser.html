@@ -2871,15 +2871,15 @@ function renderSectors(){
   rows.sort((a,b)=>a.h.startT-b.h.startT);
   const td='padding:4px 6px;border-bottom:1px solid var(--border);white-space:nowrap;';
   const box2='background:var(--s1);border-radius:14px;padding:8px 10px;box-shadow:var(--pill-sh);';
-  let h='<div class="sumgrp-hd">This session</div><div class="twrap" style="'+box2+'margin-bottom:12px;"><table style="width:100%;font-size:10px;"><thead><tr><th style="text-align:left;">Sector</th><th>Time</th><th>Pace</th><th>Rate</th></tr></thead><tbody>';
+  let h='<div class="sumgrp-hd">This session</div><div class="twrap" style="'+box2+'margin-bottom:12px;"><table style="width:100%;font-size:10px;"><thead><tr><th style="text-align:left;">Sector</th><th>Time (PB)</th><th>Pace (PB)</th><th>Rate</th></tr></thead><tbody>';
   rows.forEach(r=>{
     const s=r.s, b=s.best, isPB=b&&Math.abs(b.timeMs-r.h.timeMs)<50;
     const pbDate=b?(b.fileId?'<a href="#" style="color:var(--accent,#29b8ff);" onclick="event.preventDefault();event.stopPropagation();window.loadSectorBest(\''+s.id+'\')">'+fmtRecordDate(b.date)+'</a>':fmtRecordDate(b.date)):'—';
     const hk=s.id+'|'+Math.round(r.h.startT);
     const ck=((cur&&cur.fileId)||(cur&&cur.label)||'local')+'|'+Math.round(r.h.startT);
     h+='<tr data-hl="'+hk+'" data-t1="'+Math.round(r.h.endT)+'" style="cursor:pointer;" onclick="window.highlightSector(\''+s.id+'\','+Math.round(r.h.startT)+','+Math.round(r.h.endT)+')"><td style="'+td+'text-align:left;"><div style="font-weight:600;">'+_secEsc(s.name)+'</div><div style="color:var(--muted);">'+s.distance+'m · <a href="#" style="color:var(--accent,#29b8ff);" onclick="event.preventDefault();event.stopPropagation();window.openSectorCompare(\''+s.id+'\',\''+_secEsc(ck)+'\')">compare</a></div></td>'
-      +'<td style="'+td+'">'+fmtRecordTime(r.h.timeMs)+(isPB?' <span style="color:#2ee06a;font-weight:700;">PB</span>':'')+'</td>'
-      +'<td style="'+td+'">'+fmtPaceU(sectorPace(r.h.timeMs,s.distance))+'</td>'
+      +'<td style="'+td+'">'+fmtRecordTime(r.h.timeMs)+(isPB?' <span style="color:#2ee06a;font-weight:700;">PB</span>':(b?' <span style="color:var(--muted);">('+fmtRecordTime(b.timeMs)+')</span>':''))+'</td>'
+      +'<td style="'+td+'">'+fmtPaceU(sectorPace(r.h.timeMs,s.distance))+(isPB?'':(b?' <span style="color:var(--muted);">('+fmtPaceU(sectorPace(b.timeMs,s.distance))+')</span>':''))+'</td>'
       +'<td style="'+td+'">'+(r.rate!=null?r.rate.toFixed(1):'—')+'</td></tr>';
   });
   h+='</tbody></table></div>';
@@ -2965,6 +2965,15 @@ function _sectorDrawEdit(fit){
     const p=GPSTRACE[idx];if(!p)return null;
     const m=L.marker([p.lat,p.lon],{icon:_sectorEndIcon(col,lbl),draggable:true,zIndexOffset:1000}).addTo(leafletMap);
     if(m.on)m.on('dragend',ev=>{const ll=ev.target.getLatLng();_sectorMoveEnd(which,ll);});
+    if(m.on)m.on('drag',ev=>{
+      const c=_sectorCreate;if(!c)return;
+      const ll=ev.target.getLatLng();
+      const nr=which==='start'?_sectorNearestIdx(ll,0,c.i1-3):_sectorNearestIdx(ll,c.i0+3);
+      if(nr.i<0||nr.m>50)return;
+      const a=which==='start'?nr.i:c.i0, b=which==='start'?c.i1:nr.i;
+      const len=document.getElementById('sectorAdjustLen');
+      if(len&&b>a)len.textContent='≈ '+Math.round(_sectorTrackLen(a,b))+' m along track';
+    });
     return m;
   };
   if(c.i0>=0)c.start=mk(c.i0,'#2ee06a','S','start');
@@ -3171,20 +3180,38 @@ function _secDrawLen(pts){
   for(let i=1;i<pts.length;i++){const xy=sectorXY(pts[i][0],pts[i][1],{lat:pts[i-1][0],lon:pts[i-1][1]});m+=Math.hypot(xy[0],xy[1]);}
   return m;
 }
-window.drawSector=function(){
+function _secSimplify(pts,tol){
+  if(pts.length<3)return pts.slice();
+  const keep=new Array(pts.length).fill(false);keep[0]=keep[pts.length-1]=true;
+  const stack=[[0,pts.length-1]];
+  while(stack.length){
+    const [a,b]=stack.pop();
+    const ax=pts[a][0],ay=pts[a][1],dx=pts[b][0]-ax,dy=pts[b][1]-ay,L2=dx*dx+dy*dy;
+    let md=0,mi=-1;
+    for(let i=a+1;i<b;i++){
+      let t=L2?((pts[i][0]-ax)*dx+(pts[i][1]-ay)*dy)/L2:0;t=Math.max(0,Math.min(1,t));
+      const d=Math.hypot(pts[i][0]-ax-t*dx,pts[i][1]-ay-t*dy);
+      if(d>md){md=d;mi=i;}
+    }
+    if(md>tol){keep[mi]=true;stack.push([a,mi],[mi,b]);}
+  }
+  return pts.filter((_,i)=>keep[i]);
+}
+window.drawSector=function(editId){
   if(!isPro()){showPlanModal('Sectors are a Pro feature.');return;}
   if(_sectorCreate)cancelSectorCreate();
+  const edit=typeof editId==='string'?SECTORS_DB.find(x=>x.id===editId&&!x.deleted):null;
   document.getElementById('_secdraw_modal')?.remove();
   const overlay=document.createElement('div');
   overlay.id='_secdraw_modal';
   overlay.style.cssText='position:fixed;inset:0;background:rgba(0,0,0,.72);display:flex;align-items:center;justify-content:center;z-index:9998;padding:16px;';
   const panel=document.createElement('div');
   panel.style.cssText='background:var(--s1);border:1px solid var(--border);border-radius:10px;max-width:900px;width:100%;max-height:94vh;overflow-y:auto;padding:14px 16px;';
-  panel.innerHTML='<div style="display:flex;align-items:center;gap:10px;margin-bottom:8px;"><div style="font-size:13px;font-weight:600;color:var(--text);">Draw sector</div><span id="_secdraw_len" style="font-size:11px;color:var(--muted);"></span><button class="hbtn" id="_secdraw_close" style="margin-left:auto;font-size:11px;">Close</button></div>'
-    +'<div style="font-size:10px;color:var(--muted);margin-bottom:8px;">Tap the start, then tap along the course to the finish. Follow the bends so the line stays within '+SECTOR_CORRIDOR_M+' m of where you row. Drag a point to move it.</div>'
+  panel.innerHTML='<div style="display:flex;align-items:center;gap:10px;margin-bottom:8px;"><div style="font-size:13px;font-weight:600;color:var(--text);">'+(edit?'Edit sector':'Draw sector')+'</div><span id="_secdraw_len" style="font-size:12px;font-weight:600;color:var(--text);"></span><button class="hbtn" id="_secdraw_close" style="margin-left:auto;font-size:11px;">Close</button></div>'
+    +'<div style="font-size:10px;color:var(--muted);margin-bottom:8px;">'+(edit?'Drag any point, including S and F. Tap the line to add a point, tap the map to extend the finish, right-click or long-press a point to remove it.':'Tap the start, then tap along the course to the finish. Follow the bends so the line stays within '+SECTOR_CORRIDOR_M+' m of where you row. Drag a point to move it, tap the line to add a point, right-click or long-press a point to remove it.')+'</div>'
     +'<div id="_secdraw_map" style="height:62vh;min-height:320px;border-radius:10px;overflow:hidden;background:#030d1e;margin-bottom:8px;"></div>'
     +'<div style="display:flex;gap:6px;align-items:center;flex-wrap:wrap;"><button class="hbtn" id="_secdraw_undo" style="font-size:11px;">↶ Undo</button><button class="hbtn" id="_secdraw_clear" style="font-size:11px;">Clear</button>'
-    +'<input type="text" id="_secdraw_name" class="brsearch" placeholder="Sector name" style="flex:1;min-width:140px;box-sizing:border-box;">'
+    +'<input type="text" id="_secdraw_name" class="brsearch" placeholder="Sector name" style="flex:1;min-width:140px;box-sizing:border-box;" value="'+(edit?_secEsc(edit.name):'')+'">'
     +'<button class="dzbtn dzbtn-pri" id="_secdraw_save">Save sector</button></div>';
   overlay.appendChild(panel);
   document.body.appendChild(overlay);
@@ -3193,46 +3220,82 @@ window.drawSector=function(){
   L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}',{maxZoom:19,attribution:'Esri'}).addTo(map);
   const others=[];
   SECTORS_DB.forEach(s=>{
-    if(s.deleted||!s.origin||!Array.isArray(s.ref))return;
+    if(s.deleted||!s.origin||!Array.isArray(s.ref)||(edit&&s.id===edit.id))return;
     others.push(L.polyline(s.ref.map(p=>sectorLatLon(p[0],p[1],s.origin)),{color:'#ffb020',weight:2,opacity:0.8,dashArray:'6 6'}).bindTooltip(s.name).addTo(map));
   });
-  if(leafletMap&&mapBaseLine)map.fitBounds(mapBaseLine.getBounds(),{padding:[20,20]});
-  else if(others.length)map.fitBounds(L.featureGroup(others).getBounds(),{padding:[30,30]});
-  else{
-    map.setView([-25,134],4);
-    if(navigator.geolocation)navigator.geolocation.getCurrentPosition(p=>{try{map.setView([p.coords.latitude,p.coords.longitude],15);}catch{}},()=>{},{timeout:8000});
-  }
   const pts=[];
-  const line=L.polyline([],{color:'#ff2fd0',weight:5,opacity:0.95}).addTo(map);
+  if(edit){
+    const o=edit.origin;
+    _secSimplify(edit.ref.map(p=>[p[0],p[1]]),2).forEach(p=>pts.push(sectorLatLon(p[0],p[1],o)));
+  }
+  const hist=[];
+  const snap=()=>{hist.push(pts.map(p=>p.slice()));if(hist.length>100)hist.shift();};
+  let dirty=false;
+  const line=L.polyline([],{color:'#ff2fd0',weight:6,opacity:0.95}).addTo(map);
   let marks=[];
   const dot=(col,lbl,sz)=>L.divIcon({html:'<div style="width:'+sz+'px;height:'+sz+'px;border-radius:50%;background:'+col+';border:2px solid #000;box-shadow:0 1px 4px rgba(0,0,0,.7);display:flex;align-items:center;justify-content:center;font:700 9px -apple-system,sans-serif;color:#000;cursor:grab;">'+lbl+'</div>',iconSize:[sz+4,sz+4],iconAnchor:[(sz+4)/2,(sz+4)/2],className:''});
+  const updLen=()=>{
+    const el=document.getElementById('_secdraw_len');
+    if(el)el.textContent=pts.length>1?('≈ '+Math.round(_secDrawLen(pts))+' m · '+pts.length+' points'):(pts.length?'Now tap the next point':'Tap the start');
+  };
   const redraw=()=>{
     line.setLatLngs(pts);
     marks.forEach(m=>{try{map.removeLayer(m);}catch{}});marks=[];
     pts.forEach((p,i)=>{
       const first=i===0, last=i===pts.length-1&&pts.length>1;
-      const icon=first?dot('#2ee06a','S',18):last?dot('#f54040','F',18):dot('#ff2fd0','',10);
+      const icon=first?dot('#2ee06a','S',18):last?dot('#f54040','F',18):dot('#ff2fd0','',12);
       const m=L.marker(p,{icon,draggable:true,zIndexOffset:first||last?1000:500}).addTo(map);
-      m.on('dragend',ev=>{const ll=ev.target.getLatLng();pts[i]=[ll.lat,ll.lng];redraw();});
+      m.on('dragstart',()=>snap());
+      m.on('drag',ev=>{const ll=ev.target.getLatLng();pts[i]=[ll.lat,ll.lng];line.setLatLngs(pts);updLen();});
+      m.on('dragend',ev=>{const ll=ev.target.getLatLng();pts[i]=[ll.lat,ll.lng];dirty=true;redraw();});
+      m.on('contextmenu',ev=>{if(ev.originalEvent)L.DomEvent.preventDefault(ev.originalEvent);snap();pts.splice(i,1);dirty=true;redraw();});
       marks.push(m);
     });
-    const el=document.getElementById('_secdraw_len');
-    if(el)el.textContent=pts.length>1?('≈ '+Math.round(_secDrawLen(pts))+' m'):(pts.length?'Now tap the next point':'Tap the start');
+    updLen();
   };
-  map.on('click',e=>{pts.push([e.latlng.lat,e.latlng.lng]);redraw();});
+  line.on('click',e=>{
+    L.DomEvent.stopPropagation(e);
+    if(pts.length<2)return;
+    const o={lat:e.latlng.lat,lon:e.latlng.lng};
+    let bi=0,bd=Infinity;
+    for(let i=1;i<pts.length;i++){
+      const a=sectorXY(pts[i-1][0],pts[i-1][1],o), b=sectorXY(pts[i][0],pts[i][1],o);
+      const dx=b[0]-a[0],dy=b[1]-a[1],L2=dx*dx+dy*dy;
+      let t=L2?(-a[0]*dx-a[1]*dy)/L2:0;t=Math.max(0,Math.min(1,t));
+      const d=Math.hypot(a[0]+t*dx,a[1]+t*dy);
+      if(d<bd){bd=d;bi=i;}
+    }
+    snap();pts.splice(bi,0,[e.latlng.lat,e.latlng.lng]);dirty=true;redraw();
+  });
+  map.on('click',e=>{snap();pts.push([e.latlng.lat,e.latlng.lng]);dirty=true;redraw();});
+  if(edit&&pts.length>1)map.fitBounds(L.latLngBounds(pts),{padding:[40,40]});
+  else if(leafletMap&&mapBaseLine)map.fitBounds(mapBaseLine.getBounds(),{padding:[20,20]});
+  else if(others.length)map.fitBounds(L.featureGroup(others).getBounds(),{padding:[30,30]});
+  else{
+    map.setView([-25,134],4);
+    if(navigator.geolocation)navigator.geolocation.getCurrentPosition(p=>{try{map.setView([p.coords.latitude,p.coords.longitude],15);}catch{}},()=>{},{timeout:8000});
+  }
   const close=()=>{try{map.remove();}catch{}overlay.remove();};
   document.getElementById('_secdraw_close').onclick=close;
-  document.getElementById('_secdraw_undo').onclick=()=>{pts.pop();redraw();};
-  document.getElementById('_secdraw_clear').onclick=()=>{pts.length=0;redraw();};
+  document.getElementById('_secdraw_undo').onclick=()=>{if(!hist.length)return;const h=hist.pop();pts.length=0;h.forEach(p=>pts.push(p));dirty=true;redraw();};
+  document.getElementById('_secdraw_clear').onclick=()=>{snap();pts.length=0;dirty=true;redraw();};
   const save=()=>{
-    if(pts.length<2){toast('Tap at least a start and a finish');return;}
     const inp=document.getElementById('_secdraw_name');
     const name=((inp&&inp.value)||'').trim();
     if(!name){toast('Enter a sector name');if(inp)inp.focus();return;}
+    if(edit&&!dirty){
+      edit.name=name;edit.rev=Date.now();
+      saveSectors();if(SESSIONS.length)renderSectors();close();toast('Sector saved');return;
+    }
+    if(pts.length<2){toast('Tap at least a start and a finish');return;}
+    if(edit&&(edit.results||[]).length&&!confirm('Changing the course clears this sector\'s '+edit.results.length+' results and PB. Continue?'))return;
     const tr=_secDrawTrace(pts);
     const s=buildSectorFromTrace(tr,0,tr.length-1,name);
     if(!s){toast('Sector must be at least '+SECTOR_MIN_M+' m');return;}
-    SECTORS_DB.push(s);
+    if(edit){
+      const ix=SECTORS_DB.findIndex(x=>x.id===edit.id);if(ix<0)return;
+      s.id=edit.id;s.created=edit.created||s.created;SECTORS_DB[ix]=s;
+    }else SECTORS_DB.push(s);
     SESSIONS.forEach(x=>updateSectorsFromData(x.d,x.label,x.fileId,s.id));
     saveSectors();
     if(SESSIONS.length)renderSectors();
@@ -3243,7 +3306,7 @@ window.drawSector=function(){
   document.getElementById('_secdraw_save').onclick=save;
   document.getElementById('_secdraw_name').addEventListener('keydown',e=>{if(e.key==='Enter')save();});
   redraw();
-  setTimeout(()=>{try{map.invalidateSize();}catch{}},120);
+  setTimeout(()=>{try{map.invalidateSize();if(edit&&pts.length>1)map.fitBounds(L.latLngBounds(pts),{padding:[40,40]});}catch{}},150);
 };
 window.showSectorList=function(){
   if(!isPro()){showPlanModal('Sectors are a Pro feature.');return;}
@@ -3341,8 +3404,8 @@ window.editSector=function(id){
   panel.innerHTML='<div style="font-size:13px;font-weight:600;color:var(--text);margin-bottom:10px;">Edit sector</div>'
     +'<input type="text" id="_secedit_name" class="brsearch" style="width:100%;box-sizing:border-box;margin-bottom:6px;" value="'+_secEsc(sec.name)+'">'
     +'<div style="font-size:11px;color:var(--muted);margin-bottom:12px;">'+sec.distance+' m · '+((sec.results||[]).length)+' results</div>'
-    +'<div style="display:flex;flex-wrap:wrap;gap:8px;margin-bottom:8px;"><button class="dzbtn dzbtn-pri" id="_secedit_save">Save name</button><button class="dzbtn dzbtn-sec" id="_secedit_redraw"><span>Redraw start / finish</span></button><button class="dzbtn dzbtn-sec" id="_secedit_cancel"><span>Cancel</span></button></div>'
-    +'<div style="font-size:10px;color:var(--muted);">Redraw uses the track of the open session and clears this sector\'s results and PB, then offers a rescan.</div>';
+    +'<div style="display:flex;flex-wrap:wrap;gap:8px;margin-bottom:8px;"><button class="dzbtn dzbtn-pri" id="_secedit_save">Save name</button><button class="dzbtn dzbtn-sec" id="_secedit_redraw"><span>Edit course on map</span></button><button class="dzbtn dzbtn-sec" id="_secedit_cancel"><span>Cancel</span></button></div>'
+    +'<div style="font-size:10px;color:var(--muted);">Changing the course clears this sector\'s results and PB, then offers a rescan.</div>';
   overlay.appendChild(panel);
   overlay.onclick=e=>{if(e.target===overlay)overlay.remove();};
   document.body.appendChild(overlay);
@@ -3357,8 +3420,7 @@ window.editSector=function(id){
   };
   document.getElementById('_secedit_redraw').onclick=()=>{
     overlay.remove();
-    if(!leafletMap||GPSTRACE.length<2){toast('Open a session with a GPS track first');return;}
-    window.startSectorCreate(id);
+    window.drawSector(id);
   };
 };
 window.deleteSector=function(id){
