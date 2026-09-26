@@ -2505,7 +2505,7 @@ function addSessionFromData(d, label, replace, fileId, squadCode) {
   const idx=SESSIONS.length;
   SESSIONS.push({label, d, fileId: fileId||null, squadCode: squadCode || d.squadCode || null});
   updateRecords(recordsTrace(d), label, d.sum&&d.sum.start_time, fileId, (d.sum&&d.sum.session_mode==='erg')?'erg':'water');
-  updateSectorsFromData(d, label, fileId);
+  if (!squadCode) updateSectorsFromData(d, label, fileId);   // squad-cloud loads are other rowers' sessions; own ones are scanned from Drive
   switchSession(idx);
 }
 function bestEffortForDistance(pts, targetDist) {
