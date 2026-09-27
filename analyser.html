@@ -5023,6 +5023,7 @@ function buildCards(sum) {
     ratio:()=>vals.ratio?card('c-ratio','Ratio',f2(vals.ratio.mean),'rec÷drive','ratio',tipOf('ratio')):'',
     schar:()=>vals.schar?card('c-schar','Stroke Char',f0(vals.schar.mean)+'%','','schar',tipOf('schar')):'',
     cdur:()=>vals.cdur?`<div class="card clickable${!vis.cdur?' dim':''}" id="card-cdur" data-vis="cdur" style="border-top:2px solid var(--mc-cdur)" title="${tipOf('cdur')}"><div class="lbl">Catch Dur</div><div class="val" style="color:var(--mc-cdur)">${f0(vals.cdur.mean)} ms</div><div class="sub">avg/stroke</div></div>`:'',
+    drivetime:()=>vals.drivetime?`<div class="card clickable${!vis.drivetime?' dim':''}" id="card-drivetime" data-vis="drivetime" style="border-top:2px solid var(--mc-oar)" title="${tipOf('drivetime')}"><div class="lbl">Drive Time</div><div class="val" style="color:var(--mc-oar)">${f0(vals.drivetime.mean)} ms</div><div class="sub">avg/stroke</div></div>`:'',
     driveaccel:()=>vals.driveaccel?card('c-driveaccel','Drive Accel',f1(vals.driveaccel.mean)+' m/s²','avg/stroke','driveaccel',tipOf('driveaccel')):'',
     recoveryaccel:()=>vals.recoveryaccel?card('c-recoveryaccel','Recovery Accel',f1(vals.recoveryaccel.mean)+' m/s²','avg/stroke','recoveryaccel',tipOf('recoveryaccel')):'',
     hr:()=>vals.hr?card('c-hr','Avg HR',f0(vals.hr.mean),'max '+f0(vals.hr.max)+' bpm','hr',tipOf('hr')):'',
