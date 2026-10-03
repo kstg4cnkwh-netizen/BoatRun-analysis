@@ -9250,7 +9250,7 @@ function renderStartupCalendar(){
     const ss=(byDay[_calSel]||[]).slice().sort((a,b)=>(a.p.approxTs||0)-(b.p.approxTs||0));
     const ids=planIds(_calSel);
     const dl=new Date(_calSel+'T12:00:00').toLocaleDateString('en-AU',{weekday:'long',day:'numeric',month:'long',year:'numeric'});
-    h+='<div id="cal-day" style="margin-top:10px;padding-top:8px;border-top:1px solid var(--border);">'
+    h+='<div id="cal-day" style="margin-top:22px;padding-top:14px;border-top:1px solid var(--border);">'
       +'<div style="font-size:.85rem;font-weight:700;margin-bottom:6px;">'+dl+'</div>'
       +'<div style="font-size:11px;color:var(--muted);margin-bottom:4px;">Sessions</div>';
     if(!ss.length)h+='<div style="font-size:12px;color:var(--muted);margin-bottom:8px;">No sessions on this day.</div>';
