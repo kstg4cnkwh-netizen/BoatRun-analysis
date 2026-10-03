@@ -7768,7 +7768,7 @@ async function showStartup(){
   document.getElementById('sz-openfile').onclick=()=>document.getElementById('fin').click();
   document.getElementById('sz-demo').onclick=()=>{ location.href = location.pathname + '?demo=demo1'; };
   const _backBtn=document.getElementById('sz-back'); if(_backBtn) _backBtn.onclick=()=>{el.style.display='none';el.innerHTML='';document.getElementById('app').style.display='block';};
-  _calFiles=[];_calOpen=null;renderStartupCalendar();
+  _calFiles=[];_calOpen=null;window._calAnchor=null;_calMonthOff=0;renderStartupCalendar();
   AnalyserDrive.pullPrefs().then(cur=>{if(!cur)return;wktCheckEnabled(cur);applyWorkoutsFromPrefs(cur.workouts);applyPlanFromPrefs(cur.workoutPlan);renderStartupCalendar();}).catch(()=>{});
   try{
     const cached=AnalyserDrive.cachedList('RowSess_');
@@ -9230,7 +9230,7 @@ function renderStartupCalendar(){
     h='<div class="sz-lhd" style="display:flex;align-items:center;gap:6px;">Calendar'
       +'<span style="margin-left:auto;display:flex;align-items:center;gap:6px;">'
       +'<button id="cal-today" class="filt-chip" style="'+CH+'">Today</button></span></div>'
-      +'<div id="cal-scroll" style="max-height:calc(100vh - 230px);min-height:260px;overflow-y:auto;padding-right:4px;position:relative;">';
+      +'<div id="cal-scroll" style="flex:1 1 auto;min-height:160px;overflow-y:auto;padding-right:4px;position:relative;">';
     for(let o=-back;o<=3;o++){
       const b=new Date(now.getFullYear(),now.getMonth()+o,1);
       h+='<div data-month="'+o+'" style="margin-bottom:12px;"><div style="font-size:.8rem;font-weight:700;margin:4px 0 6px;">'+mLabel(b.getFullYear(),b.getMonth())+'</div>'+monthGrid(b.getFullYear(),b.getMonth())+'</div>';
@@ -9250,7 +9250,7 @@ function renderStartupCalendar(){
     const ss=(byDay[_calSel]||[]).slice().sort((a,b)=>(a.p.approxTs||0)-(b.p.approxTs||0));
     const ids=planIds(_calSel);
     const dl=new Date(_calSel+'T12:00:00').toLocaleDateString('en-AU',{weekday:'long',day:'numeric',month:'long',year:'numeric'});
-    h+='<div style="margin-top:10px;padding-top:8px;border-top:1px solid var(--border);">'
+    h+='<div id="cal-day" style="margin-top:10px;padding-top:8px;border-top:1px solid var(--border);'+(wide?'flex:0 1 auto;max-height:55%;overflow-y:auto;':'')+'">'
       +'<div style="font-size:.85rem;font-weight:700;margin-bottom:6px;">'+dl+'</div>'
       +'<div style="font-size:11px;color:var(--muted);margin-bottom:4px;">Sessions</div>';
     if(!ss.length)h+='<div style="font-size:12px;color:var(--muted);margin-bottom:8px;">No sessions on this day.</div>';
@@ -9279,17 +9279,29 @@ function renderStartupCalendar(){
     }
     h+='</div>';
   }
-  const oldSc=document.getElementById('cal-scroll');
-  const keepTop=oldSc?oldSc.scrollTop:null;
+  /* Wide: the calendar pane fills the window height and stays in view; the
+     months scroll inside it and the selected day's details sit underneath. */
+  if(wide)el.style.cssText='display:flex;flex-direction:column;height:calc(100vh - 140px);position:sticky;top:12px;box-sizing:border-box;';
+  else el.style.cssText='';
   el.innerHTML=h;
+  /* Wide calendar scroll position is remembered as "which month is at the
+     top" (+ pixels into it), so it survives re-renders that add older months.
+     Default and Today = the current month at the top. */
   const sc=document.getElementById('cal-scroll');
-  const toToday=()=>{const t=sc&&sc.querySelector('[data-month="0"]');if(t)sc.scrollTop=t.offsetTop;};
-  if(sc){if(keepTop!=null)sc.scrollTop=keepTop;else toToday();}
+  if(sc){
+    const an=window._calAnchor||{m:0,dy:0};
+    const t=sc.querySelector('[data-month="'+an.m+'"]')||sc.querySelector('[data-month="0"]');
+    if(t)sc.scrollTop=t.offsetTop+(t.dataset.month==String(an.m)?an.dy:0);
+    sc.onscroll=()=>{
+      let best=null;
+      sc.querySelectorAll('[data-month]').forEach(d=>{if(d.offsetTop<=sc.scrollTop+1)best=d;});
+      if(best)window._calAnchor={m:+best.dataset.month,dy:sc.scrollTop-best.offsetTop};
+    };
+  }
   const cp=document.getElementById('cal-prev');if(cp)cp.onclick=()=>{_calMonthOff--;renderStartupCalendar();};
   const cn=document.getElementById('cal-next');if(cn)cn.onclick=()=>{_calMonthOff++;renderStartupCalendar();};
   document.getElementById('cal-today').onclick=()=>{
-    _calMonthOff=0;_calSel=todayK;renderStartupCalendar();
-    const s2=document.getElementById('cal-scroll');const t=s2&&s2.querySelector('[data-month="0"]');if(t)s2.scrollTop=t.offsetTop;
+    _calMonthOff=0;_calSel=todayK;window._calAnchor={m:0,dy:0};renderStartupCalendar();
   };
   el.querySelectorAll('[data-day]').forEach(c=>{c.onclick=()=>{_calSel=(_calSel===c.dataset.day)?null:c.dataset.day;renderStartupCalendar();};});
   if(_calSel){
