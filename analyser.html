@@ -2557,6 +2557,21 @@ function bestEffortForDistance(pts, targetDist) {
     const elapsedMs=pts[j].t-startT;
     if (elapsedMs>0 && elapsedMs<bestMs) bestMs=elapsedMs;
   }
+  /* Second pass: windows that START on a GPS point with the end interpolated.
+     Checking only windows that end on a point could miss the fastest stretch
+     by up to a sample, which let a 1000m best show a faster pace than the
+     500m best inside it. Both passes together are exact. */
+  let k=1;
+  for (let s=0; s<pts.length-1; s++) {
+    const goal=pts[s].dist+targetDist;
+    if (k<=s) k=s+1;
+    while (k<pts.length && pts[k].dist<goal) k++;
+    if (k>=pts.length) break;
+    const d0=pts[k-1].dist, d1=pts[k].dist, t0=pts[k-1].t, t1=pts[k].t;
+    const endT = d1>d0 ? t0+(goal-d0)/(d1-d0)*(t1-t0) : t1;
+    const elapsedMs=endT-pts[s].t;
+    if (elapsedMs>0 && elapsedMs<bestMs) bestMs=elapsedMs;
+  }
   return bestMs===Infinity ? null : bestMs;
 }
 function computeBestEfforts(gpsTrace) {
@@ -2579,6 +2594,17 @@ function bestDistanceForDuration(pts, targetMs) {
     if (t1>t0) { const frac=(timeAtStart-t0)/(t1-t0); startD=d0+frac*(d1-d0); }
     else startD=d0;
     const distCovered=pts[j].dist-startD;
+    if (distCovered>bestDist) bestDist=distCovered;
+  }
+  let k=1;
+  for (let s=0; s<pts.length-1; s++) {
+    const goal=pts[s].t+targetMs;
+    if (k<=s) k=s+1;
+    while (k<pts.length && pts[k].t<goal) k++;
+    if (k>=pts.length) break;
+    const t0=pts[k-1].t, t1=pts[k].t, d0=pts[k-1].dist, d1=pts[k].dist;
+    const endD = t1>t0 ? d0+(goal-t0)/(t1-t0)*(d1-d0) : d1;
+    const distCovered=endD-pts[s].dist;
     if (distCovered>bestDist) bestDist=distCovered;
   }
   return bestDist===-Infinity ? null : bestDist;
