@@ -8009,7 +8009,9 @@ async function showStartup(){
           return sortDir==='desc'?vb-va:va-vb;
         });
       }
-      shown.forEach(f=>{
+      /* One builder for a session row, shared by this list and the calendar's
+         daily session list so both look and behave the same. */
+      const makeRow=f=>{
         const p=parseFn(f.name);
         const dateStr=p.approxTs
           ?new Date(p.approxTs).toLocaleDateString('en-AU',{day:'numeric',month:'short',year:'numeric'})+' '+new Date(p.approxTs).toLocaleTimeString('en-AU',{hour:'2-digit',minute:'2-digit'})
@@ -8058,6 +8060,7 @@ async function showStartup(){
 
         if(p.name){const nameDiv=document.createElement('div');nameDiv.style.cssText='font-weight:700;font-size:.85rem;color:var(--text);margin-bottom:2px;';nameDiv.textContent=p.name;btn.appendChild(nameDiv);}
         btn.appendChild(dateDiv);btn.appendChild(statsDiv);
+        if(typeof f.description==='string'&&f.description.trim()){const nd=document.createElement('div');nd.style.cssText='font-size:12px;color:var(--text);opacity:.85;white-space:pre-wrap;margin-top:4px;';nd.textContent='📝 '+f.description.trim();btn.appendChild(nd);}
 
         const del=document.createElement('button');del.className='sz-del';del.innerHTML='<img src="icons/Delete.svg">';del.title='Delete from Drive';
         del.onclick=async()=>{
@@ -8067,8 +8070,10 @@ async function showStartup(){
           catch(e){toast('Delete failed: '+e.message);del.innerHTML='<img src="icons/Delete.svg">';del.disabled=false;}
         };
         row.appendChild(star);row.appendChild(btn);row.appendChild(del);
-        container.appendChild(row);
-      });
+        return row;
+      };
+      {const _first=!_calMakeRow;_calMakeRow=makeRow;if(_first&&!_wktCtx&&_calSel)renderStartupCalendar();}
+      shown.forEach(f=>container.appendChild(makeRow(f)));
       if(!shown.length){
         const empty=document.createElement('div');
         empty.style.cssText='color:var(--muted);font-size:.85rem;padding:8px 0;';
@@ -9239,7 +9244,7 @@ document.addEventListener('visibilitychange',()=>{if(document.visibilityState===
 window.addEventListener('focus',wktRecheck);
 // ── Workout plan (calendar) — synced to Metrics as prefs.workoutPlan ───────
 let WKT_PLAN=(()=>{try{const v=JSON.parse(localStorage.getItem('br_wkt_plan')||'{}');return v&&typeof v==='object'&&!Array.isArray(v)?v:{};}catch{return {};}})();
-let _planPushTimer=null, _calMonthOff=0, _calSel=null, _calFiles=[], _calOpen=null;
+let _planPushTimer=null, _calMonthOff=0, _calSel=null, _calFiles=[], _calOpen=null, _calMakeRow=null;
 function mergePlans(a,b){const o={...(a||{})};Object.keys(b||{}).forEach(k=>{const x=b[k];if(!x||!Array.isArray(x.ids))return;if(!o[k]||(x.rev||0)>(o[k].rev||0))o[k]=x;});return o;}
 function _planSig(p){return JSON.stringify(Object.keys(p||{}).sort().map(k=>[k,p[k]]));}
 function savePlan(){
@@ -9269,7 +9274,11 @@ function planIds(day){const e=WKT_PLAN[day];return (e&&Array.isArray(e.ids))?e.i
 function planAdd(day,id){const ids=planIds(day);ids.push(id);WKT_PLAN[day]={ids,rev:Date.now()};savePlan();}
 function planRemove(day,i){const ids=planIds(day);ids.splice(i,1);WKT_PLAN[day]={ids,rev:Date.now()};savePlan();}
 function _dayKey(ts){const d=new Date(ts);return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');}
-const CAL_WATER_COL='#007aff', CAL_ERG_COL='#c0392b';
+const CAL_WATER_COL='#007aff', CAL_ERG_COL='#c0392b', CAL_COACH_COL='#ffcc00';
+/* Workouts that came from a squad coach: imported copies carry an id of
+   sq<CODE>_<id>; in the squad view itself every workout is the coach's. */
+function _isCoachWkt(id){return !!_wktCtx||/^sq[A-Z0-9]{3,12}_/.test(String(id||''));}
+function _coachMark(id,big){return _isCoachWkt(id)?'<span title="From coach" style="display:inline-block;flex-shrink:0;width:'+(big?10:6)+'px;height:'+(big?10:6)+'px;border-radius:50%;background:'+CAL_COACH_COL+';box-shadow:0 0 0 1px rgba(0,0,0,.35);margin-right:'+(big?6:3)+'px;vertical-align:middle;"></span>':'';}
 function _wktDispName(w){
   const n=String((w&&w.name)||'');
   if(!w||w.venue!=='erg')return n;
@@ -9309,7 +9318,7 @@ function renderStartupCalendar(){
       g+='<div data-day="'+k+'" style="min-height:52px;padding:3px;border-radius:6px;cursor:pointer;overflow:hidden;border:1px solid '+(sel?'var(--b)':'var(--border)')+';background:'+(sel?'var(--s3)':'var(--s2)')+';">'
         +'<div style="font-size:11px;font-weight:'+(today?'800':'500')+';color:'+(today?'var(--b)':'var(--text)')+';">'+d+'</div>'
         +'<div style="display:flex;gap:2px;flex-wrap:wrap;align-items:center;margin:2px 0;">'+ss.slice(0,5).map(dot).join('')+'</div>'
-        +pl.slice(0,2).map(id=>'<div style="font-size:9px;line-height:1.3;background:'+(wById[id].venue==='erg'?CAL_ERG_COL:CAL_WATER_COL)+';color:#fff;border-radius:3px;padding:0 3px;margin-top:1px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">'+_secEsc(_wktDispName(wById[id]))+'</div>').join('')
+        +pl.slice(0,2).map(id=>'<div style="font-size:9px;line-height:1.3;background:'+(wById[id].venue==='erg'?CAL_ERG_COL:CAL_WATER_COL)+';color:#fff;border-radius:3px;padding:0 3px;margin-top:1px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">'+_coachMark(id,false)+_secEsc(_wktDispName(wById[id]))+'</div>').join('')
         +(pl.length>2?'<div style="font-size:9px;color:var(--muted);">+'+(pl.length-2)+'</div>':'')
         +'</div>';
     }
@@ -9370,6 +9379,7 @@ function renderStartupCalendar(){
       if(w&&!planShown(_calSel,w))return;
       const bg=w?(w.venue==='erg'?CAL_ERG_COL:CAL_WATER_COL):'#8e8e93';
       h+='<div style="display:flex;align-items:center;gap:6px;padding:8px 10px;margin-bottom:5px;border-radius:10px;background:'+bg+';color:#fff;font-size:13px;font-weight:700;">'
+        +_coachMark(id,true)
         +'<span style="flex:1;">'+(w?_secEsc(_wktDispName(w)):'Deleted workout')+((w&&w.note)?'<span style="display:block;font-size:11px;font-weight:500;opacity:.9;white-space:pre-wrap;margin-top:2px;">'+_secEsc(w.note)+'</span>':'')+'</span>'
         +((_wktCtx&&!sqCanEdit())
           ?(w?'<button data-caldet="'+_secEsc(id)+'" style="border:none;background:rgba(255,255,255,.25);color:#fff;border-radius:8px;padding:4px 10px;font-size:11px;font-weight:700;cursor:pointer;font-family:inherit;margin-right:4px;">Details</button>'+'<button data-calimp="'+_secEsc(id)+'" style="border:none;background:#fff;color:'+bg+';border-radius:8px;padding:4px 10px;font-size:11px;font-weight:800;cursor:pointer;font-family:inherit;">IMPORT</button>':'')
@@ -9391,6 +9401,10 @@ function renderStartupCalendar(){
   el.innerHTML=hCal;
   const dayEl=document.getElementById('sz-calday');
   if(dayEl){dayEl.innerHTML=h;dayEl.style.display=h?'':'none';}
+  if(dayEl&&!_wktCtx&&typeof _calMakeRow==='function'&&_calSel){
+    const ssR=(byDay[_calSel]||[]).slice().sort((a,b)=>(a.p.approxTs||0)-(b.p.approxTs||0));
+    dayEl.querySelectorAll('[data-calsess]').forEach(c=>{const x=ssR[+c.dataset.calsess];if(x&&x.f&&x.f.name){try{const r=_calMakeRow(x.f);r.style.marginBottom='6px';c.replaceWith(r);}catch(e){}}});
+  }
   /* Wide calendar scroll position is remembered as "which month is at the
      top" (+ pixels into it), so it survives re-renders that add older months.
      Default and Today = the current month at the top. */
