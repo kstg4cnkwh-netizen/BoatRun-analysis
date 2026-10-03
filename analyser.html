@@ -8704,7 +8704,8 @@ function showPlanModal(msg){
 let WKT_ENABLED=(()=>{try{return localStorage.getItem('br_wkt_sync')==='1';}catch{return false;}})();
 function wktUpdateBtn(){const b=document.getElementById('wktbtn');if(b)b.style.display=WKT_ENABLED?'':'none';}
 function wktCheckEnabled(prefs){
-  if(WKT_ENABLED||!prefs||prefs.wktSync!==1)return;
+  if(WKT_ENABLED||!prefs)return;
+  if(prefs.wktSync!==1&&!Array.isArray(prefs.workouts))return;
   WKT_ENABLED=true;
   try{localStorage.setItem('br_wkt_sync','1');}catch{}
   wktUpdateBtn();
@@ -8972,6 +8973,17 @@ window.showWorkoutsModal=function(){
 };
 document.getElementById('wktbtn').onclick=window.showWorkoutsModal;
 wktUpdateBtn();
+/* Until workouts are on, re-check Drive whenever the page comes back into
+   view, so they switch on as soon as the phone has synced - no reload needed. */
+let _wktCheckT=0;
+function wktRecheck(){
+  if(WKT_ENABLED||!AnalyserDrive.isSignedIn())return;
+  if(Date.now()-_wktCheckT<15000)return;
+  _wktCheckT=Date.now();
+  AnalyserDrive.pullPrefs().then(cur=>{if(!cur)return;wktCheckEnabled(cur);if(WKT_ENABLED){applyWorkoutsFromPrefs(cur.workouts);applyPlanFromPrefs(cur.workoutPlan);try{renderStartupCalendar();}catch{}toast('Workouts are now available');}}).catch(()=>{});
+}
+document.addEventListener('visibilitychange',()=>{if(document.visibilityState==='visible')wktRecheck();});
+window.addEventListener('focus',wktRecheck);
 // ── Workout plan (calendar) — synced to Metrics as prefs.workoutPlan ───────
 let WKT_PLAN=(()=>{try{const v=JSON.parse(localStorage.getItem('br_wkt_plan')||'{}');return v&&typeof v==='object'&&!Array.isArray(v)?v:{};}catch{return {};}})();
 let _planPushTimer=null, _calMonthOff=0, _calSel=null, _calFiles=[], _calOpen=null;
