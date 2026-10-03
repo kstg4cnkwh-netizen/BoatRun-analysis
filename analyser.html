@@ -9265,9 +9265,9 @@ function showPlanPicker(day,venue){
     +'<button class="wkt-btn new-w" style="width:100%;margin-bottom:8px;" data-a="new">+ NEW WORKOUT</button>';
   if(!list.length)h+='<div style="text-align:center;padding:20px;color:#bbb;font-size:12px;">No '+(erg?'erg':'on-water')+' workouts yet.</div>';
   list.forEach(w=>{
-    h+='<div class="wkt-card'+(erg?' erg-item':'')+'"><div class="wkc-header" data-a="pick" data-id="'+_secEsc(w.id)+'">'
+    h+='<div class="wkt-card" style="border-left-color:'+(erg?CAL_ERG_COL:CAL_WATER_COL)+';"><div class="wkc-header" data-a="pick" data-id="'+_secEsc(w.id)+'">'
       +'<span class="wkc-name">'+_secEsc(_wktDispName(w))+'</span>'
-      +'<button class="wkt-btn load wkc-load-btn" data-a="pick" data-id="'+_secEsc(w.id)+'">+ ADD</button></div></div>';
+      +'<button class="wkt-btn load wkc-load-btn" style="background:'+(erg?CAL_ERG_COL:CAL_WATER_COL)+';color:#fff;" data-a="pick" data-id="'+_secEsc(w.id)+'">+ ADD</button></div></div>';
   });
   panel.innerHTML=h;
   panel.onclick=e=>{
