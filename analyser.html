@@ -9230,7 +9230,7 @@ function renderStartupCalendar(){
     h='<div class="sz-lhd" style="display:flex;align-items:center;gap:6px;">Calendar'
       +'<span style="margin-left:auto;display:flex;align-items:center;gap:6px;">'
       +'<button id="cal-today" class="filt-chip" style="'+CH+'">Today</button></span></div>'
-      +'<div id="cal-scroll" style="flex:1 1 auto;min-height:160px;overflow-y:auto;padding-right:4px;position:relative;">';
+      +'<div id="cal-scroll" style="height:min(440px,62vh);overflow-y:auto;padding-right:4px;position:relative;">';
     for(let o=-back;o<=3;o++){
       const b=new Date(now.getFullYear(),now.getMonth()+o,1);
       h+='<div data-month="'+o+'" style="margin-bottom:12px;"><div style="font-size:.8rem;font-weight:700;margin:4px 0 6px;">'+mLabel(b.getFullYear(),b.getMonth())+'</div>'+monthGrid(b.getFullYear(),b.getMonth())+'</div>';
@@ -9250,7 +9250,7 @@ function renderStartupCalendar(){
     const ss=(byDay[_calSel]||[]).slice().sort((a,b)=>(a.p.approxTs||0)-(b.p.approxTs||0));
     const ids=planIds(_calSel);
     const dl=new Date(_calSel+'T12:00:00').toLocaleDateString('en-AU',{weekday:'long',day:'numeric',month:'long',year:'numeric'});
-    h+='<div id="cal-day" style="margin-top:10px;padding-top:8px;border-top:1px solid var(--border);'+(wide?'flex:0 1 auto;max-height:55%;overflow-y:auto;':'')+'">'
+    h+='<div id="cal-day" style="margin-top:10px;padding-top:8px;border-top:1px solid var(--border);">'
       +'<div style="font-size:.85rem;font-weight:700;margin-bottom:6px;">'+dl+'</div>'
       +'<div style="font-size:11px;color:var(--muted);margin-bottom:4px;">Sessions</div>';
     if(!ss.length)h+='<div style="font-size:12px;color:var(--muted);margin-bottom:8px;">No sessions on this day.</div>';
@@ -9279,10 +9279,9 @@ function renderStartupCalendar(){
     }
     h+='</div>';
   }
-  /* Wide: the calendar pane fills the window height and stays in view; the
-     months scroll inside it and the selected day's details sit underneath. */
-  if(wide)el.style.cssText='display:flex;flex-direction:column;height:calc(100vh - 140px);position:sticky;top:12px;box-sizing:border-box;';
-  else el.style.cssText='';
+  /* Wide: the months scroll in a fixed-height box (about one month high);
+     the selected day's details sit underneath at full size. */
+  el.style.cssText='';
   el.innerHTML=h;
   /* Wide calendar scroll position is remembered as "which month is at the
      top" (+ pixels into it), so it survives re-renders that add older months.
