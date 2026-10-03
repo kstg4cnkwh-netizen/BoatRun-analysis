@@ -9170,7 +9170,7 @@ window.showWorkoutsModal=function(opts){
     if(a==='tpace'&&s){if(s.targetPace!=null)delete s.targetPace;else s.targetPace=120;renderEdit();return;}
     if(a==='arate'&&s&&s.targetRate!=null){s.targetRate=Math.max(10,Math.min(50,s.targetRate+d));renderEdit();return;}
     if(a==='apace'&&s&&s.targetPace!=null){s.targetPace=Math.max(60,Math.min(300,s.targetPace+d*2));renderEdit();return;}
-    if(a==='cancel'){if(opts.newVenue){overlay.remove();return;}edit=null;sel=new Set();renderList();return;}
+    if(a==='cancel'){if(opts.newVenue||opts.editId){overlay.remove();return;}edit=null;sel=new Set();renderList();return;}
     if(a==='save'){
       const name=String(edit.name||'').trim();
       if(!name){alert('Enter a workout name');return;}
@@ -9185,10 +9185,17 @@ window.showWorkoutsModal=function(opts){
       _wktVenueView=w.venue==='erg'?'erg':'water';
       saveWorkoutsDB();
       if(opts.onSaved&&opts.newVenue){overlay.remove();try{opts.onSaved(w.id);}catch{}return;}
+      if(opts.editId){overlay.remove();try{renderStartupCalendar();}catch{}toast('"'+name+'" saved');return;}
       edit=null;sel=new Set();openId=w.id;renderList();toast('"'+name+'" saved');
     }
   };
-  if(opts.newVenue){
+  const _ew=opts.editId?WORKOUTS_DB.find(x=>x&&x.id===opts.editId&&!x.deleted):null;
+  if(_ew){
+    _wktVenueView=isErgW(_ew)?'erg':'water';
+    edit=JSON.parse(JSON.stringify(_ew));
+    if(!edit.startMode)edit.startMode=JSON.stringify(edit.steps||[]).indexOf('"startWhenRowing":true')>=0?'rowing':'lap5';
+    edit.steps=edit.steps||[];ensureBookends();sel=new Set();renderEdit();
+  }else if(opts.newVenue){
     const erg=opts.newVenue==='erg';
     _wktVenueView=erg?'erg':'water';
     edit={id:Date.now().toString(),name:'',venue:erg?'erg':'water',startMode:'lap5',steps:erg?[newStep('work')]:[newStep('warmup'),newStep('work'),newStep('cooldown')],_new:true};
@@ -9345,7 +9352,8 @@ function renderStartupCalendar(){
         +'<span style="flex:1;">'+(w?_secEsc(_wktDispName(w)):'Deleted workout')+((w&&w.note)?'<span style="display:block;font-size:11px;font-weight:500;opacity:.9;white-space:pre-wrap;margin-top:2px;">'+_secEsc(w.note)+'</span>':'')+'</span>'
         +((_wktCtx&&!sqCanEdit())
           ?(w?'<button data-calimp="'+_secEsc(id)+'" style="border:none;background:#fff;color:'+bg+';border-radius:8px;padding:4px 10px;font-size:11px;font-weight:800;cursor:pointer;font-family:inherit;">IMPORT</button>':'')
-          :'<button data-calrm="'+i+'" style="border:none;background:rgba(255,255,255,.25);color:#fff;border-radius:8px;padding:4px 10px;font-size:11px;font-weight:700;cursor:pointer;font-family:inherit;">Remove</button>')
+          :((w?'<button data-caledit="'+_secEsc(id)+'" style="border:none;background:rgba(255,255,255,.25);color:#fff;border-radius:8px;padding:4px 10px;font-size:11px;font-weight:700;cursor:pointer;font-family:inherit;margin-right:4px;">Edit</button>':'')
+            +'<button data-calrm="'+i+'" style="border:none;background:rgba(255,255,255,.25);color:#fff;border-radius:8px;padding:4px 10px;font-size:11px;font-weight:700;cursor:pointer;font-family:inherit;">Remove</button>'))
         +'</div>';
     });
     const BB='flex:1;padding:10px 6px;border-radius:10px;border:none;font-family:-apple-system,Roboto,sans-serif;font-size:11px;font-weight:700;letter-spacing:.06em;cursor:pointer;color:#fff;';
@@ -9391,6 +9399,7 @@ function renderStartupCalendar(){
     const dRoot=dayEl||el;
     dRoot.querySelectorAll('[data-calsess]').forEach(c=>{c.onclick=()=>{const x=ss[+c.dataset.calsess];if(x&&_calOpen)_calOpen(x.f,x.p,c);};});
     dRoot.querySelectorAll('[data-calrm]').forEach(b=>{b.onclick=()=>{planRemove(_calSel,+b.dataset.calrm);renderStartupCalendar();};});
+    dRoot.querySelectorAll('[data-caledit]').forEach(b=>{b.onclick=()=>window.showWorkoutsModal({editId:b.dataset.caledit});});
     dRoot.querySelectorAll('[data-calimp]').forEach(b=>{b.onclick=()=>sqImportWorkout(b.dataset.calimp,_calSel);});
     const aw=document.getElementById('cal-add-water');
     if(aw)aw.onclick=()=>showPlanPicker(_calSel,'water');
