@@ -2645,27 +2645,55 @@ window.excludeRecord=function(mode, target){
     document.getElementById('_sum-rescan')?.click();
   }
 };
+/* A record's fileId goes stale when the Drive file is replaced (rename,
+   re-upload, dedupe) or was never a Drive id. On failure, find the session's
+   file again by its start time in the filename and repair the record. */
+async function recordFindFile(r, mode){
+  if(!r||!r.date)return null;
+  const t=new Date(r.date).getTime();if(!isFinite(t))return null;
+  const pick=list=>{
+    let best=null,bd=Infinity;
+    (list||[]).forEach(f=>{
+      const mm=String(f.name||'').match(/RowSess_(\d{4})-(\d{2})-(\d{2})_(\d{2})(\d{2})/);if(!mm)return;
+      if((mode==='erg')!==/_ERG(?:_|\.)/.test(f.name))return;
+      const dd=Math.abs(new Date(+mm[1],+mm[2]-1,+mm[3],+mm[4],+mm[5]).getTime()-t);
+      if(dd<bd){bd=dd;best=f;}
+    });
+    return bd<=120000?best:null;
+  };
+  let f=pick(AnalyserDrive.cachedList('RowSess_'));
+  if(!f)f=pick(await AnalyserDrive.list());
+  return f;
+}
+async function loadRecordEntry(r, mode){
+  if(!r)return;
+  let fid=r.fileId, session=null;
+  if(fid){
+    try{session=await AnalyserDrive.fetchSession(fid);}
+    catch(err){if(driveAuthExpired(err))return;session=null;}
+  }
+  if(!session){
+    let f=null;
+    try{f=await recordFindFile(r,mode);}catch(err){if(driveAuthExpired(err))return;}
+    if(!f){toast('Load failed: this session is no longer on Drive');return;}
+    try{session=await AnalyserDrive.fetchSession(f.id);}
+    catch(err){if(!driveAuthExpired(err))toast('Load failed: '+err.message);return;}
+    fid=f.id;
+    r.fileId=fid;
+    try{localStorage.setItem('br_records',JSON.stringify(RECORDS_DB));}catch{}
+    if(AnalyserDrive.isSignedIn())AnalyserDrive.pushPrefs({records:RECORDS_DB}).catch(()=>{});
+  }
+  applySessionUnits(session);
+  addSessionFromData(sessionToAnalyserFmt(session), r.label||'Session', true, fid);
+}
 window.loadRecordSession=async function(dist, mode){
   const m = mode==='erg' ? 'erg' : 'water';
-  const r=RECORDS_DB[m][dist];
-  if (!r||!r.fileId) return;
-  try{
-    const session=await AnalyserDrive.fetchSession(r.fileId);
-    applySessionUnits(session);
-    addSessionFromData(sessionToAnalyserFmt(session), r.label||'Session', true, r.fileId);
-  }catch(err){ if(!driveAuthExpired(err)) toast('Load failed: '+err.message); }
+  await loadRecordEntry(RECORDS_DB[m]&&RECORDS_DB[m][dist], m);
 };
 window.loadRecordDurationSession=async function(ms, mode){
   const m = mode==='erg' ? 'erg' : 'water';
-  const r=RECORDS_DB[m].dur&&RECORDS_DB[m].dur[ms];
-  if (!r||!r.fileId) return;
-  try{
-    const session=await AnalyserDrive.fetchSession(r.fileId);
-    applySessionUnits(session);
-    addSessionFromData(sessionToAnalyserFmt(session), r.label||'Session', true, r.fileId);
-  }catch(err){ if(!driveAuthExpired(err)) toast('Load failed: '+err.message); }
+  await loadRecordEntry(RECORDS_DB[m]&&RECORDS_DB[m].dur&&RECORDS_DB[m].dur[ms], m);
 };
-
 // ══════════════════════════════════════════════════════════════════════════
 // SECTORS — datum track, gate crossings, session results, bests
 // ══════════════════════════════════════════════════════════════════════════
