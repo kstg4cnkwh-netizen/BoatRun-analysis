@@ -291,6 +291,13 @@
 .sz-prompt h2{font-size:1.1rem;font-weight:700;margin:0;}
 .sz-prompt p{font-size:.85rem;color:var(--muted);margin:0;}
 .sz-list{width:100%;max-width:480px;}
+.sz-sumcol{display:none;}
+@media (min-width:1200px){
+  .sz-list{max-width:1560px;}
+  .sz-grid{display:grid;grid-template-columns:minmax(0,1.05fr) minmax(0,1fr) minmax(0,1fr);gap:14px;align-items:start;}
+  .sz-grid>.brpill{margin-bottom:0;}
+  .sz-sumcol{display:block;}
+}
 .sz-lhd{font-size:.75rem;font-weight:600;letter-spacing:.1em;color:var(--muted);text-transform:uppercase;margin-bottom:2px;display:flex;align-items:center;justify-content:space-between;}
 .sz-signout{font-size:.75rem;color:var(--b);cursor:pointer;font-weight:400;text-transform:none;letter-spacing:0;}
 .sz-signout:hover{text-decoration:underline;}
@@ -621,7 +628,7 @@ body.light .hdrname{color:#fff;}
   #topBlock #cards{padding:0;}
   body .hdr-tabs .hmenu, body.light .hdr-tabs .hmenu{background:#fc4c02;}
   body .hdr-tabs, body.light .hdr-tabs{background:#fc4c02;}
-  .sz-list>.brpill{background:var(--sp-chart);}
+  .sz-list>.brpill,.sz-grid>.brpill{background:var(--sp-chart);}
   .info-col.info-fixed{display:flex;flex-direction:column;overflow:hidden;}
   #lapsec,#sectorsec{flex:1 1 auto;min-height:0;flex-direction:column;}
   #lapsec>.sec-hd,#lapsec>#lapcurvebar,#sectorsec>.sec-hd{flex:0 0 auto;}
@@ -2708,7 +2715,7 @@ window.excludeRecord=function(mode, target){
   try{localStorage.setItem('br_records',JSON.stringify(RECORDS_DB));}catch{}
   schedulePushRecordsToPrefs();
   renderRecords();
-  if (typeof window._sumRender==='function' && document.getElementById('_summary_modal')) {
+  if (typeof window._sumRender==='function' && (document.getElementById('_summary_modal')||document.getElementById('sz-sumbody'))) {
     window._sumRender();
     document.getElementById('_sum-rescan')?.click();
   }
@@ -7741,6 +7748,8 @@ async function showStartup(){
       <button class="dzbtn dzbtn-sec" id="sz-demo"><span>Demo session</span></button>
       ${(localStorage.getItem('_ad_legacy_done') === '1' || localStorage.getItem('_ad_legacy_empty') === '1') ? '' : '<button class="dzbtn dzbtn-sec" id="sz-oldacct"><span>Import old sessions</span></button>'}
     </div>
+    <div class="sz-grid">
+    <div class="brpill sz-sumcol"><div class="sz-lhd" style="margin-bottom:8px;">Summary</div><div id="sz-sumbody"></div></div>
     <div class="brpill" id="sz-cal"></div>
     <div class="brpill">
       <div class="sz-lhd">Sessions<span class="sz-signout" id="sz-signout">Sign out</span></div>
@@ -7748,7 +7757,9 @@ async function showStartup(){
       <div id="sz-filterbar" style="display:flex;gap:6px;margin-bottom:10px;flex-wrap:wrap;"></div>
       <div id="sz-files" class="sz-loading">Loading…</div>
     </div>
+    </div>
   </div>`;
+  szWideSummary();
   document.getElementById('sz-signout').onclick=()=>{AnalyserDrive.signOut();showStartup();};
   const _oldBtn=document.getElementById('sz-oldacct');
   if(_oldBtn) _oldBtn.onclick=()=>{ if(AnalyserDrive.isLegacyLinked()){ runLegacyMigration(); return; } toast('Sign in with the same Google account'); AnalyserDrive.signInLegacy(); };
@@ -8507,7 +8518,21 @@ async function showSummaryModal(){
   overlay.onclick=e=>{if(e.target===overlay)overlay.remove();};
   document.body.appendChild(overlay);
   document.getElementById('_sum_close').onclick=()=>overlay.remove();
-  const body=document.getElementById('_sum_body');
+  await renderSummaryInto(document.getElementById('_sum_body'));
+}
+/* Wide screens show the summary as a column on the start page, beside the
+   calendar and the session list. */
+const SZ_WIDE_MQ=window.matchMedia('(min-width:1200px)');
+function szWideSummary(){
+  const b=document.getElementById('sz-sumbody');
+  if(!b||!SZ_WIDE_MQ.matches||b.dataset.done)return;
+  b.dataset.done='1';
+  b.innerHTML='<div class="sz-loading">Loading…</div>';
+  renderSummaryInto(b).catch(()=>{b.innerHTML='<div class="sz-loading">Could not load summary.</div>';});
+}
+try{SZ_WIDE_MQ.addEventListener('change',szWideSummary);}catch(e){try{SZ_WIDE_MQ.addListener(szWideSummary);}catch(e2){}}
+async function renderSummaryInto(body){
+  if(!body)return;
   if(!AnalyserDrive.isSignedIn()){
     body.innerHTML='<div class="sz-loading">Sign in to Google Drive to see your summary.</div>';
     return;
@@ -8548,7 +8573,7 @@ async function showSummaryModal(){
         render();
       };
     });
-    const rescanBtn=document.getElementById('_sum-rescan');
+    const rescanBtn=body.querySelector('#_sum-rescan');
     if(rescanBtn) rescanBtn.onclick=async()=>{
       rescanBtn.disabled=true;
       for(let idx=0; idx<files.length; idx++){
@@ -8564,7 +8589,7 @@ async function showSummaryModal(){
       }
       render();
     };
-    const clrBtn=document.getElementById('_sum-clearexcl');
+    const clrBtn=body.querySelector('#_sum-clearexcl');
     if(clrBtn) clrBtn.onclick=()=>{
       if(!confirm('Clear all excluded results? Scan All for Records afterwards to restore them.'))return;
       RECORDS_DB={...RECORDS_DB,excl:{},gen:Date.now()};
@@ -8574,7 +8599,7 @@ async function showSummaryModal(){
       render();
     };
     window._sumRender=render;
-    const resetBtn=document.getElementById('_sum-resetrecords');
+    const resetBtn=body.querySelector('#_sum-resetrecords');
     if(resetBtn) resetBtn.onclick=()=>{
       if(!confirm('Reset all Personal Bests? Re-scan to restore.'))return;
       RECORDS_DB={water:{dur:{}},erg:{dur:{}},gen:Date.now(),excl:{...(RECORDS_DB.excl||{})}};
@@ -9219,7 +9244,7 @@ function renderStartupCalendar(){
         +'<span style="flex:1;">'+(w?_secEsc(_wktDispName(w)):'Deleted workout')+'</span>'
         +'<button data-calrm="'+i+'" style="border:none;background:rgba(255,255,255,.25);color:#fff;border-radius:8px;padding:4px 10px;font-size:11px;font-weight:700;cursor:pointer;font-family:inherit;">Remove</button></div>';
     });
-    const BB='flex:1;padding:10px 6px;border-radius:10px;border:none;font-family:-apple-system,"Roboto",sans-serif;font-size:11px;font-weight:700;letter-spacing:.06em;cursor:pointer;color:#fff;';
+    const BB='flex:1;padding:10px 6px;border-radius:10px;border:none;font-family:-apple-system,Roboto,sans-serif;font-size:11px;font-weight:700;letter-spacing:.06em;cursor:pointer;color:#fff;';
     h+='<div style="display:flex;gap:6px;margin-top:10px;">'
       +'<button id="cal-add-water" style="'+BB+'background:'+CAL_WATER_COL+';">+ ON-WATER WORKOUT</button>'
       +'<button id="cal-add-erg" style="'+BB+'background:'+CAL_ERG_COL+';">+ ERG WORKOUT</button></div>';
