@@ -7769,6 +7769,7 @@ async function showStartup(){
   document.getElementById('sz-openfile').onclick=()=>document.getElementById('fin').click();
   document.getElementById('sz-demo').onclick=()=>{ location.href = location.pathname + '?demo=demo1'; };
   const _backBtn=document.getElementById('sz-back'); if(_backBtn) _backBtn.onclick=()=>{el.style.display='none';el.innerHTML='';document.getElementById('app').style.display='block';};
+  leaveSquadCalendar(true);
   _calFiles=[];_calOpen=null;window._calAnchor=null;_calMonthOff=0;renderStartupCalendar();
   AnalyserDrive.pullPrefs().then(cur=>{if(!cur)return;wktCheckEnabled(cur);applyWorkoutsFromPrefs(cur.workouts);applyPlanFromPrefs(cur.workoutPlan);renderStartupCalendar();}).catch(()=>{});
   try{
@@ -7900,7 +7901,7 @@ async function showStartup(){
       catch(err){if(!driveAuthExpired(err)){toast('Load failed: '+err.message);if(el){el.style.opacity='';el.style.pointerEvents='';}}}
     };
     function renderList(){
-      _calFiles=fileList.map(f=>({f,p:parseFn(f.name)}));_calOpen=openSessFile;renderStartupCalendar();
+      {const _cf=fileList.map(f=>({f,p:parseFn(f.name)}));if(_wktCtx){_calPersonal={files:_cf,open:openSessFile};}else{_calFiles=_cf;_calOpen=openSessFile;renderStartupCalendar();}}
       renderSummary();
       renderRecords();
       container.innerHTML='';
@@ -8748,6 +8749,7 @@ function mergeWorkoutLists(a,b){
 }
 function _wktSig(list){return JSON.stringify((list||[]).slice().sort((p,q)=>String(p.id).localeCompare(String(q.id))));}
 function saveWorkoutsDB(){
+  if(_wktCtx){if(_sqStore)_sqStore.workouts=WORKOUTS_DB;sqSchedulePush();try{renderStartupCalendar();}catch{}return;}
   try{localStorage.setItem('br_workouts',JSON.stringify(WORKOUTS_DB));}catch{toast('Workouts not saved — storage error');}
   schedulePushWorkoutsToPrefs();
   try{renderStartupCalendar();}catch{}
@@ -8757,18 +8759,18 @@ function schedulePushWorkoutsToPrefs(){
   clearTimeout(_wktPushTimer);
   _wktPushTimer=setTimeout(()=>{
     AnalyserDrive.pullPrefs().then(cur=>{
-      if(cur&&Array.isArray(cur.workouts)){WORKOUTS_DB=mergeWorkoutLists(WORKOUTS_DB,cur.workouts);try{localStorage.setItem('br_workouts',JSON.stringify(WORKOUTS_DB));}catch{}}
-      return AnalyserDrive.pushPrefs({workouts:WORKOUTS_DB});
+      if(cur&&Array.isArray(cur.workouts)){_pWset(mergeWorkoutLists(_pW(),cur.workouts));try{localStorage.setItem('br_workouts',JSON.stringify(_pW()));}catch{}}
+      return AnalyserDrive.pushPrefs({workouts:_pW()});
     }).then(ok=>{if(ok===false)toast('Workouts not synced — check Drive');}).catch(()=>{});
   },1500);
 }
 function applyWorkoutsFromPrefs(remote){
   if(!WKT_ENABLED)return;
   const r=Array.isArray(remote)?remote:[];
-  const before=_wktSig(WORKOUTS_DB);
-  WORKOUTS_DB=mergeWorkoutLists(WORKOUTS_DB,r);
-  if(_wktSig(WORKOUTS_DB)!==before){try{localStorage.setItem('br_workouts',JSON.stringify(WORKOUTS_DB));}catch{}}
-  if(_wktSig(WORKOUTS_DB)!==_wktSig(mergeWorkoutLists([],r)))schedulePushWorkoutsToPrefs();
+  const before=_wktSig(_pW());
+  _pWset(mergeWorkoutLists(_pW(),r));
+  if(_wktSig(_pW())!==before){try{localStorage.setItem('br_workouts',JSON.stringify(_pW()));}catch{}}
+  if(_wktSig(_pW())!==_wktSig(mergeWorkoutLists([],r)))schedulePushWorkoutsToPrefs();
 }
 function _wktOrdered(){const live=WORKOUTS_DB.filter(w=>!w.deleted);return live.map((w,i)=>({w,k:(typeof w.ord==='number')?w.ord:1e9+i})).sort((p,q)=>p.k-q.k).map(x=>x.w);}
 function moveWorkout(id,dir){
@@ -8804,7 +8806,7 @@ function _wktStepTxt(s){
 const _WKT_MODAL_CSS="#_wkt_modal .layout-size-row{display:flex;gap:2px;background:#e9e9ec;border-radius:9px;padding:2px;margin-bottom:8px;}\n#_wkt_modal .layout-size-btn{flex:1;padding:7px 6px;border-radius:7px;border:none;background:transparent;font-family:-apple-system,\"Roboto\",sans-serif;font-size:11px;font-weight:600;cursor:pointer;color:#555;touch-action:manipulation;-webkit-tap-highlight-color:transparent;transition:background .15s;}\n#_wkt_modal .layout-size-btn.sel{background:#007aff;color:#fff;box-shadow:0 1px 2px rgba(0,0,0,.15);}\n#_wkt_modal .setup-input{width:100%;padding:9px 10px;border-radius:10px;border:1px solid #ddd;font-family:-apple-system,\"Roboto\",sans-serif;font-size:13px;margin-bottom:8px;-webkit-appearance:none;appearance: none;}\n#_wkt_modal .wkt-card{background:#fff;border-radius:12px;margin-bottom:6px;border-left:4px solid #ff9500;box-shadow:0 1px 3px rgba(0,0,0,.07);overflow:hidden;}\n#_wkt_modal .wkc-header{display:flex;align-items:center;padding:10px 12px;cursor:pointer;gap:8px;user-select:none;}\n#_wkt_modal .wkc-name{font-size:13px;font-weight:700;color:#000;flex:1;}\n#_wkt_modal .wkc-arrow{font-size:10px;color:#aaa;display:inline-block;transition:transform .2s;flex-shrink:0;}\n#_wkt_modal .wkc-arrow.open{transform:rotate(90deg);}\n#_wkt_modal .wkc-load-btn{flex:0 0 auto;padding:6px 10px;font-size:9px;}\n#_wkt_modal .wkc-body{display:none;padding:0 12px 10px;border-top:1px solid #f0f0f0;}\n#_wkt_modal .wkc-body.open{display:block;}\n#_wkt_modal #wkt-builder-wrap.in-card{margin-top:4px;}\n#_wkt_modal #wkt-builder-wrap.in-card .wkt-builder{background:none;box-shadow:none;border-radius:0;padding:6px 0 0;}\n#_wkt_modal .wkt-builder{background:#fff;border-radius:12px;padding:12px;margin-bottom:6px;box-shadow:0 1px 3px rgba(0,0,0,.07);}\n#_wkt_modal /* Step rows in builder */\n.step-row{display:flex;align-items:center;gap:4px;padding:4px 0;border-bottom:1px solid #f0f0f0;user-select:none;flex-wrap:wrap;box-sizing:border-box;min-width:0;max-width:100%;}\n#_wkt_modal .wkt-target-row{flex-basis:100%;width:100%;box-sizing:border-box;display:flex;flex-direction:column;gap:3px;align-items:stretch;padding:3px 0 0 26px;min-width:0;}\n#_wkt_modal .wkt-target-item{display:flex;align-items:center;gap:8px;min-width:0;}\n#_wkt_modal .wkt-target-tog{font-size:9px;font-weight:700;letter-spacing:.08em;padding:2px 6px;border-radius:10px;border:1px solid #ccc;background:#eee;color:#999;cursor:pointer;touch-action:manipulation;}\n#_wkt_modal .wkt-target-tog.ton{background:#007aff;color:#fff;border-color:#007aff;}\n#_wkt_modal .wkt-target-val{font-size:12px;font-weight:700;min-width:34px;text-align:center;color:#222;}\n#_wkt_modal .wkt-target-val.tdim{color:#ccc;}\n#_wkt_modal .wkt-warn{font-size:9px;font-weight:700;letter-spacing:.08em;color:#ff3b30;background:rgba(192,57,43,.08);padding:2px 6px;border-radius:10px;display:none;flex-shrink:0;white-space:nowrap;}\n#_wkt_modal .step-row.step-sel{background:#f0f7ff;margin:0 -12px;padding:8px 12px;}\n#_wkt_modal .step-val-row{flex-basis:100%;width:100%;box-sizing:border-box;display:flex;align-items:center;gap:6px;padding:4px 0 0 26px;min-width:0;}\n#_wkt_modal .step-val-input{flex:1;min-width:0;text-align:center;font-size:25px;font-weight:800;padding:5px 4px;border:none;background:#f2f2f7;border-radius:12px;box-sizing:border-box;-webkit-appearance:none;appearance:none;font-family:-apple-system,\"Roboto\",sans-serif;color:#000;}\n#_wkt_modal .step-val-unit{font-size:11px;color:#8e8e93;font-weight:700;width:44px;flex-shrink:0;line-height:1.1;}\n#_wkt_modal .step-drag{color:#bbb;font-size:16px;cursor:grab;padding:0 4px;flex-shrink:0;}\n#_wkt_modal .step-check{width:18px;height:18px;border-radius:10px;border:2px solid #ddd;flex-shrink:0;cursor:pointer;display:flex;align-items:center;justify-content:center;}\n#_wkt_modal .step-check.checked{background:#007aff;border-color:#007aff;color:#fff;font-size:11px;}\n#_wkt_modal .step-badge{font-size:9px;font-weight:700;letter-spacing:.08em;padding:3px 7px;border-radius:10px;flex-shrink:0;cursor:pointer;}\n#_wkt_modal .step-badge.warmup{background:#64d2ff;color:#fff;}\n#_wkt_modal .step-badge.work{background:#34c759;color:#fff;}\n#_wkt_modal .step-badge.rest{background:#ff9500;color:#000;}\n#_wkt_modal .step-badge.cooldown{background:#af52de;color:#fff;}\n#_wkt_modal .step-dur{font-size:12px;font-weight:700;color:#000;flex:1;cursor:pointer;}\n#_wkt_modal .step-edit-btn{background:none;border:1px solid #ddd;border-radius:10px;padding:4px 8px;font-size:10px;color:#555;cursor:pointer;touch-action:manipulation;}\n#_wkt_modal .step-del{background:none;border:none;color:#ff3b30;font-size:18px;cursor:pointer;padding:0 4px;line-height:1;touch-action:manipulation;}\n#_wkt_modal .step-reorder{display:flex;flex-direction:column;gap:2px;flex-shrink:0;}\n#_wkt_modal .reorder-btn{background:none;border:none;color:#aaa;font-size:12px;cursor:pointer;padding:1px 4px;line-height:1;touch-action:manipulation;}\n#_wkt_modal /* Repeat group */\n.repeat-group{border:2px solid #007aff;border-radius:12px;padding:6px;margin:4px 0;}\n#_wkt_modal .repeat-group-hdr{display:flex;align-items:center;gap:8px;margin-bottom:3px;}\n#_wkt_modal .repeat-count-input{width:44px;font-size:14px;font-weight:700;padding:4px;border:1px solid #ddd;border-radius:10px;text-align:center;-webkit-appearance:none;appearance: none;}\n#_wkt_modal .skip-rest-row{display:flex;align-items:center;gap:8px;margin-top:6px;font-size:11px;color:#555;}\n#_wkt_modal .skip-rest-cb{width:16px;height:16px;}\n#_wkt_modal .repeat-inner-band{border:1.5px solid #ff9500;border-radius:10px;padding:0 8px;}\n#_wkt_modal .start-row-btn{background:none;border:1px solid #ddd;border-radius:10px;padding:3px 7px;font-size:9px;font-weight:700;letter-spacing:.05em;color:#aaa;cursor:pointer;touch-action:manipulation;flex-shrink:0;}\n#_wkt_modal .start-row-btn.active{background:#34c759;border-color:#34c759;color:#fff;}\n#_wkt_modal /* Add step buttons */\n.add-step-row{display:flex;gap:4px;flex-wrap:wrap;margin-top:8px;}\n#_wkt_modal .add-step-btn{padding:7px 10px;border-radius:10px;border:1px solid #ddd;background:#fff;font-family:-apple-system,\"Roboto\",sans-serif;font-size:10px;font-weight:700;cursor:pointer;touch-action:manipulation;}\n#_wkt_modal .add-step-btn.warmup{border-color:#64d2ff;color:#0071e3;}\n#_wkt_modal .add-step-btn.work{border-color:#34c759;color:#1e8449;}\n#_wkt_modal .add-step-btn.rest{border-color:#ff9500;color:#c76f00;}\n#_wkt_modal .add-step-btn.cooldown{border-color:#af52de;color:#8e44ad;}\n#_wkt_modal .add-step-btn.repeats{border-color:#007aff;color:#007aff;display:none;}\n#_wkt_modal .add-step-btn.repeats.show{display:inline-block;}\n#_wkt_modal /* Step value editor inline */\n.step-val-edit{display:flex;align-items:center;gap:6px;padding:8px;background:#f8f8f8;border-radius:12px;margin:4px 0;}\n#_wkt_modal .stepper-btn{width:32px;height:32px;border-radius:10px;border:1px solid #ddd;background:#fff;font-size:20px;font-weight:700;cursor:pointer;display:flex;align-items:center;justify-content:center;color:#333;touch-action:manipulation;}\n#_wkt_modal .stepper-val{font-size:15px;font-weight:700;min-width:40px;text-align:center;}\n#_wkt_modal .mode-toggle{display:flex;border-radius:10px;overflow:hidden;border:1px solid #ddd;min-width:0;}\n#_wkt_modal .mode-toggle-btn{flex:1;padding:6px 8px;border:none;background:#fff;font-family:-apple-system,\"Roboto\",sans-serif;font-size:9px;font-weight:700;letter-spacing:.06em;cursor:pointer;color:#888;touch-action:manipulation;}\n#_wkt_modal .mode-toggle-btn.sel{background:#007aff;color:#fff;}\n#_wkt_modal .wkt-actions{display:flex;gap:6px;margin-top:10px;}\n#_wkt_modal .wkt-btn{flex:1;padding:10px 4px;border-radius:10px;border:none;font-family:-apple-system,\"Roboto\",sans-serif;font-size:10px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;cursor:pointer;touch-action:manipulation;}\n#_wkt_modal .wkt-btn.load{background:#34c759;color:#fff;}\n#_wkt_modal .wkt-btn.del{background:#fff;color:#ff3b30;border:1px solid #e0e0e0;}\n#_wkt_modal .wkt-btn.new-w{background:#007aff;color:#fff;}\n#_wkt_modal .wkt-btn.save{background:#007aff;color:#fff;}\n#_wkt_modal .wkt-card.erg-item{border-left-color:#c0392b!important;}\n#_wkt_modal .erg-badge{display:inline-block;background:#c0392b;color:#fff;font-size:9px;font-weight:800;letter-spacing:.08em;padding:2px 6px;border-radius:4px;margin-left:6px;vertical-align:middle;}";
 window.showWorkoutsModal=function(opts){
   opts=(opts&&typeof opts==='object'&&!opts.target)?opts:{};
-  if(!WKT_ENABLED)return;
+  if(_wktCtx?!sqCanEdit():!WKT_ENABLED)return;
   if(!isPro()){showPlanModal('Custom workouts are a Pro feature.');return;}
   if(!document.getElementById('_wkt_css')){const st=document.createElement('style');st.id='_wkt_css';st.textContent=_WKT_MODAL_CSS;document.head.appendChild(st);}
   document.getElementById('_wkt_modal')?.remove();
@@ -8951,11 +8953,12 @@ window.showWorkoutsModal=function(opts){
   const renderList=()=>{
     const all=_wktOrdered();
     const list=all.filter(w=>(isErgW(w)?'erg':'water')===_wktVenueView);
-    let h=hdr('Workouts')
+    let h=hdr(_wktCtx?'Squad workouts · '+_wktCtx:'Workouts')
       +'<div class="layout-size-row" style="margin:0 0 10px;">'
       +'<button class="layout-size-btn'+(_wktVenueView==='water'?' sel':'')+'" data-a="venue" data-m="water">ON&nbsp;WATER</button>'
       +'<button class="layout-size-btn'+(_wktVenueView==='erg'?' sel':'')+'" data-a="venue" data-m="erg" style="'+(_wktVenueView==='erg'?'background:'+ERG+';color:#fff;':'')+'">ERG</button></div>';
-    if(!AnalyserDrive.isSignedIn())h+='<div style="font-size:11px;color:#c76f00;margin:-4px 0 10px;">Sign in and link Drive so these workouts sync with BoatRun Metrics.</div>';
+    if(_wktCtx)h+='<div style="font-size:11px;color:#8e8e93;margin:-4px 0 10px;">Squad workouts — members can view and import them.</div>';
+    else if(!AnalyserDrive.isSignedIn())h+='<div style="font-size:11px;color:#c76f00;margin:-4px 0 10px;">Sign in and link Drive so these workouts sync with BoatRun Metrics.</div>';
     else h+='<div style="font-size:11px;color:#8e8e93;margin:-4px 0 10px;">Saved workouts sync with BoatRun Metrics through Drive.</div>';
     if(!list.length)h+='<div style="text-align:center;padding:20px;color:#bbb;font-size:12px;">No '+(_wktVenueView==='erg'?'erg':'on-water')+' workouts yet.</div>';
     list.forEach((w,li)=>{
@@ -9156,6 +9159,7 @@ let _planPushTimer=null, _calMonthOff=0, _calSel=null, _calFiles=[], _calOpen=nu
 function mergePlans(a,b){const o={...(a||{})};Object.keys(b||{}).forEach(k=>{const x=b[k];if(!x||!Array.isArray(x.ids))return;if(!o[k]||(x.rev||0)>(o[k].rev||0))o[k]=x;});return o;}
 function _planSig(p){return JSON.stringify(Object.keys(p||{}).sort().map(k=>[k,p[k]]));}
 function savePlan(){
+  if(_wktCtx){if(_sqStore)_sqStore.days=WKT_PLAN;sqSchedulePush();return;}
   try{localStorage.setItem('br_wkt_plan',JSON.stringify(WKT_PLAN));}catch{toast('Plan not saved — storage error');}
   schedulePushPlan();
 }
@@ -9164,18 +9168,18 @@ function schedulePushPlan(){
   clearTimeout(_planPushTimer);
   _planPushTimer=setTimeout(()=>{
     AnalyserDrive.pullPrefs().then(cur=>{
-      if(cur&&cur.workoutPlan&&typeof cur.workoutPlan==='object'){WKT_PLAN=mergePlans(WKT_PLAN,cur.workoutPlan);try{localStorage.setItem('br_wkt_plan',JSON.stringify(WKT_PLAN));}catch{}}
-      return AnalyserDrive.pushPrefs({workoutPlan:WKT_PLAN});
+      if(cur&&cur.workoutPlan&&typeof cur.workoutPlan==='object'){_pPset(mergePlans(_pP(),cur.workoutPlan));try{localStorage.setItem('br_wkt_plan',JSON.stringify(_pP()));}catch{}}
+      return AnalyserDrive.pushPrefs({workoutPlan:_pP()});
     }).then(ok=>{if(ok===false)toast('Plan not synced — check Drive');}).catch(()=>{});
   },1500);
 }
 function applyPlanFromPrefs(remote){
   if(!WKT_ENABLED)return;
   const r=(remote&&typeof remote==='object'&&!Array.isArray(remote))?remote:{};
-  const before=_planSig(WKT_PLAN);
-  WKT_PLAN=mergePlans(WKT_PLAN,r);
-  if(_planSig(WKT_PLAN)!==before){try{localStorage.setItem('br_wkt_plan',JSON.stringify(WKT_PLAN));}catch{}}
-  if(_planSig(WKT_PLAN)!==_planSig(mergePlans({},r)))schedulePushPlan();
+  const before=_planSig(_pP());
+  _pPset(mergePlans(_pP(),r));
+  if(_planSig(_pP())!==before){try{localStorage.setItem('br_wkt_plan',JSON.stringify(_pP()));}catch{}}
+  if(_planSig(_pP())!==_planSig(mergePlans({},r)))schedulePushPlan();
 }
 function planIds(day){const e=WKT_PLAN[day];return (e&&Array.isArray(e.ids))?e.ids.slice():[];}
 function planAdd(day,id){const ids=planIds(day);ids.push(id);WKT_PLAN[day]={ids,rev:Date.now()};savePlan();}
@@ -9216,7 +9220,7 @@ function renderStartupCalendar(){
     for(let i=0;i<lead;i++)g+='<div></div>';
     for(let d=1;d<=nDays;d++){
       const k=y+'-'+String(m+1).padStart(2,'0')+'-'+String(d).padStart(2,'0');
-      const ss=byDay[k]||[], pl=(WKT_ENABLED&&k>=todayK)?planIds(k).filter(id=>wById[id]&&planShown(k,wById[id])):[];
+      const ss=byDay[k]||[], pl=((WKT_ENABLED||_wktCtx)&&k>=todayK)?planIds(k).filter(id=>wById[id]&&planShown(k,wById[id])):[];
       const sel=_calSel===k, today=k===todayK;
       g+='<div data-day="'+k+'" style="min-height:52px;padding:3px;border-radius:6px;cursor:pointer;overflow:hidden;border:1px solid '+(sel?'var(--b)':'var(--border)')+';background:'+(sel?'var(--s3)':'var(--s2)')+';">'
         +'<div style="font-size:11px;font-weight:'+(today?'800':'500')+';color:'+(today?'var(--b)':'var(--text)')+';">'+d+'</div>'
@@ -9228,14 +9232,15 @@ function renderStartupCalendar(){
     return g+'</div>';
   };
   const mLabel=(y,m)=>new Date(y,m,1).toLocaleDateString('en-AU',{month:'long',year:'numeric'});
+  const sqBar=_wktCtx?'<div style="display:flex;align-items:center;gap:8px;margin:-2px 0 8px;font-size:11px;color:var(--muted);"><span style="font-weight:700;color:var(--text);">'+_secEsc((_sqStore&&_sqStore.desc)||('Squad '+_wktCtx))+'</span><span>'+(sqCanEdit()?'Coach — you can plan workouts':'View only — import workouts to your calendar')+'</span><a href="#" id="cal-sqchange" style="margin-left:auto;color:var(--b);">Change squad</a></div>':'';
   let h;
   if(wide){
     /* Wide screens: one scrolling strip of months, from the first session
        (at most 3 years back) to 3 months ahead. */
     const back=isFinite(firstTs)?Math.min(36,Math.max(1,(now.getFullYear()-new Date(firstTs).getFullYear())*12+now.getMonth()-new Date(firstTs).getMonth())):6;
-    h='<div class="sz-lhd" style="display:flex;align-items:center;gap:6px;">Calendar'
+    h='<div class="sz-lhd" style="display:flex;align-items:center;gap:6px;flex-wrap:wrap;">Calendar'+'<span style="display:flex;gap:4px;margin-left:8px;"><button id="cal-mine" class="filt-chip'+(!_wktCtx?' on':'')+'" style="'+CH+'">Mine</button><button id="cal-squad" class="filt-chip'+(_wktCtx?' on':'')+'" style="'+CH+'">Squad'+(_wktCtx?' '+_wktCtx:'')+'</button></span>'
       +'<span style="margin-left:auto;display:flex;align-items:center;gap:6px;">'
-      +'<button id="cal-today" class="filt-chip" style="'+CH+'">Today</button></span></div>'
+      +'<button id="cal-today" class="filt-chip" style="'+CH+'">Today</button></span></div>'+sqBar
       +'<div id="cal-scroll" style="height:min(440px,62vh);overflow-y:auto;padding-right:4px;position:relative;">';
     for(let o=-back;o<=3;o++){
       const b=new Date(now.getFullYear(),now.getMonth()+o,1);
@@ -9244,12 +9249,12 @@ function renderStartupCalendar(){
     h+='</div>';
   }else{
     const base=new Date(now.getFullYear(),now.getMonth()+_calMonthOff,1);
-    h='<div class="sz-lhd" style="display:flex;align-items:center;gap:6px;">Calendar'
+    h='<div class="sz-lhd" style="display:flex;align-items:center;gap:6px;flex-wrap:wrap;">Calendar'+'<span style="display:flex;gap:4px;margin-left:8px;"><button id="cal-mine" class="filt-chip'+(!_wktCtx?' on':'')+'" style="'+CH+'">Mine</button><button id="cal-squad" class="filt-chip'+(_wktCtx?' on':'')+'" style="'+CH+'">Squad'+(_wktCtx?' '+_wktCtx:'')+'</button></span>'
       +'<span style="margin-left:auto;display:flex;align-items:center;gap:6px;">'
       +'<button id="cal-prev" class="filt-chip" style="'+CH+'">‹</button>'
       +'<span style="font-size:.8rem;font-weight:600;min-width:110px;text-align:center;">'+mLabel(base.getFullYear(),base.getMonth())+'</span>'
       +'<button id="cal-next" class="filt-chip" style="'+CH+'">›</button>'
-      +'<button id="cal-today" class="filt-chip" style="'+CH+'">Today</button></span></div>'
+      +'<button id="cal-today" class="filt-chip" style="'+CH+'">Today</button></span></div>'+sqBar
       +monthGrid(base.getFullYear(),base.getMonth());
   }
   const hCal=h;h='';
@@ -9259,7 +9264,7 @@ function renderStartupCalendar(){
     const dl=new Date(_calSel+'T12:00:00').toLocaleDateString('en-AU',{weekday:'long',day:'numeric',month:'long',year:'numeric'});
     h+='<div id="cal-day">'
       +'<div style="font-size:.85rem;font-weight:700;margin-bottom:6px;">'+dl+'</div>'
-      +'<div style="font-size:11px;color:var(--muted);margin-bottom:4px;">Sessions</div>';
+      +'<div style="font-size:11px;color:var(--muted);margin-bottom:4px;">'+(_wktCtx?'Squad sessions':'Sessions')+'</div>';
     if(!ss.length)h+='<div style="font-size:12px;color:var(--muted);margin-bottom:8px;">No sessions on this day.</div>';
     ss.forEach((x,i)=>{
       const p=x.p, t=p.approxTs?new Date(p.approxTs).toLocaleTimeString('en-AU',{hour:'2-digit',minute:'2-digit'}):'';
@@ -9269,9 +9274,9 @@ function renderStartupCalendar(){
         +'<div class="asc-date">'+(!p.name&&p.favourite?'<span style="color:#ffcc00;text-shadow:0 0 2px rgba(184,134,11,.8);font-size:1rem;">★</span>':'')+'<span>'+t+'</span>'+(p.erg?'<span class="asc-badge">ERG</span>':'')+(p.workout?'<span class="asc-badge">'+_secEsc(p.workout)+'</span>':'')+'</div>'
         +'<div class="asc-stats">'+(dist?'<div><span class="asc-v">'+dist+'</span></div>':'')+(p.durS!=null?'<div><span class="asc-v">'+fmtTime(p.durS)+'</span><span class="asc-l">time</span></div>':'')+'</div></div>';
     });
-    if(WKT_ENABLED&&_calSel>=todayK){
+    if((WKT_ENABLED||_wktCtx)&&_calSel>=todayK){
     const shownIds=ids.filter(id=>!wById[id]||planShown(_calSel,wById[id]));
-    h+='<div style="font-size:11px;color:var(--muted);margin:8px 0 4px;">Planned workouts <span style="font-size:10px;">(suggested in Metrics on the day)</span></div>';
+    h+='<div style="font-size:11px;color:var(--muted);margin:8px 0 4px;">'+(_wktCtx?'Squad plan':'Planned workouts <span style="font-size:10px;">(suggested in Metrics on the day)</span>')+'</div>';
     if(!shownIds.length)h+='<div style="font-size:12px;color:var(--muted);margin-bottom:6px;">None planned.</div>';
     ids.forEach((id,i)=>{
       const w=wById[id];
@@ -9279,10 +9284,13 @@ function renderStartupCalendar(){
       const bg=w?(w.venue==='erg'?CAL_ERG_COL:CAL_WATER_COL):'#8e8e93';
       h+='<div style="display:flex;align-items:center;gap:6px;padding:8px 10px;margin-bottom:5px;border-radius:10px;background:'+bg+';color:#fff;font-size:13px;font-weight:700;">'
         +'<span style="flex:1;">'+(w?_secEsc(_wktDispName(w)):'Deleted workout')+'</span>'
-        +'<button data-calrm="'+i+'" style="border:none;background:rgba(255,255,255,.25);color:#fff;border-radius:8px;padding:4px 10px;font-size:11px;font-weight:700;cursor:pointer;font-family:inherit;">Remove</button></div>';
+        +((_wktCtx&&!sqCanEdit())
+          ?(w?'<button data-calimp="'+_secEsc(id)+'" style="border:none;background:#fff;color:'+bg+';border-radius:8px;padding:4px 10px;font-size:11px;font-weight:800;cursor:pointer;font-family:inherit;">IMPORT</button>':'')
+          :'<button data-calrm="'+i+'" style="border:none;background:rgba(255,255,255,.25);color:#fff;border-radius:8px;padding:4px 10px;font-size:11px;font-weight:700;cursor:pointer;font-family:inherit;">Remove</button>')
+        +'</div>';
     });
     const BB='flex:1;padding:10px 6px;border-radius:10px;border:none;font-family:-apple-system,Roboto,sans-serif;font-size:11px;font-weight:700;letter-spacing:.06em;cursor:pointer;color:#fff;';
-    h+='<div style="display:flex;gap:6px;margin-top:10px;">'
+    if(!_wktCtx||sqCanEdit())h+='<div style="display:flex;gap:6px;margin-top:10px;">'
       +'<button id="cal-add-water" style="'+BB+'background:'+CAL_WATER_COL+';">+ ON-WATER WORKOUT</button>'
       +'<button id="cal-edit-wkts" style="'+BB+'flex:0 0 auto;padding:10px 12px;background:transparent;color:var(--b);text-decoration:underline;">EDIT WORKOUTS</button>'
       +'<button id="cal-add-erg" style="'+BB+'background:'+CAL_ERG_COL+';">+ ERG WORKOUT</button></div>';
@@ -9311,6 +9319,9 @@ function renderStartupCalendar(){
   }
   const cp=document.getElementById('cal-prev');if(cp)cp.onclick=()=>{_calMonthOff--;renderStartupCalendar();};
   const cn=document.getElementById('cal-next');if(cn)cn.onclick=()=>{_calMonthOff++;renderStartupCalendar();};
+  const cm=document.getElementById('cal-mine');if(cm)cm.onclick=()=>{if(_wktCtx)leaveSquadCalendar();};
+  const cq=document.getElementById('cal-squad');if(cq)cq.onclick=()=>{if(!_wktCtx)enterSquadCalendar(false);};
+  const cc=document.getElementById('cal-sqchange');if(cc)cc.onclick=e=>{e.preventDefault();enterSquadCalendar(true);};
   document.getElementById('cal-today').onclick=()=>{
     _calMonthOff=0;_calSel=todayK;window._calAnchor={m:0,dy:0};renderStartupCalendar();
   };
@@ -9320,6 +9331,7 @@ function renderStartupCalendar(){
     const dRoot=dayEl||el;
     dRoot.querySelectorAll('[data-calsess]').forEach(c=>{c.onclick=()=>{const x=ss[+c.dataset.calsess];if(x&&_calOpen)_calOpen(x.f,x.p,c);};});
     dRoot.querySelectorAll('[data-calrm]').forEach(b=>{b.onclick=()=>{planRemove(_calSel,+b.dataset.calrm);renderStartupCalendar();};});
+    dRoot.querySelectorAll('[data-calimp]').forEach(b=>{b.onclick=()=>sqImportWorkout(b.dataset.calimp,_calSel);});
     const aw=document.getElementById('cal-add-water');
     if(aw)aw.onclick=()=>showPlanPicker(_calSel,'water');
     const ae=document.getElementById('cal-add-erg');
@@ -9328,11 +9340,123 @@ function renderStartupCalendar(){
     if(ew)ew.onclick=()=>window.showWorkoutsModal();
   }
 }
+/* ══════════════════════════════════════════════════════════════════════════
+   SQUAD CALENDAR — the coach keeps a squad workout list and plan at
+   /squads/CODE/plan; members view it (and every member's sessions) and can
+   import workouts. Reads go through the squad Worker, so the squad password
+   applies as for sessions. Writes carry the password hash.
+   While a squad is shown, WORKOUTS_DB / WKT_PLAN hold the squad's lists and
+   the user's own lists are parked in _wktPersonal / _planPersonal.
+   ══════════════════════════════════════════════════════════════════════════ */
+var _wktCtx=null, _wktPersonal=null, _planPersonal=null, _calPersonal=null, _sqStore=null, _sqPlanTimer=null, _sqDirty=false;
+const SQ_FB_BASE='https://boatrun-default-rtdb.asia-southeast1.firebasedatabase.app';
+function _pW(){return _wktCtx?_wktPersonal:WORKOUTS_DB;}
+function _pWset(v){if(_wktCtx)_wktPersonal=v;else WORKOUTS_DB=v;}
+function _pP(){return _wktCtx?_planPersonal:WKT_PLAN;}
+function _pPset(v){if(_wktCtx)_planPersonal=v;else WKT_PLAN=v;}
+function sqCanEdit(){return !!_wktCtx&&isCoach();}
+async function sqPwHashA(code,pw){
+  const s='BoatRun|'+String(code||'').trim().toUpperCase()+'|'+(pw||'');
+  const buf=await crypto.subtle.digest('SHA-256',new TextEncoder().encode(s));
+  return Array.from(new Uint8Array(buf)).map(b=>b.toString(16).padStart(2,'0')).join('');
+}
+async function sqFetchPlan(code){
+  const r=await fetch(sqProxy(code,'plan'));
+  if(!r.ok)throw new Error('HTTP '+r.status);
+  const v=await r.json();
+  return (v&&typeof v==='object')?v:{};
+}
+function sqSchedulePush(){
+  _sqDirty=true;
+  clearTimeout(_sqPlanTimer);
+  _sqPlanTimer=setTimeout(sqPushNow,1200);
+}
+async function sqPushNow(){
+  const st=_sqStore;if(!st)return;
+  _sqDirty=false;
+  let cur={};try{cur=await sqFetchPlan(st.code);}catch{}
+  st.workouts=mergeWorkoutLists(st.workouts,Array.isArray(cur.workouts)?cur.workouts:[]);
+  st.days=mergePlans(st.days,(cur.days&&typeof cur.days==='object')?cur.days:{});
+  if(_wktCtx===st.code){WORKOUTS_DB=st.workouts;WKT_PLAN=st.days;}
+  const body={workouts:st.workouts,days:st.days,rev:Date.now()};
+  const pw=getSquadPw(st.code);
+  if(pw)body.auth=await sqPwHashA(st.code,pw);
+  try{
+    const r=await fetch(SQ_FB_BASE+'/squads/'+st.code+'/plan.json',{method:'PUT',body:JSON.stringify(body)});
+    if(!r.ok)toast('Squad plan not saved (HTTP '+r.status+')',4000);
+  }catch(e){toast('Squad plan not saved — no connection',4000);}
+  try{renderStartupCalendar();}catch{}
+}
+async function enterSquadCalendar(forcePrompt){
+  let code='';try{code=localStorage.getItem('_squad_code')||'';}catch{}
+  if(forcePrompt||!code||code.length!==7){code=await promptSquadCode();if(!code||code.length!==7)return;}
+  code=code.toUpperCase();
+  try{localStorage.setItem('_squad_code',code);}catch{}
+  if(!(await ensureSquadUnlocked(code))){toast('Squad '+code+' is password protected');return;}
+  toast('Loading squad '+code+'…');
+  const [plan,metas,desc]=await Promise.all([
+    sqFetchPlan(code).catch(()=>({})),
+    fetchSquadMetas(code).catch(()=>[]),
+    fetchSquadDesc(code).catch(()=>'')
+  ]);
+  if(_wktCtx)leaveSquadCalendar(true);
+  _wktPersonal=WORKOUTS_DB;_planPersonal=WKT_PLAN;_calPersonal={files:_calFiles,open:_calOpen};
+  _sqStore={code,desc:desc||'',workouts:Array.isArray(plan.workouts)?plan.workouts:[],days:(plan.days&&typeof plan.days==='object')?plan.days:{}};
+  _wktCtx=code;WORKOUTS_DB=_sqStore.workouts;WKT_PLAN=_sqStore.days;
+  _calFiles=(metas||[]).map(m=>({f:{id:m.id,name:''},p:{approxTs:m.t||parseInt(m.id,10)||0,distM:m.dist||null,durS:m.dur||null,name:(m.rower||'Rower')+(m.name?' · '+m.name:''),erg:false,favourite:false,workout:null,rower:m.rower||'Rower'}}));
+  _calOpen=(f,p,el)=>sqOpenSession(code,f.id,p,el);
+  _calSel=null;window._calAnchor=null;_calMonthOff=0;
+  renderStartupCalendar();
+}
+function leaveSquadCalendar(quiet){
+  if(!_wktCtx)return;
+  clearTimeout(_sqPlanTimer);
+  if(_sqStore){_sqStore.workouts=WORKOUTS_DB;_sqStore.days=WKT_PLAN;}
+  WORKOUTS_DB=_wktPersonal;WKT_PLAN=_planPersonal;_wktCtx=null;
+  if(_sqDirty)sqPushNow();
+  if(_calPersonal){_calFiles=_calPersonal.files;_calOpen=_calPersonal.open;}
+  _calSel=null;window._calAnchor=null;_calMonthOff=0;
+  if(!quiet)renderStartupCalendar();
+}
+async function sqOpenSession(code,id,p,el){
+  if(el){el.style.opacity='.5';el.style.pointerEvents='none';}
+  try{
+    const r=await fetch(sqProxy(code,'coach_sessions/'+id));
+    if(!r.ok)throw new Error('HTTP '+r.status);
+    const session=await r.json();
+    if(!session)throw new Error('Session not found');
+    applySessionUnits(session);
+    const sd=new Date(p.approxTs||Date.now());
+    const label=(p.rower||'Rower')+'_'+sd.toLocaleDateString()+'_'+sd.toLocaleTimeString([],{hour:'2-digit',minute:'2-digit'});
+    leaveSquadCalendar(true);
+    addSessionFromData(sessionToAnalyserFmt(session),label,true,null,code);
+  }catch(e){toast('Load failed: '+e.message);if(el){el.style.opacity='';el.style.pointerEvents='';}}
+}
+/* Member: copy a squad workout into your own list (re-importing updates it)
+   and plan it on that day in your own calendar. */
+function sqImportWorkout(id,day){
+  if(!_wktCtx)return;
+  const w=(WORKOUTS_DB||[]).find(x=>x&&x.id===id&&!x.deleted);if(!w)return;
+  const nid='sq'+_wktCtx+'_'+w.id;
+  const c=JSON.parse(JSON.stringify(w));c.id=nid;c.rev=Date.now();delete c.ord;
+  const list=_pW();const i=list.findIndex(x=>x&&x.id===nid);
+  if(i>=0)list[i]=c;else list.push(c);
+  try{localStorage.setItem('br_workouts',JSON.stringify(list));}catch{}
+  schedulePushWorkoutsToPrefs();
+  if(day&&day>=_dayKey(Date.now())){
+    const pl=_pP();const e=pl[day];const ids=(e&&Array.isArray(e.ids))?e.ids.slice():[];
+    if(ids.indexOf(nid)<0)ids.push(nid);
+    pl[day]={ids,rev:Date.now()};
+    try{localStorage.setItem('br_wkt_plan',JSON.stringify(pl));}catch{}
+    schedulePushPlan();
+  }
+  toast('"'+_wktDispName(w)+'" added to your workouts'+(day?' and calendar':''),3500);
+}
 /* Calendar day: pick a saved workout of one venue to plan on that day, or
    make a new one (it is planned on the day as soon as it is saved). */
 function _wktEnsureCss(){if(!document.getElementById('_wkt_css')){const st=document.createElement('style');st.id='_wkt_css';st.textContent=_WKT_MODAL_CSS;document.head.appendChild(st);}}
 function showPlanPicker(day,venue){
-  if(!WKT_ENABLED||!day)return;
+  if((_wktCtx?!sqCanEdit():!WKT_ENABLED)||!day)return;
   _wktEnsureCss();
   document.getElementById('_wkt_modal')?.remove();
   const erg=venue==='erg';
