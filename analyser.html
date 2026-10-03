@@ -1656,6 +1656,33 @@ function recDropExcluded(db) {
   });
   return db;
 }
+/* Drops personal bests that don't belong to one of the user's own RowSess_
+   files on Drive (squad, coach and opened-from-file sessions). */
+function purgeForeignRecords(files){
+  const ids=new Set((files||[]).map(f=>f.id));
+  const stamps=(files||[]).map(f=>{const mm=String(f.name||'').match(/RowSess_(\d{4})-(\d{2})-(\d{2})_(\d{2})(\d{2})/);return mm?{t:new Date(+mm[1],+mm[2]-1,+mm[3],+mm[4],+mm[5]).getTime(),erg:/_ERG(?:_|\.)/.test(f.name)}:null;}).filter(Boolean);
+  const own=(r,m)=>{
+    if(!r)return true;
+    if(r.fileId&&ids.has(r.fileId))return true;
+    if(!r.date)return false;
+    const t=new Date(r.date).getTime();
+    return isFinite(t)&&stamps.some(s=>s.erg===(m==='erg')&&Math.abs(s.t-t)<=120000);
+  };
+  let n=0;
+  ['water','erg'].forEach(m=>{
+    const db=RECORDS_DB[m]||{};
+    Object.keys(db).forEach(k=>{if(k==='dur')return;if(!own(db[k],m)){delete db[k];n++;}});
+    const du=db.dur||{};
+    Object.keys(du).forEach(k=>{if(!own(du[k],m)){delete du[k];n++;}});
+  });
+  if(n){
+    RECORDS_DB.gen=Date.now();
+    try{localStorage.setItem('br_records',JSON.stringify(RECORDS_DB));}catch{}
+    if(AnalyserDrive.isSignedIn())AnalyserDrive.pushPrefs({records:RECORDS_DB}).catch(()=>{});
+    try{renderRecords();}catch{}
+  }
+  return n;
+}
 function mergeRecords(a, b) {
   const A = _normRecords(a), B = _normRecords(b);
   /* A Reset stamps a new generation. The newer generation wins outright, so a
@@ -2496,7 +2523,7 @@ function sessHasVideo(f){
   return /_VID1/.test(String(f.name||'')) || sessVidIds().has(f.id);
 }
 const VID_BADGE='<span class="asc-badge" title="Has video" style="background:rgba(46,204,113,.18);color:#2ecc71;">&#127909; Video</span>';
-function addSessionFromData(d, label, replace, fileId, squadCode) {
+function addSessionFromData(d, label, replace, fileId, squadCode, notOwn) {
   if (fileId && d && d.vidSync && Object.keys(d.vidSync).length) markSessHasVideo(fileId);
   if (!replace && SESSIONS.length) {
     const curErg = !!(SESSIONS[0].d.sum && SESSIONS[0].d.sum.session_mode === 'erg');
@@ -2509,8 +2536,10 @@ function addSessionFromData(d, label, replace, fileId, squadCode) {
   if (replace) { SESSIONS=[]; curveGroups=[]; activeSessionIdx=-1; }
   const idx=SESSIONS.length;
   SESSIONS.push({label, d, fileId: fileId||null, squadCode: squadCode || d.squadCode || null});
-  updateRecords(recordsTrace(d), label, d.sum&&d.sum.start_time, fileId, (d.sum&&d.sum.session_mode==='erg')?'erg':'water');
-  if (!squadCode) updateSectorsFromData(d, label, fileId);   // squad-cloud loads are other rowers' sessions; own ones are scanned from Drive
+  /* Personal bests only come from the user's own sessions on Drive - never
+     squad, coach or opened-from-file sessions. */
+  if (fileId && !squadCode && !notOwn) updateRecords(recordsTrace(d), label, d.sum&&d.sum.start_time, fileId, (d.sum&&d.sum.session_mode==='erg')?'erg':'water');
+  if (!squadCode && !notOwn) updateSectorsFromData(d, label, fileId);   // squad-cloud loads are other rowers' sessions; own ones are scanned from Drive
   switchSession(idx);
 }
 function bestEffortForDistance(pts, targetDist) {
@@ -2603,6 +2632,19 @@ function fmtRecordDist(m, mode) {
   if (m>=1000) return (m/1000).toFixed(2)+'km';
   return Math.round(m)+'m';
 }
+function fmtRecPace500(secPer500){
+  if(!isFinite(secPer500)||secPer500<=0)return '';
+  const t=Math.round(secPer500*10), m=Math.floor(t/600), r=(t%600)/10;
+  return m+':'+(r<10?'0':'')+r.toFixed(1)+' /500m';
+}
+function recPaceLine(r,distM){
+  const p=(r&&r.timeMs&&distM)?fmtRecPace500((r.timeMs/1000)*500/distM):'';
+  return '<div class="sub" style="font-weight:600;">'+(p||'&nbsp;')+'</div>';
+}
+function recDurPaceLine(r,ms){
+  const p=(r&&r.distM)?fmtRecPace500((ms/1000)*500/r.distM):'';
+  return '<div class="sub" style="font-weight:600;">'+(p||'&nbsp;')+'</div>';
+}
 function fmtRecordDate(dateISO) {
   if (!dateISO) return '';
   const d=new Date(dateISO);
@@ -2620,7 +2662,7 @@ function renderRecords() {
       const lbl=d>=1000?(d/1000)+'km':d+'m';
       const val=r?fmtRecordTime(r.timeMs):'—';
       const dateStr=r?fmtRecordDate(r.date):'';
-      h+='<div class="card cb" style="cursor:'+(r&&r.fileId?'pointer':'default')+';" onclick="'+(r&&r.fileId?'window.loadRecordSession(\''+d+'\',\''+mode+'\')':'')+'"><div class="lbl">'+lbl+'</div><div class="val">'+val+'</div><div class="sub">'+dateStr+'</div></div>';
+      h+='<div class="card cb" style="cursor:'+(r&&(r.fileId||r.date)?'pointer':'default')+';" onclick="'+(r&&(r.fileId||r.date)?'window.loadRecordSession(\''+d+'\',\''+mode+'\')':'')+'"><div class="lbl">'+lbl+'</div><div class="val">'+val+'</div>'+recPaceLine(r,d)+'<div class="sub">'+dateStr+'</div></div>';
     });
     h+='</div></div>';
     return h;
@@ -4277,7 +4319,7 @@ async function showAddComparePicker() {
                             try {
                                 const session = await AnalyserDrive.fetchSession(f.id);
                                 applySessionUnits(session);
-                                addSessionFromData(sessionToAnalyserFmt(session), name || f.name.replace('RowSess_','').replace('.json',''), false, f.id);
+                                addSessionFromData(sessionToAnalyserFmt(session), name || f.name.replace('RowSess_','').replace('.json',''), false, f.id, null, true);
                                 btn.dataset.added = '1';
                                 dd.innerHTML += ' <span style="color:var(--b);">\u2713 added</span>';
                                 btn.style.opacity = '1'; btn.style.pointerEvents = '';
@@ -8415,14 +8457,14 @@ function _sumRecordsCardsHTML(mode){
     const lbl=d>=1000?(d/1000)+'km':d+'m';
     const val=r?fmtRecordTime(r.timeMs):'—';
     const dateStr=r?fmtRecordDate(r.date):'';
-    return '<div class="card cb" style="cursor:'+(r&&r.fileId?'pointer':'default')+';" onclick="'+(r&&r.fileId?'window.loadRecordSession(\''+d+'\',\''+mode+'\');document.getElementById(\'_summary_modal\')?.remove();':'')+'"><div class="lbl">'+(r?'<button title="Exclude this result" onclick="event.stopPropagation();window.excludeRecord(\''+mode+'\',\''+d+'\')" style="float:right;margin:-4px -4px 0 0;background:none;border:0;color:var(--muted);font-size:14px;line-height:1;padding:2px 4px;cursor:pointer;">\u2715</button>':'')+lbl+'</div><div class="val">'+val+'</div><div class="sub">'+dateStr+'</div></div>';
+    return '<div class="card cb" style="cursor:'+(r&&(r.fileId||r.date)?'pointer':'default')+';" onclick="'+(r&&(r.fileId||r.date)?'window.loadRecordSession(\''+d+'\',\''+mode+'\');document.getElementById(\'_summary_modal\')?.remove();':'')+'"><div class="lbl">'+(r?'<button title="Exclude this result" onclick="event.stopPropagation();window.excludeRecord(\''+mode+'\',\''+d+'\')" style="float:right;margin:-4px -4px 0 0;background:none;border:0;color:var(--muted);font-size:14px;line-height:1;padding:2px 4px;cursor:pointer;">\u2715</button>':'')+lbl+'</div><div class="val">'+val+'</div>'+recPaceLine(r,d)+'<div class="sub">'+dateStr+'</div></div>';
   }).join('');
   const durTargets=[{ms:1800000,lbl:'30 min'},{ms:3600000,lbl:'1 hour'}];
   out+=durTargets.map(t=>{
     const r=RECORDS_DB[mode].dur&&RECORDS_DB[mode].dur[t.ms];
     const val=r?fmtRecordDist(r.distM,mode):'—';
     const dateStr=r?fmtRecordDate(r.date):'';
-    return '<div class="card cb" style="cursor:'+(r&&r.fileId?'pointer':'default')+';" onclick="'+(r&&r.fileId?'window.loadRecordDurationSession(\''+t.ms+'\',\''+mode+'\');document.getElementById(\'_summary_modal\')?.remove();':'')+'"><div class="lbl">'+(r?'<button title="Exclude this result" onclick="event.stopPropagation();window.excludeRecord(\''+mode+'\',\''+'dur'+t.ms+'\')" style="float:right;margin:-4px -4px 0 0;background:none;border:0;color:var(--muted);font-size:14px;line-height:1;padding:2px 4px;cursor:pointer;">\u2715</button>':'')+t.lbl+'</div><div class="val">'+val+'</div><div class="sub">'+dateStr+'</div></div>';
+    return '<div class="card cb" style="cursor:'+(r&&(r.fileId||r.date)?'pointer':'default')+';" onclick="'+(r&&(r.fileId||r.date)?'window.loadRecordDurationSession(\''+t.ms+'\',\''+mode+'\');document.getElementById(\'_summary_modal\')?.remove();':'')+'"><div class="lbl">'+(r?'<button title="Exclude this result" onclick="event.stopPropagation();window.excludeRecord(\''+mode+'\',\''+'dur'+t.ms+'\')" style="float:right;margin:-4px -4px 0 0;background:none;border:0;color:var(--muted);font-size:14px;line-height:1;padding:2px 4px;cursor:pointer;">\u2715</button>':'')+t.lbl+'</div><div class="val">'+val+'</div>'+recDurPaceLine(r,t.ms)+'<div class="sub">'+dateStr+'</div></div>';
   }).join('');
   return out;
 }
@@ -8454,6 +8496,10 @@ async function showSummaryModal(){
       try{localStorage.setItem('br_records',JSON.stringify(RECORDS_DB));}catch{}
       try{renderRecords();}catch{}
     }
+  }catch{}
+  try{
+    const nPurged=purgeForeignRecords(files);
+    if(nPurged)toast(nPurged+' best'+(nPurged>1?'s':'')+' from squad/file sessions removed — tap Scan All for Records',5000);
   }catch{}
   function render(){
     const onwater=files.filter(f=>!_sumParseFn(f.name).erg);
