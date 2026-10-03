@@ -295,7 +295,8 @@
 @media (min-width:1200px){
   .sz-list{max-width:1560px;}
   .sz-grid{display:grid;grid-template-columns:minmax(0,1.05fr) minmax(0,1fr) minmax(0,1fr);gap:14px;align-items:start;}
-  .sz-grid>.brpill{margin-bottom:0;}
+  .sz-grid>.brpill,.sz-calcol>.brpill:last-child{margin-bottom:0;}
+  .sz-calcol>.brpill:first-child{margin-bottom:14px;}
   .sz-sumcol{display:block;}
 }
 .sz-lhd{font-size:.75rem;font-weight:600;letter-spacing:.1em;color:var(--muted);text-transform:uppercase;margin-bottom:2px;display:flex;align-items:center;justify-content:space-between;}
@@ -628,7 +629,7 @@ body.light .hdrname{color:#fff;}
   #topBlock #cards{padding:0;}
   body .hdr-tabs .hmenu, body.light .hdr-tabs .hmenu{background:#fc4c02;}
   body .hdr-tabs, body.light .hdr-tabs{background:#fc4c02;}
-  .sz-list>.brpill,.sz-grid>.brpill{background:var(--sp-chart);}
+  .sz-list>.brpill,.sz-grid>.brpill,.sz-calcol>.brpill{background:var(--sp-chart);}
   .info-col.info-fixed{display:flex;flex-direction:column;overflow:hidden;}
   #lapsec,#sectorsec{flex:1 1 auto;min-height:0;flex-direction:column;}
   #lapsec>.sec-hd,#lapsec>#lapcurvebar,#sectorsec>.sec-hd{flex:0 0 auto;}
@@ -7750,7 +7751,7 @@ async function showStartup(){
     </div>
     <div class="sz-grid">
     <div class="brpill sz-sumcol"><div class="sz-lhd" style="margin-bottom:8px;">Summary</div><div id="sz-sumbody"></div></div>
-    <div class="brpill" id="sz-cal"></div>
+    <div class="sz-calcol"><div class="brpill" id="sz-cal"></div><div class="brpill" id="sz-calday" style="display:none;"></div></div>
     <div class="brpill">
       <div class="sz-lhd">Sessions<span class="sz-signout" id="sz-signout">Sign out</span></div>
       <input type="text" id="sz-search" class="brsearch" placeholder="Search sessions…" autocomplete="off">
@@ -9246,11 +9247,12 @@ function renderStartupCalendar(){
       +'<button id="cal-today" class="filt-chip" style="'+CH+'">Today</button></span></div>'
       +monthGrid(base.getFullYear(),base.getMonth());
   }
+  const hCal=h;h='';
   if(_calSel){
     const ss=(byDay[_calSel]||[]).slice().sort((a,b)=>(a.p.approxTs||0)-(b.p.approxTs||0));
     const ids=planIds(_calSel);
     const dl=new Date(_calSel+'T12:00:00').toLocaleDateString('en-AU',{weekday:'long',day:'numeric',month:'long',year:'numeric'});
-    h+='<div id="cal-day" style="margin-top:22px;padding-top:14px;border-top:1px solid var(--border);">'
+    h+='<div id="cal-day">'
       +'<div style="font-size:.85rem;font-weight:700;margin-bottom:6px;">'+dl+'</div>'
       +'<div style="font-size:11px;color:var(--muted);margin-bottom:4px;">Sessions</div>';
     if(!ss.length)h+='<div style="font-size:12px;color:var(--muted);margin-bottom:8px;">No sessions on this day.</div>';
@@ -9282,7 +9284,9 @@ function renderStartupCalendar(){
   /* Wide: the months scroll in a fixed-height box (about one month high);
      the selected day's details sit underneath at full size. */
   el.style.cssText='';
-  el.innerHTML=h;
+  el.innerHTML=hCal;
+  const dayEl=document.getElementById('sz-calday');
+  if(dayEl){dayEl.innerHTML=h;dayEl.style.display=h?'':'none';}
   /* Wide calendar scroll position is remembered as "which month is at the
      top" (+ pixels into it), so it survives re-renders that add older months.
      Default and Today = the current month at the top. */
@@ -9305,8 +9309,9 @@ function renderStartupCalendar(){
   el.querySelectorAll('[data-day]').forEach(c=>{c.onclick=()=>{_calSel=(_calSel===c.dataset.day)?null:c.dataset.day;renderStartupCalendar();};});
   if(_calSel){
     const ss=(byDay[_calSel]||[]).slice().sort((a,b)=>(a.p.approxTs||0)-(b.p.approxTs||0));
-    el.querySelectorAll('[data-calsess]').forEach(c=>{c.onclick=()=>{const x=ss[+c.dataset.calsess];if(x&&_calOpen)_calOpen(x.f,x.p,c);};});
-    el.querySelectorAll('[data-calrm]').forEach(b=>{b.onclick=()=>{planRemove(_calSel,+b.dataset.calrm);renderStartupCalendar();};});
+    const dRoot=dayEl||el;
+    dRoot.querySelectorAll('[data-calsess]').forEach(c=>{c.onclick=()=>{const x=ss[+c.dataset.calsess];if(x&&_calOpen)_calOpen(x.f,x.p,c);};});
+    dRoot.querySelectorAll('[data-calrm]').forEach(b=>{b.onclick=()=>{planRemove(_calSel,+b.dataset.calrm);renderStartupCalendar();};});
     const aw=document.getElementById('cal-add-water');
     if(aw)aw.onclick=()=>showPlanPicker(_calSel,'water');
     const ae=document.getElementById('cal-add-erg');
