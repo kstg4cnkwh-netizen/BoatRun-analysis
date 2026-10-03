@@ -11131,6 +11131,8 @@ loadAnVidDir();
       .catch(e=>{ console.error('demo load failed',e); toast('Demo failed: '+(e&&e.message?e.message:e)); });
     return;
   }
+  // Open straight onto the calendar and session list.
+  try{ const su=document.getElementById('startup'); if(su&&!su.innerHTML) showStartup(); }catch(e){}
 })();
 </script>
 </body>
