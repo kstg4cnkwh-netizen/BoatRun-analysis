@@ -9154,6 +9154,13 @@ function planIds(day){const e=WKT_PLAN[day];return (e&&Array.isArray(e.ids))?e.i
 function planAdd(day,id){const ids=planIds(day);ids.push(id);WKT_PLAN[day]={ids,rev:Date.now()};savePlan();}
 function planRemove(day,i){const ids=planIds(day);ids.splice(i,1);WKT_PLAN[day]={ids,rev:Date.now()};savePlan();}
 function _dayKey(ts){const d=new Date(ts);return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');}
+const CAL_WATER_COL='#007aff', CAL_ERG_COL='#c0392b';
+function _wktDispName(w){
+  const n=String((w&&w.name)||'');
+  if(!w||w.venue!=='erg')return n;
+  const s=n.replace(/^\s*erg\b[\s:\-–—·]*/i,'');
+  return s||n;
+}
 function renderStartupCalendar(){
   const el=document.getElementById('sz-cal');if(!el)return;
   const now=new Date();
@@ -9180,8 +9187,8 @@ function renderStartupCalendar(){
     const sel=_calSel===k, today=k===todayK;
     h+='<div data-day="'+k+'" style="min-height:52px;padding:3px;border-radius:6px;cursor:pointer;overflow:hidden;border:1px solid '+(sel?'var(--b)':'var(--border)')+';background:'+(sel?'var(--s3)':'var(--s2)')+';">'
       +'<div style="font-size:11px;font-weight:'+(today?'800':'500')+';color:'+(today?'var(--b)':'var(--text)')+';">'+d+'</div>'
-      +'<div style="display:flex;gap:2px;flex-wrap:wrap;margin:2px 0;">'+ss.slice(0,5).map(x=>'<span style="width:7px;height:7px;border-radius:50%;background:'+(x.p.erg?'#e67e22':'var(--b)')+';display:inline-block;"></span>').join('')+'</div>'
-      +pl.slice(0,2).map(id=>'<div style="font-size:9px;line-height:1.3;background:#27ae60;color:#fff;border-radius:3px;padding:0 3px;margin-top:1px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">'+_secEsc(wById[id].name)+'</div>').join('')
+      +'<div style="display:flex;gap:2px;flex-wrap:wrap;margin:2px 0;">'+ss.slice(0,5).map(x=>'<span style="width:7px;height:7px;border-radius:50%;background:'+(x.p.erg?CAL_ERG_COL:'var(--b)')+';display:inline-block;"></span>').join('')+'</div>'
+      +pl.slice(0,2).map(id=>'<div style="font-size:9px;line-height:1.3;background:'+(wById[id].venue==='erg'?CAL_ERG_COL:CAL_WATER_COL)+';color:#fff;border-radius:3px;padding:0 3px;margin-top:1px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">'+_secEsc(_wktDispName(wById[id]))+'</div>').join('')
       +(pl.length>2?'<div style="font-size:9px;color:var(--muted);">+'+(pl.length-2)+'</div>':'')
       +'</div>';
   }
@@ -9207,15 +9214,15 @@ function renderStartupCalendar(){
     if(!ids.length)h+='<div style="font-size:12px;color:var(--muted);margin-bottom:6px;">None planned.</div>';
     ids.forEach((id,i)=>{
       const w=wById[id];
-      h+='<div style="display:flex;align-items:center;gap:6px;padding:4px 0;border-bottom:1px solid var(--border);font-size:12px;">'
-        +'<span style="width:8px;height:8px;border-radius:2px;background:#27ae60;display:inline-block;"></span>'
-        +'<span style="flex:1;">'+(w?_secEsc(w.name)+(w.venue==='erg'?' <span class="asc-badge">ERG</span>':''):'<span style="color:var(--muted);">Deleted workout</span>')+'</span>'
-        +'<button data-calrm="'+i+'" class="filt-chip" style="'+CH+'color:#f54040;">Remove</button></div>';
+      const bg=w?(w.venue==='erg'?CAL_ERG_COL:CAL_WATER_COL):'#8e8e93';
+      h+='<div style="display:flex;align-items:center;gap:6px;padding:8px 10px;margin-bottom:5px;border-radius:10px;background:'+bg+';color:#fff;font-size:13px;font-weight:700;">'
+        +'<span style="flex:1;">'+(w?_secEsc(_wktDispName(w)):'Deleted workout')+'</span>'
+        +'<button data-calrm="'+i+'" style="border:none;background:rgba(255,255,255,.25);color:#fff;border-radius:8px;padding:4px 10px;font-size:11px;font-weight:700;cursor:pointer;font-family:inherit;">Remove</button></div>';
     });
     const BB='flex:1;padding:10px 6px;border-radius:10px;border:none;font-family:-apple-system,"Roboto",sans-serif;font-size:11px;font-weight:700;letter-spacing:.06em;cursor:pointer;color:#fff;';
     h+='<div style="display:flex;gap:6px;margin-top:10px;">'
-      +'<button id="cal-add-water" style="'+BB+'background:#ff9500;">+ ON-WATER WORKOUT</button>'
-      +'<button id="cal-add-erg" style="'+BB+'background:#c0392b;">+ ERG WORKOUT</button></div>';
+      +'<button id="cal-add-water" style="'+BB+'background:'+CAL_WATER_COL+';">+ ON-WATER WORKOUT</button>'
+      +'<button id="cal-add-erg" style="'+BB+'background:'+CAL_ERG_COL+';">+ ERG WORKOUT</button></div>';
     }
     h+='</div>';
   }
@@ -9259,7 +9266,7 @@ function showPlanPicker(day,venue){
   if(!list.length)h+='<div style="text-align:center;padding:20px;color:#bbb;font-size:12px;">No '+(erg?'erg':'on-water')+' workouts yet.</div>';
   list.forEach(w=>{
     h+='<div class="wkt-card'+(erg?' erg-item':'')+'"><div class="wkc-header" data-a="pick" data-id="'+_secEsc(w.id)+'">'
-      +'<span class="wkc-name">'+_secEsc(w.name)+(erg?'<span class="erg-badge">ERG</span>':'')+'</span>'
+      +'<span class="wkc-name">'+_secEsc(_wktDispName(w))+'</span>'
       +'<button class="wkt-btn load wkc-load-btn" data-a="pick" data-id="'+_secEsc(w.id)+'">+ ADD</button></div></div>';
   });
   panel.innerHTML=h;
