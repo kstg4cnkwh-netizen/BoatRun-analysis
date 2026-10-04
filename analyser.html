@@ -1992,6 +1992,40 @@ function resampleForceCurve(fc){
   }
   return out;
 }
+/* Metrics builds before Metrics_261004_33 could split one PM5 drive across two
+   strokes (a late read ran into the next drive). Re-join the saved curves in
+   stroke order, cut at end-of-drive minima, and keep one whole drive per stroke. */
+function restitchForceCurves(s){
+  const st=(s&&s.strokes)||[];
+  const out=st.map(r=>(r&&r.forceCurve)||null);
+  const m=/Metrics_(\d{6})_(\d+)/.exec((s&&s.appBuild)||'');
+  if(m&&(+m[1]*1000+(+m[2]))>=261004033)return out;
+  const FR=0.4;
+  let carry=null;
+  st.forEach((r,i)=>{
+    const fc=r&&r.forceCurve;
+    if(!Array.isArray(fc)||!fc.length)return;
+    const hadCarry=!!(carry&&(r.t-carry.t)<15000);
+    const a=(hadCarry?carry.data:[]).concat(fc);
+    carry=null;
+    const segs=[];
+    let start=0,pk=0;
+    for(let j=0;j<a.length;j++){
+      if(a[j]>pk)pk=a[j];
+      const nxt=Math.max(j+1<a.length?a[j+1]:-1,j+2<a.length?a[j+2]:-1);
+      if(j>start&&j+1<a.length&&a[j+1]>a[j]&&a[j]<=a[j-1]&&nxt-a[j]>pk*0.1&&a[j]<pk*FR){segs.push(a.slice(start,j+1));start=j+1;pk=0;}
+    }
+    segs.push(a.slice(start));
+    const last=segs[segs.length-1];
+    const lpk=Math.max(...last),lv=last[last.length-1],lmin=Math.min(...last.slice(-3));
+    const lastDone=last.length>=3&&lv<lpk*FR&&(lv-lmin)<=lpk*0.1;
+    if(!lastDone){segs.pop();if(last.length)carry={data:last,t:r.t};}
+    if(!hadCarry&&segs.length){const f=segs[0];if(f[0]>=Math.max(...f)*0.7)segs.shift();}
+    const done=segs.filter(x=>x.length>=3);
+    out[i]=done.length?done[done.length-1]:null;
+  });
+  return out;
+}
 /* True when the plotted curve is PM5 drive force (N), not IMU accel (m/s²). */
 function curvesAreForce(){
   return !!(typeof ST!=='undefined' && ST && ST.length && ST.some(s=>s.curveIsForce));
@@ -2244,6 +2278,7 @@ function sessionToAnalyserFmt(s) {
   };
   const num = v => (v!=null&&!isNaN(+v)) ? +v : NaN;
   const t0 = s.startTime;
+  const fcFix = restitchForceCurves(s);
   const strokes = (s.strokes||[]).map((r,i) => ({
     n:i+1, ms:r.t, elapsed:(r.t-t0)/1000,
     slope:num(r.catchPeak), schar:num(r.char), consistency:num(r.catchConsistency),
@@ -2257,10 +2292,10 @@ function sessionToAnalyserFmt(s) {
        the erg returned. Resample it onto the same CURVE_POINTS grid so every
        existing curve routine works unchanged, and flag it so the axis and
        readouts can be labelled as force rather than acceleration. */
-    curve: r.curve || resampleForceCurve(r.forceCurve),
-    curveDriveFrac: r.curveDriveFrac || (r.forceCurve && !r.curve ? 1 : null),
-    forceCurve: r.forceCurve || null,
-    curveIsForce: !!(r.forceCurve && !r.curve),
+    curve: r.curve || resampleForceCurve(fcFix[i]),
+    curveDriveFrac: r.curveDriveFrac || (fcFix[i] && !r.curve ? 1 : null),
+    forceCurve: fcFix[i] || null,
+    curveIsForce: !!(fcFix[i] && !r.curve),
     watts:num(r.powerW), drivelength:num(r.driveLength), peakforceN:num(r.peakForceN),
   }));
   const hr = (s.hrTrace||[]).map(h=>({ ts:new Date(h.t).toISOString(), bpm:h.hr }));
