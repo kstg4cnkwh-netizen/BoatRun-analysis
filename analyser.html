@@ -603,7 +603,7 @@ body.light .hdrname{color:#fff;}
   .vid-clip-tabs{margin-bottom:0;}
   /* ══ Section pills ══ */
   :root{--secpill:rgba(47,211,198,.22);--sp-chart:rgba(10,132,255,.24);--sp-curve:rgba(179,140,255,.24);--sp-video:rgba(255,182,72,.24);--sp-info:rgba(47,211,198,.22);--sp-map:rgba(255,90,60,.22);}
-  body.light{--secpill:rgba(31,181,169,.24);--sp-chart:rgba(0,122,255,.20);--sp-curve:rgba(139,92,246,.22);--sp-video:rgba(245,165,36,.28);--sp-info:rgba(31,181,169,.24);--sp-map:rgba(240,74,44,.20);}
+  body.light{--secpill:#C2E6E0;--sp-chart:#C5DCF4;--sp-curve:#DED3F2;--sp-video:#F6DFB8;--sp-info:#C2E6E0;--sp-map:#F5D3CA;}
   #chartBlock.secpill{background:var(--sp-chart);}
   #curvesec.secpill{background:var(--sp-curve);}
   #videosec.secpill{background:var(--sp-video);}
@@ -639,9 +639,6 @@ body.light .hdrname{color:#fff;}
   body:not(.light) .card.dim{background:#3a3a3c;}
   .ms-pill{flex:0 0 100%;display:flex;flex-wrap:wrap;gap:12px;min-width:0;}
   @media (max-width:700px){ .secpill{margin:0 12px 12px;} .ms-pill{flex-direction:column;} }
-  /* Light mode uses the dark-blue page background: keep text sitting directly on it light */
-  body.light .sec-hd h2,body.light #dz h2{color:#fff;}
-  body.light .sec-hd > span,body.light .sec-hd > div > span,body.light .sec-hd > label{color:rgba(255,255,255,.72)!important;}
 </style>
 
 <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" crossorigin=""/>
