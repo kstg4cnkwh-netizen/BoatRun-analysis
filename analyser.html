@@ -6722,7 +6722,7 @@ function drawCurvePanel(){
   const C=pal();
   const dpr=window.devicePixelRatio||1;
   const W=Math.floor(canvas.parentElement.clientWidth-22);
-  const H=340;
+  const H=curveH;
   canvas.width=W*dpr;canvas.height=H*dpr;
   canvas.style.width=W+'px';canvas.style.height=H+'px';
   const ctx=canvas.getContext('2d');ctx.scale(dpr,dpr);ctx.clearRect(0,0,W,H);
@@ -6779,7 +6779,7 @@ function drawCurvePanel(){
 
   const PL=38,PR=34,PT=12,PB=34,GAP=16;
   const pw=W-PL-PR;
-  const ph1=FORCE?280:152,ph2=FORCE?0:(H-PT-ph1-GAP-PB);
+  const ph1=FORCE?(H-PT-PB-26):Math.round((H-PT-PB-GAP)*0.547),ph2=FORCE?0:(H-PT-ph1-GAP-PB);
   const accelTop=PT,speedTop=PT+ph1+GAP;
   const toPx=t=>PL+(t/maxT)*pw;
 
@@ -6805,6 +6805,7 @@ function drawCurvePanel(){
   });
   const hasSpeeds=sMin<Infinity;
   if(hasSpeeds){const sp=(sMax-sMin)*0.12;sMin-=sp;sMax+=sp;}
+  if(hasSpeeds&&curveYZoom!==1){const sc=(sMin+sMax)/2;sMin=sc+(sMin-sc)/curveYZoom;sMax=sc+(sMax-sc)/curveYZoom;}
   const sRng=sMax-sMin||1;
   const toSY=v=>speedTop+ph2-(v-sMin)/sRng*ph2;
 
@@ -6867,9 +6868,11 @@ function drawCurvePanel(){
 
     // Speed line
     if(c.speed&&hasSpeeds){
+      ctx.save();ctx.beginPath();ctx.rect(PL,speedTop,pw,ph2);ctx.clip();
       ctx.beginPath();
       for(let i=0;i<CURVE_POINTS;i++){const x=toPx(i*step);i===0?ctx.moveTo(x,toSY(c.speed[i])):ctx.lineTo(x,toSY(c.speed[i]));}
       ctx.strokeStyle=c.color;ctx.lineWidth=2.5;ctx.stroke();
+      ctx.restore();
     }
 
     // Average speed per stroke (avg pace converted to m/s) — dashed line
@@ -6952,7 +6955,15 @@ function drawCurvePanel(){
     ctx.fillText(curveYZoom===1?'Y auto':'Y ×'+curveYZoom.toFixed(1),sx,accelTop-3);
     ctx.restore();
   }
-  canvas._g={PL,pw,maxT,accelTop,ph1,speedTop,ph2,enriched,yMin,yMax,tplOv,tplT:(tplOv&&enriched[0])?enriched[0].T:null,tplName:(_atpl&&_atpl.name)||'Template'};
+  // Bottom grip: drag down / up to make the panel taller / shorter
+  {
+    const gx=W/2;
+    ctx.save();ctx.lineCap='round';ctx.strokeStyle=C.gridLb;ctx.lineWidth=3;ctx.globalAlpha=.7;
+    ctx.beginPath();ctx.moveTo(gx-18,H-6);ctx.lineTo(gx+18,H-6);ctx.stroke();
+    ctx.beginPath();ctx.moveTo(gx-12,H-2);ctx.lineTo(gx+12,H-2);ctx.stroke();
+    ctx.restore();
+  }
+  canvas._g={H,PL,pw,maxT,accelTop,ph1,speedTop,ph2,enriched,yMin,yMax,tplOv,tplT:(tplOv&&enriched[0])?enriched[0].T:null,tplName:(_atpl&&_atpl.name)||'Template'};
 }
 function curveDeriv(arr,i,step){
   const n=arr.length;
@@ -7033,6 +7044,19 @@ function showCurveTooltip(clientX,clientY){
    down to shrink. Double-click / double-tap the slider for auto scale. */
 var curveYZoom=1;
 var CZ_MIN=0.5, CZ_MAX=5;
+/* Panel height: drag the grip along the bottom edge. Remembered per browser. */
+var CURVE_H_DEF=340, CURVE_H_MIN=260, CURVE_H_MAX=1000;
+var curveH=(()=>{try{const v=+localStorage.getItem('br_curveH');return (v>=CURVE_H_MIN&&v<=CURVE_H_MAX)?v:CURVE_H_DEF;}catch{return CURVE_H_DEF;}})();
+function _curveGripHit(canvas,cx,cy){
+  const g=canvas._g;if(!g)return false;
+  const r=canvas.getBoundingClientRect(), y=cy-r.top;
+  return y>=g.H-12&&y<=g.H+4;
+}
+function _curveSetH(h){
+  curveH=Math.round(clamp(h,CURVE_H_MIN,CURVE_H_MAX));
+  try{localStorage.setItem('br_curveH',String(curveH));}catch{}
+  drawCurvePanel();
+}
 function _curveZoomHit(canvas,cx,cy){
   const g=canvas._g;if(!g)return false;
   const r=canvas.getBoundingClientRect(), x=cx-r.left, y=cy-r.top;
@@ -7050,19 +7074,34 @@ function _curveZoomSet(canvas,cy){
 function setupCurveEvents(canvas){
   if(curveCanvas===canvas)return;
   curveCanvas=canvas;
-  let drag=false, lastTap=0;
-  canvas.addEventListener('mousedown',e=>{if(_curveZoomHit(canvas,e.clientX,e.clientY)){drag=true;hideTooltip();_curveZoomSet(canvas,e.clientY);e.preventDefault();}});
-  window.addEventListener('mouseup',()=>{drag=false;});
-  canvas.addEventListener('dblclick',e=>{if(_curveZoomHit(canvas,e.clientX,e.clientY)){curveYZoom=1;drawCurvePanel();}});
+  let drag=false, lastTap=0, hDrag=null, lastGripTap=0;
+  const hMove=cy=>{if(hDrag)_curveSetH(hDrag.h0+(cy-hDrag.y0));};
+  canvas.addEventListener('mousedown',e=>{
+    if(_curveGripHit(canvas,e.clientX,e.clientY)){hDrag={y0:e.clientY,h0:curveH};hideTooltip();e.preventDefault();return;}
+    if(_curveZoomHit(canvas,e.clientX,e.clientY)){drag=true;hideTooltip();_curveZoomSet(canvas,e.clientY);e.preventDefault();}
+  });
+  window.addEventListener('mousemove',e=>{if(hDrag)hMove(e.clientY);});
+  window.addEventListener('mouseup',()=>{drag=false;hDrag=null;});
+  canvas.addEventListener('dblclick',e=>{
+    if(_curveGripHit(canvas,e.clientX,e.clientY)){_curveSetH(CURVE_H_DEF);return;}
+    if(_curveZoomHit(canvas,e.clientX,e.clientY)){curveYZoom=1;drawCurvePanel();}
+  });
   canvas.addEventListener('mousemove',e=>{
+    if(hDrag)return;
     if(drag){_curveZoomSet(canvas,e.clientY);return;}
-    if(_curveZoomHit(canvas,e.clientX,e.clientY)){canvas.style.cursor='ns-resize';hideTooltip();return;}
+    if(_curveGripHit(canvas,e.clientX,e.clientY)||_curveZoomHit(canvas,e.clientX,e.clientY)){canvas.style.cursor='ns-resize';hideTooltip();return;}
     canvas.style.cursor='';
     showCurveTooltip(e.clientX,e.clientY);
   });
-  canvas.addEventListener('mouseleave',()=>{if(!drag){drawCurvePanel();hideTooltip();}});
+  canvas.addEventListener('mouseleave',()=>{if(!drag&&!hDrag){drawCurvePanel();hideTooltip();}});
   canvas.addEventListener('touchstart',e=>{
     const t=e.touches[0];
+    if(_curveGripHit(canvas,t.clientX,t.clientY)){
+      e.preventDefault();hideTooltip();
+      const now=Date.now();
+      if(now-lastGripTap<350){_curveSetH(CURVE_H_DEF);lastGripTap=0;return;}
+      lastGripTap=now;hDrag={y0:t.clientY,h0:curveH};return;
+    }
     if(_curveZoomHit(canvas,t.clientX,t.clientY)){
       e.preventDefault();drag=true;hideTooltip();
       const now=Date.now();
@@ -7073,10 +7112,11 @@ function setupCurveEvents(canvas){
   },{passive:false});
   canvas.addEventListener('touchmove',e=>{
     const t=e.touches[0];
+    if(hDrag){e.preventDefault();hMove(t.clientY);return;}
     if(drag){e.preventDefault();_curveZoomSet(canvas,t.clientY);return;}
     showCurveTooltip(t.clientX,t.clientY);
   },{passive:false});
-  canvas.addEventListener('touchend',()=>{if(drag){drag=false;return;}drawCurvePanel();hideTooltip();});
+  canvas.addEventListener('touchend',()=>{if(hDrag){hDrag=null;return;}if(drag){drag=false;return;}drawCurvePanel();hideTooltip();});
 }
 
 // ── short label for session filenames in chips/tables ──────────────────────
