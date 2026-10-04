@@ -45,7 +45,7 @@
   }
   body.light {
     color-scheme:light;
-    --bg: #edf1f8; --s1: #ffffff; --s2: #f4f7fc; --s3: #e8eef8;
+    --bg: #081226; --s1: #ffffff; --s2: #f4f7fc; --s3: #e8eef8;
     --border: #c8d4e8; --dim: #dde6f2;
     --g: #3cbe4f; --b: #1a68d4; --y: #e9e05d; --r: #cd2020;
     --p: #7e56a6; --o: #c07012; --i: #be3e8d; --d: #1c48b9;
@@ -543,7 +543,7 @@ body.light .hdrname{color:#fff;}
   }
   body.light{
     color-scheme:light;
-    --bg:#F6F5F1; --s1:#FFFFFF; --s2:#FBFAF7; --s3:#EFEDE7; --dim:#F1EFEA;
+    --bg:#081226; --s1:#FFFFFF; --s2:#FBFAF7; --s3:#EFEDE7; --dim:#F1EFEA;
     --border:#E2DFD6; --frame-ln:#DAD6CC;
     --text:#0E1420; --muted:#000000; --faint:#000000;
     --grid-ln:#EEEBE4; --grid-lb:#000000;
@@ -639,6 +639,9 @@ body.light .hdrname{color:#fff;}
   body:not(.light) .card.dim{background:#3a3a3c;}
   .ms-pill{flex:0 0 100%;display:flex;flex-wrap:wrap;gap:12px;min-width:0;}
   @media (max-width:700px){ .secpill{margin:0 12px 12px;} .ms-pill{flex-direction:column;} }
+  /* Light mode uses the dark-blue page background: keep text sitting directly on it light */
+  body.light .sec-hd h2,body.light #dz h2{color:#fff;}
+  body.light .sec-hd > span,body.light .sec-hd > div > span,body.light .sec-hd > label{color:rgba(255,255,255,.72)!important;}
 </style>
 
 <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" crossorigin=""/>
