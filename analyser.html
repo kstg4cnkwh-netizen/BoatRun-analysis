@@ -1504,8 +1504,17 @@ const AnalyserDrive = {
     return { ok: true, data, ids: files.map(f => f.id) };
   },
   async pullPrefs() {
-    if (!(await this.ensureToken())) return null;
-    try { const x = await this._prefsRaw(); return x.ok ? x.data : null; } catch { return null; }
+    // The start page, calendar and summary all ask at once on opening; they
+    // share one Drive read made within the last few seconds.
+    if (this._ppP && Date.now() - this._ppT < 5000) return this._ppP;
+    this._ppT = Date.now();
+    this._ppP = (async () => {
+      if (!(await this.ensureToken())) return null;
+      try { const x = await this._prefsRaw(); return x.ok ? x.data : null; } catch { return null; }
+    })();
+    const v = await this._ppP;
+    if (v === null) this._ppP = null;
+    return v;
   },
   async pushPrefs(patch) {
     if (!(await this.ensureToken())) return false;
@@ -1524,6 +1533,7 @@ const AnalyserDrive = {
       const r = await this._api(url, { method: fid ? 'PATCH' : 'POST', body: form }, 'Prefs', 15000);
       if (!r.ok) return false;
       const rd = await r.json();
+      this._ppP = null;
       if (rd && rd.id) localStorage.setItem('_ad_prefs_fid', rd.id);
       for (const id of x.ids.slice(1)) {
         try { await this._api(`https://www.googleapis.com/drive/v3/files/${id}`, { method: 'DELETE' }, 'Prefs', 10000); } catch {}
@@ -8597,21 +8607,34 @@ async function renderSummaryInto(body){
     body.innerHTML='<div class="sz-loading">Sign in to Google Drive to see your summary.</div>';
     return;
   }
-  let files;
-  try{ files=await AnalyserDrive.list(); }catch(err){ body.innerHTML='<div class="sz-loading">Could not load sessions.</div>'; return; }
+  /* Paint at once from the last known Drive listing and the records kept in
+     this browser; the fresh listing and the Drive copy of the records follow
+     in the background and repaint only if something changed. */
+  let files=AnalyserDrive.cachedList('RowSess_');
+  const freshP=AnalyserDrive.list();
+  if(!files){
+    try{ files=await freshP; }catch(err){ body.innerHTML='<div class="sz-loading">Could not load sessions.</div>'; return; }
+  }
   if(!files.length){ body.innerHTML='<div class="sz-loading">No sessions on Drive</div>'; return; }
-  try{
-    const cur=await AnalyserDrive.pullPrefs();
-    if(cur&&cur.records){
-      RECORDS_DB=mergeRecords(RECORDS_DB,cur.records);
-      try{localStorage.setItem('br_records',JSON.stringify(RECORDS_DB));}catch{}
-      try{renderRecords();}catch{}
-    }
-  }catch{}
-  try{
-    const nPurged=purgeForeignRecords(files);
-    if(nPurged)toast(nPurged+' best'+(nPurged>1?'s':'')+' from squad/file sessions removed — tap Scan All for Records',5000);
-  }catch{}
+  const _fsig=l=>(l||[]).map(f=>f.id+'|'+f.name).join(',');
+  const _alive=()=>document.body.contains(body);
+  freshP.then(f=>{
+    if(!f||!_alive())return;
+    if(_fsig(f)!==_fsig(files)){files=f;render();}
+    try{
+      const nPurged=purgeForeignRecords(f);
+      if(nPurged){toast(nPurged+' best'+(nPurged>1?'s':'')+' from squad/file sessions removed — tap Scan All for Records',5000);render();}
+    }catch{}
+  }).catch(()=>{});
+  AnalyserDrive.pullPrefs().then(cur=>{
+    if(!cur||!cur.records||!_alive())return;
+    const before=JSON.stringify(RECORDS_DB);
+    RECORDS_DB=mergeRecords(RECORDS_DB,cur.records);
+    if(JSON.stringify(RECORDS_DB)===before)return;
+    try{localStorage.setItem('br_records',JSON.stringify(RECORDS_DB));}catch{}
+    try{renderRecords();}catch{}
+    render();
+  }).catch(()=>{});
   function render(){
     const onwater=files.filter(f=>!_sumParseFn(f.name).erg);
     const erg=files.filter(f=>_sumParseFn(f.name).erg);
