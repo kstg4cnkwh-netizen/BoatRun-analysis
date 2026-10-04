@@ -7804,7 +7804,7 @@ async function showStartup(){
   document.getElementById('app').style.display='none';
   el.innerHTML=`<div class="sz-list">
     <div class="brpill-row">
-      ${SESSIONS.length ? '<button class="dzbtn dzbtn-sec" id="sz-back"><span>&#10005; Back to session</span></button>' : ''}
+      ${SESSIONS.length ? '<button class="dzbtn" id="sz-back" style="background:#ff9500;border-color:#ff9500;color:#fff;font-weight:800;box-shadow:0 3px 9px rgba(255,149,0,.45);"><span style="color:#fff;">&#10005; Back to session</span></button>' : ''}
       <button class="dzbtn dzbtn-sec" id="sz-coach"><img src="icons/Import.svg"><span>Coach Sessions</span></button>
       <button class="dzbtn dzbtn-sec" id="sz-squad"><img src="icons/Import.svg"><span>From Squad</span></button>
       <button class="dzbtn dzbtn-sec" id="sz-openfile"><img src="icons/Open.svg"><span>Open file</span></button>
