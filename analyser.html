@@ -7832,7 +7832,7 @@ async function showStartup(){
   document.getElementById('sz-demo').onclick=()=>{ location.href = location.pathname + '?demo=demo1'; };
   const _backBtn=document.getElementById('sz-back'); if(_backBtn) _backBtn.onclick=()=>{el.style.display='none';el.innerHTML='';document.getElementById('app').style.display='block';};
   leaveSquadCalendar(true);
-  _calFiles=[];_calOpen=null;window._calAnchor=null;_calMonthOff=0;renderStartupCalendar();
+  _calFiles=[];_calOpen=null;window._calAnchor=null;_calMonthOff=0;_calSel=_dayKey(Date.now());renderStartupCalendar();
   AnalyserDrive.pullPrefs().then(cur=>{if(!cur)return;wktCheckEnabled(cur);applyWorkoutsFromPrefs(cur.workouts);applyPlanFromPrefs(cur.workoutPlan);renderStartupCalendar();}).catch(()=>{});
   try{
     const cached=AnalyserDrive.cachedList('RowSess_');
