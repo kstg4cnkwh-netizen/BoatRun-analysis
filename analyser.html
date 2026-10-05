@@ -668,8 +668,9 @@ body.light .hdrname{color:#fff;}
       <button class="hbtn" id="tplmenubtn"><img class="hmenu-icon" src="icons/Export.svg"><span>Stroke template…</span></button>
     </div>
   </div>
-  <button class="hbtn hicon-btn" id="openbtn"><img class="hicon-img" src="icons/Open.svg"><span class="hicon-txt">Open</span></button>
-  <button class="hbtn hicon-btn" id="summarybtn" title="Summary and personal bests"><img class="hicon-img" src="icons/Win.svg"><span class="hicon-txt">Summary</span></button>
+  <button class="hbtn hicon-btn" id="closeallbtn" title="Close all open sessions" style="display:none;background:#fc4c02;border-color:#fc4c02;color:#fff;font-weight:800;box-shadow:0 3px 9px rgba(252,76,2,.45);"><span class="hicon-txt" style="color:#fff;">&#10005; Close all</span></button>
+  <button class="hbtn hicon-btn" id="openbtn" style="display:none;"><img class="hicon-img" src="icons/Open.svg"><span class="hicon-txt">Open</span></button>
+  <button class="hbtn hicon-btn" id="summarybtn" style="display:none;" title="Summary and personal bests"><img class="hicon-img" src="icons/Win.svg"><span class="hicon-txt">Summary</span></button>
   <button class="hbtn hicon-btn" id="wktbtn" title="Create and edit workouts for BoatRun Metrics"><svg class="hicon-img" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M4 6h10M4 12h16M4 18h7"/></svg><span class="hicon-txt">Workouts</span></button>
   <button class="hbtn hicon-btn" id="gdrivebtn" title="Step 1 of 2: sign in to your BoatRun account"><span id="gdrivedot" style="display:inline-block;width:8px;height:8px;border-radius:50%;background:#e67e22;margin-right:5px;"></span><span class="hicon-txt" id="gdrivelabel">Sign in</span></button>
   <button class="hbtn hicon-btn" id="reorderbtn" title="Reorder and show/hide tiles"><img class="hicon-img" src="icons/Tiles.svg"><span class="hicon-txt">Tiles</span></button>
@@ -7878,6 +7879,7 @@ function mountData(d,label){
   document.getElementById('startup').style.display='none';
   document.getElementById('startup').innerHTML='';
   document.getElementById('openbtn').style.display='none';
+  document.getElementById('summarybtn').style.display='';
   document.getElementById('app').style.display='block';
   document.getElementById('tcxbtn').style.display='';
   document.getElementById('fitbtn').style.display='';
@@ -7885,6 +7887,7 @@ function mountData(d,label){
   document.getElementById('resetbtn').style.display='';
   document.getElementById('addcompbtn').style.display='';
   document.getElementById('filemenubtn').style.display='';
+  document.getElementById('closeallbtn').style.display='';
   document.getElementById('unitsbar').style.display='flex';
   document.getElementById('tblwrap').style.display='block';
   document.getElementById('tbltogglebtn').textContent='Hide ▴';
@@ -7921,6 +7924,7 @@ function resetApp(){
   document.getElementById('fitbtn').style.display='none';
   document.getElementById('jsonbtn').style.display='none';
   document.getElementById('resetbtn').style.display='none';
+  document.getElementById('closeallbtn').style.display='none';
   document.getElementById('addcompbtn').style.display='none';
   document.getElementById('fin').value='';
   document.getElementById('filemenubtn').style.display='none';
@@ -7929,6 +7933,7 @@ function resetApp(){
   document.getElementById('startup').style.display='none';
   document.getElementById('startup').innerHTML='';
   document.getElementById('openbtn').style.display='';
+  document.getElementById('summarybtn').style.display='none';
   document.getElementById('lapsec').style.display='none';
   document.getElementById('mapsec').style.display='none';
   document.getElementById('map-stroke-row').classList.remove('on');
@@ -7940,6 +7945,8 @@ function resetApp(){
 
 // ── Startup screen ──────────────────────────────────────────────────────────
 async function showStartup(){
+  document.getElementById('openbtn').style.display='none';
+  document.getElementById('summarybtn').style.display='none';
   const el=document.getElementById('startup');
   el.style.display='flex';
   el.innerHTML='';
@@ -7992,7 +7999,7 @@ async function showStartup(){
   document.getElementById('sz-squad').onclick=loadFromSquad;
   document.getElementById('sz-openfile').onclick=()=>document.getElementById('fin').click();
   document.getElementById('sz-demo').onclick=()=>{ location.href = location.pathname + '?demo=demo1'; };
-  const _backBtn=document.getElementById('sz-back'); if(_backBtn) _backBtn.onclick=()=>{el.style.display='none';el.innerHTML='';document.getElementById('app').style.display='block';};
+  const _backBtn=document.getElementById('sz-back'); if(_backBtn) _backBtn.onclick=()=>{el.style.display='none';el.innerHTML='';document.getElementById('app').style.display='block';document.getElementById('summarybtn').style.display='';};
   leaveSquadCalendar(true);
   _calFiles=[];_calOpen=null;window._calAnchor=null;_calMonthOff=0;_calSel=_dayKey(Date.now());renderStartupCalendar();
   AnalyserDrive.pullPrefs().then(cur=>{if(!cur)return;wktCheckEnabled(cur);applyWorkoutsFromPrefs(cur.workouts);applyPlanFromPrefs(cur.workoutPlan);renderStartupCalendar();}).catch(()=>{});
@@ -9821,10 +9828,11 @@ function showPlanPicker(day,venue){
 }
 // ── Wiring ──────────────────────────────────────────────────────────────────
 document.getElementById('resetbtn').onclick=()=>document.getElementById('openbtn').click();
+document.getElementById('closeallbtn').onclick=()=>{ location.href = location.pathname; };
 document.getElementById('tcxbtn').onclick=exportTCX;
 document.getElementById('fitbtn').onclick=exportFIT;
 document.getElementById('jsonbtn').onclick=exportJSON;
-document.getElementById('openbtn').onclick=()=>{const s=document.getElementById('startup');if(s.innerHTML&&s.style.display!=='none'){s.style.display='none';s.innerHTML='';}else{showStartup();}};
+document.getElementById('openbtn').onclick=()=>{const s=document.getElementById('startup');if(s.innerHTML&&s.style.display!=='none'){s.style.display='none';s.innerHTML='';if(SESSIONS.length){document.getElementById('app').style.display='block';document.getElementById('summarybtn').style.display='';}}else{showStartup();}};
 document.getElementById('infobtn').onclick=showInfoModal;
 document.getElementById('reorderbtn').onclick=showReorderModal;
 document.getElementById('summarybtn').onclick=showSummaryModal;
