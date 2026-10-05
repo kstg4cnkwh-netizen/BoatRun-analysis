@@ -635,8 +635,12 @@ body.light .hdrname{color:#fff;}
   #lapsec>.sec-hd,#lapsec>#lapcurvebar,#sectorsec>.sec-hd{flex:0 0 auto;}
   #lapsec>.twrap{flex:1 1 auto;min-height:0;overflow:auto !important;}
   #sectorbody{flex:1 1 auto;min-height:0;overflow:auto;}
-  .card.dim{opacity:.55;background:#c8c8cc;filter:grayscale(1);}
+  .card.dim{opacity:1;background:#d6d6da;filter:grayscale(1);}
+  .card.dim .lbl,.card.dim .sub{color:#4a4a50!important;}
+  .card.dim .val{color:#2c2c30!important;}
   body:not(.light) .card.dim{background:#3a3a3c;}
+  body:not(.light) .card.dim .lbl,body:not(.light) .card.dim .sub{color:#b8b8be!important;}
+  body:not(.light) .card.dim .val{color:#e4e4e8!important;}
   .ms-pill{flex:0 0 100%;display:flex;flex-wrap:wrap;gap:12px;min-width:0;}
   @media (max-width:700px){ .secpill{margin:0 12px 12px;} .ms-pill{flex-direction:column;} }
 </style>
@@ -7945,7 +7949,7 @@ async function showStartup(){
   document.getElementById('app').style.display='none';
   el.innerHTML=`<div class="sz-list">
     <div class="brpill-row">
-      ${SESSIONS.length ? '<button class="dzbtn" id="sz-back" style="background:#ff9500;border-color:#ff9500;color:#fff;font-weight:800;box-shadow:0 3px 9px rgba(255,149,0,.45);"><span style="color:#fff;">&#10005; Back to session</span></button>' : ''}
+      ${SESSIONS.length ? '<button class="dzbtn" id="sz-back" style="background:#fc4c02;border-color:#fc4c02;color:#fff;font-weight:800;box-shadow:0 3px 9px rgba(252,76,2,.45);"><span style="color:#fff;">&#10005; Back to session</span></button>' : ''}
       <button class="dzbtn dzbtn-sec" id="sz-coach"><img src="icons/Import.svg"><span>Coach Sessions</span></button>
       <button class="dzbtn dzbtn-sec" id="sz-squad"><img src="icons/Import.svg"><span>From Squad</span></button>
       <button class="dzbtn dzbtn-sec" id="sz-openfile"><img src="icons/Open.svg"><span>Open file</span></button>
@@ -8690,7 +8694,7 @@ function _sumGroupHTML(title,groupKey,list,monthOff,weekOff){
   const grp=(cls,t)=>'<div class="sumgrp-cards">'+mk(cls,'Sessions',t.n)+mk(cls,'Distance',(t.dist/1000).toFixed(1)+'km')+mk(cls,'Time',fmtTime(t.dur))+mk(cls,'Avg Pace',pace(t))+'</div>';
   const monthNav='<span class="sumnav"><button data-grp="'+groupKey+'" data-nav="month-prev">\u2039</button><span class="sumnav-lbl">'+monthRange.label+'</span><button data-grp="'+groupKey+'" data-nav="month-next"'+(monthOff<=0?' disabled':'')+'>\u203a</button></span>';
   const weekNav='<span class="sumnav"><button data-grp="'+groupKey+'" data-nav="week-prev">\u2039</button><span class="sumnav-lbl">'+weekRange.label+'</span><button data-grp="'+groupKey+'" data-nav="week-next"'+(weekOff<=0?' disabled':'')+'>\u203a</button></span>';
-  let html='<div class="brpill"><div class="sz-lhd">'+title+'</div>';
+  let html='<div class="brpill"'+(groupKey==='onwater'?' style="background:var(--sp-video);"':'')+'><div class="sz-lhd">'+title+'</div>';
   html+='<div class="sumgrp-cards" style="margin-bottom:16px;">'+mk('co','Longest',(longestDist/1000).toFixed(1)+'km')+mk('cd','Total Strokes',totalStrokes.toLocaleString())+'</div>';
   html+='<div class="sumgrp"><div class="sumgrp-hd">Total</div>'+grp('cb',T.all)+'</div>';
   html+='<div class="sumgrp"><div class="sumgrp-hd">Monthly'+monthNav+'</div>'+grp('c-amber',T.month)+'</div>';
@@ -11961,4 +11965,25 @@ loadAnVidDir();
 #_plan_modal button{border-radius:14px!important;}
 #_plan_modal button[style*="border:1px solid var(--border)"]{border:none!important;box-shadow:0 2px 5px rgba(0,0,0,.20);}
 #_about_modal>div>div:first-child{border-radius:22px 22px 0 0!important;border-bottom:none!important;}
+/* Readability: larger type, headings above body text, flatter surfaces */
+body{font-size:14px;}
+.sec-hd h2{font-size:16px!important;letter-spacing:-.01em!important;font-weight:700!important;text-transform:none!important;}
+.sec-hd .hbtn,.sec-hd button,.sec-hd label.hbtn{font-size:11px!important;}
+.sec-hd span[style*="font-size:9px"]{font-size:11px!important;}
+#tblcount{font-size:12px!important;}
+.card .lbl{font-size:10px;letter-spacing:.06em;font-weight:600;}
+.card .val{font-size:22px;margin-top:4px;}
+.card .sub{font-size:10.5px;margin-top:3px;}
+.twrap th{font-size:10px;letter-spacing:.04em;}
+.twrap td{font-size:12.5px;}
+.seglbl{font-size:11px;}
+.segbtn{font-size:11.5px;}
+#stripcontext{font-size:11px;}
+.laptypebtn{font-size:11px;}
+#sectorbody{font-size:12.5px;}
+/* Softer type: Inter everywhere instead of the squarer Space Grotesk, fewer all-caps */
+.sec-hd h2,#dz h2,.vid-panel-hd,.card .val,thead th{font-family:'Inter',-apple-system,BlinkMacSystemFont,Helvetica Neue,sans-serif!important;}
+.card .val{font-weight:600;letter-spacing:-.02em;}
+.card .lbl,.seglbl,thead th{text-transform:none!important;letter-spacing:0!important;}
+.sec-hd .hbtn,.segbtn,.laptypebtn,.filt-chip,.brpill-row .dzbtn,#stripcontext{text-transform:none!important;letter-spacing:0!important;}
 </style>
