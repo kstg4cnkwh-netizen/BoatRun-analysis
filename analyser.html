@@ -1760,9 +1760,18 @@ function schedulePushRecordsToPrefs() {
     }).catch(() => {});
   }, 2000);
 }
+function calWeekStart() {
+  let v = 1;
+  try { const x = localStorage.getItem('br_week_start'); if (x !== null && x !== '') v = parseInt(x, 10); } catch {}
+  return (v === 0 || v === 1 || v === 6) ? v : 1;
+}
 function pushUnitsToPrefs() {
   if (!AnalyserDrive.isSignedIn()) return;
-  AnalyserDrive.pushPrefs({ units: { boatClass: unitSettings.boatClass, paceUnit: unitSettings.paceUnit, distUnit: unitSettings.distUnit, dpsUnit: unitSettings.dpsUnit, ergUnit: unitSettings.ergUnit } }).catch(() => {});
+  AnalyserDrive._ppP = null;
+  AnalyserDrive.pullPrefs().then(cur => {
+    const u = { ...((cur && cur.units) || {}), boatClass: unitSettings.boatClass, paceUnit: unitSettings.paceUnit, distUnit: unitSettings.distUnit, dpsUnit: unitSettings.dpsUnit, ergUnit: unitSettings.ergUnit };
+    return AnalyserDrive.pushPrefs({ units: u });
+  }).catch(() => {});
 }
 function pushHRZoneBoundsToPrefs() {
   if (!AnalyserDrive.isSignedIn()) return;
@@ -1790,6 +1799,9 @@ async function pullPrefsAndApply() {
   }
   if (prefs.units) {
     unitSettings = { ...unitSettings, ...prefs.units };
+  }
+  if (prefs.calendar && prefs.calendar.weekStart != null) {
+    try { localStorage.setItem('br_week_start', String(prefs.calendar.weekStart)); } catch {}
   }
   if (prefs.records) {
     RECORDS_DB = mergeRecords(RECORDS_DB, prefs.records);
@@ -8062,7 +8074,7 @@ async function showStartup(){
     }
     function getWeekRange(off){
       const now=new Date();
-      const dow=(now.getDay()+6)%7;
+      const dow=(now.getDay()-calWeekStart()+7)%7;
       const mon=new Date(now); mon.setHours(0,0,0,0); mon.setDate(mon.getDate()-dow-off*7);
       const start=mon.getTime();
       const end=start+7*86400000;
@@ -8668,7 +8680,7 @@ function _sumMonthRange(off){
 }
 function _sumWeekRange(off){
   const now=new Date();
-  const dow=(now.getDay()+6)%7;
+  const dow=(now.getDay()-calWeekStart()+7)%7;
   const mon=new Date(now); mon.setHours(0,0,0,0); mon.setDate(mon.getDate()-dow-off*7);
   const start=mon.getTime();
   const end=start+7*86400000;
@@ -9481,9 +9493,9 @@ function renderStartupCalendar(){
     return '<span style="width:7px;height:7px;border-radius:50%;background:'+col+';display:inline-block;align-self:center;"></span>';
   };
   const monthGrid=(y,m)=>{
-    const first=new Date(y,m,1), lead=(first.getDay()+6)%7, nDays=new Date(y,m+1,0).getDate();
+    const _ws=calWeekStart(), first=new Date(y,m,1), lead=(first.getDay()-_ws+7)%7, nDays=new Date(y,m+1,0).getDate();
     let g='<div style="display:grid;grid-template-columns:repeat(7,1fr);gap:3px;">';
-    ['Mon','Tue','Wed','Thu','Fri','Sat','Sun'].forEach(d=>{g+='<div style="font-size:10px;color:var(--muted);text-align:center;padding:2px 0;">'+d+'</div>';});
+    [0,1,2,3,4,5,6].map(i=>['Sun','Mon','Tue','Wed','Thu','Fri','Sat'][(i+_ws)%7]).forEach(d=>{g+='<div style="font-size:10px;color:var(--muted);text-align:center;padding:2px 0;">'+d+'</div>';});
     for(let i=0;i<lead;i++)g+='<div></div>';
     for(let d=1;d<=nDays;d++){
       const k=y+'-'+String(m+1).padStart(2,'0')+'-'+String(d).padStart(2,'0');
