@@ -5245,6 +5245,11 @@ function buildCards(sum) {
     card('cw','Duration',dur,ST.length+' strokes',null,'Total elapsed time of the session.')+
     METRIC_DEFS.map(m=>(hid[m.k]||!CARD_BUILDERS[m.k])?'':CARD_BUILDERS[m.k]()).join('');
   document.getElementById('cards').innerHTML=html;
+  document.querySelectorAll('#cards .card .val').forEach(v=>{
+    if(v.children.length)return;
+    const m=/^([\d:.,+\-\u2212]*\d)\s*([A-Za-z%\u00b0\/\u00b5].*)$/.exec(v.textContent.trim());
+    if(m)v.innerHTML=m[1]+'<span class="u">'+m[2]+'</span>';
+  });
   buildHRZoneTable();
 }
 
@@ -11981,6 +11986,7 @@ body{font-size:14px;}
 #stripcontext{font-size:11px;}
 .laptypebtn{font-size:11px;}
 #sectorbody{font-size:12.5px;}
+.card .val .u{font-size:.5em;font-weight:500;margin-left:2px;letter-spacing:0;}
 /* Softer type: Inter everywhere instead of the squarer Space Grotesk, fewer all-caps */
 .sec-hd h2,#dz h2,.vid-panel-hd,.card .val,thead th{font-family:'Inter',-apple-system,BlinkMacSystemFont,Helvetica Neue,sans-serif!important;}
 .card .val{font-weight:600;letter-spacing:-.02em;}
