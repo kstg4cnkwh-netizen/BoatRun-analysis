@@ -1804,6 +1804,7 @@ async function pullPrefsAndApply() {
   if (prefs.calendar && prefs.calendar.weekStart != null) {
     try { localStorage.setItem('br_week_start', String(prefs.calendar.weekStart)); } catch {}
   }
+  try { codeHistFromPrefs(prefs.squadCodes); } catch {}
   if (prefs.records) {
     RECORDS_DB = mergeRecords(RECORDS_DB, prefs.records);
     try { localStorage.setItem('br_records', JSON.stringify(RECORDS_DB)); } catch {}
@@ -4090,6 +4091,54 @@ async function peekSquadMeta(code){
     } catch {}
     return sawMeta ? false : null;
 }
+/* Recent squad codes: same list as Metrics (prefs.squadCodes). */
+const CODE_HIST_KEY = '_squad_code_hist', CODE_HIST_DEL_KEY = '_squad_code_del';
+function getCodeHist() { try { return JSON.parse(localStorage.getItem(CODE_HIST_KEY)) || []; } catch { return []; } }
+function saveCodeHist(h) { try { localStorage.setItem(CODE_HIST_KEY, JSON.stringify(h)); } catch {} }
+function getCodeDel() { try { return JSON.parse(localStorage.getItem(CODE_HIST_DEL_KEY)) || {}; } catch { return {}; } }
+function saveCodeDel(d) { try { localStorage.setItem(CODE_HIST_DEL_KEY, JSON.stringify(d)); } catch {} }
+function mergeCodeHistLists(a, b, delA, delB) {
+    const del = { ...(delA || {}) };
+    Object.keys(delB || {}).forEach(c => { if (!del[c] || delB[c] > del[c]) del[c] = delB[c]; });
+    const m = {};
+    [].concat(a || [], b || []).forEach(x => {
+        if (!x || !x.code) return;
+        const c = String(x.code).trim().toUpperCase(), t = +x.t || 0, n = (x.name || '').trim();
+        const cur = m[c];
+        if (!cur) m[c] = { code: c, name: n, t: t };
+        else { if (t > cur.t) { cur.t = t; if (n) cur.name = n; } else if (!cur.name && n) cur.name = n; }
+    });
+    const list = Object.values(m).filter(x => !(del[x.code] && del[x.code] >= x.t)).sort((p, q) => q.t - p.t).slice(0, 10);
+    const cut = Date.now() - 365 * 864e5;
+    Object.keys(del).forEach(c => { if (del[c] < cut) delete del[c]; });
+    return { list, del };
+}
+function pushCodeHistToPrefs() {
+    if (typeof AnalyserDrive === 'undefined' || !AnalyserDrive.isSignedIn()) return;
+    AnalyserDrive.pushPrefs({ squadCodes: { list: getCodeHist(), del: getCodeDel() } }).catch(() => {});
+}
+function codeHistFromPrefs(sc) {
+    if (!sc || typeof sc !== 'object') { if (getCodeHist().length) pushCodeHistToPrefs(); return; }
+    const r = mergeCodeHistLists(getCodeHist(), sc.list, getCodeDel(), sc.del);
+    saveCodeHist(r.list); saveCodeDel(r.del);
+    if (JSON.stringify(r.list) !== JSON.stringify(sc.list || [])) pushCodeHistToPrefs();
+}
+function addCodeHist(code, name) {
+    if (!code) return;
+    code = String(code).trim().toUpperCase();
+    const old = getCodeHist().find(x => x.code === code);
+    let h = getCodeHist().filter(x => x.code !== code);
+    h.unshift({ code, name: (name || (old && old.name) || ''), t: Date.now() });
+    if (h.length > 10) h = h.slice(0, 10);
+    saveCodeHist(h);
+    pushCodeHistToPrefs();
+}
+function deleteCodeHist(code) {
+    if (!code) return;
+    saveCodeHist(getCodeHist().filter(x => x.code !== code));
+    const d = getCodeDel(); d[code] = Date.now(); saveCodeDel(d);
+    pushCodeHistToPrefs();
+}
 function promptSquadCode(){
     return new Promise(resolve=>{
         document.getElementById('_squad_code_entry')?.remove();
@@ -4099,7 +4148,7 @@ function promptSquadCode(){
         overlay.id = '_squad_code_entry';
         overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,.72);display:flex;align-items:center;justify-content:center;z-index:9999;';
         const panel = document.createElement('div');
-        panel.style.cssText = 'background:var(--s1);border:1px solid var(--border);border-radius:10px;padding:18px;max-width:340px;width:88%;color:var(--text);font-family:-apple-system, BlinkMacSystemFont, Helvetica Neue, sans-serif;';
+        panel.style.cssText = 'background:var(--s1);border:1px solid var(--border);border-radius:10px;padding:18px;max-width:340px;width:88%;max-height:90vh;overflow-y:auto;color:var(--text);font-family:-apple-system, BlinkMacSystemFont, Helvetica Neue, sans-serif;';
         panel.innerHTML = '<div style="font-size:1rem;font-weight:700;margin-bottom:12px;color:var(--b);">Open from Squad</div>'
             + '<input id="sqc-input" type="text" maxlength="7" autocomplete="off" autocapitalize="characters" spellcheck="false" placeholder="Squad code" style="display:block;width:100%;box-sizing:border-box;padding:10px 12px;margin-bottom:10px;background:var(--s2);border:1px solid var(--border);border-radius:6px;color:var(--text);font-size:.95rem;text-transform:uppercase;letter-spacing:2px;text-align:center;font-weight:700;font-family:inherit;">'
             + '<div id="sqc-hash" style="text-align:center;letter-spacing:6px;color:var(--muted);font-size:1rem;font-family:monospace;margin-bottom:6px;">#######</div>'
@@ -4107,14 +4156,42 @@ function promptSquadCode(){
             + '<div style="display:flex;gap:8px;">'
             + '<button id="sqc-cancel" style="flex:1;padding:9px 0;background:var(--s2);border:1px solid var(--border);border-radius:6px;color:var(--text);cursor:pointer;font-size:.85rem;font-family:inherit;">Cancel</button>'
             + '<button id="sqc-ok" style="flex:1;padding:9px 0;background:var(--b);border:1px solid var(--b);border-radius:6px;color:#fff;cursor:pointer;font-size:.85rem;font-family:inherit;opacity:.5;" disabled>Open</button>'
-            + '</div>';
+            + '</div>'
+            + '<div id="sqc-hist" style="margin-top:14px;"></div>';
         overlay.appendChild(panel);
         document.body.appendChild(overlay);
         const input = document.getElementById('sqc-input');
         const hashRow = document.getElementById('sqc-hash');
         const okBtn = document.getElementById('sqc-ok');
         const lookRow = document.getElementById('sqc-lookup');
-        let lkTimer = null, lkSeq = 0;
+        let lkTimer = null, lkSeq = 0, lastMeta = null;
+        const histEl = document.getElementById('sqc-hist');
+        function renderHist(){
+            if (!histEl) return;
+            const h = getCodeHist();
+            if (!h.length) { histEl.innerHTML = ''; return; }
+            const fmtDt = t => { const d = new Date(t); return d.toLocaleDateString('en-AU', { day: 'numeric', month: 'short' }) + ' ' + d.toLocaleTimeString('en-AU', { hour: '2-digit', minute: '2-digit' }); };
+            histEl.innerHTML = '<div style="font-size:9px;color:var(--muted);letter-spacing:.08em;text-transform:uppercase;margin-bottom:5px;">Recent codes</div>'
+                + h.map((x, i) => '<div class="sqc-hi" data-idx="' + i + '" style="display:flex;flex-wrap:wrap;align-items:center;gap:6px;padding:6px 8px;border-radius:12px;border:1px solid var(--border);background:var(--s2);margin-bottom:4px;cursor:pointer;font-size:11px;">'
+                    + '<span style="font-weight:700;color:var(--b);min-width:56px;">' + escHtml(x.code) + '</span>'
+                    + '<span style="color:var(--muted);font-size:9px;white-space:nowrap;">' + fmtDt(x.t) + '</span>'
+                    + '<span class="sqc-hd" data-idx="' + i + '" style="color:#ff3b30;font-size:14px;font-weight:700;padding:2px 6px;margin-left:auto;">\u2715</span>'
+                    + (x.name ? '<span style="color:var(--text);flex:1 1 100%;line-height:1.3;">' + escHtml(x.name) + '</span>' : '')
+                    + '</div>').join('');
+            histEl.querySelectorAll('.sqc-hi').forEach(it => it.onclick = () => {
+                const x = h[+it.dataset.idx]; if (!x) return;
+                input.value = x.code; refresh();
+            });
+            histEl.querySelectorAll('.sqc-hd').forEach(b => b.onclick = ev => {
+                ev.stopPropagation();
+                const x = h[+b.dataset.idx]; if (!x) return;
+                if (confirm('Delete code ' + x.code + ' from recent codes?')) { deleteCodeHist(x.code); renderHist(); }
+            });
+        }
+        renderHist();
+        if (typeof AnalyserDrive !== 'undefined' && AnalyserDrive.isSignedIn()) {
+            AnalyserDrive.pullPrefs().then(p => { if (p) { codeHistFromPrefs(p.squadCodes); renderHist(); } }).catch(() => {});
+        }
         function refresh(){
             let v = input.value.toUpperCase().replace(/[^A-Z0-9]/g,'').slice(0,7);
             input.value = v;
@@ -4135,6 +4212,7 @@ function promptSquadCode(){
                 const m = await peekSquadMeta(v);
                 if (seq !== lkSeq || !lookRow) return;
                 if (input.value.toUpperCase() !== v) return;
+                lastMeta = { code: v, m: m };
                 if (m === false) lookRow.innerHTML = '<span style="color:#c0392b;">No squad found with this code</span>';
                 else if (m === null) lookRow.innerHTML = '';
                 else lookRow.innerHTML = '<span style="color:#16a085;">\u25cf ' + escHtml(m.desc || 'Squad found (no name set)') + '</span>';
@@ -4144,7 +4222,13 @@ function promptSquadCode(){
         refresh();
         input.addEventListener('input', refresh);
         setTimeout(()=>input.focus(), 50);
-        function finish(code){ overlay.remove(); resolve(code); }
+        function finish(code){
+            if (code && code.length === 7) {
+                const lm = (lastMeta && lastMeta.code === code) ? lastMeta.m : null;
+                if (lm !== false) addCodeHist(code, lm && lm.desc ? lm.desc : '');
+            }
+            overlay.remove(); resolve(code);
+        }
         document.getElementById('sqc-cancel').onclick = () => finish(null);
         okBtn.onclick = () => { if (input.value.length === 7) finish(input.value); };
         input.addEventListener('keydown', e => {
@@ -6444,23 +6528,14 @@ function tplRemoveEntry(i){
 function tplDeleteActive(){
   const t = tplActive();
   if (!t) return;
-  if (!confirm('Delete \u201c' + (t.name || 'Template') + '\u201d? Any unsaved rates are lost.')) return;
+  if (!confirm('Delete \u201c' + (t.name || 'Template') + '\u201d? It is also removed from Metrics.')) return;
+  tplSyncPush(t, true);
   tplOpen.splice(tplActiveIdx,1);
   tplActiveIdx = tplOpen.length ? 0 : -1;
   tplFocusIdx = -1;
   tplStore(); renderTemplateModal(); buildCurveSection();
 }
-function tplExport(){
-  const t = tplActive();
-  if (!tplHasEntries(t)){ toast('Template is empty'); return; }
-  tplSortEntries(t);
-  t.savedAt = Date.now();
-  tplStore();
-  /* application/json makes some mobile browsers open the file inline for
-     preview instead of downloading it, which is what surfaces as a save/
-     location picker. octet-stream forces a straight save to Downloads —
-     the .json extension in the filename is untouched, so it still opens fine
-     when picked back up in Metrics → Import. */
+function tplDownload(t){
   const blob = new Blob([JSON.stringify(t)], {type:'application/octet-stream'});
   const url = URL.createObjectURL(blob);
   const a = document.createElement('a');
@@ -6471,8 +6546,36 @@ function tplExport(){
   a.click();
   a.remove();
   setTimeout(() => URL.revokeObjectURL(url), 1000);
+}
+/* Saved templates go into BoatRunPrefs.json (strokeTemplates) so Metrics on
+   the same Google account picks them up directly. Deletions travel as
+   {id,deleted:true,rev}. Newest rev wins on the phone. */
+function tplSyncPush(t, del){
+  if (!t || !t.id || !AnalyserDrive.isSignedIn()) return Promise.resolve(false);
+  const rec = del ? {id:t.id, deleted:true, rev:Date.now()} : Object.assign({}, t, {rev:t.savedAt || Date.now()});
+  return AnalyserDrive.pullPrefs().then(cur => {
+    const list = (cur && Array.isArray(cur.strokeTemplates)) ? cur.strokeTemplates.filter(x => x && x.id && x.id !== t.id) : [];
+    list.push(rec);
+    return AnalyserDrive.pushPrefs({strokeTemplates:list});
+  }).catch(() => false);
+}
+function tplExport(){
+  const t = tplActive();
+  if (!tplHasEntries(t)){ toast('Template is empty'); return; }
+  tplSortEntries(t);
+  t.savedAt = Date.now();
+  tplStore();
   renderTemplateModal(); buildCurveSection();
-  toast('Saved \u2014 import this file in Metrics \u203a Settings');
+  if (!AnalyserDrive.isSignedIn()){
+    tplDownload(t);
+    toast('Saved as a file \u2014 connect Google Drive to send templates straight to Metrics');
+    return;
+  }
+  toast('Saving to Metrics\u2026');
+  tplSyncPush(t, false).then(ok => {
+    if (ok) toast('Saved \u2014 \u201c' + (t.name || 'Template') + '\u201d will appear in Metrics');
+    else { tplDownload(t); toast('Drive sync failed \u2014 saved as a file instead'); }
+  });
 }
 function tplImportPick(){
   if (!(isPro() || isCoach())){ showPlanModal('Loading stroke templates is a Pro feature.'); return; }
@@ -6577,7 +6680,7 @@ function renderTemplateModal(){
 
   panel.innerHTML =
     '<div style="font-size:1rem;font-weight:700;margin-bottom:4px;color:var(--b);">Create / Edit Stroke Template</div>'+
-    '<div style="font-size:.75rem;color:var(--muted);line-height:1.5;margin-bottom:12px;">Add an averaged curve for each stroke rate you want as a target. Save it, then load the file into Metrics to see it drawn live over your own curve in Row, Cox or Erg.</div>'+
+    '<div style="font-size:.75rem;color:var(--muted);line-height:1.5;margin-bottom:12px;">Add an averaged curve for each stroke rate you want as a target. Save it and it appears in Metrics on the same Google account, drawn live over your own curve in Row, Cox or Erg.</div>'+
 
     openHtml+
 
