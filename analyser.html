@@ -9581,6 +9581,7 @@ function _wktDispName(w){
   return s||n;
 }
 function renderStartupCalendar(){
+  if(typeof _pv!=='undefined'&&_pv&&_pv.open){try{pvRender();}catch(e){console.error(e);}}
   const el=document.getElementById('sz-cal');if(!el)return;
   const now=new Date();
   const wide=window.matchMedia('(min-width:1200px)').matches;
@@ -9629,7 +9630,7 @@ function renderStartupCalendar(){
     const back=isFinite(firstTs)?Math.min(36,Math.max(1,(now.getFullYear()-new Date(firstTs).getFullYear())*12+now.getMonth()-new Date(firstTs).getMonth())):6;
     h='<div class="sz-lhd" style="display:flex;align-items:center;gap:6px;flex-wrap:wrap;">Calendar'+'<span style="display:flex;gap:4px;margin-left:8px;"><button id="cal-mine" class="filt-chip'+(!_wktCtx?' on':'')+'" style="'+CH+'">Mine</button><button id="cal-squad" class="filt-chip'+(_wktCtx?' on':'')+'" style="'+CH+'">Squad'+(_wktCtx?' '+_wktCtx:'')+'</button></span>'
       +'<span style="margin-left:auto;display:flex;align-items:center;gap:6px;">'+((!_wktCtx&&WKT_ENABLED)?'<button id="cal-sqsync" class="filt-chip" style="'+CH+'" title="Copy the squad plan into your calendar">&#x21BB; From squad</button>':'')
-      +'<button id="cal-today" class="filt-chip" style="'+CH+'">Today</button></span></div>'+sqBar
+      +'<button id="cal-plan" class="filt-chip" style="'+CH+'" title="Big calendar with your workout list">&#x1F5D3; Planning</button>'+'<button id="cal-today" class="filt-chip" style="'+CH+'">Today</button></span></div>'+sqBar
       +'<div id="cal-scroll" style="height:min(440px,62vh);overflow-y:auto;padding-right:4px;position:relative;">';
     for(let o=-back;o<=3;o++){
       const b=new Date(now.getFullYear(),now.getMonth()+o,1);
@@ -9644,7 +9645,7 @@ function renderStartupCalendar(){
       +'<span style="font-size:.8rem;font-weight:600;min-width:110px;text-align:center;">'+mLabel(base.getFullYear(),base.getMonth())+'</span>'
       +'<button id="cal-next" class="filt-chip" style="'+CH+'">›</button>'
       +((!_wktCtx&&WKT_ENABLED)?'<button id="cal-sqsync" class="filt-chip" style="'+CH+'" title="Copy the squad plan into your calendar">&#x21BB; From squad</button>':'')
-      +'<button id="cal-today" class="filt-chip" style="'+CH+'">Today</button></span></div>'+sqBar
+      +'<button id="cal-plan" class="filt-chip" style="'+CH+'" title="Big calendar with your workout list">&#x1F5D3; Planning</button>'+'<button id="cal-today" class="filt-chip" style="'+CH+'">Today</button></span></div>'+sqBar
       +monthGrid(base.getFullYear(),base.getMonth());
   }
   const hCal=h;h='';
@@ -9721,6 +9722,7 @@ function renderStartupCalendar(){
   const cq=document.getElementById('cal-squad');if(cq)cq.onclick=()=>{if(!_wktCtx)enterSquadCalendar(false);};
   const cs=document.getElementById('cal-sqsync');if(cs)cs.onclick=()=>syncFromSquad();
   const cc=document.getElementById('cal-sqchange');if(cc)cc.onclick=e=>{e.preventDefault();enterSquadCalendar(true);};
+  const cpl=document.getElementById('cal-plan');if(cpl)cpl.onclick=()=>openPlanningView();
   document.getElementById('cal-today').onclick=()=>{
     _calMonthOff=0;_calSel=todayK;window._calAnchor={m:0,dy:0};renderStartupCalendar();
   };
@@ -9927,6 +9929,270 @@ function showPlanPicker(day,venue){
     if(a==='close'){overlay.remove();return;}
     if(a==='pick'){planAdd(day,b.dataset.id);overlay.remove();renderStartupCalendar();toast('Workout added to '+dl);return;}
     if(a==='new'){overlay.remove();window.showWorkoutsModal({newVenue:venue,onSaved:id=>{planAdd(day,id);renderStartupCalendar();toast('Workout added to '+dl);}});}
+  };
+}
+/* ══════════════════════════════════════════════════════════════════════════
+   PLANNING VIEW — full-screen planner. Big month calendar on the left, the
+   workout list on the right. One source at a time (Mine or a squad), or
+   Combined: your own plan plus any squads you tick, each with its own marker.
+   In Combined, edits go to your own plan; squad workouts can be imported.
+   ══════════════════════════════════════════════════════════════════════════ */
+const PV_COLS=['#8e44ad','#16a085','#d35400','#2980b9','#e84393','#27ae60','#f39c12','#6c5ce7'];
+const PV_MINE_COL='#2c3e50';
+var _pv={open:false,combined:false,mOff:0,sel:null,venue:'all',q:'',combo:{},sq:{},loading:{}};
+function pvCol(code){let h=0;const s=String(code||'');for(let i=0;i<s.length;i++)h=(h*31+s.charCodeAt(i))>>>0;return PV_COLS[h%PV_COLS.length];}
+function pvSquads(){
+  const l=getCodeHist().map(x=>({code:x.code,name:x.name||''}));
+  if(_wktCtx&&!l.some(x=>x.code===_wktCtx))l.unshift({code:_wktCtx,name:(_sqStore&&_sqStore.desc)||''});
+  Object.keys(_pv.sq).forEach(c=>{if(!l.some(x=>x.code===c))l.push({code:c,name:_pv.sq[c].desc||''});});
+  return l;
+}
+function pvSqName(code){
+  const s=pvSquads().find(x=>x.code===code);
+  const d=(_pv.sq[code]&&_pv.sq[code].desc)||(s&&s.name)||((_wktCtx===code&&_sqStore)?_sqStore.desc:'');
+  return d||code;
+}
+function pvCanEdit(){return _pv.combined?WKT_ENABLED:(_wktCtx?sqCanEdit():WKT_ENABLED);}
+function pvMarker(col,sz){sz=sz||10;return '<span style="display:inline-block;flex-shrink:0;width:'+sz+'px;height:'+sz+'px;border-radius:50%;background:'+col+';box-shadow:0 0 0 2px #fff,0 0 0 3px rgba(0,0,0,.25);margin-right:5px;"></span>';}
+async function pvLoadSquad(code){
+  code=String(code||'').toUpperCase();
+  if(!code||_pv.loading[code])return false;
+  if(!(await ensureSquadUnlocked(code))){toast('Squad '+code+' is password protected');return false;}
+  _pv.loading[code]=true;
+  try{
+    const [plan,desc]=await Promise.all([sqFetchPlan(code).catch(()=>({})),fetchSquadDesc(code).catch(()=>'')]);
+    _pv.sq[code]={desc:desc||'',workouts:Array.isArray(plan.workouts)?plan.workouts:[],days:(plan.days&&typeof plan.days==='object')?plan.days:{}};
+    return true;
+  }finally{_pv.loading[code]=false;}
+}
+/* Entries planned on day k: [{id,w,src,idx}] — src is 'mine' or a squad code. */
+function pvEntries(k){
+  const out=[];
+  const add=(days,list,src)=>{
+    const e=days&&days[k];const ids=(e&&Array.isArray(e.ids))?e.ids:[];
+    const byId={};(list||[]).forEach(w=>{if(w&&!w.deleted)byId[w.id]=w;});
+    ids.forEach((id,i)=>out.push({id,w:byId[id]||null,src,idx:i}));
+  };
+  if(!_pv.combined){
+    if(_wktCtx||WKT_ENABLED)add(WKT_PLAN,WORKOUTS_DB,_wktCtx||'mine');
+  }else{
+    if(WKT_ENABLED)add(_pP(),_pW(),'mine');
+    Object.keys(_pv.combo).forEach(c=>{if(_pv.combo[c]&&_pv.sq[c])add(_pv.sq[c].days,_pv.sq[c].workouts,c);});
+  }
+  return out;
+}
+function pvImport(code,w,day){
+  if(!w||!WKT_ENABLED){toast('Turn on workout sync in Metrics first');return;}
+  const nid='sq'+code+'_'+w.id;
+  const c=JSON.parse(JSON.stringify(w));c.id=nid;c.rev=Date.now();delete c.ord;
+  const list=_pW();const i=list.findIndex(x=>x&&x.id===nid);
+  if(i>=0)list[i]=c;else list.push(c);
+  try{localStorage.setItem('br_workouts',JSON.stringify(list));}catch{}
+  schedulePushWorkoutsToPrefs();
+  if(day&&day>=_dayKey(Date.now())){
+    const pl=_pP();const e=pl[day];const ids=(e&&Array.isArray(e.ids))?e.ids.slice():[];
+    if(ids.indexOf(nid)<0)ids.push(nid);
+    pl[day]={ids,rev:Date.now()};
+    try{localStorage.setItem('br_wkt_plan',JSON.stringify(pl));}catch{}
+    schedulePushPlan();
+  }
+  toast('Imported '+_wktDispName(w));
+  renderStartupCalendar();
+}
+function openPlanningView(){
+  _pv.open=true;
+  if(!_pv.sel)_pv.sel=_dayKey(Date.now());
+  pvRender();
+}
+function closePlanningView(){
+  _pv.open=false;
+  document.getElementById('_plan_view')?.remove();
+  try{renderStartupCalendar();}catch{}
+}
+function pvRender(){
+  let ov=document.getElementById('_plan_view');
+  if(!ov){
+    ov=document.createElement('div');ov.id='_plan_view';
+    ov.style.cssText='position:fixed;inset:0;z-index:8500;background:var(--bg);color:var(--text);font-family:-apple-system,BlinkMacSystemFont,Helvetica Neue,sans-serif;overflow:auto;';
+    document.body.appendChild(ov);
+  }
+  const keepScroll=(document.getElementById('pv-list')||{}).scrollTop||0;
+  const todayK=_dayKey(Date.now());
+  const now=new Date();
+  const base=new Date(now.getFullYear(),now.getMonth()+_pv.mOff,1);
+  const y=base.getFullYear(),m=base.getMonth();
+  const CH='font-size:12px;padding:5px 11px;';
+  const canEdit=pvCanEdit();
+  const sqs=pvSquads();
+  // ---------- header ----------
+  let h='<div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;padding:12px 16px;border-bottom:1px solid var(--border);background:var(--s1);position:sticky;top:0;z-index:2;">'
+    +'<span style="font-size:1.05rem;font-weight:800;margin-right:6px;">Planning</span>';
+  if(!_pv.combined){
+    h+='<button data-pv="src" data-c="mine" class="filt-chip'+(!_wktCtx?' on':'')+'" style="'+CH+'">Mine</button>';
+    sqs.forEach(s=>{h+='<button data-pv="src" data-c="'+_secEsc(s.code)+'" class="filt-chip'+(_wktCtx===s.code?' on':'')+'" style="'+CH+'" title="'+_secEsc(s.code)+'">'+_secEsc(s.name||s.code)+'</button>';});
+  }else{
+    h+='<span class="filt-chip on" style="'+CH+'display:inline-flex;align-items:center;cursor:default;">'+pvMarker(PV_MINE_COL)+'Mine</span>';
+    sqs.forEach(s=>{const on=!!_pv.combo[s.code];h+='<button data-pv="tog" data-c="'+_secEsc(s.code)+'" class="filt-chip'+(on?' on':'')+'" style="'+CH+'display:inline-flex;align-items:center;" title="'+_secEsc(s.code)+'">'+pvMarker(pvCol(s.code))+(_pv.loading[s.code]?'… ':'')+_secEsc(s.name||s.code)+'</button>';});
+  }
+  h+='<button data-pv="addsq" class="filt-chip" style="'+CH+'">+ Squad</button>'
+    +'<span style="margin-left:auto;display:flex;align-items:center;gap:8px;">'
+    +'<button data-pv="combined" class="filt-chip'+(_pv.combined?' on':'')+'" style="'+CH+'">&#x29C9; Combined</button>'
+    +'<button data-pv="close" style="background:#fc4c02;border:1px solid #fc4c02;color:#fff;font-weight:800;border-radius:8px;padding:6px 12px;font-size:12px;cursor:pointer;font-family:inherit;box-shadow:0 3px 9px rgba(252,76,2,.45);">&#10005; Close</button>'
+    +'</span></div>';
+  let note='';
+  if(!_pv.combined&&_wktCtx)note=(sqCanEdit()?'Coach — you can plan workouts for '+_secEsc(pvSqName(_wktCtx)):'View only — import workouts into your own calendar');
+  else if(!WKT_ENABLED)note='Workout sync is off — turn it on in Metrics to plan your own workouts.';
+  else if(_pv.combined)note='Your plan plus the squads you tick. Changes go to your own plan.';
+  // ---------- calendar ----------
+  const _ws=calWeekStart(),lead=(base.getDay()-_ws+7)%7,nDays=new Date(y,m+1,0).getDate();
+  let c='<div style="display:flex;align-items:center;gap:8px;margin-bottom:8px;">'
+    +'<button data-pv="prev" class="filt-chip" style="'+CH+'">‹</button>'
+    +'<span style="font-size:1rem;font-weight:700;min-width:150px;text-align:center;">'+base.toLocaleDateString('en-AU',{month:'long',year:'numeric'})+'</span>'
+    +'<button data-pv="next" class="filt-chip" style="'+CH+'">›</button>'
+    +'<button data-pv="today" class="filt-chip" style="'+CH+'">Today</button>'
+    +(note?'<span style="margin-left:auto;font-size:11px;color:var(--muted);text-align:right;">'+note+'</span>':'')
+    +'</div>';
+  c+='<div style="display:grid;grid-template-columns:repeat(7,minmax(0,1fr));gap:4px;">';
+  [0,1,2,3,4,5,6].map(i=>['Sun','Mon','Tue','Wed','Thu','Fri','Sat'][(i+_ws)%7]).forEach(d=>{c+='<div style="font-size:11px;color:var(--muted);text-align:center;padding:2px 0;font-weight:700;">'+d+'</div>';});
+  for(let i=0;i<lead;i++)c+='<div></div>';
+  for(let d=1;d<=nDays;d++){
+    const k=y+'-'+String(m+1).padStart(2,'0')+'-'+String(d).padStart(2,'0');
+    const en=pvEntries(k),sel=_pv.sel===k,today=k===todayK,past=k<todayK;
+    c+='<div data-pvday="'+k+'" style="min-height:96px;padding:4px;border-radius:8px;cursor:pointer;overflow:hidden;opacity:'+(past?'.6':'1')+';border:'+(sel?'2px solid var(--b)':'1px solid var(--border)')+';background:'+(sel?'var(--s3)':'var(--s2)')+';">'
+      +'<div style="font-size:12px;font-weight:'+(today?'800':'600')+';color:'+(today?'var(--b)':'var(--text)')+';margin-bottom:2px;">'+d+'</div>';
+    en.slice(0,4).forEach(x=>{
+      const bg=x.w?(x.w.venue==='erg'?CAL_ERG_COL:CAL_WATER_COL):'#8e8e93';
+      const mk=_pv.combined?pvMarker(x.src==='mine'?PV_MINE_COL:pvCol(x.src),7):_coachMark(x.id,false);
+      c+='<div style="display:flex;align-items:center;font-size:10px;line-height:1.35;background:'+bg+';color:#fff;border-radius:4px;padding:1px 4px;margin-top:2px;white-space:nowrap;overflow:hidden;">'+mk+'<span style="overflow:hidden;text-overflow:ellipsis;">'+(x.w?_secEsc(_wktDispName(x.w)):'Deleted workout')+'</span></div>';
+    });
+    if(en.length>4)c+='<div style="font-size:10px;color:var(--muted);margin-top:2px;">+'+(en.length-4)+' more</div>';
+    c+='</div>';
+  }
+  c+='</div>';
+  // ---------- selected day ----------
+  if(_pv.sel){
+    const k=_pv.sel,en=pvEntries(k),dl=new Date(k+'T12:00:00').toLocaleDateString('en-AU',{weekday:'long',day:'numeric',month:'long',year:'numeric'});
+    const BTN='border:none;border-radius:8px;padding:4px 10px;font-size:11px;font-weight:700;cursor:pointer;font-family:inherit;';
+    c+='<div style="margin-top:12px;padding:12px;border-radius:10px;background:var(--s1);border:1px solid var(--border);">'
+      +'<div style="font-size:.9rem;font-weight:700;margin-bottom:8px;">'+dl+'</div>';
+    if(!en.length)c+='<div style="font-size:12px;color:var(--muted);">Nothing planned.'+(canEdit&&k>=todayK?' Drag a workout here, or tap + Add in the list.':'')+'</div>';
+    en.forEach(x=>{
+      const bg=x.w?(x.w.venue==='erg'?CAL_ERG_COL:CAL_WATER_COL):'#8e8e93';
+      const src=_pv.combined?x.src:(_wktCtx||'mine');
+      const mk=_pv.combined?pvMarker(src==='mine'?PV_MINE_COL:pvCol(src)):_coachMark(x.id,true);
+      const steps=(x.w&&Array.isArray(x.w.steps))?x.w.steps.map(_wktStepTxt).join(' · '):'';
+      let acts='';
+      const isMine=src==='mine';
+      if(x.w&&((isMine&&!_wktCtx)||(!_pv.combined&&_wktCtx)))acts+='<button data-pv="det" data-id="'+_secEsc(x.id)+'" style="'+BTN+'background:rgba(255,255,255,.25);color:#fff;margin-right:4px;">Details</button>';
+      if(!isMine&&x.w&&(_pv.combined||!sqCanEdit()))acts+='<button data-pv="imp" data-c="'+_secEsc(src)+'" data-id="'+_secEsc(x.id)+'" style="'+BTN+'background:#fff;color:'+bg+';font-weight:800;margin-right:4px;">IMPORT</button>';
+      if(((_pv.combined&&isMine&&WKT_ENABLED)||(!_pv.combined&&canEdit))&&k>=todayK)acts+='<button data-pv="rm" data-i="'+x.idx+'" style="'+BTN+'background:rgba(255,255,255,.25);color:#fff;">Remove</button>';
+      c+='<div style="display:flex;align-items:center;gap:6px;padding:8px 10px;margin-bottom:5px;border-radius:10px;background:'+bg+';color:#fff;font-size:13px;font-weight:700;">'+mk
+        +'<span style="flex:1;min-width:0;">'+(x.w?_secEsc(_wktDispName(x.w)):'Deleted workout')
+        +(_pv.combined?'<span style="display:block;font-size:10px;font-weight:600;opacity:.85;">'+(isMine?'Mine':_secEsc(pvSqName(src)))+'</span>':'')
+        +(steps?'<span style="display:block;font-size:11px;font-weight:500;opacity:.9;margin-top:2px;">'+_secEsc(steps)+'</span>':'')
+        +((x.w&&x.w.note)?'<span style="display:block;font-size:11px;font-weight:500;opacity:.9;white-space:pre-wrap;margin-top:2px;">'+_secEsc(x.w.note)+'</span>':'')
+        +'</span>'+acts+'</div>';
+    });
+    c+='</div>';
+  }
+  // ---------- workout list ----------
+  const viewOnlySq=!_pv.combined&&_wktCtx&&!sqCanEdit();
+  const q=_pv.q.trim().toLowerCase();
+  const list=_wktOrdered().filter(w=>(_pv.venue==='all'||(_pv.venue==='erg')===(w.venue==='erg'))&&(!q||_wktDispName(w).toLowerCase().indexOf(q)>=0));
+  const selOk=_pv.sel&&_pv.sel>=todayK;
+  const dShort=_pv.sel?new Date(_pv.sel+'T12:00:00').toLocaleDateString('en-AU',{weekday:'short',day:'numeric',month:'short'}):'';
+  let r='<div style="font-size:.95rem;font-weight:800;margin-bottom:8px;">'+(_pv.combined?'My workouts':(_wktCtx?'Workouts · '+_secEsc(pvSqName(_wktCtx)):'My workouts'))+'</div>'
+    +'<input id="pv-q" type="text" placeholder="Search workouts" value="'+_secEsc(_pv.q)+'" style="width:100%;box-sizing:border-box;padding:8px 10px;border-radius:8px;border:1px solid var(--border);background:var(--s2);color:var(--text);font-family:inherit;font-size:13px;margin-bottom:8px;">'
+    +'<div style="display:flex;gap:4px;margin-bottom:8px;">'
+    +[['all','All'],['water','On-water'],['erg','Erg']].map(([v,l])=>'<button data-pv="venue" data-v="'+v+'" class="filt-chip'+(_pv.venue===v?' on':'')+'" style="'+CH+'flex:1;">'+l+'</button>').join('')
+    +'</div>';
+  if(canEdit)r+='<div style="display:flex;gap:6px;margin-bottom:10px;">'
+    +'<button data-pv="new" data-v="water" style="flex:1;padding:9px 4px;border:none;border-radius:8px;background:'+CAL_WATER_COL+';color:#fff;font-size:11px;font-weight:800;cursor:pointer;font-family:inherit;">+ ON-WATER</button>'
+    +'<button data-pv="edit" style="flex:1;padding:9px 4px;border:none;border-radius:8px;background:#27ae60;color:#fff;font-size:11px;font-weight:800;cursor:pointer;font-family:inherit;">EDIT</button>'
+    +'<button data-pv="new" data-v="erg" style="flex:1;padding:9px 4px;border:none;border-radius:8px;background:'+CAL_ERG_COL+';color:#fff;font-size:11px;font-weight:800;cursor:pointer;font-family:inherit;">+ ERG</button></div>';
+  r+='<div style="font-size:11px;color:var(--muted);margin-bottom:6px;">'+(selOk?((viewOnlySq?'Import to ':'Add to ')+dShort+(canEdit?' — or drag onto a day':'')):(canEdit||viewOnlySq?'Select today or a future day to add workouts.':''))+'</div>';
+  r+='<div id="pv-list" style="overflow-y:auto;flex:1;min-height:0;">';
+  if(!list.length)r+='<div style="font-size:12px;color:var(--muted);padding:16px 0;text-align:center;">No workouts'+(q?' match':'')+'.</div>';
+  list.forEach(w=>{
+    const col=w.venue==='erg'?CAL_ERG_COL:CAL_WATER_COL;
+    const steps=Array.isArray(w.steps)?w.steps.map(_wktStepTxt).join(' · '):'';
+    const can=selOk&&(canEdit||viewOnlySq);
+    r+='<div '+(canEdit?'draggable="true" ':'')+'data-pvw="'+_secEsc(w.id)+'" style="display:flex;align-items:center;gap:8px;padding:9px 10px;margin-bottom:6px;border-radius:10px;background:var(--s2);border:1px solid var(--border);border-left:5px solid '+col+';'+(canEdit?'cursor:grab;':'')+'">'
+      +'<div style="flex:1;min-width:0;"><div style="font-size:13px;font-weight:700;display:flex;align-items:center;">'+_coachMark(w.id,false)+_secEsc(_wktDispName(w))+'</div>'
+      +(steps?'<div style="font-size:11px;color:var(--muted);margin-top:2px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">'+_secEsc(steps)+'</div>':'')+'</div>'
+      +'<button data-pv="wdet" data-id="'+_secEsc(w.id)+'" style="border:1px solid var(--border);background:none;color:var(--text);border-radius:8px;padding:4px 8px;font-size:11px;cursor:pointer;font-family:inherit;">Details</button>'
+      +(can?'<button data-pv="'+(viewOnlySq?'wimp':'wadd')+'" data-id="'+_secEsc(w.id)+'" style="border:none;background:'+col+';color:#fff;border-radius:8px;padding:5px 10px;font-size:11px;font-weight:800;cursor:pointer;font-family:inherit;">'+(viewOnlySq?'IMPORT':'+ Add')+'</button>':'')
+      +'</div>';
+  });
+  r+='</div>';
+  const wide=window.matchMedia('(min-width:900px)').matches;
+  h+='<div style="display:flex;'+(wide?'':'flex-direction:column;')+'gap:16px;padding:14px 16px;align-items:stretch;">'
+    +'<div style="flex:1 1 auto;min-width:0;">'+c+'</div>'
+    +'<div style="'+(wide?'flex:0 0 340px;position:sticky;top:70px;align-self:flex-start;max-height:calc(100vh - 90px);':'')+'display:flex;flex-direction:column;padding:12px;border-radius:10px;background:var(--s1);border:1px solid var(--border);box-sizing:border-box;">'+r+'</div>'
+    +'</div>';
+  ov.innerHTML=h;
+  const pl=document.getElementById('pv-list');if(pl)pl.scrollTop=keepScroll;
+  // ---------- wiring ----------
+  const qi=document.getElementById('pv-q');
+  if(qi){qi.oninput=()=>{_pv.q=qi.value;const pos=qi.selectionStart;pvRender();const n=document.getElementById('pv-q');if(n){n.focus();try{n.setSelectionRange(pos,pos);}catch{}}};}
+  ov.querySelectorAll('[data-pvday]').forEach(d=>{
+    d.onclick=()=>{_pv.sel=d.dataset.pvday;pvRender();};
+    if(canEdit&&d.dataset.pvday>=todayK){
+      d.ondragover=e=>{e.preventDefault();d.style.outline='2px dashed var(--b)';};
+      d.ondragleave=()=>{d.style.outline='';};
+      d.ondrop=e=>{e.preventDefault();d.style.outline='';const id=e.dataTransfer.getData('text/plain');if(!id)return;planAdd(d.dataset.pvday,id);_pv.sel=d.dataset.pvday;renderStartupCalendar();};
+    }
+  });
+  ov.querySelectorAll('[data-pvw][draggable]').forEach(it=>{it.ondragstart=e=>{e.dataTransfer.setData('text/plain',it.dataset.pvw);e.dataTransfer.effectAllowed='copy';};});
+  ov.onclick=async e=>{
+    const b=e.target.closest('[data-pv]');if(!b)return;
+    const a=b.dataset.pv;
+    if(a==='close'){closePlanningView();return;}
+    if(a==='prev'){_pv.mOff--;pvRender();return;}
+    if(a==='next'){_pv.mOff++;pvRender();return;}
+    if(a==='today'){_pv.mOff=0;_pv.sel=todayK;pvRender();return;}
+    if(a==='venue'){_pv.venue=b.dataset.v;pvRender();return;}
+    if(a==='combined'){
+      if(!_pv.combined){
+        if(_wktCtx){const cur=_wktCtx;leaveSquadCalendar(true);_pv.combo[cur]=true;}
+        _pv.combined=true;pvRender();
+        for(const c of Object.keys(_pv.combo)){if(_pv.combo[c]&&!_pv.sq[c]){await pvLoadSquad(c);pvRender();}}
+      }else{_pv.combined=false;pvRender();}
+      return;
+    }
+    if(a==='src'){
+      const code=b.dataset.c;
+      if(code==='mine'){if(_wktCtx)leaveSquadCalendar();else pvRender();return;}
+      if(_wktCtx===code)return;
+      try{localStorage.setItem('_squad_code',code);}catch{}
+      await enterSquadCalendar(false);pvRender();return;
+    }
+    if(a==='tog'){
+      const code=b.dataset.c;
+      if(_pv.combo[code]){delete _pv.combo[code];pvRender();return;}
+      _pv.combo[code]=true;pvRender();
+      if(!_pv.sq[code]){const ok=await pvLoadSquad(code);if(!ok)delete _pv.combo[code];}
+      pvRender();return;
+    }
+    if(a==='addsq'){
+      if(!_pv.combined){await enterSquadCalendar(true);pvRender();return;}
+      const code=await promptSquadCode();if(!code||code.length!==7)return;
+      const cu=code.toUpperCase();_pv.combo[cu]=true;pvRender();
+      if(!(await pvLoadSquad(cu)))delete _pv.combo[cu];
+      pvRender();return;
+    }
+    if(a==='det'||a==='wdet'){window.showWorkoutsModal({viewId:b.dataset.id});return;}
+    if(a==='edit'){window.showWorkoutsModal();return;}
+    if(a==='new'){const day=_pv.sel;window.showWorkoutsModal({newVenue:b.dataset.v,onSaved:id=>{if(day&&day>=todayK)planAdd(day,id);renderStartupCalendar();}});return;}
+    if(a==='wadd'){if(!_pv.sel)return;planAdd(_pv.sel,b.dataset.id);renderStartupCalendar();toast('Added to '+dShort);return;}
+    if(a==='wimp'){if(!_pv.sel)return;sqImportWorkout(b.dataset.id,_pv.sel);renderStartupCalendar();return;}
+    if(a==='rm'){planRemove(_pv.sel,+b.dataset.i);renderStartupCalendar();return;}
+    if(a==='imp'){
+      const code=b.dataset.c,id=b.dataset.id;
+      if(!_pv.combined&&_wktCtx===code){sqImportWorkout(id,_pv.sel);renderStartupCalendar();return;}
+      const sq=_pv.sq[code];const w=sq&&(sq.workouts||[]).find(x=>x&&x.id===id&&!x.deleted);
+      pvImport(code,w,_pv.sel);return;
+    }
   };
 }
 // ── Wiring ──────────────────────────────────────────────────────────────────
