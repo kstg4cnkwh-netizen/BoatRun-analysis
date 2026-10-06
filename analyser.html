@@ -9586,7 +9586,7 @@ function _wktDispName(w){
    { 'YYYY-MM-DD': { list:[{id,type:'event'|'note',text,time}], rev } }.
    Metrics shows them read-only (green dot = event, yellow dot = note).
    ══════════════════════════════════════════════════════════════════════════ */
-const CI_EVENT_COL='#27ae60', CI_NOTE_COL='#ffcc00', CI_OTHER_COL='#fc4c02', CAL_EDIT_COL='#8e44ad';
+const CI_EVENT_COL='#27ae60', CI_NOTE_COL='#d4a106', CI_OTHER_COL='#fc4c02', CAL_EDIT_COL='#8e44ad';
 const CI_ORDER={note:0,event:1,other:2};
 let CAL_ITEMS=(()=>{try{const v=JSON.parse(localStorage.getItem('br_cal_items')||'{}');return v&&typeof v==='object'&&!Array.isArray(v)?v:{};}catch{return {};}})();
 let _ciPushTimer=null;
@@ -9598,7 +9598,6 @@ function calOthersOf(k){return calItemsOf(k).filter(x=>x.type==='other');}
    its slot (pos) in the combined list. */
 function daySeq(k){
   const seq=planIds(k).map((id,i)=>({t:'w',id,i}));
-  if(_wktCtx)return seq;
   calOthersOf(k).slice().sort((a,b)=>((a.pos==null?1e9:a.pos)-(b.pos==null?1e9:b.pos))).forEach(x=>{
     const p=x.pos==null?seq.length:Math.max(0,Math.min(+x.pos,seq.length));
     seq.splice(p,0,{t:'o',x});
@@ -9609,7 +9608,7 @@ function daySeqMove(k,from,to){
   const seq=daySeq(k);if(from<0||from>=seq.length||to<0||to>=seq.length||from===to)return;
   const [m]=seq.splice(from,1);seq.splice(to,0,m);
   WKT_PLAN[k]={ids:seq.filter(x=>x.t==='w').map(x=>x.id),rev:Date.now()};savePlan();
-  if(!_wktCtx&&seq.some(x=>x.t==='o')){
+  if(seq.some(x=>x.t==='o')){
     const list=((CAL_ITEMS[k]&&CAL_ITEMS[k].list)||[]).map(x=>{const j=seq.findIndex(q=>q.t==='o'&&q.x.id===x.id);return j>=0?{...x,pos:j}:x;});
     calItemsSet(k,list);
   }
@@ -9648,8 +9647,10 @@ function makeSortable(cont,onDone){
     };
   });
 }
+function calItemCanEdit(){return !_wktCtx||sqCanEdit();}
 function calItemsSet(k,list){
   CAL_ITEMS[k]={list,rev:Date.now()};
+  if(_wktCtx){if(_sqStore)_sqStore.items=CAL_ITEMS;sqSchedulePush();return;}
   try{localStorage.setItem('br_cal_items',JSON.stringify(CAL_ITEMS));}catch{}
   if(!AnalyserDrive.isSignedIn())return;
   clearTimeout(_ciPushTimer);
@@ -9662,12 +9663,22 @@ function calItemsSet(k,list){
 }
 function calItemsFromPrefs(r){
   if(!r||typeof r!=='object'||Array.isArray(r))return;
+  if(_wktCtx){_ciPersonal=mergeCalItems(_ciPersonal||{},r);try{localStorage.setItem('br_cal_items',JSON.stringify(_ciPersonal));}catch{}return;}
   CAL_ITEMS=mergeCalItems(CAL_ITEMS,r);
   try{localStorage.setItem('br_cal_items',JSON.stringify(CAL_ITEMS));}catch{}
 }
 function calItemDots(k,sz){
   sz=sz||7;
   return calItemsOf(k).map(x=>'<span title="'+_secEsc(x.text||'')+'" style="width:'+sz+'px;height:'+sz+'px;border-radius:50%;background:'+(x.type==='event'?CI_EVENT_COL:CI_NOTE_COL)+';display:inline-block;align-self:center;box-shadow:0 0 0 1px rgba(0,0,0,.35);"></span>').join('');
+}
+function calSessLabel(p){
+  const n=String((p&&p.name)||'').trim()||String((p&&p.workout)||'').trim();
+  if(n)return n;
+  return (p&&p.erg?'Erg':'Row')+((p&&p.distM)?' '+(p.distM/1000).toFixed(1)+' km':'');
+}
+function calSessChip(x,fs,dim){
+  const col=x.p.erg?CAL_ERG_COL:CAL_WATER_COL;
+  return '<div style="font-size:'+fs+'px;line-height:1.3;background:'+col+';color:#fff;border-radius:3px;padding:0 3px;margin-top:1px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;font-weight:600;'+(dim?'opacity:.5;filter:saturate(.35);':'box-shadow:0 1px 2px rgba(0,0,0,.25);')+'">'+(x.p.favourite?'&#9733; ':'')+_secEsc(calSessLabel(x.p))+'</div>';
 }
 function calNoteDot(k,sz){
   sz=sz||7;
@@ -9695,6 +9706,7 @@ function calItemRows(k,editable,types){
   }).join('');
 }
 function calItemEditor(day,type,id,onDone){
+  if(!calItemCanEdit())return;
   document.getElementById('_ci_modal')?.remove();
   const list=calItemsOf(day);
   const cur=id?list.find(x=>x.id===id):null;
@@ -9716,7 +9728,7 @@ function calItemEditor(day,type,id,onDone){
     +'<div style="display:flex;gap:8px;">'
     +(cur?'<button id="ci-del" style="flex:1;padding:10px 0;background:none;border:1px solid #ff3b30;color:#ff3b30;border-radius:8px;font-weight:700;cursor:pointer;font-family:inherit;">Delete</button>':'')
     +'<button id="ci-cancel" style="flex:1;padding:10px 0;background:var(--s2);border:1px solid var(--border);color:var(--text);border-radius:8px;cursor:pointer;font-family:inherit;">Cancel</button>'
-    +'<button id="ci-save" style="flex:1;padding:10px 0;background:'+col+';border:1px solid '+col+';color:'+((ev||oth)?'#fff':'#000')+';border-radius:8px;font-weight:800;cursor:pointer;font-family:inherit;">Save</button>'
+    +'<button id="ci-save" style="flex:1;padding:10px 0;background:'+col+';border:1px solid '+col+';color:#fff;border-radius:8px;font-weight:800;cursor:pointer;font-family:inherit;">Save</button>'
     +'</div></div>';
   document.body.appendChild(ov);
   const tx=document.getElementById('ci-text'),tm=document.getElementById('ci-time');
@@ -9769,9 +9781,9 @@ function renderStartupCalendar(){
       const ss=byDay[k]||[], pl=((WKT_ENABLED||_wktCtx)&&k>=todayK)?planIds(k).filter(id=>wById[id]&&planShown(k,wById[id])):[];
       const sel=_calSel===k, today=k===todayK;
       g+='<div data-day="'+k+'" style="min-height:52px;padding:3px;border-radius:8px;box-shadow:'+(sel?'0 3px 10px rgba(0,0,0,.28)':'0 1px 3px rgba(0,0,0,.16),0 1px 1px rgba(0,0,0,.06)')+';cursor:pointer;overflow:hidden;border:1px solid '+(sel?'var(--b)':'var(--border)')+';background:'+(sel?'var(--s3)':'var(--s2)')+';">'
-        +'<div style="display:flex;align-items:center;gap:4px;font-size:11px;font-weight:'+(today?'800':'500')+';color:'+(today?'var(--b)':'var(--text)')+';">'+d+(!_wktCtx?calNoteDot(k):'')+'</div>'
-        +'<div style="display:flex;gap:2px;flex-wrap:wrap;align-items:center;margin:2px 0;">'+ss.map(dot).join('')+'</div>'
-        +(!_wktCtx?calEventsOf(k).slice(0,2).map(x=>'<div data-cichip="'+_secEsc(x.id)+'" title="'+_secEsc(x.text||'')+'" style="font-size:9px;line-height:1.3;background:'+CI_EVENT_COL+';color:#fff;border-radius:3px;padding:0 3px;margin-top:1px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;font-weight:700;box-shadow:0 1px 2px rgba(0,0,0,.25);">'+(x.time?_secEsc(x.time)+' ':'')+_secEsc(x.text||'')+'</div>').join(''):'')
+        +'<div style="display:flex;align-items:center;gap:4px;font-size:11px;font-weight:'+(today?'800':'500')+';color:'+(today?'var(--b)':'var(--text)')+';">'+d+calNoteDot(k)+'</div>'
+        +(true?calEventsOf(k).slice(0,2).map(x=>'<div data-cichip="'+_secEsc(x.id)+'" title="'+_secEsc(x.text||'')+'" style="font-size:9px;line-height:1.3;background:'+CI_EVENT_COL+';color:#fff;border-radius:3px;padding:0 3px;margin-top:1px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;font-weight:700;box-shadow:0 1px 2px rgba(0,0,0,.25);">'+(x.time?_secEsc(x.time)+' ':'')+_secEsc(x.text||'')+'</div>').join(''):'')
+        +ss.slice(0,3).map(x=>calSessChip(x,9,false)).join('')+(ss.length>3?'<div style="font-size:9px;color:var(--muted);">+'+(ss.length-3)+'</div>':'')
         +(()=>{const sq=daySeq(k).filter(q=>q.t==='o'||pl.indexOf(q.id)>=0);
           return sq.slice(0,2).map(q=>q.t==='o'
             ?'<div data-cichip="'+_secEsc(q.x.id)+'" title="'+_secEsc(q.x.text||'')+'" style="font-size:9px;line-height:1.3;background:'+CI_OTHER_COL+';color:#fff;border-radius:3px;padding:0 3px;margin-top:1px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;box-shadow:0 1px 2px rgba(0,0,0,.25);">'+_secEsc(q.x.text||'')+'</div>'
@@ -9828,17 +9840,18 @@ function renderStartupCalendar(){
         +'</div>';
     });
     let _calBtnsShown=false;
-    if(!_wktCtx){const ne=calItemRows(_calSel,true,['note','event']);if(ne)h+='<div style="font-size:11px;color:var(--muted);margin:8px 0 4px;">Notes &amp; events</div>'+ne;}
-    const _othRows=!_wktCtx?calItemRows(_calSel,true,['other']):'';
+    const _ciEd=calItemCanEdit();
+    {const ne=calItemRows(_calSel,_ciEd,['note','event']);if(ne)h+='<div style="font-size:11px;color:var(--muted);margin:8px 0 4px;">Notes &amp; events</div>'+ne;}
+    const _othRows=calItemRows(_calSel,_ciEd,['other']);let _seqShown=false;
     if((WKT_ENABLED||_wktCtx)&&_calSel>=todayK){
     const shownIds=ids.filter(id=>!wById[id]||planShown(_calSel,wById[id]));
     h+='<div style="font-size:11px;color:var(--muted);margin:8px 0 4px;">'+(_wktCtx?'Squad plan':'Planned workouts <span style="font-size:10px;">(suggested in Metrics on the day)</span>')+'</div>';
     if(!shownIds.length&&!_othRows)h+='<div style="font-size:12px;color:var(--muted);margin-bottom:6px;">None planned.</div>';
     const _sq=daySeq(_calSel);
     const _grip=((!_wktCtx||sqCanEdit())&&_sq.length>1)?DRAG_GRIP:'';
-    h+='<div id="cal-seq">';
+    h+='<div id="cal-seq">';_seqShown=true;
     _sq.forEach((q,si)=>{
-      if(q.t==='o'){h+=ciOtherRow(q.x,true,_grip,si);return;}
+      if(q.t==='o'){h+=ciOtherRow(q.x,_ciEd,_grip,si);return;}
       const id=q.id,i=q.i;
       const w=wById[id];
       if(w&&!planShown(_calSel,w))return;
@@ -9858,17 +9871,17 @@ function renderStartupCalendar(){
     if(!_wktCtx||sqCanEdit()){_calBtnsShown=true;h+='<div style="display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:6px;margin-top:20px;">'
       +'<button id="cal-add-water" style="'+BB+'background:'+CAL_WATER_COL+';">+ ON-WATER WORKOUT</button>'
       +'<button id="cal-add-erg" style="'+BB+'background:'+CAL_ERG_COL+';">+ ERG WORKOUT</button>'
-      +(!_wktCtx?'<button id="cal-add-other" style="'+BB+'background:'+CI_OTHER_COL+';">+ OTHER WORKOUT</button>'
-        +'<button id="cal-add-event" style="'+BB+'background:#27ae60;">+ EVENT</button><button id="cal-add-note" style="'+BB+'background:'+CI_NOTE_COL+';color:#000;">+ NOTE</button>':'')
+      +(_ciEd?'<button id="cal-add-other" style="'+BB+'background:'+CI_OTHER_COL+';">+ OTHER WORKOUT</button>'
+        +'<button id="cal-add-event" style="'+BB+'background:#27ae60;">+ EVENT</button><button id="cal-add-note" style="'+BB+'background:'+CI_NOTE_COL+';color:#fff;">+ NOTE</button>':'')
       +'<button id="cal-edit-wkts" style="'+BB+'background:'+CAL_EDIT_COL+';">EDIT WORKOUTS</button>'
       +'</div>';}
     }
-    if(!_calBtnsShown&&!_wktCtx){
-      h+=_othRows;
+    if(!_seqShown)h+=_othRows;
+    if(!_calBtnsShown&&_ciEd){
       const BB='flex:1 1 0;min-width:0;min-height:48px;line-height:1.2;padding:10px 6px;border-radius:10px;border:none;box-shadow:0 2px 8px rgba(0,0,0,.22);font-family:-apple-system,Roboto,sans-serif;font-size:11px;font-weight:700;letter-spacing:.06em;cursor:pointer;color:#fff;';
       h+='<div style="display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:6px;margin-top:20px;">'
         +'<button id="cal-add-other" style="'+BB+'background:'+CI_OTHER_COL+';">+ OTHER WORKOUT</button>'
-        +'<button id="cal-add-event" style="'+BB+'background:#27ae60;">+ EVENT</button><button id="cal-add-note" style="'+BB+'background:'+CI_NOTE_COL+';color:#000;">+ NOTE</button></div>';
+        +'<button id="cal-add-event" style="'+BB+'background:#27ae60;">+ EVENT</button><button id="cal-add-note" style="'+BB+'background:'+CI_NOTE_COL+';color:#fff;">+ NOTE</button></div>';
     }
     h+='</div>';
   }
@@ -9936,7 +9949,7 @@ function renderStartupCalendar(){
    While a squad is shown, WORKOUTS_DB / WKT_PLAN hold the squad's lists and
    the user's own lists are parked in _wktPersonal / _planPersonal.
    ══════════════════════════════════════════════════════════════════════════ */
-var _wktCtx=null, _wktPersonal=null, _planPersonal=null, _calPersonal=null, _sqStore=null, _sqPlanTimer=null, _sqDirty=false;
+var _ciPersonal=null, _wktCtx=null, _wktPersonal=null, _planPersonal=null, _calPersonal=null, _sqStore=null, _sqPlanTimer=null, _sqDirty=false;
 const SQ_FB_BASE='https://boatrun-default-rtdb.asia-southeast1.firebasedatabase.app';
 function _pW(){return _wktCtx?_wktPersonal:WORKOUTS_DB;}
 function _pWset(v){if(_wktCtx)_wktPersonal=v;else WORKOUTS_DB=v;}
@@ -9965,8 +9978,9 @@ async function sqPushNow(){
   let cur={};try{cur=await sqFetchPlan(st.code);}catch{}
   st.workouts=mergeWorkoutLists(st.workouts,Array.isArray(cur.workouts)?cur.workouts:[]);
   st.days=mergePlans(st.days,(cur.days&&typeof cur.days==='object')?cur.days:{});
-  if(_wktCtx===st.code){WORKOUTS_DB=st.workouts;WKT_PLAN=st.days;}
-  const body={workouts:st.workouts,days:st.days,rev:Date.now()};
+  st.items=mergeCalItems(st.items||{},(cur.items&&typeof cur.items==='object'&&!Array.isArray(cur.items))?cur.items:{});
+  if(_wktCtx===st.code){WORKOUTS_DB=st.workouts;WKT_PLAN=st.days;CAL_ITEMS=st.items;}
+  const body={workouts:st.workouts,days:st.days,items:st.items,rev:Date.now()};
   const pw=getSquadPw(st.code);
   if(pw)body.auth=await sqPwHashA(st.code,pw);
   try{
@@ -9989,8 +10003,9 @@ async function enterSquadCalendar(forcePrompt){
   ]);
   if(_wktCtx)leaveSquadCalendar(true);
   _wktPersonal=WORKOUTS_DB;_planPersonal=WKT_PLAN;_calPersonal={files:_calFiles,open:_calOpen};
-  _sqStore={code,desc:desc||'',workouts:Array.isArray(plan.workouts)?plan.workouts:[],days:(plan.days&&typeof plan.days==='object')?plan.days:{}};
-  _wktCtx=code;WORKOUTS_DB=_sqStore.workouts;WKT_PLAN=_sqStore.days;
+  _ciPersonal=CAL_ITEMS;
+  _sqStore={code,desc:desc||'',workouts:Array.isArray(plan.workouts)?plan.workouts:[],days:(plan.days&&typeof plan.days==='object')?plan.days:{},items:(plan.items&&typeof plan.items==='object'&&!Array.isArray(plan.items))?plan.items:{}};
+  _wktCtx=code;WORKOUTS_DB=_sqStore.workouts;WKT_PLAN=_sqStore.days;CAL_ITEMS=_sqStore.items;
   _calFiles=(metas||[]).map(m=>({f:{id:m.id,name:''},p:{approxTs:m.t||parseInt(m.id,10)||0,distM:m.dist||null,durS:m.dur||null,name:(m.rower||'Rower')+(m.name?' · '+m.name:''),erg:false,favourite:false,workout:null,rower:m.rower||'Rower'}}));
   _calOpen=(f,p,el)=>sqOpenSession(code,f.id,p,el);
   _calSel=null;window._calAnchor=null;_calMonthOff=0;
@@ -9999,8 +10014,8 @@ async function enterSquadCalendar(forcePrompt){
 function leaveSquadCalendar(quiet){
   if(!_wktCtx)return;
   clearTimeout(_sqPlanTimer);
-  if(_sqStore){_sqStore.workouts=WORKOUTS_DB;_sqStore.days=WKT_PLAN;}
-  WORKOUTS_DB=_wktPersonal;WKT_PLAN=_planPersonal;_wktCtx=null;
+  if(_sqStore){_sqStore.workouts=WORKOUTS_DB;_sqStore.days=WKT_PLAN;_sqStore.items=CAL_ITEMS;}
+  WORKOUTS_DB=_wktPersonal;WKT_PLAN=_planPersonal;if(_ciPersonal)CAL_ITEMS=_ciPersonal;_wktCtx=null;
   if(_sqDirty)sqPushNow();
   if(_calPersonal){_calFiles=_calPersonal.files;_calOpen=_calPersonal.open;}
   _calSel=null;window._calAnchor=null;_calMonthOff=0;
@@ -10148,7 +10163,7 @@ async function pvLoadSquad(code){
   _pv.loading[code]=true;
   try{
     const [plan,desc]=await Promise.all([sqFetchPlan(code).catch(()=>({})),fetchSquadDesc(code).catch(()=>'')]);
-    _pv.sq[code]={desc:desc||'',workouts:Array.isArray(plan.workouts)?plan.workouts:[],days:(plan.days&&typeof plan.days==='object')?plan.days:{}};
+    _pv.sq[code]={desc:desc||'',workouts:Array.isArray(plan.workouts)?plan.workouts:[],days:(plan.days&&typeof plan.days==='object')?plan.days:{},items:(plan.items&&typeof plan.items==='object'&&!Array.isArray(plan.items))?plan.items:{}};
     return true;
   }finally{_pv.loading[code]=false;}
 }
@@ -10186,11 +10201,24 @@ function pvImport(code,w,day){
   toast('Imported '+_wktDispName(w));
   renderStartupCalendar();
 }
+function pvSqItems(k,types){
+  const out=[];if(!_pv.combined)return out;
+  Object.keys(_pv.combo).forEach(c=>{const sq=_pv.sq[c];if(!_pv.combo[c]||!sq||!sq.items)return;const e=sq.items[k];
+    ((e&&Array.isArray(e.list))?e.list:[]).filter(x=>!types||types.indexOf(x.type)>=0).forEach(x=>out.push({c,x}));});
+  return out.sort((p,q)=>((CI_ORDER[p.x.type]||0)-(CI_ORDER[q.x.type]||0))||String(p.x.time||'').localeCompare(String(q.x.time||'')));
+}
+function pvSqItemRow(it){
+  const x=it.x,ev=x.type==='event',oth=x.type==='other',col=pvCol(it.c);
+  if(oth)return '<div style="display:flex;align-items:center;gap:6px;padding:8px 10px;margin-bottom:6px;border-radius:10px;background:'+CI_OTHER_COL+';color:#fff;font-size:13px;font-weight:700;box-shadow:0 2px 8px rgba(0,0,0,.22);border-left:6px solid '+col+';"><span style="flex:1;min-width:0;white-space:pre-wrap;">'+_secEsc(x.text||'')+'<span style="display:block;font-size:10px;font-weight:600;opacity:.85;">'+_secEsc(pvSqName(it.c))+'</span></span></div>';
+  return '<div style="display:flex;align-items:flex-start;gap:8px;padding:8px 10px;margin-bottom:6px;border-radius:10px;background:var(--s2);border:1px solid var(--border);box-shadow:0 1px 3px rgba(0,0,0,.18);border-left:6px solid '+(ev?CI_EVENT_COL:CI_NOTE_COL)+';">'
+    +'<span style="font-size:10px;font-weight:800;letter-spacing:.06em;color:var(--text);opacity:.7;min-width:44px;">'+(ev?(x.time?_secEsc(x.time):'EVENT'):'NOTE')+'</span>'
+    +'<span style="flex:1;min-width:0;font-size:13px;'+(ev?'font-weight:700;':'')+'white-space:pre-wrap;color:var(--text);">'+_secEsc(x.text||'')
+    +'<span style="display:flex;align-items:center;font-size:10px;font-weight:600;opacity:.8;margin-top:2px;">'+pvMarker(col,8)+_secEsc(pvSqName(it.c))+'</span></span></div>';
+}
 function pvSeq(k,en){
   const out=[];
   const mineEn=en.filter(x=>_pv.combined?x.src==='mine':true);
-  if(!_pv.combined&&_wktCtx)mineEn.forEach(x=>out.push({t:'w',x,si:x.idx}));
-  else daySeq(k).forEach((q,si)=>{if(q.t==='o')out.push({t:'o',x:q.x,si});else{const e=mineEn.find(x=>x.idx===q.i);if(e)out.push({t:'w',x:e,si});}});
+  daySeq(k).forEach((q,si)=>{if(q.t==='o')out.push({t:'o',x:q.x,si});else{const e=mineEn.find(x=>x.idx===q.i);if(e)out.push({t:'w',x:e,si});}});
   if(_pv.combined)en.filter(x=>x.src!=='mine').forEach(x=>out.push({t:'w',x,si:null}));
   return out;
 }
@@ -10239,6 +10267,14 @@ function pvRender(){
   else if(!WKT_ENABLED)note='Workout sync is off — turn it on in Metrics to plan your own workouts.';
   else if(_pv.combined)note='Your plan plus the squads you tick. Changes go to your own plan.';
   // ---------- calendar ----------
+  /* Rowed sessions (own calendar only), shown lightly greyed; a planned
+     workout that was rowed that day drops off. */
+  const pvByDay={};
+  if(!_wktCtx)(_calFiles||[]).forEach(x=>{const ts=x.p.approxTs||(x.f.createdTime?new Date(x.f.createdTime).getTime():0);if(!ts)return;const dk=_dayKey(ts);(pvByDay[dk]=pvByDay[dk]||[]).push(x);});
+  Object.values(pvByDay).forEach(l=>l.sort((a,b)=>(a.p.approxTs||0)-(b.p.approxTs||0)));
+  const _pwn=v=>String(v||'').trim().toLowerCase();
+  const pvDone=(k,w)=>!!w&&(pvByDay[k]||[]).some(x=>x.p.workout&&(_pwn(x.p.workout)===_pwn(w.name)||_pwn(x.p.workout)===_pwn(_wktDispName(w))));
+  const pvEn=k=>pvEntries(k).filter(x=>!(x.src==='mine'&&pvDone(k,x.w)));
   const _ws=calWeekStart();
   const wideL=window.matchMedia('(min-width:1100px)').matches;
   let c='<div style="display:flex;align-items:center;gap:8px;margin-bottom:8px;">'
@@ -10257,13 +10293,16 @@ function pvRender(){
   for(let i=0;i<lead;i++)c+='<div></div>';
   for(let d=1;d<=nDays;d++){
     const k=y+'-'+String(m+1).padStart(2,'0')+'-'+String(d).padStart(2,'0');
-    const en=pvEntries(k),sel=_pv.sel===k,today=k===todayK,past=k<todayK;
+    const en=pvEn(k),sel=_pv.sel===k,today=k===todayK,past=k<todayK;
     c+='<div data-pvday="'+k+'" style="min-height:96px;padding:5px;border-radius:10px;cursor:pointer;overflow:hidden;opacity:'+(past?'.6':'1')+';box-shadow:'+(sel?'0 4px 14px rgba(0,0,0,.3)':'0 1px 3px rgba(0,0,0,.16),0 1px 1px rgba(0,0,0,.06)')+';border:'+(sel?'2px solid var(--b)':'1px solid var(--border)')+';background:'+(sel?'var(--s3)':'var(--s2)')+';">'
-      +'<div style="display:flex;align-items:center;gap:5px;font-size:12px;font-weight:'+(today?'800':'600')+';color:'+(today?'var(--b)':'var(--text)')+';margin-bottom:2px;">'+d+((!_wktCtx||_pv.combined)?calNoteDot(k,8):'')+'</div>';
-    const ciShow=!_wktCtx||_pv.combined, cis=ciShow?calEventsOf(k):[];
+      +'<div style="display:flex;align-items:center;gap:5px;font-size:12px;font-weight:'+(today?'800':'600')+';color:'+(today?'var(--b)':'var(--text)')+';margin-bottom:2px;">'+d+calNoteDot(k,8)+(pvSqItems(k,['note']).length?'<span style="width:8px;height:8px;border-radius:50%;background:'+CI_NOTE_COL+';display:inline-block;box-shadow:0 0 0 2px '+pvCol(pvSqItems(k,['note'])[0].c)+';"></span>':'')+'</div>';
+    const ciShow=true, cis=calEventsOf(k).concat(pvSqItems(k,['event']).map(q=>Object.assign({},q.x,{_sqc:q.c})));
     const maxW=sel?999:4, maxI=sel?999:2;
-    cis.slice(0,maxI).forEach(x=>{const ev=x.type==='event';c+='<div data-cichip="'+_secEsc(x.id)+'" title="'+_secEsc(x.text||'')+'" style="font-size:10px;line-height:1.35;background:'+(ev?CI_EVENT_COL:CI_NOTE_COL)+';color:'+(ev?'#fff':'#000')+';border-radius:4px;padding:1px 4px;margin-top:2px;box-shadow:0 1px 2px rgba(0,0,0,.28);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;font-weight:'+(ev?'700':'500')+';">'+(ev&&x.time?_secEsc(x.time)+' ':'')+(ev?'':'&#9998; ')+_secEsc(x.text||'')+'</div>';});
+    cis.slice(0,maxI).forEach(x=>{const ev=x.type==='event';c+='<div '+(x._sqc?'':'data-cichip="'+_secEsc(x.id)+'" ')+'title="'+_secEsc(x.text||'')+'" style="font-size:10px;line-height:1.35;background:'+(ev?CI_EVENT_COL:CI_NOTE_COL)+';color:'+(ev?'#fff':'#000')+';border-radius:4px;padding:1px 4px;margin-top:2px;box-shadow:0 1px 2px rgba(0,0,0,.28);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;font-weight:'+(ev?'700':'500')+';'+(x._sqc?'border-left:4px solid '+pvCol(x._sqc)+';':'')+'">'+(ev&&x.time?_secEsc(x.time)+' ':'')+(ev?'':'&#9998; ')+_secEsc(x.text||'')+'</div>';});
     if(cis.length>maxI)c+='<div style="font-size:10px;color:var(--text);opacity:.7;margin-top:2px;">+'+(cis.length-maxI)+' more</div>';
+    const pss=pvByDay[k]||[];
+    pss.slice(0,maxW).forEach(x=>{c+=calSessChip(x,10,true);});
+    if(pss.length>maxW)c+='<div style="font-size:10px;color:var(--text);opacity:.7;margin-top:2px;">+'+(pss.length-maxW)+' more</div>';
     const cseq=pvSeq(k,en);
     cseq.slice(0,maxW).forEach(it=>{
       if(it.t==='o'){const x=it.x;c+='<div data-cichip="'+_secEsc(x.id)+'" title="'+_secEsc(x.text||'')+'" style="font-size:10px;line-height:1.35;background:'+CI_OTHER_COL+';color:#fff;border-radius:4px;padding:1px 4px;margin-top:2px;box-shadow:0 1px 2px rgba(0,0,0,.28);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;font-weight:600;">'+_secEsc(x.text||'')+'</div>';return;}
@@ -10281,19 +10320,29 @@ function pvRender(){
   // ---------- selected day ----------
   let dp='';
   if(_pv.sel){
-    const k=_pv.sel,en=pvEntries(k),dl=new Date(k+'T12:00:00').toLocaleDateString('en-AU',{weekday:'long',day:'numeric',month:'long',year:'numeric'});
+    const k=_pv.sel,en=pvEn(k),dl=new Date(k+'T12:00:00').toLocaleDateString('en-AU',{weekday:'long',day:'numeric',month:'long',year:'numeric'});
     const BTN='border:none;border-radius:8px;padding:4px 10px;font-size:11px;font-weight:700;cursor:pointer;font-family:inherit;';
     dp+='<div style="padding:12px;border-radius:12px;background:var(--s1);border:1px solid var(--border);box-shadow:0 4px 18px rgba(0,0,0,.18),0 1px 4px rgba(0,0,0,.12);">'
       +'<div style="font-size:.9rem;font-weight:700;margin-bottom:8px;">'+dl+'</div>';
-    const _ciP=!_wktCtx||_pv.combined;
-    if(_ciP)dp+=calItemRows(k,true,['note','event']);
+    const _ciEd=_pv.combined?true:calItemCanEdit();
+    dp+=calItemRows(k,_ciEd,['note','event']);
+    dp+=pvSqItems(k,['note','event']).map(pvSqItemRow).join('');
+    (pvByDay[k]||[]).forEach((x,i)=>{
+      const col=x.p.erg?CAL_ERG_COL:CAL_WATER_COL;
+      const t=x.p.approxTs?new Date(x.p.approxTs).toLocaleTimeString('en-AU',{hour:'numeric',minute:'2-digit'}):'';
+      const meta=[t,x.p.distM?(x.p.distM/1000).toFixed(2)+' km':'',x.p.durS?_wktFmtTime(x.p.durS):''].filter(Boolean).join(' · ');
+      dp+='<div data-pvsess="'+i+'" title="Open this session" style="display:flex;align-items:center;gap:8px;padding:8px 10px;margin-bottom:6px;border-radius:10px;background:'+col+';color:#fff;font-size:13px;font-weight:700;opacity:.55;filter:saturate(.35);cursor:pointer;">'
+        +'<span style="flex-shrink:0;">&#10003;</span><span style="flex:1;min-width:0;">'+(x.p.favourite?'&#9733; ':'')+_secEsc(calSessLabel(x.p))
+        +(meta?'<span style="display:block;font-size:11px;font-weight:500;opacity:.95;">'+_secEsc(meta)+'</span>':'')+'</span>'
+        +'<span style="flex-shrink:0;font-size:10px;font-weight:800;letter-spacing:.06em;">DONE</span></div>';
+    });
     const pseq=pvSeq(k,en);
     const _mineN=pseq.filter(it=>it.si!=null).length;
     const _dragOk=(_pv.combined?true:(_wktCtx?canEdit:true))&&_mineN>1;
-    if(!pseq.length)dp+='<div style="font-size:12px;color:var(--text);opacity:.7;">Nothing planned.'+(canEdit&&k>=todayK?' Drag a workout here, or tap + Add in the list.':'')+'</div>';
+    if(!pseq.length&&!(pvByDay[k]||[]).length)dp+='<div style="font-size:12px;color:var(--text);opacity:.7;">Nothing planned.'+(canEdit&&k>=todayK?' Drag a workout here, or tap + Add in the list.':'')+'</div>';
     dp+='<div id="pv-seq">';
     pseq.forEach(it=>{
-      if(it.t==='o'){dp+=ciOtherRow(it.x,true,_dragOk?DRAG_GRIP:'',it.si);return;}
+      if(it.t==='o'){dp+=ciOtherRow(it.x,_ciEd,_dragOk?DRAG_GRIP:'',it.si);return;}
       const x=it.x;
       const src=_pv.combined?x.src:(_wktCtx||'mine');
       const bg=_pv.combined?(src==='mine'?PV_MINE_COL:pvCol(src)):(x.w?(x.w.venue==='erg'?CAL_ERG_COL:CAL_WATER_COL):'#8e8e93');
@@ -10312,6 +10361,7 @@ function pvRender(){
         +((x.w&&x.w.note)?'<span style="display:block;font-size:11px;font-weight:500;opacity:.9;white-space:pre-wrap;margin-top:2px;">'+_secEsc(x.w.note)+'</span>':'')
         +'</span>'+acts+'</div>';
     });
+    dp+=pvSqItems(k,['other']).map(pvSqItemRow).join('');
     dp+='</div>';
     dp+='</div>';
   }
@@ -10341,7 +10391,7 @@ function pvRender(){
       +'</div>';
   });
   r+='</div>';
-  const ciOk=!_wktCtx||_pv.combined;
+  const ciOk=_pv.combined||calItemCanEdit();
   if(canEdit||ciOk){
     const PB='min-width:0;min-height:44px;padding:9px 4px;border:none;border-radius:10px;box-shadow:0 2px 8px rgba(0,0,0,.22);color:#fff;font-size:11px;font-weight:800;cursor:pointer;font-family:inherit;line-height:1.2;';
     r+='<div style="display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:6px;margin-top:20px;flex-shrink:0;">'
@@ -10349,7 +10399,7 @@ function pvRender(){
         +'<button data-pv="new" data-v="erg" style="'+PB+'background:'+CAL_ERG_COL+';">+ ERG WORKOUT</button>':'')
       +(ciOk?'<button data-pv="ciadd" data-t="other" style="'+PB+'background:'+CI_OTHER_COL+';">+ OTHER WORKOUT</button>'
         +'<button data-pv="ciadd" data-t="event" style="'+PB+'background:#27ae60;">+ EVENT</button>'
-        +'<button data-pv="ciadd" data-t="note" style="'+PB+'background:'+CI_NOTE_COL+';color:#000;">+ NOTE</button>':'')
+        +'<button data-pv="ciadd" data-t="note" style="'+PB+'background:'+CI_NOTE_COL+';color:#fff;">+ NOTE</button>':'')
       +(canEdit?'<button data-pv="edit" style="'+PB+'background:'+CAL_EDIT_COL+';">EDIT WORKOUTS</button>':'')
       +'</div>';
   }
@@ -10386,6 +10436,8 @@ function pvRender(){
   });
   ov.querySelectorAll('[data-pvw][draggable]').forEach(it=>{it.ondragstart=e=>{e.dataTransfer.setData('text/plain',it.dataset.pvw);e.dataTransfer.effectAllowed='copy';};});
   ov.onclick=async e=>{
+    const sR=e.target.closest('[data-pvsess]');
+    if(sR&&_pv.sel){const x=(pvByDay[_pv.sel]||[])[+sR.dataset.pvsess];if(x&&_calOpen){const op=_calOpen;closePlanningView();op(x.f,x.p,null);}return;}
     const ciR=e.target.closest('[data-citem]');
     if(ciR&&_pv.sel){calItemEditor(_pv.sel,null,ciR.dataset.citem,renderStartupCalendar);return;}
     const b=e.target.closest('[data-pv]');if(!b)return;
