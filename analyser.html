@@ -8375,7 +8375,10 @@ async function showStartup(){
           try{await AnalyserDrive.deleteFile(f.id);await AnalyserDrive.tombstoneSession(f.name);fileList=fileList.filter(x=>x.id!==f.id);renderList();}
           catch(e){toast('Delete failed: '+e.message);del.innerHTML='<img src="icons/Delete.svg">';del.disabled=false;}
         };
-        row.appendChild(star);row.appendChild(btn);row.appendChild(del);
+        const side=document.createElement('div');
+        side.style.cssText='display:flex;flex-direction:column;gap:6px;flex-shrink:0;align-items:stretch;';
+        side.appendChild(star);side.appendChild(del);
+        row.appendChild(btn);row.appendChild(side);
         return row;
       };
       {const _first=!_calMakeRow;_calMakeRow=makeRow;if(_first&&!_wktCtx&&_calSel)renderStartupCalendar();}
@@ -9718,22 +9721,39 @@ function calNoteDot(k,sz){
   return '<span title="'+_secEsc(n.map(x=>x.text||'').join('\n'))+'" style="width:'+sz+'px;height:'+sz+'px;border-radius:50%;background:'+CI_NOTE_COL+';display:inline-block;flex-shrink:0;box-shadow:0 0 0 1px rgba(0,0,0,.35);"></span>';
 }
 function calEventsOf(k){return calItemsOf(k).filter(x=>x.type==='event');}
-function ciOtherRow(x,editable,grip,si){
-  return '<div '+(si!=null?'data-sq-i="'+si+'" ':'')+(editable?'data-citem="'+_secEsc(x.id)+'" ':'')+'style="display:flex;align-items:center;gap:6px;padding:8px 10px;margin-bottom:6px;border-radius:10px;background:'+CI_OTHER_COL+';color:#fff;font-size:13px;font-weight:700;box-shadow:0 2px 8px rgba(0,0,0,.22);'+(editable?'cursor:pointer;':'')+'">'
-    +(grip||'')
-    +'<span style="flex:1;min-width:0;white-space:pre-wrap;">'+_secEsc(x.text||'')+'</span>'
-    +(editable?'<span style="flex-shrink:0;border:none;background:rgba(255,255,255,.25);color:#fff;border-radius:8px;padding:4px 10px;font-size:11px;font-weight:700;">Edit</span>':'')
+/* Day-pane strips: grey pane with a coloured left strip, the same look as
+   the session rows, with the delete button on the right. */
+const CAL_STRIP_LBL='font-size:10px;font-weight:800;letter-spacing:.06em;color:var(--text);opacity:.7;min-width:44px;flex-shrink:0;';
+const CAL_STRIP_BTN='flex-shrink:0;border:1px solid var(--border);background:var(--s1);color:var(--text);border-radius:8px;padding:4px 10px;font-size:11px;font-weight:700;cursor:pointer;font-family:inherit;box-shadow:0 1px 2px rgba(0,0,0,.15);';
+function calStrip(attrs,col,body,side,clickable){
+  return '<div class="sz-file-row" '+(attrs||'')+' style="margin-bottom:6px;">'
+    +'<div class="asc" style="border-left-color:'+col+';display:flex;align-items:center;gap:8px;min-width:0;cursor:'+(clickable?'pointer':'default')+';">'+body+'</div>'
+    +(side?'<div style="display:flex;flex-direction:column;gap:6px;flex-shrink:0;align-items:stretch;">'+side+'</div>':'')
     +'</div>';
+}
+function calStripDel(attr,val){return '<button class="sz-del" '+attr+'="'+_secEsc(String(val))+'" title="Delete"><img src="icons/Delete.svg"></button>';}
+function calItemDelete(day,id){
+  if(!calItemCanEdit())return;
+  const list=calItemsOf(day);const x=list.find(i=>i.id===id);if(!x)return;
+  const n=x.type==='event'?'event':(x.type==='other'?'other workout':'note');
+  if(!confirm('Delete this '+n+'?'))return;
+  calItemsSet(day,list.filter(i=>i.id!==id));
+  renderStartupCalendar();
+}
+function ciOtherRow(x,editable,grip,si){
+  return calStrip((si!=null?'data-sq-i="'+si+'" ':'')+(editable?'data-citem="'+_secEsc(x.id)+'"':''),CI_OTHER_COL,
+    (grip||'')+'<span style="'+CAL_STRIP_LBL+'">OTHER</span>'
+    +'<span style="flex:1;min-width:0;font-size:13px;font-weight:700;white-space:pre-wrap;color:var(--text);">'+_secEsc(x.text||'')+'</span>',
+    editable?calStripDel('data-cidel',x.id):'',editable);
 }
 function calItemRows(k,editable,types){
   return calItemsOf(k).filter(x=>!types||types.indexOf(x.type)>=0).map(x=>{
     const ev=x.type==='event';
     if(x.type==='other')return ciOtherRow(x,editable,'',null);
-    return '<div '+(editable?'data-citem="'+_secEsc(x.id)+'" ':'')+'style="display:flex;align-items:flex-start;gap:8px;padding:8px 10px;margin-bottom:6px;border-radius:10px;background:var(--s2);border:1px solid var(--border);box-shadow:0 1px 3px rgba(0,0,0,.18),0 1px 1px rgba(0,0,0,.08);border-left:6px solid '+(ev?CI_EVENT_COL:CI_NOTE_COL)+';'+(editable?'cursor:pointer;':'')+'">'
-      +'<span style="font-size:10px;font-weight:800;letter-spacing:.06em;color:var(--text);opacity:.7;min-width:44px;">'+(ev?(x.time?_secEsc(x.time):'EVENT'):'NOTE')+'</span>'
-      +'<span style="flex:1;min-width:0;font-size:13px;'+(ev?'font-weight:700;':'')+'white-space:pre-wrap;color:var(--text);">'+_secEsc(x.text||'')+'</span>'
-      +(editable?'<span style="flex-shrink:0;border:1px solid var(--border);background:var(--s1);color:var(--text);border-radius:8px;padding:3px 10px;font-size:11px;font-weight:700;box-shadow:0 1px 2px rgba(0,0,0,.15);">Edit</span>':'')
-      +'</div>';
+    return calStrip(editable?'data-citem="'+_secEsc(x.id)+'"':'',ev?CI_EVENT_COL:CI_NOTE_COL,
+      '<span style="'+CAL_STRIP_LBL+'">'+(ev?(x.time?_secEsc(x.time):'EVENT'):'NOTE')+'</span>'
+      +'<span style="flex:1;min-width:0;font-size:13px;'+(ev?'font-weight:700;':'')+'white-space:pre-wrap;color:var(--text);">'+_secEsc(x.text||'')+'</span>',
+      editable?calStripDel('data-cidel',x.id):'',editable);
   }).join('');
 }
 function calItemEditor(day,type,id,onDone){
@@ -9887,15 +9907,14 @@ function renderStartupCalendar(){
       const w=wById[id];
       if(w&&!planShown(_calSel,w))return;
       const bg=w?(w.venue==='erg'?CAL_ERG_COL:CAL_WATER_COL):'#8e8e93';
-      h+='<div data-sq-i="'+si+'" style="display:flex;align-items:center;gap:6px;padding:8px 10px;margin-bottom:6px;border-radius:10px;background:'+bg+';color:#fff;font-size:13px;font-weight:700;box-shadow:0 2px 8px rgba(0,0,0,.22);">'
-        +_grip
-        +_coachMark(id,true)
-        +'<span style="flex:1;">'+(w?_secEsc(_wktDispName(w)):'Deleted workout')+((w&&w.note)?'<span style="display:block;font-size:11px;font-weight:500;opacity:.9;white-space:pre-wrap;margin-top:2px;">'+_secEsc(w.note)+'</span>':'')+'</span>'
-        +((_wktCtx&&!sqCanEdit())
-          ?(w?'<button data-caldet="'+_secEsc(id)+'" style="border:none;background:rgba(255,255,255,.25);color:#fff;border-radius:8px;padding:4px 10px;font-size:11px;font-weight:700;cursor:pointer;font-family:inherit;margin-right:4px;">Details</button>'+'<button data-calimp="'+_secEsc(id)+'" style="border:none;background:#fff;color:'+bg+';border-radius:8px;padding:4px 10px;font-size:11px;font-weight:800;cursor:pointer;font-family:inherit;">IMPORT</button>':'')
-          :((w?'<button data-caldet="'+_secEsc(id)+'" style="border:none;background:rgba(255,255,255,.25);color:#fff;border-radius:8px;padding:4px 10px;font-size:11px;font-weight:700;cursor:pointer;font-family:inherit;margin-right:4px;">Details</button>':'')
-            +'<button data-calrm="'+i+'" style="border:none;background:rgba(255,255,255,.25);color:#fff;border-radius:8px;padding:4px 10px;font-size:11px;font-weight:700;cursor:pointer;font-family:inherit;">Remove</button>'))
-        +'</div>';
+      const vOnly=_wktCtx&&!sqCanEdit();
+      h+=calStrip('data-sq-i="'+si+'"',bg,
+        _grip+_coachMark(id,true)
+        +'<span style="'+CAL_STRIP_LBL+'">'+(w?(w.venue==='erg'?'ERG':'WATER'):'')+'</span>'
+        +'<span style="flex:1;min-width:0;font-size:13px;font-weight:700;color:var(--text);">'+(w?_secEsc(_wktDispName(w)):'Deleted workout')+((w&&w.note)?'<span style="display:block;font-size:11px;font-weight:500;opacity:.85;white-space:pre-wrap;margin-top:2px;">'+_secEsc(w.note)+'</span>':'')+'</span>'
+        +(w?'<button data-caldet="'+_secEsc(id)+'" style="'+CAL_STRIP_BTN+'">Details</button>':'')
+        +((vOnly&&w)?'<button data-calimp="'+_secEsc(id)+'" style="'+CAL_STRIP_BTN+'background:'+bg+';color:#fff;border-color:'+bg+';font-weight:800;">IMPORT</button>':''),
+        vOnly?'':calStripDel('data-calrm',i),false);
     });
     h+='</div>';
     const BB='flex:1 1 0;min-width:0;min-height:48px;line-height:1.2;padding:10px 6px;border-radius:10px;border:none;box-shadow:0 2px 8px rgba(0,0,0,.22);font-family:-apple-system,Roboto,sans-serif;font-size:11px;font-weight:700;letter-spacing:.06em;cursor:pointer;color:#fff;';
@@ -9956,7 +9975,7 @@ function renderStartupCalendar(){
     const ss=(byDay[_calSel]||[]).slice().sort((a,b)=>(a.p.approxTs||0)-(b.p.approxTs||0));
     const dRoot=dayEl||el;
     dRoot.querySelectorAll('[data-calsess]').forEach(c=>{c.onclick=()=>{const x=ss[+c.dataset.calsess];if(x&&_calOpen)_calOpen(x.f,x.p,c);};});
-    dRoot.querySelectorAll('[data-calrm]').forEach(b=>{b.onclick=()=>{planRemove(_calSel,+b.dataset.calrm);renderStartupCalendar();};});
+    dRoot.querySelectorAll('[data-calrm]').forEach(b=>{b.onclick=e=>{e.stopPropagation();planRemove(_calSel,+b.dataset.calrm);renderStartupCalendar();};});
     makeSortable(dRoot.querySelector('#cal-seq'),(f,t)=>{daySeqMove(_calSel,f,t);renderStartupCalendar();});
     dRoot.querySelectorAll('[data-caldet]').forEach(b=>{b.onclick=()=>window.showWorkoutsModal({viewId:b.dataset.caldet});});
     dRoot.querySelectorAll('[data-calimp]').forEach(b=>{b.onclick=()=>sqImportWorkout(b.dataset.calimp,_calSel);});
@@ -9971,6 +9990,7 @@ function renderStartupCalendar(){
     const can=document.getElementById('cal-add-note');if(can)can.onclick=()=>calItemEditor(day,'note',null,renderStartupCalendar);
     const cao=document.getElementById('cal-add-other');if(cao)cao.onclick=()=>calItemEditor(day,'other',null,renderStartupCalendar);
     dRoot.querySelectorAll('[data-citem]').forEach(r=>{r.onclick=()=>calItemEditor(day,null,r.dataset.citem,renderStartupCalendar);});
+    dRoot.querySelectorAll('[data-cidel]').forEach(b=>{b.onclick=e=>{e.stopPropagation();calItemDelete(day,b.dataset.cidel);};});
   }
 }
 /* ══════════════════════════════════════════════════════════════════════════
@@ -10470,6 +10490,8 @@ function pvRender(){
   ov.onclick=async e=>{
     const sR=e.target.closest('[data-pvsess]');
     if(sR&&_pv.sel){const x=(pvByDay[_pv.sel]||[])[+sR.dataset.pvsess];if(x&&_calOpen){const op=_calOpen;closePlanningView();op(x.f,x.p,null);}return;}
+    const ciD=e.target.closest('[data-cidel]');
+    if(ciD&&_pv.sel){calItemDelete(_pv.sel,ciD.dataset.cidel);return;}
     const ciR=e.target.closest('[data-citem]');
     if(ciR&&_pv.sel){calItemEditor(_pv.sel,null,ciR.dataset.citem,renderStartupCalendar);return;}
     const b=e.target.closest('[data-pv]');if(!b)return;
