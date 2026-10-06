@@ -426,6 +426,7 @@ body.light .hdrname{color:#fff;}
   .filt-chip{padding:8px 14px;border:none;border-radius:16px;background:var(--pill);color:var(--muted);cursor:pointer;font-size:11px;font-weight:700;letter-spacing:.04em;text-transform:uppercase;font-family:-apple-system, BlinkMacSystemFont, Helvetica Neue, sans-serif;box-shadow:0 2px 5px rgba(0,0,0,.20),inset 0 1px 0 rgba(255,255,255,.18);transition:background .15s,color .15s;}
   .filt-chip.on{background:var(--acc);color:#fff;box-shadow:0 3px 9px rgba(10,132,255,.45);}
   .filt-chip:active{opacity:.65;}
+  #cal-today{background:#fc4c02!important;color:#fff!important;box-shadow:0 3px 9px rgba(252,76,2,.45)!important;}
 
   .brsearch{display:block;width:100%;box-sizing:border-box;padding:12px 14px;margin-bottom:10px;background:var(--s2);border:none;border-radius:14px;color:var(--text);font-size:.9rem;font-family:-apple-system, BlinkMacSystemFont, Helvetica Neue, sans-serif;-webkit-appearance:none;appearance:none;box-shadow:inset 0 1px 3px rgba(0,0,0,.18);}
   .brsearch:focus{outline:none;box-shadow:inset 0 1px 3px rgba(0,0,0,.18),0 0 0 2px var(--acc);}
@@ -668,7 +669,7 @@ body.light .hdrname{color:#fff;}
       <button class="hbtn" id="tplmenubtn"><img class="hmenu-icon" src="icons/Export.svg"><span>Stroke template…</span></button>
     </div>
   </div>
-  <button class="hbtn hicon-btn" id="closeallbtn" title="Close all open sessions" style="display:none;background:#fc4c02;border-color:#fc4c02;color:#fff;font-weight:800;box-shadow:0 3px 9px rgba(252,76,2,.45);"><span class="hicon-txt" style="color:#fff;">&#10005; Close all</span></button>
+  <button class="hbtn hicon-btn" id="closeallbtn" title="Close all open sessions" style="display:none;background:#fc4c02;border-color:#fc4c02;color:#fff;font-weight:800;box-shadow:0 3px 9px rgba(252,76,2,.45);"><span class="hicon-txt" style="color:#fff;">&#10005; Close all sessions</span></button>
   <button class="hbtn hicon-btn" id="openbtn" style="display:none;"><img class="hicon-img" src="icons/Open.svg"><span class="hicon-txt">Open</span></button>
   <button class="hbtn hicon-btn" id="summarybtn" style="display:none;" title="Summary and personal bests"><img class="hicon-img" src="icons/Win.svg"><span class="hicon-txt">Summary</span></button>
   <button class="hbtn hicon-btn" id="wktbtn" title="Create and edit workouts for BoatRun Metrics"><svg class="hicon-img" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M4 6h10M4 12h16M4 18h7"/></svg><span class="hicon-txt">Workouts</span></button>
@@ -8048,6 +8049,28 @@ function resetApp(){
 }
 
 // ── Startup screen ──────────────────────────────────────────────────────────
+/* Re-read everything the phone has put on Drive: the session list (cache
+   dropped) and BoatRunPrefs.json (workouts, plan, calendar items, sectors…). */
+let _phoneSyncing=false;
+async function syncWithPhone(){
+  if(_phoneSyncing)return;
+  if(!AnalyserDrive.isSignedIn()){toast('Sign in to Google Drive first');return;}
+  _phoneSyncing=true;
+  const b=document.getElementById('sz-phonesync');
+  if(b){b.disabled=true;b.style.opacity='.6';const t=b.querySelector('span');if(t)t.textContent='Syncing…';}
+  try{
+    _wktCheckT=0;
+    await pullPrefsAndApply();
+    AnalyserDrive._invalidateFolder();
+    await showStartup();
+    toast('Synced with phone');
+  }catch(e){console.error('phone sync failed',e);toast('Sync failed — check internet');}
+  finally{
+    _phoneSyncing=false;
+    const b2=document.getElementById('sz-phonesync');
+    if(b2){b2.disabled=false;b2.style.opacity='';const t=b2.querySelector('span');if(t)t.innerHTML='&#x21BB; Sync with phone';}
+  }
+}
 async function showStartup(){
   document.getElementById('openbtn').style.display='none';
   document.getElementById('summarybtn').style.display='none';
@@ -8106,7 +8129,7 @@ async function showStartup(){
   const _backBtn=document.getElementById('sz-back'); if(_backBtn) _backBtn.onclick=()=>{el.style.display='none';el.innerHTML='';document.getElementById('app').style.display='block';document.getElementById('summarybtn').style.display='';};
   leaveSquadCalendar(true);
   _calFiles=[];_calOpen=null;window._calAnchor=null;_calMonthOff=0;_calSel=_dayKey(Date.now());renderStartupCalendar();
-  AnalyserDrive.pullPrefs().then(cur=>{if(!cur)return;wktCheckEnabled(cur);applyWorkoutsFromPrefs(cur.workouts);applyPlanFromPrefs(cur.workoutPlan);renderStartupCalendar();}).catch(()=>{});
+  AnalyserDrive.pullPrefs().then(cur=>{if(!cur)return;wktCheckEnabled(cur);applyWorkoutsFromPrefs(cur.workouts);applyPlanFromPrefs(cur.workoutPlan);try{calItemsFromPrefs(cur.calItems);}catch{}renderStartupCalendar();}).catch(()=>{});
   try{
     const cached=AnalyserDrive.cachedList('RowSess_');
     const files=cached||await AnalyserDrive.list();
@@ -9531,10 +9554,18 @@ wktUpdateBtn();
    view, so they switch on as soon as the phone has synced - no reload needed. */
 let _wktCheckT=0;
 function wktRecheck(){
-  if(WKT_ENABLED||!AnalyserDrive.isSignedIn())return;
+  if(!AnalyserDrive.isSignedIn())return;
   if(Date.now()-_wktCheckT<15000)return;
   _wktCheckT=Date.now();
-  AnalyserDrive.pullPrefs().then(cur=>{if(!cur)return;wktCheckEnabled(cur);if(WKT_ENABLED){applyWorkoutsFromPrefs(cur.workouts);applyPlanFromPrefs(cur.workoutPlan);try{renderStartupCalendar();}catch{}toast('Workouts are now available');}}).catch(()=>{});
+  const was=WKT_ENABLED;
+  AnalyserDrive.pullPrefs().then(cur=>{
+    if(!cur)return;
+    if(!was)wktCheckEnabled(cur);
+    if(WKT_ENABLED){applyWorkoutsFromPrefs(cur.workouts);applyPlanFromPrefs(cur.workoutPlan);}
+    try{calItemsFromPrefs(cur.calItems);}catch{}
+    try{renderStartupCalendar();}catch{}
+    if(!was&&WKT_ENABLED)toast('Workouts are now available');
+  }).catch(()=>{});
 }
 document.addEventListener('visibilitychange',()=>{if(document.visibilityState==='visible')wktRecheck();});
 window.addEventListener('focus',wktRecheck);
@@ -9759,7 +9790,7 @@ function renderStartupCalendar(){
   (_calFiles||[]).forEach(x=>{const ts=x.p.approxTs||(x.f.createdTime?new Date(x.f.createdTime).getTime():0);if(!ts)return;if(ts<firstTs)firstTs=ts;const k=_dayKey(ts);(byDay[k]=byDay[k]||[]).push(x);});
   Object.values(byDay).forEach(l=>l.sort((a,b)=>(a.p.approxTs||0)-(b.p.approxTs||0)));
   const wById={};WORKOUTS_DB.forEach(w=>{if(w&&!w.deleted)wById[w.id]=w;});
-  const CH='font-size:11px;padding:3px 9px;';
+  const CH='font-size:13px;padding:7px 14px;';
   /* Planned workouts only matter from today on. On today, one that has
      already been rowed (a session that day ran that workout) drops off. */
   const _wn=s=>String(s||'').trim().toLowerCase();
@@ -9779,8 +9810,8 @@ function renderStartupCalendar(){
     for(let d=1;d<=nDays;d++){
       const k=y+'-'+String(m+1).padStart(2,'0')+'-'+String(d).padStart(2,'0');
       const ss=byDay[k]||[], pl=((WKT_ENABLED||_wktCtx)&&k>=todayK)?planIds(k).filter(id=>wById[id]&&planShown(k,wById[id])):[];
-      const sel=_calSel===k, today=k===todayK;
-      g+='<div data-day="'+k+'" style="min-height:52px;padding:3px;border-radius:8px;box-shadow:'+(sel?'0 3px 10px rgba(0,0,0,.28)':'0 1px 3px rgba(0,0,0,.16),0 1px 1px rgba(0,0,0,.06)')+';cursor:pointer;overflow:hidden;border:1px solid '+(sel?'var(--b)':'var(--border)')+';background:'+(sel?'var(--s3)':'var(--s2)')+';">'
+      const sel=_calSel===k, today=k===todayK, past=k<todayK;
+      g+='<div data-day="'+k+'" style="min-height:52px;padding:3px;border-radius:8px;opacity:'+(past&&!sel?'.55':'1')+';box-shadow:'+(sel?'0 3px 10px rgba(0,0,0,.28)':'0 1px 3px rgba(0,0,0,.16),0 1px 1px rgba(0,0,0,.06)')+';cursor:pointer;overflow:hidden;border:1px solid '+(sel?'var(--b)':'var(--border)')+';background:'+(sel?'var(--s3)':'var(--s2)')+';">'
         +'<div style="display:flex;align-items:center;gap:4px;font-size:11px;font-weight:'+(today?'800':'500')+';color:'+(today?'var(--b)':'var(--text)')+';">'+d+calNoteDot(k)+'</div>'
         +(true?calEventsOf(k).slice(0,2).map(x=>'<div data-cichip="'+_secEsc(x.id)+'" title="'+_secEsc(x.text||'')+'" style="font-size:9px;line-height:1.3;background:'+CI_EVENT_COL+';color:#fff;border-radius:3px;padding:0 3px;margin-top:1px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;font-weight:700;box-shadow:0 1px 2px rgba(0,0,0,.25);">'+(x.time?_secEsc(x.time)+' ':'')+_secEsc(x.text||'')+'</div>').join(''):'')
         +ss.slice(0,3).map(x=>calSessChip(x,9,false)).join('')+(ss.length>3?'<div style="font-size:9px;color:var(--muted);">+'+(ss.length-3)+'</div>':'')
@@ -9802,7 +9833,7 @@ function renderStartupCalendar(){
     const back=isFinite(firstTs)?Math.min(36,Math.max(1,(now.getFullYear()-new Date(firstTs).getFullYear())*12+now.getMonth()-new Date(firstTs).getMonth())):6;
     h='<div class="sz-lhd" style="display:flex;align-items:center;gap:6px;flex-wrap:wrap;">Calendar'+'<span style="display:flex;gap:4px;margin-left:8px;"><button id="cal-mine" class="filt-chip'+(!_wktCtx?' on':'')+'" style="'+CH+'">Mine</button><button id="cal-squad" class="filt-chip'+(_wktCtx?' on':'')+'" style="'+CH+'">'+'<span style="display:inline-block;flex-shrink:0;width:8px;height:8px;border-radius:50%;background:'+CAL_COACH_COL+';box-shadow:0 0 0 1px rgba(0,0,0,.35);margin-right:5px;vertical-align:middle;"></span>'+'Squad'+(_wktCtx?' '+_wktCtx:'')+'</button></span>'
       +'<span style="margin-left:auto;display:flex;align-items:center;gap:6px;">'+((!_wktCtx&&WKT_ENABLED)?'<button id="cal-sqsync" class="filt-chip" style="'+CH+'" title="Copy the squad plan into your calendar">&#x21BB; From squad</button>':'')
-      +'<button id="cal-plan" class="filt-chip" style="'+CH+'" title="Big calendar with your workout list">&#x1F5D3; Planning</button>'+'<button id="cal-today" class="filt-chip" style="'+CH+'">Today</button></span></div>'+sqBar
+      +'<button id="sz-phonesync" class="filt-chip" style="'+CH+'" title="Fetch new sessions, workouts and calendar items from the phone"><span>&#x21BB; Sync with phone</span></button>'+'<button id="cal-plan" class="filt-chip" style="'+CH+'" title="Big calendar with your workout list">&#x1F5D3; Planning</button>'+'<button id="cal-today" class="filt-chip" style="'+CH+'">Today</button></span></div>'+sqBar
       +'<div id="cal-scroll" style="height:min(440px,62vh);overflow-y:auto;padding-right:4px;position:relative;">';
     for(let o=-back;o<=3;o++){
       const b=new Date(now.getFullYear(),now.getMonth()+o,1);
@@ -9817,7 +9848,7 @@ function renderStartupCalendar(){
       +'<span style="font-size:.8rem;font-weight:600;min-width:110px;text-align:center;">'+mLabel(base.getFullYear(),base.getMonth())+'</span>'
       +'<button id="cal-next" class="filt-chip" style="'+CH+'">›</button>'
       +((!_wktCtx&&WKT_ENABLED)?'<button id="cal-sqsync" class="filt-chip" style="'+CH+'" title="Copy the squad plan into your calendar">&#x21BB; From squad</button>':'')
-      +'<button id="cal-plan" class="filt-chip" style="'+CH+'" title="Big calendar with your workout list">&#x1F5D3; Planning</button>'+'<button id="cal-today" class="filt-chip" style="'+CH+'">Today</button></span></div>'+sqBar
+      +'<button id="sz-phonesync" class="filt-chip" style="'+CH+'" title="Fetch new sessions, workouts and calendar items from the phone"><span>&#x21BB; Sync with phone</span></button>'+'<button id="cal-plan" class="filt-chip" style="'+CH+'" title="Big calendar with your workout list">&#x1F5D3; Planning</button>'+'<button id="cal-today" class="filt-chip" style="'+CH+'">Today</button></span></div>'+sqBar
       +monthGrid(base.getFullYear(),base.getMonth());
   }
   const hCal=h;h='';
@@ -9916,6 +9947,7 @@ function renderStartupCalendar(){
   const cs=document.getElementById('cal-sqsync');if(cs)cs.onclick=()=>syncFromSquad();
   const cc=document.getElementById('cal-sqchange');if(cc)cc.onclick=e=>{e.preventDefault();enterSquadCalendar(true);};
   const cpl=document.getElementById('cal-plan');if(cpl)cpl.onclick=()=>openPlanningView();
+  const cps=document.getElementById('sz-phonesync');if(cps)cps.onclick=syncWithPhone;
   document.getElementById('cal-today').onclick=()=>{
     _calMonthOff=0;_calSel=todayK;window._calAnchor={m:0,dy:0};renderStartupCalendar();
   };
