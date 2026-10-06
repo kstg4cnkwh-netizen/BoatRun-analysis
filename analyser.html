@@ -308,6 +308,9 @@
 .sz-del{display:flex;align-items:center;justify-content:center;padding:9px 10px;background:rgba(192,57,43,.15);border:1px solid rgba(192,57,43,.4);border-radius:8px;color:#e74c3c;cursor:pointer;font-size:.85rem;flex-shrink:0;}
 .sz-del img{width:16px;height:16px;display:block;object-fit:contain;}
 .asc{background:var(--s2);border-radius:8px;border-left:3px solid var(--b);border-top:1px solid var(--border);border-right:1px solid var(--border);border-bottom:1px solid var(--border);padding:11px 13px;cursor:pointer;flex:1;text-align:left;transition:border-color .15s;}
+.asc-fav{float:right;background:none;border:none;padding:0 0 0 8px;font-size:24px;line-height:1;color:#d3d8dd;cursor:pointer;touch-action:manipulation;}
+.asc-fav.on{color:#fc4c02;}
+.asc-fav:active{opacity:.6;}
 .asc:hover{border-top-color:var(--b);border-right-color:var(--b);border-bottom-color:var(--b);}
 .asc-date{font-size:9px;color:var(--muted);margin-bottom:5px;letter-spacing:.04em;display:flex;align-items:center;gap:4px;flex-wrap:wrap;}
 .asc-date .asc-badge{color:var(--b);font-weight:700;}
@@ -5113,7 +5116,7 @@ function showDrivePicker(files, onSelect) {
       dateDiv.className='asc-date';
       dateDiv.innerHTML='<span>'+dateStr+'</span>'
         +(p.squadCode?'<span class="asc-badge">'+p.squadCode+'</span>':'')
-        +(p.axis?'<span class="asc-badge">AX:'+p.axis+'</span>':'')
+        
         +(p.workout?'<span class="asc-badge">'+p.workout+'</span>':'')
         +(sessHasVideo(f)?VID_BADGE:'');
 
@@ -8328,10 +8331,11 @@ async function showStartup(){
         const row=document.createElement('div');row.className='sz-file-row';
 
         const star=document.createElement('button');
-        star.textContent=isFav?'★':'☆';
+        star.textContent='★';
         star.title=isFav?'Remove favourite':'Add favourite';
-        star.className='sz-star'+(isFav?' on':'');
-        star.onclick=async()=>{
+        star.className='asc-fav'+(isFav?' on':'');
+        star.onclick=async(ev)=>{
+          ev.stopPropagation();
           const wantFav=!isFav;
           star.disabled=true;star.style.opacity='.5';
           try{
@@ -8352,7 +8356,7 @@ async function showStartup(){
         dateDiv.className='asc-date';
         dateDiv.innerHTML='<span>'+dateStr+'</span>'
           +(p.squadCode?'<span class="asc-badge">'+p.squadCode+'</span>':'')
-          +(p.axis?'<span class="asc-badge">AX:'+p.axis+'</span>':'')
+          
           +(p.workout?'<span class="asc-badge">'+p.workout+'</span>':'')
           +(sessHasVideo(f)?VID_BADGE:'');
 
@@ -8365,6 +8369,7 @@ async function showStartup(){
         if(!p.distM&&!p.durS) statsDiv.innerHTML='<span style="color:var(--muted);font-size:.8rem;">'+f.name.replace('RowSess_','').replace('.json','').replace('_FAV1','').replace('_VID1','').replace(/_NM[A-Za-z0-9\-~]*/,'')+'</span>';
 
         if(p.name){const nameDiv=document.createElement('div');nameDiv.style.cssText='font-weight:700;font-size:.85rem;color:var(--text);margin-bottom:2px;';nameDiv.textContent=p.name;btn.appendChild(nameDiv);}
+        btn.insertBefore(star,btn.firstChild);
         btn.appendChild(dateDiv);btn.appendChild(statsDiv);
         if(typeof f.description==='string'&&f.description.trim()){const nd=document.createElement('div');nd.style.cssText='font-size:12px;color:var(--text);opacity:.85;white-space:pre-wrap;margin-top:4px;';nd.textContent='📝 '+f.description.trim();btn.appendChild(nd);}
 
@@ -8375,10 +8380,7 @@ async function showStartup(){
           try{await AnalyserDrive.deleteFile(f.id);await AnalyserDrive.tombstoneSession(f.name);fileList=fileList.filter(x=>x.id!==f.id);renderList();}
           catch(e){toast('Delete failed: '+e.message);del.innerHTML='<img src="icons/Delete.svg">';del.disabled=false;}
         };
-        const side=document.createElement('div');
-        side.style.cssText='display:flex;flex-direction:column;gap:6px;flex-shrink:0;align-items:stretch;';
-        side.appendChild(star);side.appendChild(del);
-        row.appendChild(btn);row.appendChild(side);
+        row.appendChild(btn);row.appendChild(del);
         return row;
       };
       {const _first=!_calMakeRow;_calMakeRow=makeRow;if(_first&&!_wktCtx&&_calSel)renderStartupCalendar();}
@@ -9728,7 +9730,7 @@ const CAL_STRIP_BTN='flex-shrink:0;border:1px solid var(--border);background:var
 function calStrip(attrs,col,body,side,clickable){
   return '<div class="sz-file-row" '+(attrs||'')+' style="margin-bottom:6px;">'
     +'<div class="asc" style="border-left-color:'+col+';display:flex;align-items:center;gap:8px;min-width:0;cursor:'+(clickable?'pointer':'default')+';">'+body+'</div>'
-    +(side?'<div style="display:flex;flex-direction:column;gap:6px;flex-shrink:0;align-items:stretch;">'+side+'</div>':'')
+    +(side||'')
     +'</div>';
 }
 function calStripDel(attr,val){return '<button class="sz-del" '+attr+'="'+_secEsc(String(val))+'" title="Delete"><img src="icons/Delete.svg"></button>';}
@@ -9740,10 +9742,23 @@ function calItemDelete(day,id){
   calItemsSet(day,list.filter(i=>i.id!==id));
   renderStartupCalendar();
 }
+function calItemToggleDone(day,id){
+  if(!calItemCanEdit())return;
+  calItemsSet(day,calItemsOf(day).map(x=>x.id===id?{...x,done:!x.done}:x));
+  renderStartupCalendar();
+}
+function ciDoneTag(x,editable){
+  if(!editable&&!x.done)return '';
+  const on=!!x.done;
+  return '<'+(editable?'button data-cidone="'+_secEsc(x.id)+'"':'span')+' style="flex-shrink:0;border-radius:8px;padding:4px 10px;font-size:11px;font-weight:800;font-family:inherit;'+(editable?'cursor:pointer;':'')
+    +(on?'background:#27ae60;color:#fff;border:1px solid #27ae60;':'background:transparent;color:var(--text);border:1px dashed var(--border);opacity:.8;')+'">'
+    +(on?'&#10003; COMPLETE':'COMPLETE?')+'</'+(editable?'button':'span')+'>';
+}
 function ciOtherRow(x,editable,grip,si){
   return calStrip((si!=null?'data-sq-i="'+si+'" ':'')+(editable?'data-citem="'+_secEsc(x.id)+'"':''),CI_OTHER_COL,
     (grip||'')+'<span style="'+CAL_STRIP_LBL+'">OTHER</span>'
-    +'<span style="flex:1;min-width:0;font-size:13px;font-weight:700;white-space:pre-wrap;color:var(--text);">'+_secEsc(x.text||'')+'</span>',
+    +'<span style="flex:1;min-width:0;font-size:13px;font-weight:700;white-space:pre-wrap;color:var(--text);">'+_secEsc(x.text||'')+'</span>'
+    +ciDoneTag(x,editable),
     editable?calStripDel('data-cidel',x.id):'',editable);
 }
 function calItemRows(k,editable,types){
@@ -9837,7 +9852,7 @@ function renderStartupCalendar(){
         +ss.slice(0,3).map(x=>calSessChip(x,9,false)).join('')+(ss.length>3?'<div style="font-size:9px;color:var(--muted);">+'+(ss.length-3)+'</div>':'')
         +(()=>{const sq=daySeq(k).filter(q=>q.t==='o'||pl.indexOf(q.id)>=0);
           return sq.slice(0,2).map(q=>q.t==='o'
-            ?'<div data-cichip="'+_secEsc(q.x.id)+'" title="'+_secEsc(q.x.text||'')+'" style="font-size:9px;line-height:1.3;background:'+CI_OTHER_COL+';color:#fff;border-radius:3px;padding:0 3px;margin-top:1px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;box-shadow:0 1px 2px rgba(0,0,0,.25);">'+_secEsc(q.x.text||'')+'</div>'
+            ?'<div data-cichip="'+_secEsc(q.x.id)+'" title="'+_secEsc(q.x.text||'')+'" style="font-size:9px;line-height:1.3;background:'+CI_OTHER_COL+';color:#fff;border-radius:3px;padding:0 3px;margin-top:1px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;box-shadow:0 1px 2px rgba(0,0,0,.25);">'+(q.x.done?'&#10003; ':'')+_secEsc(q.x.text||'')+'</div>'
             :'<div style="font-size:9px;line-height:1.3;background:'+(wById[q.id].venue==='erg'?CAL_ERG_COL:CAL_WATER_COL)+';color:#fff;border-radius:3px;padding:0 3px;margin-top:1px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">'+_coachMark(q.id,false)+_secEsc(_wktDispName(wById[q.id]))+'</div>').join('')
             +(sq.length>2?'<div style="font-size:9px;color:var(--muted);">+'+(sq.length-2)+'</div>':'');})()
         +'</div>';
@@ -9908,13 +9923,12 @@ function renderStartupCalendar(){
       if(w&&!planShown(_calSel,w))return;
       const bg=w?(w.venue==='erg'?CAL_ERG_COL:CAL_WATER_COL):'#8e8e93';
       const vOnly=_wktCtx&&!sqCanEdit();
-      h+=calStrip('data-sq-i="'+si+'"',bg,
+      h+=calStrip('data-sq-i="'+si+'"'+(w?' data-caldet="'+_secEsc(id)+'"':''),bg,
         _grip+_coachMark(id,true)
         +'<span style="'+CAL_STRIP_LBL+'">'+(w?(w.venue==='erg'?'ERG':'WATER'):'')+'</span>'
         +'<span style="flex:1;min-width:0;font-size:13px;font-weight:700;color:var(--text);">'+(w?_secEsc(_wktDispName(w)):'Deleted workout')+((w&&w.note)?'<span style="display:block;font-size:11px;font-weight:500;opacity:.85;white-space:pre-wrap;margin-top:2px;">'+_secEsc(w.note)+'</span>':'')+'</span>'
-        +(w?'<button data-caldet="'+_secEsc(id)+'" style="'+CAL_STRIP_BTN+'">Details</button>':'')
         +((vOnly&&w)?'<button data-calimp="'+_secEsc(id)+'" style="'+CAL_STRIP_BTN+'background:'+bg+';color:#fff;border-color:'+bg+';font-weight:800;">IMPORT</button>':''),
-        vOnly?'':calStripDel('data-calrm',i),false);
+        vOnly?'':calStripDel('data-calrm',i),!!w);
     });
     h+='</div>';
     const BB='flex:1 1 0;min-width:0;min-height:48px;line-height:1.2;padding:10px 6px;border-radius:10px;border:none;box-shadow:0 2px 8px rgba(0,0,0,.22);font-family:-apple-system,Roboto,sans-serif;font-size:11px;font-weight:700;letter-spacing:.06em;cursor:pointer;color:#fff;';
@@ -9978,7 +9992,7 @@ function renderStartupCalendar(){
     dRoot.querySelectorAll('[data-calrm]').forEach(b=>{b.onclick=e=>{e.stopPropagation();planRemove(_calSel,+b.dataset.calrm);renderStartupCalendar();};});
     makeSortable(dRoot.querySelector('#cal-seq'),(f,t)=>{daySeqMove(_calSel,f,t);renderStartupCalendar();});
     dRoot.querySelectorAll('[data-caldet]').forEach(b=>{b.onclick=()=>window.showWorkoutsModal({viewId:b.dataset.caldet});});
-    dRoot.querySelectorAll('[data-calimp]').forEach(b=>{b.onclick=()=>sqImportWorkout(b.dataset.calimp,_calSel);});
+    dRoot.querySelectorAll('[data-calimp]').forEach(b=>{b.onclick=e=>{e.stopPropagation();sqImportWorkout(b.dataset.calimp,_calSel);};});
     const aw=document.getElementById('cal-add-water');
     if(aw)aw.onclick=()=>showPlanPicker(_calSel,'water');
     const ae=document.getElementById('cal-add-erg');
@@ -9991,6 +10005,7 @@ function renderStartupCalendar(){
     const cao=document.getElementById('cal-add-other');if(cao)cao.onclick=()=>calItemEditor(day,'other',null,renderStartupCalendar);
     dRoot.querySelectorAll('[data-citem]').forEach(r=>{r.onclick=()=>calItemEditor(day,null,r.dataset.citem,renderStartupCalendar);});
     dRoot.querySelectorAll('[data-cidel]').forEach(b=>{b.onclick=e=>{e.stopPropagation();calItemDelete(day,b.dataset.cidel);};});
+    dRoot.querySelectorAll('[data-cidone]').forEach(b=>{b.onclick=e=>{e.stopPropagation();calItemToggleDone(day,b.dataset.cidone);};});
   }
 }
 /* ══════════════════════════════════════════════════════════════════════════
@@ -10357,7 +10372,7 @@ function pvRender(){
     if(pss.length>maxW)c+='<div style="font-size:10px;color:var(--text);opacity:.7;margin-top:2px;">+'+(pss.length-maxW)+' more</div>';
     const cseq=pvSeq(k,en);
     cseq.slice(0,maxW).forEach(it=>{
-      if(it.t==='o'){const x=it.x;c+='<div data-cichip="'+_secEsc(x.id)+'" title="'+_secEsc(x.text||'')+'" style="font-size:10px;line-height:1.35;background:'+CI_OTHER_COL+';color:#fff;border-radius:4px;padding:1px 4px;margin-top:2px;box-shadow:0 1px 2px rgba(0,0,0,.28);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;font-weight:600;">'+_secEsc(x.text||'')+'</div>';return;}
+      if(it.t==='o'){const x=it.x;c+='<div data-cichip="'+_secEsc(x.id)+'" title="'+_secEsc(x.text||'')+'" style="font-size:10px;line-height:1.35;background:'+CI_OTHER_COL+';color:#fff;border-radius:4px;padding:1px 4px;margin-top:2px;box-shadow:0 1px 2px rgba(0,0,0,.28);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;font-weight:600;">'+(x.done?'&#10003; ':'')+_secEsc(x.text||'')+'</div>';return;}
       const x=it.x;
       const bg=_pv.combined?(x.src==='mine'?PV_MINE_COL:pvCol(x.src)):(x.w?(x.w.venue==='erg'?CAL_ERG_COL:CAL_WATER_COL):'#8e8e93');
       const mk=_pv.combined?((x.w&&x.w.venue==='erg')?'<span style="font-size:8px;font-weight:800;background:rgba(255,255,255,.3);border-radius:3px;padding:0 3px;margin-right:4px;">ERG</span>':''):_coachMark(x.id,false);
@@ -10402,11 +10417,11 @@ function pvRender(){
       const steps=(x.w&&Array.isArray(x.w.steps))?x.w.steps.map(_wktStepTxt).join(' · '):'';
       let acts='';
       const isMine=src==='mine';
-      if(x.w&&((isMine&&!_wktCtx)||(!_pv.combined&&_wktCtx)))acts+='<button data-pv="det" data-id="'+_secEsc(x.id)+'" style="'+BTN+'background:rgba(255,255,255,.25);color:#fff;margin-right:4px;">Details</button>';
+      const _det=!!(x.w&&((isMine&&!_wktCtx)||(!_pv.combined&&_wktCtx)));
       if(!isMine&&x.w&&(_pv.combined||!sqCanEdit()))acts+='<button data-pv="imp" data-c="'+_secEsc(src)+'" data-id="'+_secEsc(x.id)+'" style="'+BTN+'background:#fff;color:'+bg+';font-weight:800;margin-right:4px;">IMPORT</button>';
       if(((_pv.combined&&isMine&&WKT_ENABLED)||(!_pv.combined&&canEdit))&&k>=todayK)acts+='<button data-pv="rm" data-i="'+x.idx+'" style="'+BTN+'background:rgba(255,255,255,.25);color:#fff;">Remove</button>';
       const _mv=(_dragOk&&it.si!=null)?DRAG_GRIP:'';
-      dp+='<div '+(it.si!=null?'data-sq-i="'+it.si+'" ':'')+'style="display:flex;align-items:center;gap:6px;padding:8px 10px;margin-bottom:6px;border-radius:10px;background:'+bg+';color:#fff;font-size:13px;font-weight:700;box-shadow:0 2px 8px rgba(0,0,0,.22);">'+_mv+mk
+      dp+='<div '+(it.si!=null?'data-sq-i="'+it.si+'" ':'')+(_det?'data-pv="det" data-id="'+_secEsc(x.id)+'" ':'')+'style="display:flex;align-items:center;gap:6px;padding:8px 10px;margin-bottom:6px;border-radius:10px;background:'+bg+';color:#fff;font-size:13px;font-weight:700;box-shadow:0 2px 8px rgba(0,0,0,.22);'+(_det?'cursor:pointer;':'')+'">'+_mv+mk
         +'<span style="flex:1;min-width:0;">'+(x.w?_secEsc(_wktDispName(x.w)):'Deleted workout')
         +(_pv.combined?'<span style="display:block;font-size:10px;font-weight:600;opacity:.85;">'+(isMine?'Mine':_secEsc(pvSqName(src)))+'</span>':'')
         +(steps?'<span style="display:block;font-size:11px;font-weight:500;opacity:.9;margin-top:2px;">'+_secEsc(steps)+'</span>':'')
@@ -10435,10 +10450,9 @@ function pvRender(){
     const col=w.venue==='erg'?CAL_ERG_COL:CAL_WATER_COL;
     const steps=Array.isArray(w.steps)?w.steps.map(_wktStepTxt).join(' · '):'';
     const can=selOk&&(canEdit||viewOnlySq);
-    r+='<div '+(canEdit?'draggable="true" ':'')+'data-pvw="'+_secEsc(w.id)+'" style="display:flex;align-items:center;gap:8px;padding:9px 10px;margin-bottom:7px;border-radius:10px;background:var(--s2);border:1px solid var(--border);box-shadow:0 1px 3px rgba(0,0,0,.18),0 1px 1px rgba(0,0,0,.08);border-left:5px solid '+col+';'+(canEdit?'cursor:grab;':'')+'">'
+    r+='<div '+(canEdit?'draggable="true" ':'')+'data-pvw="'+_secEsc(w.id)+'" data-pv="wdet" data-id="'+_secEsc(w.id)+'" style="cursor:pointer;display:flex;align-items:center;gap:8px;padding:9px 10px;margin-bottom:7px;border-radius:10px;background:var(--s2);border:1px solid var(--border);box-shadow:0 1px 3px rgba(0,0,0,.18),0 1px 1px rgba(0,0,0,.08);border-left:5px solid '+col+';'+(canEdit?'cursor:grab;':'')+'">'
       +'<div style="flex:1;min-width:0;"><div style="font-size:13px;font-weight:700;display:flex;align-items:center;">'+_coachMark(w.id,false)+_secEsc(_wktDispName(w))+'</div>'
       +(steps?'<div style="font-size:11px;color:var(--text);opacity:.7;margin-top:2px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">'+_secEsc(steps)+'</div>':'')+'</div>'
-      +'<button data-pv="wdet" data-id="'+_secEsc(w.id)+'" style="border:1px solid var(--border);background:none;color:var(--text);border-radius:8px;padding:4px 8px;font-size:11px;cursor:pointer;font-family:inherit;">Details</button>'
       +(can?'<button data-pv="'+(viewOnlySq?'wimp':'wadd')+'" data-id="'+_secEsc(w.id)+'" style="border:none;background:'+col+';color:#fff;border-radius:8px;padding:5px 10px;font-size:11px;font-weight:800;cursor:pointer;font-family:inherit;">'+(viewOnlySq?'IMPORT':'+ Add')+'</button>':'')
       +'</div>';
   });
@@ -10492,6 +10506,8 @@ function pvRender(){
     if(sR&&_pv.sel){const x=(pvByDay[_pv.sel]||[])[+sR.dataset.pvsess];if(x&&_calOpen){const op=_calOpen;closePlanningView();op(x.f,x.p,null);}return;}
     const ciD=e.target.closest('[data-cidel]');
     if(ciD&&_pv.sel){calItemDelete(_pv.sel,ciD.dataset.cidel);return;}
+    const ciT=e.target.closest('[data-cidone]');
+    if(ciT&&_pv.sel){calItemToggleDone(_pv.sel,ciT.dataset.cidone);return;}
     const ciR=e.target.closest('[data-citem]');
     if(ciR&&_pv.sel){calItemEditor(_pv.sel,null,ciR.dataset.citem,renderStartupCalendar);return;}
     const b=e.target.closest('[data-pv]');if(!b)return;
