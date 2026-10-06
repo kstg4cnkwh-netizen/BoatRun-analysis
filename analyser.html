@@ -308,6 +308,7 @@
 .sz-del{display:flex;align-items:center;justify-content:center;padding:9px 10px;background:rgba(192,57,43,.15);border:1px solid rgba(192,57,43,.4);border-radius:8px;color:#e74c3c;cursor:pointer;font-size:.85rem;flex-shrink:0;}
 .sz-del img{width:16px;height:16px;display:block;object-fit:contain;}
 .asc{background:var(--s2);border-radius:8px;border-left:3px solid var(--b);border-top:1px solid var(--border);border-right:1px solid var(--border);border-bottom:1px solid var(--border);padding:11px 13px;cursor:pointer;flex:1;text-align:left;transition:border-color .15s;}
+.asc-date .asc-badge.asc-wkt{color:#0a84ff!important;}
 .asc-fav{float:right;background:none;border:none;padding:0 0 0 8px;font-size:24px;line-height:1;color:#d3d8dd;cursor:pointer;touch-action:manipulation;}
 .asc-fav.on{color:#fc4c02;}
 .asc-fav:active{opacity:.6;}
@@ -5039,7 +5040,7 @@ function showDrivePicker(files, onSelect) {
     const dur=name.match(/_(\d{2})h(\d{2})m(\d{2})s/);
     const str=name.match(/_(\d+)str/);
     const ax=name.match(/_AX([A-Z])/);
-    const wkt=name.match(/_WKT([a-zA-Z0-9\-]+)/);
+    const wkt=name.match(/_WKT([a-zA-Z0-9\-]+)/), wkn=name.match(/_WN([A-Za-z0-9\-~]+)/);
     const nm=nameFromFilename(name);
     const sq=name.match(/_SQ([A-Z0-9]{1,8})/);
     const fav=/_FAV1/.test(name);
@@ -5050,7 +5051,7 @@ function showDrivePicker(files, onSelect) {
       durS: dur?+dur[1]*3600+ +dur[2]*60+ +dur[3]:null,
       strokes: str?parseInt(str[1]):null,
       axis: ax?ax[1]:null,
-      workout: wkt?wkt[1].replace(/-/g,' '):null,
+      workout: (wkn&&decSessName(wkn[1]))||(wkt?wkt[1].replace(/-/g,' '):null),
       name: nm,
       squadCode: sq?sq[1]:null,
       favourite: fav,
@@ -5117,7 +5118,7 @@ function showDrivePicker(files, onSelect) {
       dateDiv.innerHTML='<span>'+dateStr+'</span>'
         +(p.squadCode?'<span class="asc-badge">'+p.squadCode+'</span>':'')
         
-        +(p.workout?'<span class="asc-badge">'+p.workout+'</span>':'')
+        +(p.workout?'<span class="asc-badge asc-wkt">'+_secEsc(p.workout)+'</span>':'')
         +(sessHasVideo(f)?VID_BADGE:'');
 
       const statsDiv=document.createElement('div');
@@ -8183,7 +8184,7 @@ async function showStartup(){
       const dur=name.match(/_(\d{2})h(\d{2})m(\d{2})s/);
       const str=name.match(/_(\d+)str/);
       const ax=name.match(/_AX([A-Z])/);
-      const wkt=name.match(/_WKT([a-zA-Z0-9\-]+)/);
+      const wkt=name.match(/_WKT([a-zA-Z0-9\-]+)/), wkn=name.match(/_WN([A-Za-z0-9\-~]+)/);
       const nm=nameFromFilename(name);
       const sq=name.match(/_SQ([A-Z0-9]{1,8})/);
       const fav=/_FAV1/.test(name);
@@ -8194,7 +8195,7 @@ async function showStartup(){
         durS: dur?+dur[1]*3600+ +dur[2]*60+ +dur[3]:null,
         strokes: str?parseInt(str[1]):null,
         axis: ax?ax[1]:null,
-        workout: wkt?wkt[1].replace(/-/g,' '):null,
+        workout: (wkn&&decSessName(wkn[1]))||(wkt?wkt[1].replace(/-/g,' '):null),
         name: nm,
         squadCode: sq?sq[1]:null,
         favourite: fav,
@@ -8357,7 +8358,7 @@ async function showStartup(){
         dateDiv.innerHTML='<span>'+dateStr+'</span>'
           +(p.squadCode?'<span class="asc-badge">'+p.squadCode+'</span>':'')
           
-          +(p.workout?'<span class="asc-badge">'+p.workout+'</span>':'')
+          +(p.workout?'<span class="asc-badge asc-wkt">'+_secEsc(p.workout)+'</span>':'')
           +(sessHasVideo(f)?VID_BADGE:'');
 
         const statsDiv=document.createElement('div');
@@ -9893,22 +9894,24 @@ function renderStartupCalendar(){
     const dl=new Date(_calSel+'T12:00:00').toLocaleDateString('en-AU',{weekday:'long',day:'numeric',month:'long',year:'numeric'});
     h+='<div id="cal-day">'
       +'<div style="font-size:.85rem;font-weight:700;margin-bottom:6px;">'+dl+'</div>'
-      +'<div style="font-size:11px;color:var(--muted);margin-bottom:4px;">'+(_wktCtx?'Squad sessions':'Sessions')+'</div>';
-    if(!ss.length)h+='<div style="font-size:12px;color:var(--muted);margin-bottom:8px;">No sessions on this day.</div>';
+      +'<div style="font-size:11px;color:var(--muted);margin-bottom:4px;">'+(_wktCtx?'Squad sessions':'Completed sessions')+'</div>';
+    const _othDone=_wktCtx?[]:calItemsOf(_calSel).filter(x=>x.type==='other'&&x.done);
+    if(!ss.length&&!_othDone.length)h+='<div style="font-size:12px;color:var(--muted);margin-bottom:8px;">No sessions on this day.</div>';
     ss.forEach((x,i)=>{
       const p=x.p, t=p.approxTs?new Date(p.approxTs).toLocaleTimeString('en-AU',{hour:'2-digit',minute:'2-digit'}):'';
       const dist=p.distM!=null?(p.erg?Math.round(p.distM)+'m':(p.distM/1000).toFixed(2)+'km'):'';
       h+='<div class="asc'+(p.erg?' erg':'')+'" data-calsess="'+i+'" style="margin-bottom:6px;cursor:pointer;">'
         +(p.name?'<div style="font-weight:700;font-size:.85rem;color:var(--text);margin-bottom:2px;">'+(p.favourite?'<span style="color:#ffcc00;text-shadow:0 0 2px rgba(184,134,11,.8);margin-right:4px;">★</span>':'')+_secEsc(p.name)+'</div>':'')
-        +'<div class="asc-date">'+(!p.name&&p.favourite?'<span style="color:#ffcc00;text-shadow:0 0 2px rgba(184,134,11,.8);font-size:1rem;">★</span>':'')+'<span>'+t+'</span>'+(p.erg?'<span class="asc-badge">ERG</span>':'')+(p.workout?'<span class="asc-badge">'+_secEsc(p.workout)+'</span>':'')+'</div>'
+        +'<div class="asc-date">'+(!p.name&&p.favourite?'<span style="color:#ffcc00;text-shadow:0 0 2px rgba(184,134,11,.8);font-size:1rem;">★</span>':'')+'<span>'+t+'</span>'+(p.erg?'<span class="asc-badge">ERG</span>':'')+(p.workout?'<span class="asc-badge asc-wkt">'+_secEsc(p.workout)+'</span>':'')+'</div>'
         +'<div class="asc-stats">'+(dist?'<div><span class="asc-v">'+dist+'</span></div>':'')+(p.durS!=null?'<div><span class="asc-v">'+fmtTime(p.durS)+'</span><span class="asc-l">time</span></div>':'')+'</div>'
         +((x.f&&typeof x.f.description==='string'&&x.f.description.trim())?'<div style="font-size:12px;color:var(--text);opacity:.85;white-space:pre-wrap;margin-top:4px;">📝 '+_secEsc(x.f.description.trim())+'</div>':'')
         +'</div>';
     });
     let _calBtnsShown=false;
     const _ciEd=calItemCanEdit();
+    h+=_othDone.map(x=>ciOtherRow(x,_ciEd,'',null)).join('');
     {const ne=calItemRows(_calSel,_ciEd,['note','event']);if(ne)h+='<div style="font-size:11px;color:var(--muted);margin:8px 0 4px;">Notes &amp; events</div>'+ne;}
-    const _othRows=calItemRows(_calSel,_ciEd,['other']);let _seqShown=false;
+    const _othRows=calItemsOf(_calSel).filter(x=>x.type==='other'&&!(x.done&&!_wktCtx)).map(x=>ciOtherRow(x,_ciEd,'',null)).join('');let _seqShown=false;
     if((WKT_ENABLED||_wktCtx)&&_calSel>=todayK){
     const shownIds=ids.filter(id=>!wById[id]||planShown(_calSel,wById[id]));
     h+='<div style="font-size:11px;color:var(--muted);margin:8px 0 4px;">'+(_wktCtx?'Squad plan':'Planned workouts <span style="font-size:10px;">(suggested in Metrics on the day)</span>')+'</div>';
@@ -9917,7 +9920,7 @@ function renderStartupCalendar(){
     const _grip=((!_wktCtx||sqCanEdit())&&_sq.length>1)?DRAG_GRIP:'';
     h+='<div id="cal-seq">';_seqShown=true;
     _sq.forEach((q,si)=>{
-      if(q.t==='o'){h+=ciOtherRow(q.x,_ciEd,_grip,si);return;}
+      if(q.t==='o'){if(!(q.x.done&&!_wktCtx))h+=ciOtherRow(q.x,_ciEd,_grip,si);return;}
       const id=q.id,i=q.i;
       const w=wById[id];
       if(w&&!planShown(_calSel,w))return;
