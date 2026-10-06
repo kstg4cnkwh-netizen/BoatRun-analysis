@@ -9758,11 +9758,8 @@ function renderStartupCalendar(){
         +((x.f&&typeof x.f.description==='string'&&x.f.description.trim())?'<div style="font-size:12px;color:var(--text);opacity:.85;white-space:pre-wrap;margin-top:4px;">📝 '+_secEsc(x.f.description.trim())+'</div>':'')
         +'</div>';
     });
-    if(!_wktCtx){
-      const CIB='flex:1;padding:9px 4px;border:none;border-radius:10px;font-size:11px;font-weight:800;letter-spacing:.04em;cursor:pointer;font-family:inherit;';
-      h+='<div style="font-size:11px;color:var(--muted);margin:8px 0 4px;">Events &amp; notes</div>'+calItemRows(_calSel,true);
-    }
-    let _calBtnsShown=false;
+    let _calBtnsShown=false, _ciDone=false;
+    const _ciSec=()=>{if(_wktCtx||_ciDone||!calItemsOf(_calSel).length)return '';_ciDone=true;return '<div style="font-size:11px;color:var(--muted);margin:12px 0 4px;">Events &amp; notes</div>'+calItemRows(_calSel,true);};
     if((WKT_ENABLED||_wktCtx)&&_calSel>=todayK){
     const shownIds=ids.filter(id=>!wById[id]||planShown(_calSel,wById[id]));
     h+='<div style="font-size:11px;color:var(--muted);margin:8px 0 4px;">'+(_wktCtx?'Squad plan':'Planned workouts <span style="font-size:10px;">(suggested in Metrics on the day)</span>')+'</div>';
@@ -9780,6 +9777,7 @@ function renderStartupCalendar(){
             +'<button data-calrm="'+i+'" style="border:none;background:rgba(255,255,255,.25);color:#fff;border-radius:8px;padding:4px 10px;font-size:11px;font-weight:700;cursor:pointer;font-family:inherit;">Remove</button>'))
         +'</div>';
     });
+    h+=_ciSec();
     const BB='flex:1 1 0;min-width:0;min-height:48px;line-height:1.2;padding:10px 6px;border-radius:10px;border:none;box-shadow:0 2px 8px rgba(0,0,0,.22);font-family:-apple-system,Roboto,sans-serif;font-size:11px;font-weight:700;letter-spacing:.06em;cursor:pointer;color:#fff;';
     if(!_wktCtx||sqCanEdit()){_calBtnsShown=true;h+='<div style="display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:6px;margin-top:20px;">'
       +'<button id="cal-add-water" style="'+BB+'background:'+CAL_WATER_COL+';">+ ON-WATER WORKOUT</button>'
@@ -9788,6 +9786,7 @@ function renderStartupCalendar(){
       +(!_wktCtx?'<button id="cal-add-event" style="'+BB+'background:#27ae60;">+ EVENT</button><button id="cal-add-note" style="'+BB+'background:'+CI_NOTE_COL+';color:#000;">+ NOTE</button>':'')
       +'</div>';}
     }
+    h+=_ciSec();
     if(!_calBtnsShown&&!_wktCtx){
       const BB='flex:1 1 0;min-width:0;min-height:48px;line-height:1.2;padding:10px 6px;border-radius:10px;border:none;box-shadow:0 2px 8px rgba(0,0,0,.22);font-family:-apple-system,Roboto,sans-serif;font-size:11px;font-weight:700;letter-spacing:.06em;cursor:pointer;color:#fff;';
       h+='<div style="display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:6px;margin-top:20px;">'
@@ -10193,10 +10192,6 @@ function pvRender(){
     const BTN='border:none;border-radius:8px;padding:4px 10px;font-size:11px;font-weight:700;cursor:pointer;font-family:inherit;';
     c+='<div style="margin-top:12px;padding:12px;border-radius:12px;background:var(--s1);border:1px solid var(--border);box-shadow:0 4px 18px rgba(0,0,0,.18),0 1px 4px rgba(0,0,0,.12);">'
       +'<div style="font-size:.9rem;font-weight:700;margin-bottom:8px;">'+dl+'</div>';
-    if(!_wktCtx||_pv.combined){
-      const ciRows=calItemRows(k,true);
-      if(ciRows)c+=ciRows+'<div style="height:6px;"></div>';
-    }
     if(!en.length)c+='<div style="font-size:12px;color:var(--text);opacity:.7;">Nothing planned.'+(canEdit&&k>=todayK?' Drag a workout here, or tap + Add in the list.':'')+'</div>';
     en.forEach(x=>{
       const src=_pv.combined?x.src:(_wktCtx||'mine');
@@ -10215,6 +10210,10 @@ function pvRender(){
         +((x.w&&x.w.note)?'<span style="display:block;font-size:11px;font-weight:500;opacity:.9;white-space:pre-wrap;margin-top:2px;">'+_secEsc(x.w.note)+'</span>':'')
         +'</span>'+acts+'</div>';
     });
+    if(!_wktCtx||_pv.combined){
+      const ciRows=calItemRows(k,true);
+      if(ciRows)c+='<div style="font-size:11px;color:var(--text);opacity:.7;margin:12px 0 4px;">Events &amp; notes</div>'+ciRows;
+    }
     c+='</div>';
   }
   // ---------- workout list ----------
