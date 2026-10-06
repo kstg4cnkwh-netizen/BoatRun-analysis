@@ -9741,7 +9741,7 @@ function calItemEditor(day,type,id,onDone){
   document.getElementById('ci-cancel').onclick=close;
   document.getElementById('ci-save').onclick=()=>{
     const text=tx.value.trim();if(!text){tx.focus();return;}
-    const item={id:cur?cur.id:('ci'+Date.now()+Math.floor(Math.random()*1000)),type,text,time:tm?(tm.value||''):''};
+    const item={...(cur||{}),id:cur?cur.id:('ci'+Date.now()+Math.floor(Math.random()*1000)),type,text,time:tm?(tm.value||''):''};
     const nl=list.filter(x=>x.id!==item.id);nl.push(item);
     calItemsSet(day,nl);done();
   };
