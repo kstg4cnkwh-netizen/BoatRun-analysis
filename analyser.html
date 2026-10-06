@@ -8069,12 +8069,12 @@ async function syncWithPhone(){
     await pullPrefsAndApply();
     AnalyserDrive._invalidateFolder();
     await showStartup();
-    toast('Synced with phone');
+    toast('Synced with app');
   }catch(e){console.error('phone sync failed',e);toast('Sync failed — check internet');}
   finally{
     _phoneSyncing=false;
     const b2=document.getElementById('sz-phonesync');
-    if(b2){b2.disabled=false;b2.style.opacity='';const t=b2.querySelector('span');if(t)t.innerHTML='&#x21BB; Sync with phone';}
+    if(b2){b2.disabled=false;b2.style.opacity='';const t=b2.querySelector('span');if(t)t.innerHTML='&#x21BB; Sync with app';}
   }
 }
 async function showStartup(){
@@ -9908,7 +9908,7 @@ function renderStartupCalendar(){
     const back=isFinite(firstTs)?Math.min(36,Math.max(1,(now.getFullYear()-new Date(firstTs).getFullYear())*12+now.getMonth()-new Date(firstTs).getMonth())):6;
     h='<div class="sz-lhd" style="display:flex;align-items:center;gap:6px;flex-wrap:wrap;">Calendar'+'<span style="display:flex;gap:4px;margin-left:8px;"><button id="cal-mine" class="filt-chip'+(!_wktCtx?' on':'')+'" style="'+CH+'">Mine</button><button id="cal-squad" class="filt-chip'+(_wktCtx?' on':'')+'" style="'+CH+'">'+'<span style="display:inline-block;flex-shrink:0;width:8px;height:8px;border-radius:50%;background:'+CAL_COACH_COL+';box-shadow:0 0 0 1px rgba(0,0,0,.35);margin-right:5px;vertical-align:middle;"></span>'+'Squad'+(_wktCtx?' '+_wktCtx:'')+'</button></span>'
       +'<span style="margin-left:auto;display:flex;align-items:center;gap:6px;">'+((!_wktCtx&&WKT_ENABLED)?'<button id="cal-sqsync" class="filt-chip" style="'+CH+'" title="Copy the squad plan into your calendar">&#x21BB; From squad</button>':'')
-      +'<button id="sz-phonesync" class="filt-chip" style="'+CH+'" title="Fetch new sessions, workouts and calendar items from the phone"><span>&#x21BB; Sync with phone</span></button>'+'<button id="cal-plan" class="filt-chip" style="'+CH+'" title="Big calendar with your workout list">&#x1F5D3; Planning</button>'+'<button id="cal-today" class="filt-chip" style="'+CH+'">Today</button></span></div>'+sqBar
+      +'<button id="sz-phonesync" class="filt-chip" style="'+CH+'" title="Fetch new sessions, workouts and calendar items from the app"><span>&#x21BB; Sync with app</span></button>'+'<button id="cal-plan" class="filt-chip" style="'+CH+'" title="Opens the planning calendar in its own window">&#x1F5D3; Planning &#x2197;</button>'+'<button id="cal-today" class="filt-chip" style="'+CH+'">Today</button></span></div>'+sqBar
       +'<div id="cal-scroll" style="height:min(440px,62vh);overflow-y:auto;padding-right:4px;position:relative;">';
     for(let o=-back;o<=3;o++){
       const b=new Date(now.getFullYear(),now.getMonth()+o,1);
@@ -9923,7 +9923,7 @@ function renderStartupCalendar(){
       +'<span style="font-size:.8rem;font-weight:600;min-width:110px;text-align:center;">'+mLabel(base.getFullYear(),base.getMonth())+'</span>'
       +'<button id="cal-next" class="filt-chip" style="'+CH+'">›</button>'
       +((!_wktCtx&&WKT_ENABLED)?'<button id="cal-sqsync" class="filt-chip" style="'+CH+'" title="Copy the squad plan into your calendar">&#x21BB; From squad</button>':'')
-      +'<button id="sz-phonesync" class="filt-chip" style="'+CH+'" title="Fetch new sessions, workouts and calendar items from the phone"><span>&#x21BB; Sync with phone</span></button>'+'<button id="cal-plan" class="filt-chip" style="'+CH+'" title="Big calendar with your workout list">&#x1F5D3; Planning</button>'+'<button id="cal-today" class="filt-chip" style="'+CH+'">Today</button></span></div>'+sqBar
+      +'<button id="sz-phonesync" class="filt-chip" style="'+CH+'" title="Fetch new sessions, workouts and calendar items from the app"><span>&#x21BB; Sync with app</span></button>'+'<button id="cal-plan" class="filt-chip" style="'+CH+'" title="Opens the planning calendar in its own window">&#x1F5D3; Planning &#x2197;</button>'+'<button id="cal-today" class="filt-chip" style="'+CH+'">Today</button></span></div>'+sqBar
       +monthGrid(base.getFullYear(),base.getMonth());
   }
   const hCal=h;h='';
