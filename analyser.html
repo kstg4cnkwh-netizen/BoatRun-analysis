@@ -2686,6 +2686,13 @@ function ergFixAnalyserData(d) {
     d.strokes = out;
   }
   const iv = d.sum.erg && d.sum.erg.intervals;
+  // Work-only time and metres for the header and summary cards.
+  if (Array.isArray(iv) && iv.some(r => (r.restTime || 0) > 0 || (r.restDist || 0) > 0)) {
+    let t = 0, dd = 0;
+    for (const r of iv) { t += (r.time || 0); dd += (r.dist || 0); }
+    if (t > 0) d.sum.work_time_s = +t.toFixed(1);
+    if (dd > 0) d.sum.work_dist_m = Math.round(dd);
+  }
   const laps = d.laps || [];
   if (!laps.some(l => l.type === 'rest')) {
     const el = _ergLapsFromIntervals(iv, null, null);
@@ -5315,8 +5322,8 @@ function buildMeta(fname,sum) {
   const dObj=sum.start_time?new Date(sum.start_time):null;
   const date=dObj?dObj.toLocaleDateString():'';
   const time=dObj?dObj.toLocaleTimeString([],{hour:'2-digit',minute:'2-digit'}):'';
-  const dur=fmtTime(+sum.duration_s);
-  const dist=fmtDistU(+sum.distance_m||0)+distULabelU();
+  const dur=fmtTime(+sum.work_time_s||+sum.duration_s);
+  const dist=fmtDistU(+sum.work_dist_m||+sum.distance_m||0)+distULabelU();
   const safe=fname.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
   const sq=SESSIONS[activeSessionIdx]?.squadCode;
   const sqBadge=sq?' <span style="font-size:8px;background:var(--s3);border:1px solid var(--border);border-radius:3px;padding:1px 5px;color:var(--b);letter-spacing:.07em;vertical-align:middle;">'+sq+'</span>':'';
@@ -5382,9 +5389,9 @@ function sessionStats() {
   return {pv,rv,jv,dv,iv,hv,ratv,av};
 }
 function buildCards(sum) {
-  const distDisp=fmtDistU(+sum.distance_m||0);
+  const distDisp=fmtDistU(+sum.work_dist_m||+sum.distance_m||0);
   const distLbl=distULabelU();
-  const dur=fmtTime(+sum.duration_s);
+  const dur=fmtTime(+sum.work_time_s||+sum.duration_s);
   const movPace=+sum.avg_moving_pace_s_per_500m||0;
   /* Any lap typed 'work' - whether recorded that way or set by hand in the lap
      table - makes the session behave like a workout: the pace card reports the
