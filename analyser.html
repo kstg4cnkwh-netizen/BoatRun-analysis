@@ -2299,6 +2299,27 @@ function parseCSV(text) {
 // ══════════════════════════════════════════════════════════════════════════
 // CONVERT JSON SESSION → analyser format
 // ══════════════════════════════════════════════════════════════════════════
+/* Erg interval sessions: build the lap list from the PM5's own splits (work + rest
+   rows). The app's workout clock can drift from the erg, so its laps are not trusted. */
+function _ergLapsFromIntervals(iv, hrTrace, t0) {
+  if (!Array.isArray(iv) || !iv.some(r => (r.restTime || 0) > 0 || (r.restDist || 0) > 0)) return null;
+  const mx = (a, b) => { if (!hrTrace || !hrTrace.length || !t0) return null; let m = 0; for (const h of hrTrace) { const e = (h.t - t0) / 1000; if (e >= a && e <= b && h.hr > m) m = h.hr; } return m || null; };
+  const out = []; let t = 0, d = 0;
+  for (const r of iv) {
+    const wt = r.time || 0, wd = r.dist || 0;
+    if (wt > 0 || wd > 0) {
+      const p = r.pace > 0 ? r.pace : ((wd > 5 && wt > 0) ? (wt / wd) * 500 : 0);
+      out.push({ n: out.length + 1, type: 'work', startT: +t.toFixed(1), startD: Math.round(d), dist: Math.round(wd), time: wt, pace: p, lapPace: p, rate: r.rate || null, maxHr: mx(t, t + wt), ergSplit: true });
+      t += wt; d += wd;
+    }
+    const rt = r.restTime || 0, rd = r.restDist || 0;
+    if (rt > 0 || rd > 0) {
+      out.push({ n: out.length + 1, type: 'rest', startT: +t.toFixed(1), startD: Math.round(d), dist: Math.round(rd), time: rt, pace: 0, lapPace: 0, rate: null, maxHr: mx(t, t + rt), ergSplit: true });
+      t += rt; d += rd;
+    }
+  }
+  return out.length ? out : null;
+}
 function sessionToAnalyserFmt(s) {
   const sum = {
     note: s.note || '',
@@ -2338,7 +2359,7 @@ function sessionToAnalyserFmt(s) {
     watts:num(r.powerW), drivelength:num(r.driveLength), peakforceN:num(r.peakForceN),
   }));
   const hr = (s.hrTrace||[]).map(h=>({ ts:new Date(h.t).toISOString(), bpm:h.hr }));
-  const wlm=s.workoutLapMetrics||[];
+  const wlm=(s.sessionMode==='erg'&&_ergLapsFromIntervals(s.erg&&s.erg.intervals,s.hrTrace,s.startTime))||s.workoutLapMetrics||[];
   const lapSrc=wlm.length?wlm:(s.laps||[]);
   /* start_time_s / start_dist_m are the absolute elapsed and distance at the
      step's start, as recorded by Metrics. Without them a consumer has to
@@ -2349,7 +2370,7 @@ function sessionToAnalyserFmt(s) {
   const glaps = (s.garminLaps||[]).map(l=>({ lap:l.n, distance_m:l.dist, time_s:l.time, pace_s_per_500m:l.pace, avg_hr_bpm:l.avgHr, max_hr_bpm:l.maxHr, calories:l.cal, strokes:l.garminStrokes, avg_spm:l.garminAvgSpm, avg_stroke_dist_m:l.avgStrokeDist }));
   const gpsTrace = (s.gpsTrace||[]).filter(p=>p.lat!=null&&p.lon!=null).map(p=>({ lat:p.lat, lon:p.lon, t:p.t, dist:p.dist }));
   return { sum, strokes, hr, laps, glaps, gpsTrace,
-    workoutLapMetrics: s.workoutLapMetrics || null,
+    workoutLapMetrics: wlm.length ? wlm : null,
     workoutId: s.workoutId || null,
     workoutName: s.workoutName || null,
     squadCode: s.squadCode || null,
@@ -2631,7 +2652,48 @@ function sessHasVideo(f){
   return /_VID1/.test(String(f.name||'')) || sessVidIds().has(f.id);
 }
 const VID_BADGE='<span class="asc-badge" title="Has video" style="background:rgba(46,204,113,.18);color:#2ecc71;">&#127909; Video</span>';
+/* Erg fix-ups on load, for sessions saved by older Metrics builds:
+   1. The PM5 sends its stroke packet twice per stroke, and older builds saved a
+      record for each. The repeat carries the same drive data (peak force and
+      drive time) as the record before it, so fold it into that record.
+   2. Interval pieces with rest get their laps from the PM5 splits (work + rest). */
+function ergFixAnalyserData(d) {
+  if (!d || !d.sum || d.sum.session_mode !== 'erg') return d;
+  const st = d.strokes || [];
+  const sc = +d.sum.stroke_count || 0;
+  if (sc > 0 && st.length > sc * 1.6) {
+    const out = [];
+    for (const r of st) {
+      const p = out[out.length - 1];
+      if (p && r.peakforceN != null && r.peakforceN === p.peakforceN && r.driveTimeMs != null && r.driveTimeMs === p.driveTimeMs) {
+        for (const k of ['rate', 'watts', 'pace', 'dps', 'dist']) { if (r[k] != null && !(typeof r[k] === 'number' && isNaN(r[k]))) p[k] = r[k]; }
+        if (!p.forceCurve && r.forceCurve) { p.forceCurve = r.forceCurve; p.curve = r.curve; p.curveDriveFrac = r.curveDriveFrac; p.curveIsForce = r.curveIsForce; }
+        continue;
+      }
+      out.push(r);
+    }
+    out.forEach((r, i) => { r.n = i + 1; });
+    d.strokes = out;
+  }
+  const iv = d.sum.erg && d.sum.erg.intervals;
+  const laps = d.laps || [];
+  if (!laps.some(l => l.type === 'rest')) {
+    const el = _ergLapsFromIntervals(iv, null, null);
+    if (el) {
+      const t0 = Date.parse(d.sum.start_time || '');
+      const hr = (d.hr || []).map(h => ({ e: (Date.parse(h.ts) - t0) / 1000, b: h.bpm })).filter(h => isFinite(h.e) && h.b > 40 && h.b < 220);
+      d.laps = el.map(l => {
+        const o = { lap: l.n, distance_m: l.dist, time_s: l.time, pace_s_per_500m: l.pace > 0 ? l.pace : null, stroke_rate_spm: l.rate, type: l.type, start_time_s: l.startT, start_dist_m: l.startD };
+        const b = hr.filter(h => h.e >= l.startT && h.e <= l.startT + l.time).map(h => h.b);
+        if (b.length) { o.avg_hr_bpm = Math.round(b.reduce((x, y) => x + y, 0) / b.length); o.max_hr_bpm = Math.max(...b); }
+        return o;
+      });
+    }
+  }
+  return d;
+}
 function addSessionFromData(d, label, replace, fileId, squadCode, notOwn) {
+  try { ergFixAnalyserData(d); } catch (e) { console.warn('ergFix', e); }
   if (fileId && d && d.vidSync && Object.keys(d.vidSync).length) markSessHasVideo(fileId);
   if (!replace && SESSIONS.length) {
     const curErg = !!(SESSIONS[0].d.sum && SESSIONS[0].d.sum.session_mode === 'erg');
