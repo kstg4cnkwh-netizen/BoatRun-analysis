@@ -2662,16 +2662,26 @@ function ergFixAnalyserData(d) {
   const st = d.strokes || [];
   const sc = +d.sum.stroke_count || 0;
   if (sc > 0 && st.length > sc * 1.6) {
-    const out = [];
+    /* Group each record with its repeats, then rebuild one stroke per group.
+       A curve read could land on the stroke before its own (the stroke count
+       hadn't ticked over yet), so a group holding two curves passes the second
+       one to the next group when that group has none. */
+    const groups = [];
     for (const r of st) {
-      const p = out[out.length - 1];
-      if (p && r.peakforceN != null && r.peakforceN === p.peakforceN && r.driveTimeMs != null && r.driveTimeMs === p.driveTimeMs) {
-        for (const k of ['rate', 'watts', 'pace', 'dps', 'dist']) { if (r[k] != null && !(typeof r[k] === 'number' && isNaN(r[k]))) p[k] = r[k]; }
-        if (!p.forceCurve && r.forceCurve) { p.forceCurve = r.forceCurve; p.curve = r.curve; p.curveDriveFrac = r.curveDriveFrac; p.curveIsForce = r.curveIsForce; }
-        continue;
-      }
-      out.push(r);
+      const g = groups[groups.length - 1], p = g ? g[g.length - 1] : null;
+      if (p && r.peakforceN != null && r.peakforceN === p.peakforceN && r.driveTimeMs != null && r.driveTimeMs === p.driveTimeMs) g.push(r);
+      else groups.push([r]);
     }
+    const curves = groups.map(g => g.filter(x => x.forceCurve));
+    const out = groups.map((g, gi) => {
+      const o = g[0];
+      for (const r of g.slice(1)) for (const k of ['rate', 'watts', 'pace', 'dps', 'dist']) { if (r[k] != null && !(typeof r[k] === 'number' && isNaN(r[k]))) o[k] = r[k]; }
+      let c = curves[gi][0] || null;
+      if (!c && gi > 0 && curves[gi - 1].length > 1) c = curves[gi - 1][1];
+      if (c && c !== o) { o.forceCurve = c.forceCurve; o.curve = c.curve; o.curveDriveFrac = c.curveDriveFrac; o.curveIsForce = c.curveIsForce; }
+      if (!c) { o.forceCurve = null; o.curve = null; o.curveDriveFrac = null; o.curveIsForce = false; }
+      return o;
+    });
     out.forEach((r, i) => { r.n = i + 1; });
     d.strokes = out;
   }
