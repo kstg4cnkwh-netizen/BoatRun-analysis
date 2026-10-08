@@ -9822,6 +9822,16 @@ window.showWorkoutsModal=function(opts){
   document.body.appendChild(overlay);
   const ERG='#c0392b', S5='#0a84ff', SROW='#7de0a6';
   let edit=null, sel=new Set(), openId=null;
+  /* Quick erg pieces (Single Distance / Single Time with a split, Constant or
+     Variable Intervals) - the same shapes Metrics' erg builder makes. Saved
+     with an 'erg' field so Metrics pushes them to the PM5 exactly, split and
+     all. */
+  let quick=null;
+  const Q_MIN_D=100, Q_MIN_T=20, Q_REST_MAX=595;
+  const qStep=(mode,v)=>mode==='time'?{id:'s'+Date.now()+Math.random().toString(36).slice(2),type:'work',mode:'time',value:v,timeValue:v,distValue:500}
+    :{id:'s'+Date.now()+Math.random().toString(36).slice(2),type:'work',mode:'distance',value:v,distValue:v,timeValue:120};
+  const qNew=k=>({kind:k,name:'',dist:2000,dsplit:500,time:1200,tsplit:300,cmode:'distance',cdist:500,ctime:120,crest:180,reps:6,
+    ivs:[{mode:'distance',value:500,restS:60},{mode:'distance',value:500,restS:60}]});
   /* opts.list + opts.onListSave: show/edit a workout held in another list
      (a squad, or My workouts while a squad is open). */
   const _mDB=()=>opts.list||WORKOUTS_DB;
@@ -9868,6 +9878,13 @@ window.showWorkoutsModal=function(opts){
       +'<span style="flex:1;text-align:right;"><span style="font-size:12px;font-weight:800;padding:4px 9px;border-radius:6px;'
       +(r?'background:'+SROW+';color:#05331d;':'background:'+S5+';color:#fff;')+'">'+(r?'WHEN ROWING':'AFTER 5 SEC')+'</span></span></div>';
   };
+  const splitRow=w=>{
+    const x=w&&w.erg&&w.erg.single;
+    if(!x||!(x.split>0)||x.split>=x.value)return '';
+    return '<div class="step-row"><div class="step-check" style="visibility:hidden;border-color:transparent;"></div>'
+      +'<span style="font-size:12px;font-weight:700;color:#000;flex-shrink:0;">PM5 split</span>'
+      +'<span style="flex:1;text-align:right;font-size:15px;font-weight:700;color:#000;">'+(x.mode==='time'?fmtT(x.split):x.split+' m')+'</span></div>';
+  };
   const viewSteps=w=>{
     const st=w.steps||[];
     if(!st.length)return '<div style="color:#bbb;font-size:11px;padding:8px 0;">No steps.</div>';
@@ -9881,7 +9898,7 @@ window.showWorkoutsModal=function(opts){
         +(!isErgW(w)&&s.skipLastRest?'<div class="skip-rest-row"><span>Skip last rest</span></div>':'')+'</div>';
     });
     if(!isErgW(w)&&st[0]&&st[0].type==='warmup')rows.splice(1,0,startRowView(w));
-    return rows.join('');
+    return rows.join('')+(isErgW(w)?splitRow(w):'');
   };
 
   /* ── Editable rows, as in Metrics' workout builder ─────────────────────── */
@@ -9966,6 +9983,17 @@ window.showWorkoutsModal=function(opts){
     if(_wktCtx)h+='<div style="font-size:11px;color:#8e8e93;margin:-4px 0 10px;">Squad workouts — members can view and import them.</div>';
     else if(!AnalyserDrive.isSignedIn())h+='<div style="font-size:11px;color:#c76f00;margin:-4px 0 10px;">Sign in and link Drive so these workouts sync with BoatRun Metrics.</div>';
     else h+='<div style="font-size:11px;color:#8e8e93;margin:-4px 0 10px;">Saved workouts sync with BoatRun Metrics through Drive.</div>';
+    if(_wktVenueView==='erg'){
+      const qi=(k,t,sub)=>'<button type="button" data-a="quick" data-m="'+k+'" style="display:flex;align-items:center;gap:10px;width:100%;text-align:left;background:#fff;border:1px solid #e0e0e5;border-left:4px solid '+ERG+';border-radius:12px;box-shadow:0 1px 3px rgba(0,0,0,.07);padding:10px 12px;margin-bottom:6px;font-family:inherit;font-size:14px;font-weight:800;color:#000;cursor:pointer;">'
+        +'<span style="flex:1;min-width:0;pointer-events:none;">'+t+'<div style="font-size:11px;font-weight:500;color:#555;margin-top:2px;">'+sub+'</div></span>'
+        +'<span style="font-size:20px;font-weight:700;color:#c7c7cc;pointer-events:none;">&#8250;</span></button>';
+      h+='<div style="font-size:10px;font-weight:800;letter-spacing:.08em;color:#8e8e93;margin:2px 2px 6px;">QUICK ERG PIECES</div>'
+        +qi('dist','Single Distance','Fixed metres, with a split length')
+        +qi('time','Single Time','Fixed duration, with a split length')
+        +qi('const','Constant Intervals','Identical work + rest, repeated')
+        +qi('var','Variable Intervals','Different work/rest each rep')
+        +'<div style="font-size:10px;font-weight:800;letter-spacing:.08em;color:#8e8e93;margin:12px 2px 6px;">SAVED WORKOUTS</div>';
+    }
     if(!list.length)h+='<div style="text-align:center;padding:20px;color:#bbb;font-size:12px;">No '+(_wktVenueView==='erg'?'erg':'on-water')+' workouts yet.</div>';
     list.forEach((w,li)=>{
       const o=openId===w.id;
@@ -10019,7 +10047,92 @@ window.showWorkoutsModal=function(opts){
     const nt=document.getElementById('_wkt_note');
     if(nt)nt.oninput=()=>{edit.note=nt.value;};
   };
-  const render=()=>{if(edit)renderEdit();else renderList();};
+  const renderQuick=()=>{
+    const q=quick;
+    const T={dist:'Single Distance',time:'Single Time',const:'Constant Intervals',var:'Variable Intervals'}[q.kind];
+    const lbl=t=>'<div style="font-size:11px;font-weight:800;letter-spacing:.06em;color:#555;margin:12px 0 4px;">'+t+'</div>';
+    const fld=(key,isT,unit,v)=>'<div class="step-val-row" style="padding:0;">'
+      +'<button class="stepper-btn" style="width:44px;height:44px;font-size:25px;flex-shrink:0;" data-a="qadj" data-q="'+key+'" data-d="-1">&#8722;</button>'
+      +'<input class="step-val-input" type="text" inputmode="'+(isT?'text':'numeric')+'" value="'+(isT?fmtT(v):String(v))+'" data-qv="'+key+'">'
+      +'<button class="stepper-btn" style="width:44px;height:44px;font-size:25px;flex-shrink:0;" data-a="qadj" data-q="'+key+'" data-d="1">+</button>'
+      +'<span class="step-val-unit">'+unit+'</span></div>';
+    const seg=(cur,a,i)=>'<div class="mode-toggle" style="margin-bottom:4px;">'
+      +'<button class="mode-toggle-btn'+(cur==='distance'?' sel':'')+'" data-a="'+a+'" data-m="distance"'+(i!=null?' data-i="'+i+'"':'')+'>DISTANCE</button>'
+      +'<button class="mode-toggle-btn'+(cur==='time'?' sel':'')+'" data-a="'+a+'" data-m="time"'+(i!=null?' data-i="'+i+'"':'')+'>TIME</button></div>';
+    let h=hdr(T)
+      +'<div style="background:#fff;border-radius:12px;padding:10px 12px;">'
+      +'<div style="font-size:10px;font-weight:800;letter-spacing:.08em;color:#fff;background:'+ERG+';padding:5px 8px;border-radius:6px;margin-bottom:6px;">ERG WORKOUT</div>'
+      +'<input type="text" class="setup-input" id="_wkt_qname" maxlength="40" placeholder="Workout name (blank = automatic)" value="'+esc(q.name||'')+'">';
+    if(q.kind==='dist'){
+      h+=lbl('DISTANCE')+fld('dist',false,'metres',q.dist)+lbl('SPLIT \u00b7 0 FOR NONE')+fld('dsplit',false,'metres',q.dsplit);
+    }else if(q.kind==='time'){
+      h+=lbl('DURATION')+fld('time',true,'m : ss',q.time)+lbl('SPLIT \u00b7 0:00 FOR NONE')+fld('tsplit',true,'m : ss',q.tsplit);
+    }else if(q.kind==='const'){
+      h+=lbl('WORK TYPE')+seg(q.cmode,'qcmode')
+        +(q.cmode==='time'?lbl('WORK TIME')+fld('ctime',true,'m : ss',q.ctime):lbl('WORK DISTANCE')+fld('cdist',false,'metres',q.cdist))
+        +lbl('REST \u00b7 MAX 9:55')+fld('crest',true,'m : ss',q.crest)+lbl('REPS')+fld('reps',false,'times',q.reps);
+    }else{
+      h+='<div style="font-size:11px;color:#555;margin:4px 0 2px;">Up to 30 intervals. Rest max 9:55.</div>';
+      q.ivs.forEach((iv,i)=>{
+        h+='<div style="border:1px solid #e3e3e8;border-radius:12px;padding:8px 10px;margin-top:8px;background:#fafafc;">'
+          +'<div style="display:flex;align-items:center;margin-bottom:4px;"><span style="font-size:13px;font-weight:800;color:#1a5276;flex:1;">INTERVAL '+(i+1)+'</span>'
+          +'<button class="step-del" data-a="qdel" data-i="'+i+'">&#215;</button></div>'
+          +seg(iv.mode,'qvmode',i)
+          +lbl(iv.mode==='time'?'WORK TIME':'WORK DISTANCE')+fld('v'+i,iv.mode==='time',iv.mode==='time'?'m : ss':'metres',iv.value)
+          +lbl('REST')+fld('r'+i,true,'m : ss',iv.restS)+'</div>';
+      });
+      h+='<button class="wkt-btn new-w" style="width:100%;margin-top:8px;" data-a="qadd">+ ADD INTERVAL</button>';
+    }
+    h+='</div><div class="wkt-actions" style="margin-top:8px;">'
+      +'<button class="wkt-btn save" data-a="qsave">SAVE</button>'
+      +'<button class="wkt-btn del" data-a="qcancel">CANCEL</button></div>';
+    panel.innerHTML=h;
+    const nm=document.getElementById('_wkt_qname');
+    if(nm)nm.oninput=()=>{quick.name=nm.value;};
+  };
+  /* Where each quick-form value lives, its kind (d=metres, t=time, n=count)
+     and its limits. */
+  const qField=key=>{
+    const q=quick;
+    if(key[0]==='v'||key[0]==='r'){
+      const iv=q.ivs[+key.slice(1)];if(!iv)return null;
+      if(key[0]==='r')return {get:()=>iv.restS,set:v=>{iv.restS=v;},k:'t',min:0,max:Q_REST_MAX};
+      return iv.mode==='time'?{get:()=>iv.value,set:v=>{iv.value=v;},k:'t',min:Q_MIN_T,max:35940}:{get:()=>iv.value,set:v=>{iv.value=v;},k:'d',min:Q_MIN_D,max:50000};
+    }
+    const M={dist:['d',Q_MIN_D,50000],dsplit:['d',0,50000],time:['t',Q_MIN_T,35940],tsplit:['t',0,35940],
+      cdist:['d',Q_MIN_D,50000],ctime:['t',Q_MIN_T,35940],crest:['t',0,Q_REST_MAX],reps:['n',1,30]}[key];
+    if(!M)return null;
+    return {get:()=>q[key],set:v=>{q[key]=v;},k:M[0],min:M[1],max:M[2]};
+  };
+  const qClamp=(f,v)=>Math.min(f.max,Math.max(f.min,Math.round(v||0)));
+  const qSave=()=>{
+    const q=quick;let def=null,erg=null,label='';
+    if(q.kind==='dist'){
+      label=q.dist+'m';erg={single:{mode:'distance',value:q.dist,split:q.dsplit||0}};def=[qStep('distance',q.dist)];
+    }else if(q.kind==='time'){
+      label=fmtT(q.time);erg={single:{mode:'time',value:q.time,split:q.tsplit||0}};def=[qStep('time',q.time)];
+    }else if(q.kind==='const'){
+      const v=q.cmode==='time'?q.ctime:q.cdist;
+      label=q.reps+'\u00d7'+(q.cmode==='time'?fmtT(v):v+'m')+'/'+fmtT(q.crest);
+      erg={ivs:Array.from({length:q.reps},()=>({mode:q.cmode,value:v,restS:q.crest}))};
+      def=[{id:'rg'+Date.now(),type:'repeat',count:q.reps,skipLastRest:true,steps:[qStep(q.cmode,v),{id:'s'+Date.now()+'r',type:'rest',mode:'time',value:q.crest,timeValue:q.crest,distValue:250}]}];
+    }else{
+      const ivs=q.ivs.filter(x=>x.value>0);
+      if(!ivs.length){alert('Add at least one interval');return;}
+      label=ivs.length+' intervals';
+      erg={ivs:ivs.map(x=>({mode:x.mode,value:x.value,restS:x.restS||0}))};
+      def=[];ivs.forEach((iv,i)=>{def.push(qStep(iv.mode,iv.value));if(iv.restS>0&&i<ivs.length-1)def.push({id:'s'+Date.now()+'r'+i,type:'rest',mode:'time',value:iv.restS,timeValue:iv.restS,distValue:250});});
+    }
+    const name=String(q.name||'').trim()||label;
+    const w={id:Date.now().toString(),name:name,venue:'erg',startMode:'lap5',steps:def,erg:erg,rev:Date.now()};
+    const DB=_mDB();DB.push(w);
+    _wktVenueView='erg';
+    _mSave();
+    quick=null;
+    if(opts.onSaved&&opts.newVenue){overlay.remove();try{opts.onSaved(w.id);}catch{}return;}
+    openId=w.id;renderList();toast('"'+name+'" saved');
+  };
+  const render=()=>{if(quick)renderQuick();else if(edit)renderEdit();else renderList();};
   /* Details: read-only view of one planned workout, with EDIT (where allowed) or CLOSE. */
   const renderDetails=w=>{
     const canEdit=opts.viewW?!!opts.list:(_wktCtx?sqCanEdit():true);
@@ -10034,6 +10147,13 @@ window.showWorkoutsModal=function(opts){
 
   panel.onchange=e=>{
     const t=e.target;
+    if(quick&&t.dataset.qv!=null){
+      const f=qField(t.dataset.qv);if(!f)return;
+      let v;
+      if(f.k==='t'){const p=String(t.value).trim().split(':');v=p.length>1?((parseInt(p[0],10)||0)*60+(parseInt(p[1],10)||0)):(parseInt(p[0],10)||0);}
+      else v=parseFloat(t.value)||0;
+      f.set(qClamp(f,v));renderQuick();return;
+    }
     if(!edit)return;
     if(t.dataset.v!=null){
       const s=getStep(t.dataset.v);
@@ -10091,8 +10211,26 @@ window.showWorkoutsModal=function(opts){
       overlay.remove();toast('Deleted');return;
     }
     if(a==='close'){
-      if(edit&&!confirm('Close without saving?'))return;
+      if((edit||quick)&&!confirm('Close without saving?'))return;
       overlay.remove();return;
+    }
+    if(a==='quick'){quick=qNew(b.dataset.m);renderQuick();return;}
+    if(quick){
+      if(a==='qcancel'){quick=null;renderList();return;}
+      if(a==='qsave'){qSave();return;}
+      if(a==='qcmode'){quick.cmode=b.dataset.m;renderQuick();return;}
+      if(a==='qvmode'){const iv=quick.ivs[+b.dataset.i];if(iv&&iv.mode!==b.dataset.m){iv.mode=b.dataset.m;iv.value=iv.mode==='time'?120:500;}renderQuick();return;}
+      if(a==='qadd'){if(quick.ivs.length>=30){toast('30 intervals max');return;}const l=quick.ivs[quick.ivs.length-1]||{mode:'distance',value:500,restS:60};quick.ivs.push({...l});renderQuick();return;}
+      if(a==='qdel'){if(quick.ivs.length<=1){toast('Need at least one interval');return;}quick.ivs.splice(+b.dataset.i,1);renderQuick();return;}
+      if(a==='qadj'){
+        const f=qField(b.dataset.q);if(!f)return;
+        const v=f.get()||0;let nv;
+        if(f.k==='t')nv=(d<0&&v<=10)?f.min:(d>0?nextTime(v||0):prevTime(v||10));
+        else if(f.k==='d')nv=v+d*50;
+        else nv=v+d;
+        f.set(qClamp(f,nv));renderQuick();return;
+      }
+      return;
     }
     /* list view */
     if(a==='venue'){_wktVenueView=b.dataset.m;openId=null;renderList();return;}
@@ -10185,6 +10323,12 @@ window.showWorkoutsModal=function(opts){
       if(!hasWork){alert('Add at least one WORK step');return;}
       const w=JSON.parse(JSON.stringify(edit));delete w._new;
       w.name=name;w.rev=Date.now();
+      /* Steps edited by hand: a saved PM5 shape (split etc.) no longer matches. */
+      if(w.erg){
+        const _sig=a=>JSON.stringify(a||[],(k,v)=>k==='id'?undefined:v);
+        const _o=_mDB().find(x=>x&&x.id===w.id);
+        if(w.venue!=='erg'||!_o||_sig(_o.steps)!==_sig(w.steps))delete w.erg;
+      }
       w.note=String(w.note||'').trim();if(!w.note)delete w.note;
       if(w.venue==='erg')w.startMode='lap5';
       const DB=_mDB();const i=DB.findIndex(x=>x.id===w.id);
