@@ -10045,62 +10045,34 @@ window.showWorkoutsModal=function(opts){
     if(t.dataset.skip!=null){edit.steps[+t.dataset.skip].skipLastRest=t.checked;return;}
   };
   /* Drag the grip to re-order the workout list. */
-  let _wkDrag=null,_wkDragEnd=0;
+  let _wkDragEnd=0;
   panel.addEventListener('pointerdown',e=>{
     const g=e.target.closest('.wkc-grip');if(!g||edit)return;
     const card=g.closest('.wkt-card[data-wid]');if(!card)return;
     e.preventDefault();
-    _wkDrag={card,id:card.dataset.wid,y0:e.clientY,cards:[...panel.querySelectorAll('.wkt-card[data-wid]')],tgt:null,after:false};
-    card.style.position='relative';card.style.zIndex='5';card.style.boxShadow='0 8px 20px rgba(0,0,0,.3)';card.style.opacity='.95';
+    const cards=[...panel.querySelectorAll('.wkt-card[data-wid]')];
+    liveSort(e,card,cards,(f,t)=>{
+      _wkDragEnd=Date.now();
+      if(t!==f)moveWorkoutTo(card.dataset.wid,cards[t].dataset.wid,t>f);
+      renderList();
+    });
   });
-  panel.addEventListener('pointermove',e=>{
-    if(!_wkDrag)return;
-    const d=_wkDrag;d.card.style.transform='translateY('+(e.clientY-d.y0)+'px)';
-    let tgt=null,after=false;
-    d.cards.forEach(c=>{if(c===d.card)return;const r=c.getBoundingClientRect();if(e.clientY>=r.top&&e.clientY<=r.bottom){tgt=c;after=e.clientY>r.top+r.height/2;}});
-    d.cards.forEach(c=>{c.style.borderTop='';c.style.borderBottom='';});
-    if(tgt){if(after)tgt.style.borderBottom='3px solid #007aff';else tgt.style.borderTop='3px solid #007aff';}
-    d.tgt=tgt;d.after=after;
-  });
-  const _wkDrop=()=>{
-    if(!_wkDrag)return;
-    const d=_wkDrag;_wkDrag=null;_wkDragEnd=Date.now();
-    if(d.tgt)moveWorkoutTo(d.id,d.tgt.dataset.wid,d.after);
-    renderList();
-  };
   /* Builder: drag a step's grip; each top-level step is a [data-top] box. */
   panel.addEventListener('pointerdown',e=>{
     const g=e.target.closest('.step-grip');if(!g||!edit)return;
     const box=g.closest('[data-top]');if(!box)return;
     e.preventDefault();e.stopPropagation();
     const boxes=[...panel.querySelectorAll('[data-top]')];
-    const from=+box.dataset.top,y0=e.clientY;let to=null;
-    box.style.position='relative';box.style.zIndex='5';box.style.background='#fff';box.style.borderRadius='10px';box.style.boxShadow='0 8px 20px rgba(0,0,0,.3)';
-    const mv=ev=>{
-      box.style.transform='translateY('+(ev.clientY-y0)+'px)';
-      let tb=null,after=false;to=null;
-      boxes.forEach(b=>{if(b===box)return;b.style.boxShadow='';const r=b.getBoundingClientRect();if(ev.clientY>=r.top&&ev.clientY<=r.bottom){tb=b;after=ev.clientY>r.top+r.height/2;}});
-      if(tb){tb.style.boxShadow=after?'inset 0 -3px 0 #007aff':'inset 0 3px 0 #007aff';let t=+tb.dataset.top;if(after&&t<from)t++;if(!after&&t>from)t--;to=t;}
-    };
-    const tm=ev=>ev.preventDefault();
-    const up=()=>{
-      document.removeEventListener('pointermove',mv);document.removeEventListener('pointerup',up);document.removeEventListener('pointercancel',up);document.removeEventListener('touchmove',tm);
+    const st=edit.steps,n=st.length,lock=!isErgW(edit);
+    const lo=(lock&&st[0]&&st[0].type==='warmup')?1:0;
+    const hi=(lock&&st[n-1]&&st[n-1].type==='cooldown')?n-2:n-1;
+    liveSort(e,box,boxes,(f,t)=>{
       _wkDragEnd=Date.now();
-      if(to!=null&&to!==from){
-        const st=edit.steps,n=st.length,lock=!isErgW(edit);
-        const lo=(lock&&st[0]&&st[0].type==='warmup')?1:0;
-        const hi=(lock&&st[n-1]&&st[n-1].type==='cooldown')?n-2:n-1;
-        const t=Math.max(lo,Math.min(hi,to));
-        if(t!==from){const [m]=st.splice(from,1);st.splice(t,0,m);sel=new Set();}
-      }
+      const a=+boxes[f].dataset.top,b=+boxes[t].dataset.top;
+      if(t!==f&&a!==b){const [m]=st.splice(a,1);st.splice(b,0,m);sel=new Set();}
       renderEdit();
-    };
-    document.addEventListener('pointermove',mv);document.addEventListener('pointerup',up);document.addEventListener('pointercancel',up);
-    document.addEventListener('touchmove',tm,{passive:false});
+    },{lo,hi,bg:'#fff'});
   });
-  panel.addEventListener('pointerup',_wkDrop);
-  panel.addEventListener('pointercancel',_wkDrop);
-  panel.addEventListener('touchmove',e=>{if(_wkDrag)e.preventDefault();},{passive:false});
   panel.onclick=e=>{
     const b=e.target.closest('[data-a]');if(!b||b.disabled)return;
     const a=b.dataset.a, p=b.dataset.p, d=+b.dataset.d||0;
@@ -10340,6 +10312,60 @@ function daySeqMove(k,from,to){
 /* Drag to reorder: rows carry data-sq-i (their slot in daySeq) and a
    .dh grip. Works with mouse and touch. onDone(fromSlot,toSlot). */
 const DRAG_GRIP='<span class="dh" title="Drag to reorder" style="cursor:grab;touch-action:none;flex-shrink:0;font-size:18px;line-height:1;padding:4px 4px 4px 0;opacity:.85;user-select:none;-webkit-user-select:none;">&#10303;</span>';
+/* Shared drag-to-reorder. The dragged item follows the pointer and the other
+   items slide aside as you go, so the one you pass pops into your old spot.
+   onDone(from,to) gets positions in `items` (to===from means no move).
+   o: lo/hi = allowed range, bg = background while lifted, grid = 2-D layout
+   (tiles), autoScroll = scroll the page near the top/bottom edge, scale. */
+function liveSort(e,item,items,onDone,o){
+  o=o||{};
+  var from=items.indexOf(item);if(from<0)return;
+  var sY=function(){return window.scrollY||0;};
+  var sy0=sY(),x0=e.clientX,y0=e.clientY+sy0;
+  var R=items.map(function(r){var b=r.getBoundingClientRect();return {x:b.left,y:b.top+sy0,w:b.width,h:b.height};});
+  var gap=6;
+  if(!o.grid&&items.length>1){var a=from===0?0:from-1;gap=Math.max(0,R[a+1].y-(R[a].y+R[a].h));}
+  var hgt=R[from].h+gap;
+  var lo=o.lo!=null?o.lo:0,hi=o.hi!=null?o.hi:items.length-1;
+  var to=from,lx=e.clientX,ly=e.clientY;
+  var st=item.style,keep={position:st.position,zIndex:st.zIndex,boxShadow:st.boxShadow,transition:st.transition,background:st.background,transform:st.transform};
+  try{if(getComputedStyle(item).position==='static')st.position='relative';}catch(err){st.position='relative';}
+  st.zIndex='50';st.transition='none';st.boxShadow='0 10px 24px rgba(0,0,0,.4)';if(o.bg)st.background=o.bg;
+  var sc=o.scale?' scale('+o.scale+')':'';
+  try{if(navigator.vibrate)navigator.vibrate(10);}catch(err){}
+  function upd(){
+    var dx=o.grid?lx-x0:0,dy=ly+sY()-y0,t;
+    st.transform='translate('+dx+'px,'+dy+'px)'+sc;
+    if(o.grid){
+      var cx=R[from].x+R[from].w/2+dx,cy=R[from].y+R[from].h/2+dy,best=1e18;t=from;
+      R.forEach(function(r,i){var d=Math.pow(r.x+r.w/2-cx,2)+Math.pow(r.y+r.h/2-cy,2);if(d<best){best=d;t=i;}});
+    }else{
+      var c2=R[from].y+R[from].h/2+dy;t=0;
+      R.forEach(function(r,i){if(i!==from&&c2>r.y+r.h/2)t++;});
+    }
+    to=Math.max(lo,Math.min(hi,t));
+    items.forEach(function(el,i){
+      if(el===item)return;
+      var j=i,tx=0,ty=0;
+      if(from<to&&i>from&&i<=to)j=i-1;else if(from>to&&i<from&&i>=to)j=i+1;
+      if(j!==i){if(o.grid){tx=R[j].x-R[i].x;ty=R[j].y-R[i].y;}else ty=(j<i?-hgt:hgt);}
+      el.style.transition='transform .15s ease';
+      el.style.transform=(tx||ty)?'translate('+tx+'px,'+ty+'px)':'';
+    });
+  }
+  function mv(ev){lx=ev.clientX;ly=ev.clientY;upd();}
+  function tm(ev){ev.preventDefault();}
+  var tick=o.autoScroll?setInterval(function(){var h=window.innerHeight;if(ly<70)window.scrollBy(0,-18);else if(ly>h-70)window.scrollBy(0,18);else return;upd();},30):null;
+  function up(){
+    if(tick)clearInterval(tick);
+    document.removeEventListener('pointermove',mv);document.removeEventListener('pointerup',up);document.removeEventListener('pointercancel',up);document.removeEventListener('touchmove',tm);
+    items.forEach(function(el){if(el!==item){el.style.transform='';el.style.transition='';}});
+    for(var k in keep)st[k]=keep[k];
+    try{onDone(from,to);}catch(err){console.error(err);}
+  }
+  document.addEventListener('pointermove',mv);document.addEventListener('pointerup',up);document.addEventListener('pointercancel',up);
+  document.addEventListener('touchmove',tm,{passive:false});
+}
 function makeSortable(cont,onDone){
   if(!cont)return;
   cont.querySelectorAll('[data-sq-i] .dh').forEach(h=>{
@@ -10348,26 +10374,8 @@ function makeSortable(cont,onDone){
       e.preventDefault();e.stopPropagation();
       const row=h.closest('[data-sq-i]');
       const rows=[...cont.querySelectorAll('[data-sq-i]')];
-      const from=rows.indexOf(row);if(from<0)return;
-      const rects=rows.map(r=>r.getBoundingClientRect());
-      const gap=rows.length>1?Math.max(0,(rects[1].top-rects[0].bottom)):6;
-      const hgt=rects[from].height+gap;
-      const y0=e.clientY;let to=from;
-      row.style.position='relative';row.style.zIndex='5';row.style.transition='none';row.style.boxShadow='0 10px 24px rgba(0,0,0,.45)';h.style.cursor='grabbing';
-      try{h.setPointerCapture(e.pointerId);}catch{}
-      const mv=ev=>{
-        const dy=ev.clientY-y0;row.style.transform='translateY('+dy+'px)';
-        const cy=rects[from].top+rects[from].height/2+dy;
-        to=0;rects.forEach((r,i)=>{if(i!==from&&cy>r.top+r.height/2)to++;});
-        rows.forEach((r,i)=>{if(r===row)return;let sh=0;if(from<to&&i>from&&i<=to)sh=-hgt;if(from>to&&i<from&&i>=to)sh=hgt;r.style.transition='transform .12s';r.style.transform=sh?'translateY('+sh+'px)':'';});
-      };
-      const up=()=>{
-        h.removeEventListener('pointermove',mv);h.removeEventListener('pointerup',up);h.removeEventListener('pointercancel',up);
-        rows.forEach(r=>{r.style.transform='';r.style.transition='';});
-        row.style.boxShadow='';row.style.zIndex='';h.style.cursor='grab';
-        if(to!==from)onDone(+rows[from].dataset.sqI,+rows[to].dataset.sqI);
-      };
-      h.addEventListener('pointermove',mv);h.addEventListener('pointerup',up);h.addEventListener('pointercancel',up);
+      h.style.cursor='grabbing';
+      liveSort(e,row,rows,(f,t)=>{h.style.cursor='grab';if(t!==f)onDone(+rows[f].dataset.sqI,+rows[t].dataset.sqI);});
     };
   });
 }
@@ -13669,44 +13677,16 @@ function paneOrderAfterMove(){
     e.preventDefault();
     const order=paneOrderGet();
     const panes=order.map(id=>document.getElementById(id)).filter(el=>el&&el.offsetParent!==null);
-    const y0=e.clientY;let tgt=null,after=false;
-    pane.style.position='relative';pane.style.zIndex='50';pane.style.opacity='.9';pane.style.transition='none';
-    let scrollTimer=null,lastY=e.clientY;
-    const clearMarks=()=>panes.forEach(p=>p.classList.remove('pane-drop-before','pane-drop-after'));
-    const place=cy=>{
-      tgt=null;after=false;clearMarks();
-      panes.forEach(p=>{if(p===pane)return;const r=p.getBoundingClientRect();if(cy>=r.top&&cy<=r.bottom){tgt=p;after=cy>r.top+r.height/2;}});
-      if(tgt)tgt.classList.add(after?'pane-drop-after':'pane-drop-before');
-    };
-    const sy0=window.scrollY;
-    const mv=ev=>{
-      lastY=ev.clientY;
-      pane.style.transform='translateY('+(ev.clientY-y0+window.scrollY-sy0)+'px)';
-      place(ev.clientY);
-    };
-    scrollTimer=setInterval(()=>{
-      const h=window.innerHeight;
-      if(lastY<70)window.scrollBy(0,-18);else if(lastY>h-70)window.scrollBy(0,18);else return;
-      pane.style.transform='translateY('+(lastY-y0+window.scrollY-sy0)+'px)';place(lastY);
-    },30);
-    const tm=ev=>ev.preventDefault();
-    const up=()=>{
-      clearInterval(scrollTimer);
-      document.removeEventListener('pointermove',mv);document.removeEventListener('pointerup',up);document.removeEventListener('pointercancel',up);document.removeEventListener('touchmove',tm);
-      clearMarks();
-      pane.style.transform='';pane.style.zIndex='';pane.style.opacity='';pane.style.transition='';
-      if(tgt){
-        const o=paneOrderGet(),id=pane.dataset.pane,tid=tgt.dataset.pane;
-        o.splice(o.indexOf(id),1);
-        let ti=o.indexOf(tid);if(after)ti++;
-        o.splice(ti,0,id);
-        try{localStorage.setItem('an_pane_order',JSON.stringify(o));}catch{}
-        paneOrderApply();
-        paneOrderAfterMove();
-      }
-    };
-    document.addEventListener('pointermove',mv);document.addEventListener('pointerup',up);document.addEventListener('pointercancel',up);
-    document.addEventListener('touchmove',tm,{passive:false});
+    liveSort(e,pane,panes,(f,t)=>{
+      if(t===f)return;
+      const o=paneOrderGet(),id=pane.dataset.pane,tid=panes[t].dataset.pane;
+      o.splice(o.indexOf(id),1);
+      let ti=o.indexOf(tid);if(t>f)ti++;
+      o.splice(ti,0,id);
+      try{localStorage.setItem('an_pane_order',JSON.stringify(o));}catch{}
+      paneOrderApply();
+      paneOrderAfterMove();
+    },{autoScroll:true});
   });
 })();
 paneOrderApply();
