@@ -57,9 +57,9 @@ header{
   border-bottom:1px solid rgba(255,255,255,.08);
 }
 .nav{display:flex;align-items:center;justify-content:space-between;height:64px;color:var(--ink);}
-.brand{display:flex;align-items:center;gap:9px;font-family:'Space Grotesk',sans-serif;font-weight:700;font-size:18px;letter-spacing:-.01em;}
+.brand{display:flex;align-items:center;gap:9px;font-family:'Space Grotesk',sans-serif;font-weight:700;font-size:18px;letter-spacing:-.01em;text-decoration:none;}
 .brand .dot{width:9px;height:9px;border-radius:2px;background:var(--coral);transform:rotate(45deg);}
-.navlinks{display:flex;gap:28px;font-size:14px;font-weight:500;}
+.navlinks{display:flex;gap:24px;font-size:14px;font-weight:500;}
 .navlinks a{text-decoration:none;color:var(--ink-dim);transition:color .15s;}
 .navlinks a:hover{color:var(--ink);}
 .navcta{
@@ -68,10 +68,25 @@ header{
   font-size:13px;font-weight:700;padding:9px 16px;border-radius:9px;
   letter-spacing:.01em;
 }
-.navmenu-btn{display:none;}
-@media(max-width:840px){
+.navright{display:flex;align-items:center;gap:10px;}
+.navmenu-btn{display:none;width:42px;height:42px;border-radius:10px;border:1px solid rgba(255,255,255,.22);background:transparent;flex-direction:column;align-items:center;justify-content:center;gap:4px;cursor:pointer;padding:0;}
+.navmenu-btn span{display:block;width:18px;height:2px;border-radius:2px;background:var(--ink);transition:transform .2s,opacity .2s;}
+.navmenu-btn.open span:nth-child(1){transform:translateY(6px) rotate(45deg);}
+.navmenu-btn.open span:nth-child(2){opacity:0;}
+.navmenu-btn.open span:nth-child(3){transform:translateY(-6px) rotate(-45deg);}
+.navdrop{display:none;position:absolute;left:0;right:0;top:64px;background:rgba(8,18,38,.98);border-bottom:1px solid rgba(255,255,255,.10);padding:6px 24px 18px;max-height:calc(100vh - 64px);overflow-y:auto;box-shadow:0 18px 40px -18px rgba(0,0,0,.6);}
+.navdrop.open{display:block;}
+.navdrop a{display:block;padding:13px 4px;color:var(--ink);text-decoration:none;font-size:15.5px;font-weight:500;border-bottom:1px solid rgba(255,255,255,.07);}
+.navdrop a:last-child{border-bottom:none;}
+.navdrop a:active{color:var(--coral);}
+@media(max-width:1080px){
   .navlinks{display:none;}
+  .navmenu-btn{display:inline-flex;}
 }
+@media(max-width:420px){
+  .nav .btn-coral{padding:10px 13px;font-size:13px;}
+}
+section[id]{scroll-margin-top:64px;}
 
 /* ===== HERO ===== */
 .hero{background:radial-gradient(ellipse 900px 500px at 20% -10%, #142a56 0%, transparent 60%),linear-gradient(180deg,var(--navy) 0%, var(--navy-2) 100%);color:var(--ink);padding:76px 0 90px;position:relative;overflow:hidden;}
@@ -179,6 +194,7 @@ h2.section-h{font-family:'Space Grotesk',sans-serif;font-size:clamp(26px,3.4vw,3
 .on-navy .shot-placeholder .ic{border-color:rgba(255,255,255,.22);}
 .shot-pair{display:flex;gap:12px;}
 .shot-pair .shot{flex:1;}
+.pro-tag{display:inline-block;margin-left:8px;font-family:'Roboto Mono',monospace;font-size:10px;font-weight:600;letter-spacing:.08em;color:#fff;background:var(--coral);padding:2px 8px;border-radius:100px;vertical-align:middle;}
 
 /* interface catalog */
 .catalog{display:flex;gap:14px;overflow-x:auto;padding:4px 4px 14px;scrollbar-width:none;}
@@ -252,9 +268,10 @@ footer{background:var(--navy);color:var(--ink-faint);border-top:1px solid rgba(2
 
 <header>
   <div class="wrap nav">
-    <div class="brand"><span class="dot"></span>BoatRun</div>
+    <a class="brand" href="./"><span class="dot"></span>BoatRun</a>
     <nav class="navlinks">
       <a href="#rowers">For Rowers</a>
+      <a href="./sectors.html">Sectors</a>
       <a href="#coaches">For Coaches</a>
       <a href="#analysis">Analysis</a>
       <a href="#spectator">Spectator</a>
@@ -264,8 +281,26 @@ footer{background:var(--navy);color:var(--ink-faint);border-top:1px solid rgba(2
       <a href="./guide.html">Guide</a>
       <a href="./stroke-curve.html">Stroke Curve</a>
     </nav>
-        <a class="btn btn-coral" href="#get-app">Get BoatRun</a>
+    <div class="navright">
+      <a class="btn btn-coral" href="#get-app">Get BoatRun</a>
+      <button class="navmenu-btn" id="navMenuBtn" type="button" aria-label="Menu" aria-expanded="false" aria-controls="navDrop"><span></span><span></span><span></span></button>
+    </div>
   </div>
+  <nav class="navdrop" id="navDrop">
+    <a href="#rowers">For Rowers</a>
+    <a href="#sectors">Sectors</a>
+    <a href="./sectors.html">Sector Downloads</a>
+    <a href="#erg">Squad Erg</a>
+    <a href="#coaches">For Coaches</a>
+    <a href="#analysis">Analysis</a>
+    <a href="#spectator">Spectator</a>
+    <a href="#pricing">Plans</a>
+    <a href="./clubs.html">Clubs</a>
+    <a href="./quickstart.html">Quick Start</a>
+    <a href="./guide.html">Guide</a>
+    <a href="./stroke-curve.html">Stroke Curve</a>
+    <a href="https://boatrun.au/analyser.html">Web Analyser</a>
+  </nav>
 </header>
 
 <!-- HERO -->
@@ -325,8 +360,45 @@ footer{background:var(--navy);color:var(--ink-faint);border-top:1px solid rgba(2
   </div>
 </section>
 
+<!-- SECTORS -->
+<section id="sectors">
+  <div class="wrap feature-row rev">
+    <div>
+      <span class="eyebrow section-eyebrow">Sectors</span><span class="pro-tag">PRO</span>
+      <h2 class="section-h">Race Your Own Stretch of Water</h2>
+      <p class="section-p">A sector is a timed course between a start line and a finish line. Row through it on any session and BoatRun times you automatically, keeps your PB, and races you against it live.</p>
+      <ul class="checklist">
+        <li>Automatic timing between start and finish gates, every time you row through</li>
+        <li>Live metres to the start, then metres ahead or behind your PB or a target time</li>
+        <li>Sector history, personal bests and side-by-side track playback in the Analyser</li>
+        <li>Draw your own sectors, or download ready-made courses</li>
+      </ul>
+      <a class="btn btn-coral" style="margin-top:22px;" href="./sectors.html">Download Sectors</a>
+    </div>
+    <div class="fr-media">
+      <div class="shot" style="background:#0E3346;border-color:rgba(14,20,32,.10);">
+        <svg viewBox="0 0 640 420" style="display:block;width:100%;height:auto;" role="img" aria-label="A sector course with green start gate, red finish gate and two boats racing">
+          <rect width="640" height="420" fill="#0E3346"/>
+          <path d="M0 0 H640 V70 C540 60 470 40 380 90 S200 170 90 170 S20 150 0 160 Z" fill="#163B2C"/>
+          <path d="M0 420 H640 V250 C560 230 480 270 400 330 S200 400 120 390 S30 380 0 385 Z" fill="#163B2C"/>
+          <path d="M90 330 C190 300 250 320 330 250 S470 130 560 110" fill="none" stroke="#FFB020" stroke-width="5" stroke-linecap="round"/>
+          <line x1="76" y1="282" x2="104" y2="378" stroke="#2EE06A" stroke-width="6" stroke-linecap="round"/>
+          <line x1="550" y1="61" x2="570" y2="159" stroke="#F54040" stroke-width="6" stroke-linecap="round"/>
+          <text x="30" y="270" fill="#2EE06A" font-family="Roboto Mono,monospace" font-size="15" font-weight="600">START</text>
+          <text x="520" y="48" fill="#F54040" font-family="Roboto Mono,monospace" font-size="15" font-weight="600">FINISH</text>
+          <rect x="328" y="236" width="16" height="16" fill="#29B8FF" stroke="#000" stroke-width="2" transform="rotate(45 336 244)"/>
+          <rect x="294" y="262" width="16" height="16" fill="#FF5D8F" stroke="#000" stroke-width="2" transform="rotate(45 302 270)"/>
+          <rect x="360" y="282" width="196" height="64" rx="12" fill="rgba(8,18,38,.88)" stroke="rgba(255,255,255,.18)"/>
+          <text x="378" y="308" fill="rgba(239,243,250,.62)" font-family="Roboto Mono,monospace" font-size="12" font-weight="600">AHEAD OF PB</text>
+          <text x="378" y="334" fill="#2FD3C6" font-family="Space Grotesk,sans-serif" font-size="24" font-weight="700">+12 m</text>
+        </svg>
+      </div>
+    </div>
+  </div>
+</section>
+
 <!-- ERG MODE -->
-<section id="erg">
+<section id="erg" style="background:#EFEDE6;">
   <div class="wrap feature-row">
     <div>
       <span class="eyebrow section-eyebrow">Squad Erg</span>
@@ -543,6 +615,10 @@ footer{background:var(--navy);color:var(--ink-faint);border-top:1px solid rgba(2
         <div><h4>Stroke Curve Interpretation</h4><p>How to read your acceleration curve, catch metrics and common errors</p></div>
         <span class="res-arrow">→</span>
       </a>
+      <a class="res-card" href="./sectors.html">
+        <div><h4>Sector Downloads</h4><p>Ready-made timed courses to import and race against your PB</p></div>
+        <span class="res-arrow">→</span>
+      </a>
     </div>
   </div>
 </section>
@@ -571,6 +647,7 @@ footer{background:var(--navy);color:var(--ink-faint);border-top:1px solid rgba(2
           <a href="#get-app">The App</a>
           <a href="https://boatrun.au/analyser.html">Analyser</a>
           <a href="https://viewer.boatrun.au/">Viewer</a>
+          <a href="./sectors.html">Sector Downloads</a>
           <a href="./clubs.html">Club Packs</a>
           <a href="./pack.html">Redeem a Code</a>
         </div>
@@ -600,6 +677,19 @@ footer{background:var(--navy);color:var(--ink-faint);border-top:1px solid rgba(2
     </div>
   </div>
 </footer>
+
+<script>
+(function(){
+  var b=document.getElementById('navMenuBtn'), d=document.getElementById('navDrop');
+  if(!b||!d)return;
+  function set(o){d.classList.toggle('open',o);b.classList.toggle('open',o);b.setAttribute('aria-expanded',o?'true':'false');}
+  b.addEventListener('click',function(e){e.stopPropagation();set(!d.classList.contains('open'));});
+  d.addEventListener('click',function(e){if(e.target.closest('a'))set(false);});
+  document.addEventListener('click',function(e){if(!d.contains(e.target)&&!b.contains(e.target))set(false);});
+  document.addEventListener('keydown',function(e){if(e.key==='Escape')set(false);});
+  window.addEventListener('resize',function(){if(window.innerWidth>1080)set(false);});
+})();
+</script>
 
 </body>
 </html>
