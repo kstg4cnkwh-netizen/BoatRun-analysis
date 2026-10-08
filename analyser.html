@@ -4237,10 +4237,10 @@ function _secCmpBuildView(){
     +'<input type="range" id="_seccmp_scrub" min="0" max="'+Math.round(c.dur)+'" step="100" value="0" style="flex:1;min-width:160px;">'
     +'<span id="_seccmp_clock" style="font-size:12px;font-weight:600;color:var(--text);min-width:56px;text-align:right;">0:00.0</span>'
     +'</div></div><div id="_seccmp_cards" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(210px,1fr));gap:8px;"></div>';
-  const map=L.map('_seccmp_map',{zoomControl:true,attributionControl:true});
+  const map=L.map('_seccmp_map',{zoomControl:true,attributionControl:true,zoomSnap:0,zoomDelta:1,fadeAnimation:false});
   map.attributionControl.setPrefix('');
-  L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}',{maxZoom:19,attribution:'Esri'}).addTo(map);
-  c.map=map;
+  L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}',{maxZoom:19,attribution:'Esri',keepBuffer:6,updateWhenZooming:false}).addTo(map);
+  c.map=map;c.camZ=null;c.camC=null;
   const o=sec.origin, datum=L.polyline(sec.ref.map(p=>sectorLatLon(p[0],p[1],o)),{color:'#ffb020',weight:2,opacity:0.8,dashArray:'6 6'}).addTo(map);
   [[true,'#2ee06a'],[false,'#f54040']].forEach(([st,col])=>{
     const g=sectorGate(sec.ref,st), nx=-g.uy, ny=g.ux;
@@ -4272,15 +4272,27 @@ function _secCmpFollowUI(){
   const b=document.getElementById('_seccmp_follow');if(!b)return;
   b.style.background=c.follow?'#29b8ff':'';b.style.color=c.follow?'#000':'';
 }
-/* Keep every boat in view: fit the map to the current boat positions. */
+/* Keep every boat in view. The camera eases toward the fit each frame
+   (fractional zoom), instead of jumping every 250 ms. */
 function _secCmpCentre(force){
   const c=_secCmp;if(!c||!c.map||!c.follow)return;
-  const now=performance.now();
-  if(!force&&now-c.lastFit<250)return;
-  c.lastFit=now;
   const pts=c.sess.map(s=>s.marker&&s.marker.getLatLng()).filter(Boolean);
   if(!pts.length)return;
-  try{c.map.fitBounds(L.latLngBounds(pts).pad(0.15),{padding:[60,60],maxZoom:17,animate:false});}catch(e){}
+  const map=c.map, b=L.latLngBounds(pts).pad(0.15);
+  let tz;
+  try{tz=Math.min(17,map.getBoundsZoom(b,false,L.point(120,120)));}catch(e){return;}
+  const tc=b.getCenter(), now=performance.now();
+  if(force||c.camZ==null||!c.camC){
+    c.camZ=tz;c.camC=tc;c.lastCam=now;
+    try{map.setView(tc,tz,{animate:false});}catch(e){}
+    return;
+  }
+  const dt=Math.min(100,Math.max(0,now-(c.lastCam||now)));c.lastCam=now;
+  const kC=1-Math.exp(-dt/300), kZ=1-Math.exp(-dt/(tz<c.camZ?350:1800));
+  c.camC=L.latLng(c.camC.lat+(tc.lat-c.camC.lat)*kC, c.camC.lng+(tc.lng-c.camC.lng)*kC);
+  c.camZ+=(tz-c.camZ)*kZ;
+  const z=Math.abs(c.camZ-map.getZoom())>0.02?c.camZ:map.getZoom();
+  try{map.setView(c.camC,z,{animate:false});}catch(e){}
 }
 function _secCmpToggleFull(){
   const c=_secCmp;if(!c)return;
@@ -4361,7 +4373,7 @@ function _secCmpDraw(force){
     s.done=t>=s.h.timeMs;
     if(s.done)s.dNow=c.sec.distance;
   });
-  _secCmpCentre(force);
+  _secCmpCentre(force||!c.playing);
   const clk=document.getElementById('_seccmp_clock');if(clk)clk.textContent=_secCmpFmtElapsed(t);
   const sc=document.getElementById('_seccmp_scrub');if(sc&&document.activeElement!==sc)sc.value=Math.round(t);
   const now=performance.now();
