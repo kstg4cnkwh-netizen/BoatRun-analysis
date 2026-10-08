@@ -3057,6 +3057,7 @@ window.editSectorTarget=function(id,after){
   paint();
 };
 let SECTORS_DB=(()=>{try{const v=JSON.parse(localStorage.getItem('br_sectors')||'[]');return Array.isArray(v)?v:[];}catch{return [];}})();
+try{if(SECTORS_DB.map(sectorDedupe).some(Boolean))localStorage.setItem('br_sectors',JSON.stringify(SECTORS_DB));}catch(e){}
 let _sectorLayers=[], _sectorCreate=null, _sectorScanBusy=false, _sectorsPushTimer=null;
 const SECTOR_CORRIDOR_M=100, SECTOR_GATE_HALF_M=100, SECTOR_OFFTRACK_MS=3000, SECTOR_STOP_MS=40000, SECTOR_BACKTRACK_M=20, SECTOR_MIN_M=100;
 function _secEsc(s){return String(s==null?'':s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));}
@@ -3098,6 +3099,35 @@ function pullSectorsFromDrive(force,after){
 }
 document.addEventListener('visibilitychange',()=>{if(document.visibilityState==='visible')pullSectorsFromDrive(false);});
 window.addEventListener('focus',()=>pullSectorsFromDrive(false));
+/* One result per row of the course: copies of the same session (rescans,
+   Drive copies, Metrics results) start within a few seconds of each other. */
+function secResAbs(r){return r.startT>1e12?r.startT:((Date.parse(r.date)||0)+(r.startT||0));}
+function secResDay(r){
+  const t=r&&r.date?Date.parse(r.date):(r&&r.startT>1e12?r.startT:NaN);
+  return isNaN(t)?null:new Date(t).toDateString();
+}
+/* Same row if it starts within 3 s, or if it is on the same day with a time
+   within 0.25 s (copies of one session whose start times were stamped differently). */
+function secResSame(a,b){
+  if(!a||!b)return false;
+  const ta=secResAbs(a), tb=secResAbs(b);
+  if(ta>1e12&&tb>1e12&&Math.abs(ta-tb)<3000)return true;
+  const da=secResDay(a), db=secResDay(b);
+  return (da===db||!da||!db)&&Math.abs((a.timeMs||0)-(b.timeMs||0))<=250;
+}
+function sectorDedupe(sec){
+  if(!sec||!Array.isArray(sec.results))return false;
+  const out=[];
+  sec.results.forEach(r=>{
+    if(!r||!(r.timeMs>0))return;
+    const i=out.findIndex(x=>secResSame(x,r));
+    if(i>=0){if(r.timeMs<out[i].timeMs||(!out[i].fileId&&r.fileId&&Math.abs(r.timeMs-out[i].timeMs)<300))out[i]=r;return;}
+    out.push(r);
+  });
+  const ch=out.length!==sec.results.length;
+  sec.results=out;
+  return ch;
+}
 function sectorPickBest(a,b){if(!a)return b||null;if(!b)return a;return b.timeMs<a.timeMs?b:a;}
 function mergeSectors(a,b){
   const map={};
@@ -3112,7 +3142,7 @@ function mergeSectors(a,b){
     (c.results||[]).concat(s.results||[]).forEach(r=>{if(r&&r.key)res[r.key]=r;});
     map[s.id]={...c,results:Object.values(res),best:sectorPickBest(c.best,s.best)};
   });
-  return Object.values(map);
+  return Object.values(map).map(s=>{sectorDedupe(s);return s;});
 }
 function sectorXY(lat,lon,o){const R=6371000,k=Math.PI/180;return [(lon-o.lon)*k*R*Math.cos(o.lat*k),(lat-o.lat)*k*R];}
 function sectorLatLon(x,y,o){const R=6371000,k=Math.PI/180;return [o.lat+y/(R*k),o.lon+x/(R*k*Math.cos(o.lat*k))];}
@@ -3224,7 +3254,7 @@ function updateSectorsFromData(d,label,fileId,onlyId){
       const key=(fileId||label||'local')+'|'+Math.round(h.startT);
       const r={key,fileId:fileId||null,label:label||'',date:dateISO,startT:h.startT,endT:h.endT,timeMs:h.timeMs,rate:sectorAvgRate(d.strokes,h.startT,h.endT)};
       sec.results=sec.results||[];
-      if(!sec.results.some(x=>x.key===key)){sec.results.push(r);changed=true;}
+      if(!sec.results.some(x=>x.key===key||secResSame(x,r))){sec.results.push(r);changed=true;}
       if(!sec.best||h.timeMs<sec.best.timeMs){sec.best={...r,trace:h.trace};changed=true;}
     });
   });
@@ -3740,9 +3770,9 @@ function secTileHtml(x){
   return '<div data-sec-open="'+_secEsc(x.id)+'" style="background:var(--s1);border:1px solid var(--border);border-radius:12px;padding:10px 12px;margin-bottom:8px;display:flex;align-items:center;gap:10px;cursor:pointer;">'
     +'<div style="flex:1;min-width:0;"><div style="font-size:15px;font-weight:700;color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;margin-bottom:4px;">'+_secEsc(x.name)+'</div>'
     +'<div style="display:flex;flex-wrap:wrap;align-items:center;gap:6px;margin-bottom:6px;"><span style="font-size:11px;color:var(--muted);">'+n+' result'+(n===1?'':'s')+'</span>'
-    +'<span style="display:inline-block;white-space:nowrap;font-size:11px;font-weight:700;padding:2px 8px;border-radius:10px;background:'+(isPlan?'rgba(41,184,255,.16)':tg?'rgba(46,224,106,.16)':'var(--s3)')+';color:'+(isPlan?'#29b8ff':tg?'#2ee06a':'var(--muted)')+';">'+(tg?(isPlan?'Target '+fmtRecordTime(tg.ms):'Target PB')+' \u00b7 '+fmtPaceU(sectorPace(tg.ms,x.distance)):'No target')+'</span></div>'
+    +'<span style="display:inline-block;white-space:nowrap;font-size:11px;font-weight:700;padding:2px 8px;border-radius:10px;background:'+(isPlan?'#bfe3f7':tg?'#b9e8c6':'#dcdce0')+';color:#000;">'+(tg?(isPlan?'Target '+fmtRecordTime(tg.ms):'Target PB')+' \u00b7 '+fmtPaceU(sectorPace(tg.ms,x.distance)):'No target')+'</span></div>'
     +'<div style="display:flex;gap:8px;">'
-    +col('PB',b?fmtRecordTime(b.timeMs):'--',b?'#2ee06a':'var(--muted)')
+    +col('PB',b?fmtRecordTime(b.timeMs):'--',b?'#1b7a34':'var(--muted)')
     +col('DISTANCE',x.distance+' m','var(--text)')
     +col('PACE',b?fmtPaceU(sectorPace(b.timeMs,x.distance)):'--','var(--text)')
     +col('RATE',(b&&b.rate!=null)?Number(b.rate).toFixed(1):'--','var(--text)')
