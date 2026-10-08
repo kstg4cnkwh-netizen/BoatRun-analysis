@@ -300,6 +300,8 @@
   .sz-grid>.brpill,.sz-calcol>.brpill:last-child{margin-bottom:0;}
   .sz-calcol>.brpill:first-child{margin-bottom:14px;}
   .sz-sumcol{display:block;}
+  .sz-sumwrap>.brpill{margin-bottom:0;}
+  .sz-sumwrap>#sz-sectors{margin-bottom:14px;}
 }
 .sz-lhd{font-size:.75rem;font-weight:600;letter-spacing:.1em;color:var(--muted);text-transform:uppercase;margin-bottom:2px;display:flex;align-items:center;justify-content:space-between;}
 .sz-signout{font-size:.75rem;color:var(--b);cursor:pointer;font-weight:400;text-transform:none;letter-spacing:0;}
@@ -648,7 +650,7 @@ body.light .hdrname{color:#fff;}
   #topBlock #cards{padding:0;}
   body .hdr-tabs .hmenu, body.light .hdr-tabs .hmenu{background:#fc4c02;}
   body .hdr-tabs, body.light .hdr-tabs{background:#fc4c02;}
-  .sz-list>.brpill,.sz-grid>.brpill,.sz-calcol>.brpill{background:var(--sp-chart);}
+  .sz-list>.brpill,.sz-grid>.brpill,.sz-calcol>.brpill,.sz-sumwrap>.brpill{background:var(--sp-chart);}
   .info-col.info-fixed{display:flex;flex-direction:column;overflow:hidden;}
   #lapsec,#sectorsec{flex:1 1 auto;min-height:0;flex-direction:column;}
   #lapsec>.sec-hd,#lapsec>#lapcurvebar,#sectorsec>.sec-hd{flex:0 0 auto;}
@@ -780,6 +782,7 @@ body.light .hdrname{color:#fff;}
       <label class="hbtn" id="vidAddBtn" for="vidFin" style="margin-left:auto;font-size:10px;display:inline-block;">＋ Add video</label>
     </div>
     <input type="file" id="vidFin" accept="video/*,.mp4,.mov,.m4v,.webm" multiple style="position:absolute;left:-9999px;width:1px;height:1px;opacity:0;">
+    <div id="vidRecentBox" style="margin:6px 0;"></div>
     <div id="vidMatchBox" style="margin:6px 0;"></div>
     <div id="vidBody"></div>
   </div>
@@ -1850,6 +1853,7 @@ async function pullPrefsAndApply() {
     RECORDS_DB = mergeRecords(RECORDS_DB, prefs.records);
     try { localStorage.setItem('br_records', JSON.stringify(RECORDS_DB)); } catch {}
   }
+  try { if (secTargetsMerge(prefs.secTargets)) pushSecTargets(); } catch {}
   if (Array.isArray(prefs.sectors) || SECTORS_DB.length) {
     const remote = Array.isArray(prefs.sectors) ? prefs.sectors : [];
     SECTORS_DB = mergeSectors(SECTORS_DB, remote);
@@ -2974,6 +2978,84 @@ window.loadRecordDurationSession=async function(ms, mode){
 // ══════════════════════════════════════════════════════════════════════════
 // SECTORS — datum track, gate crossings, session results, bests
 // ══════════════════════════════════════════════════════════════════════════
+/* Per-sector target, shared with the phone through BoatRunPrefs.json
+   secTargets = {id:{mode:'pb'|'plan', ms, t}}. Newest t wins. */
+var SEC_TARGETS=(()=>{try{const v=JSON.parse(localStorage.getItem('br_sec_targets')||'{}');return v&&typeof v==='object'?v:{};}catch{return {};}})();
+function secTargetsMerge(remote){
+  const r=remote&&typeof remote==='object'?remote:{};
+  let need=false;
+  Object.keys(r).forEach(id=>{const x=r[id];if(!x||!x.mode)return;const l=SEC_TARGETS[id];if(!l||(x.t||0)>(l.t||0))SEC_TARGETS[id]={mode:x.mode,ms:x.ms||0,t:x.t||0};});
+  Object.keys(SEC_TARGETS).forEach(id=>{const l=SEC_TARGETS[id],x=r[id];if(!x||(l.t||0)>(x.t||0))need=true;});
+  try{localStorage.setItem('br_sec_targets',JSON.stringify(SEC_TARGETS));}catch{}
+  return need;
+}
+function pushSecTargets(){
+  if(!AnalyserDrive.isSignedIn())return Promise.resolve(false);
+  return AnalyserDrive.pullPrefs().then(cur=>{
+    if(!cur)return false;
+    secTargetsMerge(cur.secTargets);
+    return AnalyserDrive.pushPrefs({secTargets:SEC_TARGETS});
+  }).catch(()=>false);
+}
+function secTargetOf(x){
+  const t=SEC_TARGETS[x.id];
+  if(t&&t.mode==='plan'&&t.ms>0)return {mode:'plan',ms:t.ms};
+  if(x.best&&x.best.timeMs>0)return {mode:'pb',ms:x.best.timeMs};
+  return null;
+}
+window.editSectorTarget=function(id,after){
+  const sec=SECTORS_DB.find(x=>x.id===id&&!x.deleted);if(!sec)return;
+  document.getElementById('_sectgt_modal')?.remove();
+  const cur=SEC_TARGETS[id]||{};
+  let mode=cur.mode==='plan'?'plan':'pb';
+  const startMs=cur.ms>0?cur.ms:(sec.best&&sec.best.timeMs>0?sec.best.timeMs:0);
+  const t0=Math.round(startMs/1000),hh=Math.floor(t0/3600),mm=Math.floor(t0%3600/60),ss=t0%60;
+  const opt=(n,sel,pad)=>{let o='';for(let i=0;i<n;i++)o+='<option value="'+i+'"'+(i===sel?' selected':'')+'>'+(pad?String(i).padStart(2,'0'):i)+'</option>';return o;};
+  const sst='background:var(--s3);color:var(--text);border:1px solid var(--border);border-radius:6px;padding:6px 4px;font-size:15px;font-weight:700;';
+  const overlay=document.createElement('div');
+  overlay.id='_sectgt_modal';
+  overlay.style.cssText='position:fixed;inset:0;background:rgba(0,0,0,.72);display:flex;align-items:center;justify-content:center;z-index:9999;padding:16px;';
+  const panel=document.createElement('div');
+  panel.style.cssText='background:var(--s1);border:1px solid var(--border);border-radius:10px;max-width:420px;width:100%;padding:14px 16px;';
+  panel.innerHTML='<div style="font-size:13px;font-weight:600;color:var(--text);margin-bottom:4px;">Target \u00b7 '+_secEsc(sec.name)+'</div>'
+    +'<div style="font-size:11px;color:var(--muted);margin-bottom:10px;">'+sec.distance+' m \u00b7 PB '+(sec.best?fmtRecordTime(sec.best.timeMs):'\u2014')+'</div>'
+    +'<div style="display:flex;gap:8px;margin-bottom:10px;"><button id="_sectgt_pb" class="dzbtn">PB</button><button id="_sectgt_plan" class="dzbtn">Planned time</button></div>'
+    +'<div id="_sectgt_time" style="display:flex;align-items:center;gap:4px;margin-bottom:6px;">'
+    +'<select id="_sectgt_h" style="'+sst+'">'+opt(6,hh,false)+'</select><span style="font-weight:700;color:var(--text);">:</span>'
+    +'<select id="_sectgt_m" style="'+sst+'">'+opt(60,mm,true)+'</select><span style="font-weight:700;color:var(--text);">:</span>'
+    +'<select id="_sectgt_s" style="'+sst+'">'+opt(60,ss,true)+'</select>'
+    +'<span id="_sectgt_pace" style="margin-left:8px;font-size:12px;color:var(--muted);"></span></div>'
+    +'<div style="font-size:10px;color:var(--muted);margin-bottom:12px;">Live sector on the phone shows metres ahead or behind this target.</div>'
+    +'<div style="display:flex;gap:8px;"><button class="dzbtn dzbtn-pri" id="_sectgt_save">Save</button><button class="dzbtn dzbtn-sec" id="_sectgt_cancel"><span>Cancel</span></button></div>';
+  overlay.appendChild(panel);
+  overlay.onclick=e=>{if(e.target===overlay)overlay.remove();};
+  document.body.appendChild(overlay);
+  const g=k=>+document.getElementById(k).value||0;
+  const msNow=()=>(g('_sectgt_h')*3600+g('_sectgt_m')*60+g('_sectgt_s'))*1000;
+  const paint=()=>{
+    const pb=document.getElementById('_sectgt_pb'),pl=document.getElementById('_sectgt_plan');
+    pb.classList.toggle('dzbtn-pri',mode==='pb');pb.classList.toggle('dzbtn-sec',mode!=='pb');
+    pl.classList.toggle('dzbtn-pri',mode==='plan');pl.classList.toggle('dzbtn-sec',mode!=='plan');
+    document.getElementById('_sectgt_time').style.display=mode==='plan'?'flex':'none';
+    const ms=msNow();
+    document.getElementById('_sectgt_pace').textContent=ms>0?fmtPaceU(sectorPace(ms,sec.distance)):'';
+  };
+  document.getElementById('_sectgt_pb').onclick=()=>{mode='pb';paint();};
+  document.getElementById('_sectgt_plan').onclick=()=>{mode='plan';paint();};
+  ['_sectgt_h','_sectgt_m','_sectgt_s'].forEach(k=>document.getElementById(k).onchange=paint);
+  document.getElementById('_sectgt_cancel').onclick=()=>overlay.remove();
+  document.getElementById('_sectgt_save').onclick=()=>{
+    const ms=msNow();
+    if(mode==='plan'&&!(ms>0)){toast('Set a time');return;}
+    SEC_TARGETS[id]={mode,ms:mode==='plan'?ms:0,t:Date.now()};
+    try{localStorage.setItem('br_sec_targets',JSON.stringify(SEC_TARGETS));}catch{}
+    pushSecTargets().then(ok=>{if(!ok&&AnalyserDrive.isSignedIn())toast('Target saved here \u2014 Drive update failed');});
+    overlay.remove();
+    toast('Target: '+(mode==='plan'?fmtRecordTime(ms):'PB'));
+    if(typeof after==='function')after();
+  };
+  paint();
+};
 let SECTORS_DB=(()=>{try{const v=JSON.parse(localStorage.getItem('br_sectors')||'[]');return Array.isArray(v)?v:[];}catch{return [];}})();
 let _sectorLayers=[], _sectorCreate=null, _sectorScanBusy=false, _sectorsPushTimer=null;
 const SECTOR_CORRIDOR_M=100, SECTOR_GATE_HALF_M=100, SECTOR_OFFTRACK_MS=3000, SECTOR_STOP_MS=40000, SECTOR_BACKTRACK_M=20, SECTOR_MIN_M=100;
@@ -2981,6 +3063,7 @@ function _secEsc(s){return String(s==null?'':s).replace(/[&<>"']/g,c=>({'&':'&am
 function saveSectors(){
   try{localStorage.setItem('br_sectors',JSON.stringify(SECTORS_DB));}catch{toast('Sectors not saved — storage error');}
   schedulePushSectorsToPrefs();
+  try{renderStartSectors();}catch(e){}
 }
 function schedulePushSectorsToPrefs(){
   if(!AnalyserDrive.isSignedIn())return;
@@ -2999,12 +3082,17 @@ function pullSectorsFromDrive(force,after){
   if(!force&&Date.now()-_sectorsPullT<15000)return;
   _sectorsPulling=true;_sectorsPullT=Date.now();
   AnalyserDrive.pullPrefs().then(cur=>{
-    if(!cur||!Array.isArray(cur.sectors))return;
+    if(!cur)return;
+    const tb=JSON.stringify(SEC_TARGETS);
+    if(secTargetsMerge(cur.secTargets))pushSecTargets();
+    const tChanged=JSON.stringify(SEC_TARGETS)!==tb;
+    if(!Array.isArray(cur.sectors)){if(tChanged&&typeof after==='function')after();return;}
     const before=JSON.stringify(SECTORS_DB);
     SECTORS_DB=mergeSectors(SECTORS_DB,cur.sectors);
-    if(JSON.stringify(SECTORS_DB)===before)return;
+    if(JSON.stringify(SECTORS_DB)===before){if(tChanged&&typeof after==='function')after();return;}
     try{localStorage.setItem('br_sectors',JSON.stringify(SECTORS_DB));}catch{}
     if(SESSIONS.length)renderSectors();
+    try{renderStartSectors();}catch(e){}
     if(typeof after==='function')after();
   }).catch(()=>{}).finally(()=>{_sectorsPulling=false;});
 }
@@ -3662,7 +3750,7 @@ window.showSectorList=function(){
     if(!list.length){
       h+='<div class="sz-loading">No sectors yet. Tap ✎ Draw to draw one on the map, or open a session and click ＋ Create Sector.</div>';
     }else{
-      h+='<div class="twrap" style="max-height:none;"><table style="width:100%;"><thead><tr><th style="text-align:left;">Sector</th><th>Distance</th><th>Results</th><th>PB</th><th>PB Pace</th><th>PB Date</th><th></th></tr></thead><tbody>';
+      h+='<div class="twrap" style="max-height:none;"><table style="width:100%;"><thead><tr><th style="text-align:left;">Sector</th><th>Distance</th><th>Results</th><th>PB</th><th>PB Pace</th><th>PB Date</th><th>Target</th><th></th></tr></thead><tbody>';
       list.forEach(x=>{
         const b=x.best;
         const pbDate=b?(b.fileId?'<a href="#" style="color:var(--accent,#29b8ff);" data-act="best" data-id="'+x.id+'">'+fmtRecordDate(b.date)+'</a>':fmtRecordDate(b.date)):'—';
@@ -3672,6 +3760,7 @@ window.showSectorList=function(){
           +'<td style="'+td+'">'+(b?fmtRecordTime(b.timeMs):'—')+'</td>'
           +'<td style="'+td+'">'+(b?fmtPaceU(sectorPace(b.timeMs,x.distance)):'—')+'</td>'
           +'<td style="'+td+'">'+pbDate+'</td>'
+          +(()=>{const tg=secTargetOf(x);return '<td style="'+td+'"><a href="#" style="color:var(--accent,#29b8ff);" data-act="target" data-id="'+x.id+'">'+(tg?(tg.mode==='plan'?fmtRecordTime(tg.ms):'PB')+' \u00b7 '+fmtPaceU(sectorPace(tg.ms,x.distance)):'set')+'</a></td>';})()
           +'<td style="'+td+'text-align:right;"><a href="#" style="color:var(--accent,#29b8ff);" data-act="compare" data-id="'+x.id+'">compare</a> · <a href="#" style="color:var(--accent,#29b8ff);" data-act="share" data-id="'+x.id+'">share</a> · <a href="#" style="color:var(--accent,#29b8ff);" data-act="edit" data-id="'+x.id+'">edit</a> · <a href="#" style="color:#f54040;" data-act="delete" data-id="'+x.id+'">delete</a></td></tr>';
       });
       h+='</tbody></table></div>';
@@ -3694,6 +3783,7 @@ window.showSectorList=function(){
         else if(act==='compare'){overlay.remove();window.openSectorCompare(id);}
         else if(act==='best'){overlay.remove();window.loadSectorBest(id);}
         else if(act==='share'){window.shareSectors([id]);}
+        else if(act==='target'){window.editSectorTarget(id,render);}
       };
     });
   };
@@ -3765,6 +3855,80 @@ window.deleteSector=function(id){
   SECTORS_DB[i]={id,name:SECTORS_DB[i].name,deleted:true};
   saveSectors();
   renderSectors();
+};
+/* Start page: Sectors pane above the Summary. */
+function renderStartSectors(){
+  const box=document.getElementById('sz-sectors'); if(!box)return;
+  if(!isPro()){box.style.display='none';box.innerHTML='';return;}
+  box.style.display='';
+  const list=SECTORS_DB.filter(x=>!x.deleted).sort((a,b)=>String(a.name).localeCompare(String(b.name)));
+  const td='padding:5px 6px;white-space:nowrap;font-size:11px;';
+  const lk='color:var(--accent,#29b8ff);text-decoration:none;';
+  const act=(a,id,t,c)=>'<a href="#" style="'+(c?'color:'+c+';text-decoration:none;':lk)+'" data-act="'+a+'" data-id="'+id+'">'+t+'</a>';
+  let h='<div class="sz-lhd" style="margin-bottom:8px;">Sectors<span style="display:flex;gap:6px;"><button class="hbtn" id="sz-sec-draw" style="font-size:10px;">\u270E Draw</button><button class="hbtn" id="sz-sec-import" style="font-size:10px;">Import</button></span></div>';
+  if(!list.length){
+    h+='<div class="sz-loading">No sectors yet. Tap \u270E Draw to draw one on the map.</div>';
+  }else{
+    h+='<div class="twrap" style="max-height:340px;overflow:auto;"><table style="width:100%;"><thead><tr><th style="text-align:left;">Sector</th><th>Distance</th><th>Results</th><th>PB Date</th><th>PB</th><th>PB Pace</th></tr></thead><tbody>';
+    list.forEach(x=>{
+      const b=x.best;
+      const pbDate=b?(b.fileId?act('best',x.id,fmtRecordDate(b.date)):fmtRecordDate(b.date)):'\u2014';
+      h+='<tr><td style="'+td+'text-align:left;font-weight:600;border-bottom:0;">'+_secEsc(x.name)+'</td>'
+        +'<td style="'+td+'border-bottom:0;">'+x.distance+' m</td>'
+        +'<td style="'+td+'border-bottom:0;">'+((x.results||[]).length)+'</td>'
+        +'<td style="'+td+'border-bottom:0;">'+pbDate+'</td>'
+        +'<td style="'+td+'border-bottom:0;">'+(b?fmtRecordTime(b.timeMs):'\u2014')+'</td>'
+        +'<td style="'+td+'border-bottom:0;">'+(b?fmtPaceU(sectorPace(b.timeMs,x.distance)):'\u2014')+'</td></tr>'
+        +'<tr><td colspan="6" style="'+td+'text-align:left;padding-top:0;padding-bottom:7px;border-bottom:1px solid var(--border);">'
+        +act('compare',x.id,'compare')+' \u00b7 '+act('share',x.id,'share')+' \u00b7 '+act('edit',x.id,'edit')+' \u00b7 '+act('map',x.id,'show on map')+' \u00b7 '+act('delete',x.id,'delete','#f54040')+'</td></tr>';
+    });
+    h+='</tbody></table></div>';
+  }
+  box.innerHTML=h;
+  document.getElementById('sz-sec-draw').onclick=()=>window.drawSector();
+  document.getElementById('sz-sec-import').onclick=()=>window.importSectorsFile(renderStartSectors);
+  box.querySelectorAll('a[data-act]').forEach(a=>{
+    a.onclick=e=>{
+      e.preventDefault();
+      const id=a.dataset.id, ac=a.dataset.act;
+      if(ac==='delete'){window.deleteSector(id);renderStartSectors();}
+      else if(ac==='edit')window.editSector(id);
+      else if(ac==='compare')window.openSectorCompare(id);
+      else if(ac==='best')window.loadSectorBest(id);
+      else if(ac==='share')window.shareSectors([id]);
+      else if(ac==='map')window.showSectorOnMap(id);
+    };
+  });
+}
+window.showSectorOnMap=function(id){
+  if(!isPro()){showPlanModal('Sectors are a Pro feature.');return;}
+  const s=SECTORS_DB.find(x=>x.id===id&&!x.deleted);
+  if(!s||!s.origin||!Array.isArray(s.ref)||s.ref.length<2){toast('Sector not found');return;}
+  document.getElementById('_secmap_modal')?.remove();
+  const overlay=document.createElement('div');
+  overlay.id='_secmap_modal';
+  overlay.style.cssText='position:fixed;inset:0;background:rgba(0,0,0,.72);display:flex;align-items:center;justify-content:center;z-index:9998;padding:8px;';
+  const panel=document.createElement('div');
+  panel.style.cssText='background:var(--s1);border:1px solid var(--border);border-radius:10px;width:100%;max-width:1000px;height:86vh;box-sizing:border-box;display:flex;flex-direction:column;overflow:hidden;padding:12px 14px;';
+  panel.innerHTML='<div style="display:flex;align-items:center;gap:10px;margin-bottom:8px;"><div style="font-size:13px;font-weight:600;color:var(--text);">'+_secEsc(s.name)+' \u00b7 '+s.distance+' m</div><button class="hbtn" id="_secmap_close" style="margin-left:auto;font-size:11px;">Close</button></div>'
+    +'<div id="_secmap_map" style="flex:1;min-height:300px;border-radius:10px;overflow:hidden;background:#030d1e;"></div>';
+  overlay.appendChild(panel);
+  document.body.appendChild(overlay);
+  const map=L.map('_secmap_map',{zoomControl:true,attributionControl:true});
+  map.attributionControl.setPrefix('');
+  L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}',{maxZoom:19,attribution:'Esri'}).addTo(map);
+  const o=s.origin, ll=s.ref.map(p=>sectorLatLon(p[0],p[1],o));
+  const line=L.polyline(ll,{color:'#ffb020',weight:4,opacity:0.95}).bindTooltip(s.name).addTo(map);
+  [[true,'#2ee06a'],[false,'#f54040']].forEach(([st,col])=>{
+    const g=sectorGate(s.ref,st), nx=-g.uy, ny=g.ux;
+    const a=sectorLatLon(g.x+nx*SECTOR_GATE_HALF_M,g.y+ny*SECTOR_GATE_HALF_M,o), b=sectorLatLon(g.x-nx*SECTOR_GATE_HALF_M,g.y-ny*SECTOR_GATE_HALF_M,o);
+    L.polyline([a,b],{color:col,weight:4,opacity:0.95}).bindTooltip(st?'Start':'Finish').addTo(map);
+  });
+  map.fitBounds(line.getBounds(),{padding:[40,40]});
+  setTimeout(()=>{try{map.invalidateSize();map.fitBounds(line.getBounds(),{padding:[40,40]});}catch(e){}},80);
+  const close=()=>{try{map.remove();}catch(e){}overlay.remove();};
+  document.getElementById('_secmap_close').onclick=close;
+  overlay.onclick=e=>{if(e.target===overlay)close();};
 };
 window.loadSectorBest=async function(id){
   if(!isPro()){showPlanModal('Sectors are a Pro feature.');return;}
@@ -8348,7 +8512,7 @@ async function showStartup(){
       ${(localStorage.getItem('_ad_legacy_done') === '1' || localStorage.getItem('_ad_legacy_empty') === '1') ? '' : '<button class="dzbtn dzbtn-sec" id="sz-oldacct"><span>Import old sessions</span></button>'}
     </div>
     <div class="sz-grid">
-    <div class="brpill sz-sumcol"><div class="sz-lhd" style="margin-bottom:8px;">Summary</div><div id="sz-sumbody"></div></div>
+    <div class="sz-sumwrap"><div class="brpill" id="sz-sectors" style="display:none;"></div><div class="brpill sz-sumcol"><div class="sz-lhd" style="margin-bottom:8px;">Summary</div><div id="sz-sumbody"></div></div></div>
     <div class="sz-calcol"><div class="brpill" id="sz-cal"></div><div class="brpill" id="sz-calday" style="display:none;"></div></div>
     <div class="brpill">
       <div class="sz-lhd">Sessions<span class="sz-signout" id="sz-signout">Sign out</span></div>
@@ -8359,6 +8523,8 @@ async function showStartup(){
     </div>
   </div>`;
   szWideSummary();
+  renderStartSectors();
+  pullSectorsFromDrive(false,renderStartSectors);
   document.getElementById('sz-signout').onclick=()=>{AnalyserDrive.signOut();showStartup();};
   const _oldBtn=document.getElementById('sz-oldacct');
   if(_oldBtn) _oldBtn.onclick=()=>{ if(AnalyserDrive.isLegacyLinked()){ runLegacyMigration(); return; } toast('Sign in with the same Google account'); AnalyserDrive.signInLegacy(); };
@@ -11095,6 +11261,7 @@ function vidOnMount(d){
   if(!VID.built){ vidWire(); VID.built=true; }
   vidRenderBody();
   vidScanMatches();
+  vidRenderRecent();
 }
 
 function vidTeardown(){
@@ -11229,7 +11396,7 @@ async function vidAddFromDir(name) {
     try {
       const fh = await _anVidDirHandle.getFileHandle(name);
       const file = await fh.getFile();
-      vidAddClip(file);
+      vidAddClip(file, fh);
     } catch (e) { toast('Could not open ' + name); }
     return;
   }
@@ -11245,6 +11412,7 @@ async function vidClearSessionVideos(){
   if(!confirm('Remove all videos from this session?')) return;
   if(sess.d){ sess.d.vidSync={}; sess.d.videoFlags=null; }
   VID_FLAGS=[];
+  vidForgetRecent(true);
   unmarkSessHasVideo(sess.fileId);
   try{ vidScanMatches(); }catch(e){}
   if(AnalyserDrive.isSignedIn()&&sess.fileId){
@@ -11256,13 +11424,16 @@ async function vidClearSessionVideos(){
 }
 
 function vidWire(){
-  document.getElementById('vidAddBtn').onclick=e=>{if(!isPro()){e.preventDefault();showPlanModal('Video overlay is a Pro feature.');}};
+  document.getElementById('vidAddBtn').onclick=e=>{
+    if(!isPro()){e.preventDefault();showPlanModal('Video overlay is a Pro feature.');return;}
+    if(window.showOpenFilePicker){e.preventDefault();vidPickFiles();}
+  };
   document.getElementById('vidFin').onchange=e=>{
     const files=[...e.target.files];
     e.target.value='';
     if(!files.length) return;
     if(!isPro()){showPlanModal('Video overlay is a Pro feature.');return;}
-    files.forEach(vidAddClip);
+    files.forEach(f=>vidAddClip(f));
   };
   const mc=document.getElementById('mainC');
   if(mc){
@@ -11283,7 +11454,76 @@ function vidWire(){
 }
 
 
-function vidAddClip(file){
+/* Videos added to a session are remembered on this device (by session start
+   time), so they are listed again next time the session is opened. */
+function vidRecentKey(){ return VID_SESS_T0 ? 'sess:'+VID_SESS_T0 : null; }
+async function vidRecentLoad(){
+  const key=vidRecentKey(); if(!key) return [];
+  try{ const l=await AnVidDirDB.get(key); return Array.isArray(l)?l:[]; }catch(e){ return []; }
+}
+async function vidRememberClip(file, handle){
+  const key=vidRecentKey(); if(!key) return;
+  const list=await vidRecentLoad();
+  const id=file.name+':'+file.size;
+  const i=list.findIndex(x=>x.id===id);
+  const rec={id, name:file.name, size:file.size, handle:handle||(i>=0?list[i].handle:null)||null};
+  if(i>=0) list[i]=rec; else list.push(rec);
+  try{ await AnVidDirDB.set(key,list); }
+  catch(e){ try{ await AnVidDirDB.set(key,list.map(x=>({id:x.id,name:x.name,size:x.size,handle:null}))); }catch(e2){} }
+  vidRenderRecent();
+}
+async function vidRenderRecent(){
+  const box=document.getElementById('vidRecentBox'); if(!box) return;
+  const list=await vidRecentLoad();
+  VID._recent=list;
+  if(!list.length){ box.innerHTML=''; return; }
+  box.innerHTML='<div class="vid-tabs-hd">Videos added to this session <button class="vid-clip-tab" style="margin-left:6px;" onclick="vidForgetRecent()">&#128465; Clear list</button></div>'+
+    list.map((r,i)=>`<button class="vid-clip-tab${vidIsOpen(r.name)?' open-already':''}" onclick="vidOpenRecent(${i})">${vidLabel(r.name)}${vidIsOpen(r.name)?' \u2713 open':''}</button>`).join('');
+}
+async function vidForgetRecent(silent){
+  const key=vidRecentKey(); if(!key) return;
+  if(!silent && !confirm('Clear the list of videos for this session? The video files are not deleted.')) return;
+  try{ await AnVidDirDB.set(key,[]); }catch(e){}
+  vidRenderRecent();
+}
+function vidOpenRecent(i){
+  if(!isPro()){ showPlanModal('Video overlay is a Pro feature.'); return; }
+  const r=(VID._recent||[])[i]; if(!r) return;
+  const k=VID.clips.findIndex(c=>c.name===r.name);
+  if(k>=0){ vidSetActive(k); return; }
+  if(!r.handle && !_anVidDirHandle && !(_anVidDirFiles && _anVidDirFiles.get(r.name))){
+    toast('Pick '+r.name+' to open it again',3500);
+    vidPickFiles();
+    return;
+  }
+  vidOpenRecentAsync(r);
+}
+async function vidOpenRecentAsync(r){
+  if(r.handle){
+    try{
+      let p=await r.handle.queryPermission({mode:'read'});
+      if(p!=='granted') p=await r.handle.requestPermission({mode:'read'});
+      if(p==='granted'){ const f=await r.handle.getFile(); vidAddClip(f, r.handle); return; }
+    }catch(e){}
+  }
+  if(_anVidDirHandle){
+    try{ const fh=await _anVidDirHandle.getFileHandle(r.name); const f=await fh.getFile(); vidAddClip(f, fh); return; }catch(e){}
+  }
+  if(_anVidDirFiles && _anVidDirFiles.get(r.name)){ vidAddClip(_anVidDirFiles.get(r.name)); return; }
+  toast('Could not find '+r.name+' \u2014 pick it to open it again',3500);
+  vidPickFiles();
+}
+async function vidPickFiles(){
+  if(window.showOpenFilePicker){
+    let hs=[];
+    try{ hs=await window.showOpenFilePicker({multiple:true, types:[{description:'Video', accept:{'video/*':['.mp4','.mov','.m4v','.webm']}}]}); }catch(e){ return; }
+    for(const h of hs){ try{ vidAddClip(await h.getFile(), h); }catch(e){} }
+    return;
+  }
+  const fin=document.getElementById('vidFin'); if(fin) fin.click();
+}
+
+function vidAddClip(file, handle){
   const id=file.name+':'+file.size;
   /* Opening the same file twice just produced two identical tabs with no way
      to tell them apart. Switch to the one already loaded instead. */
@@ -11300,6 +11540,7 @@ function vidAddClip(file){
   if(savedSync!=null) setTimeout(()=>toast('\u2714 Sync restored: offset '+clip.offset+'s'),400);
   VID.clips.push(clip);
   VID.active=VID.clips.length-1;
+  vidRememberClip(file, handle);
   if(VID.clips.length===1){
     const xm=document.getElementById('xmode');
     if(xm && xm.value!=='time'){ VID._autoXmode=xm.value; xm.value='time'; schedRender(); }
@@ -11356,6 +11597,7 @@ function vidRemoveClip(i){
   }
   vidRenderBody();
   try{ vidScanMatches(); }catch(e){}
+  try{ vidRenderRecent(); }catch(e){}
 }
 
 function vidSetActive(i){ VID.active=i; VID.syncTab=null; vidRenderBody(); }
