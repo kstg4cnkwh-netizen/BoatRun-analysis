@@ -10235,7 +10235,7 @@ window.showWorkoutsModal=function(opts){
     edit={id:Date.now().toString(),name:'',venue:erg?'erg':'water',startMode:'lap5',steps:erg?[newStep('work')]:[newStep('warmup'),newStep('work'),newStep('cooldown')],_new:true};
     renderEdit();
   }else renderList();
-  if(AnalyserDrive.isSignedIn())AnalyserDrive.pullPrefs().then(cur=>{if(!cur)return;applyWorkoutsFromPrefs(cur.workouts);if(!edit&&!opts.viewId&&document.getElementById('_wkt_modal'))renderList();}).catch(()=>{});
+  if(AnalyserDrive.isSignedIn())AnalyserDrive.pullPrefs().then(cur=>{if(!cur)return;applyWorkoutsFromPrefs(cur.workouts);if(!edit&&!opts.viewId&&!opts.viewW&&document.getElementById('_wkt_modal'))renderList();}).catch(()=>{});
 };
 document.getElementById('wktbtn').onclick=window.showWorkoutsModal;
 wktUpdateBtn();
