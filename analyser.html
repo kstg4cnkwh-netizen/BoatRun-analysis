@@ -9822,6 +9822,10 @@ window.showWorkoutsModal=function(opts){
   document.body.appendChild(overlay);
   const ERG='#c0392b', S5='#0a84ff', SROW='#7de0a6';
   let edit=null, sel=new Set(), openId=null;
+  /* opts.list + opts.onListSave: show/edit a workout held in another list
+     (a squad, or My workouts while a squad is open). */
+  const _mDB=()=>opts.list||WORKOUTS_DB;
+  const _mSave=()=>{if(opts.list){try{opts.onListSave&&opts.onListSave();}catch(e){}}else saveWorkoutsDB();};
   overlay.onclick=e=>{if(e.target===overlay&&!edit)overlay.remove();};
   const esc=_secEsc;
   const isErgW=w=>w&&w.venue==='erg';
@@ -10018,7 +10022,7 @@ window.showWorkoutsModal=function(opts){
   const render=()=>{if(edit)renderEdit();else renderList();};
   /* Details: read-only view of one planned workout, with EDIT (where allowed) or CLOSE. */
   const renderDetails=w=>{
-    const canEdit=opts.viewW?false:(_wktCtx?sqCanEdit():true);
+    const canEdit=opts.viewW?!!opts.list:(_wktCtx?sqCanEdit():true);
     panel.innerHTML=hdr(esc(_wktDispName(w))+(isErgW(w)?'<span class="erg-badge">ERG</span>':''))
       +(w.note?'<div style="white-space:pre-wrap;font-size:13px;color:#333;background:#fff8dc;border-left:3px solid #f1c40f;border-radius:6px;padding:8px 10px;margin:0 0 8px;">'+esc(w.note)+'</div>':'')
       +'<div class="wkt-card'+(isErgW(w)?' erg-item':'')+'" style="padding:4px 12px;">'+viewSteps(w)+'</div>'
@@ -10101,7 +10105,7 @@ window.showWorkoutsModal=function(opts){
     const b=e.target.closest('[data-a]');if(!b||b.disabled)return;
     const a=b.dataset.a, p=b.dataset.p, d=+b.dataset.d||0;
     if(a==='detedit'){
-      const w0=WORKOUTS_DB.find(x=>x&&x.id===b.dataset.id&&!x.deleted);if(!w0)return;
+      const w0=_mDB().find(x=>x&&x.id===b.dataset.id&&!x.deleted);if(!w0)return;
       opts.editId=w0.id;
       _wktVenueView=isErgW(w0)?'erg':'water';
       edit=JSON.parse(JSON.stringify(w0));
@@ -10109,9 +10113,9 @@ window.showWorkoutsModal=function(opts){
       edit.steps=edit.steps||[];ensureBookends();sel=new Set();renderEdit();return;
     }
     if(a==='detdel'){
-      const i=WORKOUTS_DB.findIndex(x=>x&&x.id===b.dataset.id&&!x.deleted);if(i<0)return;
-      if(!confirm('Delete "'+_wktDispName(WORKOUTS_DB[i])+'"?'))return;
-      WORKOUTS_DB[i]={id:WORKOUTS_DB[i].id,deleted:true,rev:Date.now()};saveWorkoutsDB();
+      const DB=_mDB();const i=DB.findIndex(x=>x&&x.id===b.dataset.id&&!x.deleted);if(i<0)return;
+      if(!confirm('Delete "'+_wktDispName(DB[i])+'"?'))return;
+      DB[i]={id:DB[i].id,deleted:true,rev:Date.now()};_mSave();
       overlay.remove();toast('Deleted');return;
     }
     if(a==='close'){
@@ -10211,17 +10215,17 @@ window.showWorkoutsModal=function(opts){
       w.name=name;w.rev=Date.now();
       w.note=String(w.note||'').trim();if(!w.note)delete w.note;
       if(w.venue==='erg')w.startMode='lap5';
-      const i=WORKOUTS_DB.findIndex(x=>x.id===w.id);
-      if(i>=0)WORKOUTS_DB[i]=w;else WORKOUTS_DB.push(w);
+      const DB=_mDB();const i=DB.findIndex(x=>x.id===w.id);
+      if(i>=0)DB[i]=w;else DB.push(w);
       _wktVenueView=w.venue==='erg'?'erg':'water';
-      saveWorkoutsDB();
+      _mSave();
       if(opts.onSaved&&opts.newVenue){overlay.remove();try{opts.onSaved(w.id);}catch{}return;}
       if(opts.editId){overlay.remove();try{renderStartupCalendar();}catch{}toast('"'+name+'" saved');return;}
       edit=null;sel=new Set();openId=w.id;renderList();toast('"'+name+'" saved');
     }
   };
-  const _vw=opts.viewW||(opts.viewId?WORKOUTS_DB.find(x=>x&&x.id===opts.viewId&&!x.deleted):null);
-  const _ew=opts.editId?WORKOUTS_DB.find(x=>x&&x.id===opts.editId&&!x.deleted):null;
+  const _vw=opts.viewW||(opts.viewId?_mDB().find(x=>x&&x.id===opts.viewId&&!x.deleted):null);
+  const _ew=opts.editId?_mDB().find(x=>x&&x.id===opts.editId&&!x.deleted):null;
   if(_vw){
     renderDetails(_vw);
   }else if(_ew){
@@ -11069,11 +11073,39 @@ function pvSqItems(k,types){
   return out.sort((p,q)=>((CI_ORDER[p.x.type]||0)-(CI_ORDER[q.x.type]||0))||String(p.x.time||'').localeCompare(String(q.x.time||'')));
 }
 function pvSqItemRow(it){
-  const x=it.x,ev=x.type==='event',oth=x.type==='other',col=pvCol(it.c);
-  if(oth)return calStrip('',CI_OTHER_COL,'<span style="'+CAL_STRIP_LBL+'">OTHER</span><span style="flex:1;min-width:0;font-size:13px;font-weight:700;white-space:pre-wrap;color:var(--text);">'+_secEsc(x.text||'')+'<span style="display:flex;align-items:center;font-size:10px;font-weight:600;opacity:.8;margin-top:2px;">'+pvMarker(col,8)+_secEsc(pvSqName(it.c))+'</span></span>'+(x.done?ciDoneTag(x,false):''),'',false);
+  const x=it.x,ev=x.type==='event',oth=x.type==='other';
+  const k=_pv.sel, del=(pvSrcWritable(it.c)&&k>=_dayKey(Date.now()))?'<button class="sz-del" data-pv="cidelsq" data-c="'+_secEsc(it.c)+'" data-xid="'+_secEsc(String(x.id!=null?x.id:''))+'" title="Delete"><img src="icons/Delete.svg"></button>':'';
+  if(oth)return calStrip('',CI_OTHER_COL,'<span style="'+CAL_STRIP_LBL+'">OTHER</span><span style="flex:1;min-width:0;font-size:13px;font-weight:700;white-space:pre-wrap;color:var(--text);">'+_secEsc(x.text||'')+'</span>'+(x.done?ciDoneTag(x,false):''),del,false);
   return calStrip('',ev?CI_EVENT_COL:CI_NOTE_COL,'<span style="'+CAL_STRIP_LBL+'">'+(ev?(x.time?_secEsc(x.time):'EVENT'):'NOTE')+'</span>'
-    +'<span style="flex:1;min-width:0;font-size:13px;'+(ev?'font-weight:700;':'')+'white-space:pre-wrap;color:var(--text);">'+_secEsc(x.text||'')
-    +'<span style="display:flex;align-items:center;font-size:10px;font-weight:600;opacity:.8;margin-top:2px;">'+pvMarker(col,8)+_secEsc(pvSqName(it.c))+'</span></span>','',false);
+    +'<span style="flex:1;min-width:0;font-size:13px;'+(ev?'font-weight:700;':'')+'white-space:pre-wrap;color:var(--text);">'+_secEsc(x.text||'')+'</span>',del,false);
+}
+/* Combined view: change a squad's plan or day items, then save to that squad. */
+function pvSqMutate(c,fn){
+  const st=_pv.sq[c];if(!st)return;
+  fn(st);
+  if(_sqStore&&_sqStore.code===c&&_sqStore!==st){_sqStore.days=st.days;_sqStore.items=st.items;_sqStore.workouts=st.workouts;}
+  renderStartupCalendar();
+  pvPushSquad(c);
+}
+function pvSqPlanRemove(c,k,idx){
+  if(!pvSrcWritable(c))return;
+  pvSqMutate(c,st=>{st.days=st.days||{};const e=st.days[k];const ids=(e&&Array.isArray(e.ids))?e.ids.slice():[];if(idx<0||idx>=ids.length)return;ids.splice(idx,1);st.days[k]={ids,rev:Date.now()};});
+}
+function pvSqItemDelete(c,k,xid){
+  if(!pvSrcWritable(c))return;
+  const st=_pv.sq[c];const e=st&&st.items&&st.items[k];const list=(e&&Array.isArray(e.list))?e.list:[];
+  const x=list.find(i=>String(i.id)===String(xid));if(!x)return;
+  if(!confirm('Delete this '+(x.type==='event'?'event':x.type==='other'?'other workout':'note')+' from '+pvSqName(c)+'?'))return;
+  pvSqMutate(c,st=>{st.items=st.items||{};st.items[k]={list:list.filter(i=>i!==x),rev:Date.now()};});
+}
+/* Show a workout's details; EDIT/DELETE when you can change the list it lives in. */
+function pvShowWorkout(src,id){
+  const cur=_wktCtx||'mine';
+  if(src===cur){window.showWorkoutsModal({viewId:id});return;}
+  const list=src==='mine'?_pW():(pvSqStore(src)&&pvSqStore(src).workouts);
+  const w=(list||[]).find(x=>x&&x.id===id&&!x.deleted);if(!w){toast('Workout not found');return;}
+  if(pvSrcWritable(src)&&list)window.showWorkoutsModal({viewW:w,list,onListSave:()=>pvSrcSave(src)});
+  else window.showWorkoutsModal({viewW:w});
 }
 function pvSeq(k,en){
   const out=[];
@@ -11200,7 +11232,7 @@ function pvRender(){
     dp+='<div style="padding:12px;border-radius:12px;background:var(--s1);border:1px solid var(--border);box-shadow:0 4px 18px rgba(0,0,0,.18),0 1px 4px rgba(0,0,0,.12);">'
       +'<div style="font-size:.9rem;font-weight:700;margin-bottom:8px;">'+dl+'</div>';
     const _ciEd=_pv.combined?true:calItemCanEdit();
-    const _hd=(lbl,col,first)=>'<div style="display:flex;align-items:center;font-size:11px;font-weight:800;letter-spacing:.06em;text-transform:uppercase;margin:'+(first?'0':'14px')+' 0 6px;padding-top:'+(first?'0':'10px')+';border-top:'+(first?'none':'1px solid var(--border)')+';">'+pvMarker(col,9)+lbl+'</div>';
+    const _hd=(lbl,col,first)=>'<div style="margin:'+(first?'0':'14px')+' 0 6px;"><span style="display:inline-block;max-width:100%;box-sizing:border-box;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;background:'+col+';color:#fff;font-size:11px;font-weight:800;letter-spacing:.06em;text-transform:uppercase;border-radius:6px;padding:4px 10px;box-shadow:0 1px 3px rgba(0,0,0,.25);">'+lbl+'</span></div>';
     const _isMineIt=it=>!_pv.combined||it.t==='o'||it.x.src==='mine';
     if(_pv.combined)dp+=_hd('Mine',PV_MINE_COL,true);
     dp+=calItemRows(k,_ciEd,['note','event']);
@@ -11222,25 +11254,26 @@ function pvRender(){
       if(it.t==='o'){dp+=ciOtherRow(it.x,_ciEd,_dragOk?DRAG_GRIP:'',it.si);return;}
       const x=it.x;
       const src=_pv.combined?x.src:(_wktCtx||'mine');
-      const bg=_pv.combined?(src==='mine'?PV_MINE_COL:pvCol(src)):(x.w?(x.w.venue==='erg'?CAL_ERG_COL:CAL_WATER_COL):'#8e8e93');
+      const bg=x.w?(x.w.venue==='erg'?CAL_ERG_COL:CAL_WATER_COL):'#8e8e93';
       const vcol=x.w?(x.w.venue==='erg'?CAL_ERG_COL:CAL_WATER_COL):'#8e8e93';
       const mk=_pv.combined?'':_coachMark(x.id,true);
-      const steps=(x.w&&Array.isArray(x.w.steps))?x.w.steps.map(_wktStepTxt).join(' · '):'';
+      const steps=(!_pv.combined&&x.w&&Array.isArray(x.w.steps))?x.w.steps.map(_wktStepTxt).join(' · '):'';
       let acts='',del='';
       const isMine=src==='mine';
       const _det=!!(x.w&&((isMine&&!_wktCtx)||(!_pv.combined&&_wktCtx)));
       if(!isMine&&x.w&&!_pv.combined&&!sqCanEdit())acts+='<button data-pv="imp" data-c="'+_secEsc(src)+'" data-id="'+_secEsc(x.id)+'" style="'+CAL_STRIP_BTN+'background:'+vcol+';color:#fff;border-color:'+vcol+';font-weight:800;">IMPORT</button>';
       if(((_pv.combined&&isMine&&WKT_ENABLED)||(!_pv.combined&&canEdit))&&k>=todayK)del='<button class="sz-del" data-pv="rm" data-i="'+x.idx+'" title="Remove"><img src="icons/Delete.svg"></button>';
+      else if(_pv.combined&&!isMine&&pvSrcWritable(src)&&k>=todayK)del='<button class="sz-del" data-pv="crm" data-c="'+_secEsc(src)+'" data-i="'+x.idx+'" title="Remove"><img src="icons/Delete.svg"></button>';
+      const _cdet=_pv.combined&&!!x.w;
       const _mv=(_dragOk&&it.si!=null)?DRAG_GRIP:'';
-      dp+=calStrip((it.si!=null?'data-sq-i="'+it.si+'" ':'')+(_det?'data-pv="det" data-id="'+_secEsc(x.id)+'"':''),bg,
+      dp+=calStrip((it.si!=null?'data-sq-i="'+it.si+'" ':'')+(_cdet?'data-pv="cdet" data-c="'+_secEsc(src)+'" data-id="'+_secEsc(x.id)+'"':(_det?'data-pv="det" data-id="'+_secEsc(x.id)+'"':'')),bg,
         _mv+mk
         +'<span style="'+CAL_STRIP_LBL+'">'+(x.w?(x.w.venue==='erg'?'ERG':'WATER'):'')+'</span>'
         +'<span style="flex:1;min-width:0;font-size:13px;font-weight:700;color:var(--text);">'+(x.w?_secEsc(_wktDispName(x.w)):'Deleted workout')
-        +(_pv.combined?'<span style="display:flex;align-items:center;font-size:10px;font-weight:600;opacity:.8;margin-top:2px;">'+pvMarker(bg,8)+(isMine?'Mine':_secEsc(pvSqName(src)))+'</span>':'')
         +(steps?'<span style="display:block;font-size:11px;font-weight:500;opacity:.85;margin-top:2px;">'+_secEsc(steps)+'</span>':'')
-        +((x.w&&x.w.note)?'<span style="display:block;font-size:11px;font-weight:500;opacity:.85;white-space:pre-wrap;margin-top:2px;">'+_secEsc(x.w.note)+'</span>':'')
+        +((!_pv.combined&&x.w&&x.w.note)?'<span style="display:block;font-size:11px;font-weight:500;opacity:.85;white-space:pre-wrap;margin-top:2px;">'+_secEsc(x.w.note)+'</span>':'')
         +'</span>'+acts,
-        del,_det);
+        del,_det||_cdet);
     };
     pseq.filter(_isMineIt).forEach(_row);
     dp+='</div>';
@@ -11402,6 +11435,9 @@ function pvRender(){
     if(a==='det'||a==='wdet'){window.showWorkoutsModal({viewId:b.dataset.id});return;}
     if(a==='edit'){window.showWorkoutsModal();return;}
     if(a==='new'){const day=_pv.sel;window.showWorkoutsModal({newVenue:b.dataset.v,onSaved:id=>{if(day&&day>=todayK)planAdd(day,id);renderStartupCalendar();}});return;}
+    if(a==='cdet'){pvShowWorkout(b.dataset.c,b.dataset.id);return;}
+    if(a==='crm'){if(_pv.sel)pvSqPlanRemove(b.dataset.c,_pv.sel,+b.dataset.i);return;}
+    if(a==='cidelsq'){if(_pv.sel)pvSqItemDelete(b.dataset.c,_pv.sel,b.dataset.xid);return;}
     if(a==='sec'){_pv.shut=_pv.shut||{};_pv.shut[b.dataset.c]=!_pv.shut[b.dataset.c];pvRender();return;}
     if(a==='padd'){if(!_pv.sel)return;pvAddFrom(b.dataset.c,b.dataset.id,_pv.sel);return;}
     if(a==='wadd'){if(!_pv.sel)return;planAdd(_pv.sel,b.dataset.id);renderStartupCalendar();toast('Added to '+dShort);return;}
