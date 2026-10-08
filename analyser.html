@@ -4226,7 +4226,7 @@ function _secCmpBuildView(){
   const sec=c.sec, body=document.getElementById('_seccmp_body');
   const sp=[1,2,4,8,16].map(v=>'<button class="hbtn" data-spd="'+v+'" style="font-size:11px;min-width:34px;">'+v+'×</button>').join('');
   c.follow=true;c.full=false;c.lastFit=0;
-  body.innerHTML='<div id="_seccmp_stage"><div id="_seccmp_map" style="'+SECCMP_MAP_CSS+'"></div>'
+  body.innerHTML='<div id="_seccmp_stage"><div id="_seccmp_map" style="'+SECCMP_MAP_CSS+'"></div><div id="_seccmp_mini" style="display:none;"></div>'
     +'<div id="_seccmp_ctrls" style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:10px;">'
     +'<button class="hbtn" id="_seccmp_back" style="font-size:11px;">‹ Sessions</button>'
     +'<button class="hbtn" id="_seccmp_full" style="font-size:11px;">\u26F6 Full screen</button>'
@@ -4303,7 +4303,9 @@ function _secCmpToggleFull(){
   st.style.cssText='position:fixed;inset:0;z-index:10001;background:var(--s1);display:flex;flex-direction:column;box-sizing:border-box;padding:env(safe-area-inset-top,0px) env(safe-area-inset-right,0px) env(safe-area-inset-bottom,0px) env(safe-area-inset-left,0px);';
   m.style.cssText='flex:1;min-height:0;background:#030d1e;';
   if(ct){ct.style.margin='0';ct.style.padding='8px 10px';}
+  const mi=document.getElementById('_seccmp_mini');if(mi)mi.style.cssText='display:flex;gap:6px;overflow-x:auto;padding:6px 10px 0;flex:0 0 auto;';
   const fb=document.getElementById('_seccmp_full');if(fb)fb.textContent='\u2715 Exit full screen';
+  _secCmpCards();
   try{
     if(st.requestFullscreen){c.realFS=true;st.requestFullscreen().catch(()=>{c.realFS=false;});}
     else if(st.webkitRequestFullscreen){c.realFS=true;st.webkitRequestFullscreen();}
@@ -4317,6 +4319,8 @@ function _secCmpExitFull(){
   if(st)st.style.cssText='';
   if(m)m.style.cssText=SECCMP_MAP_CSS;
   if(ct){ct.style.margin='0 0 10px';ct.style.padding='';}
+  const mi=document.getElementById('_seccmp_mini');if(mi){mi.style.cssText='display:none;';mi.innerHTML='';}
+  setTimeout(_secCmpCards,0);
   const fb=document.getElementById('_seccmp_full');if(fb)fb.textContent='\u26F6 Full screen';
   try{
     if(document.fullscreenElement&&document.exitFullscreen)document.exitFullscreen().catch(()=>{});
@@ -4383,28 +4387,51 @@ function _secCmpDraw(force){
 }
 function _secCmpCards(){
   const c=_secCmp;if(!c)return;
-  const box=document.getElementById('_seccmp_cards');if(!box)return;
+  const box=document.getElementById('_seccmp_cards'), mini=document.getElementById('_seccmp_mini');
+  if(!box&&!mini)return;
   const lead=Math.max(...c.sess.map(s=>s.dNow||0));
   const keys=METRIC_DEFS.filter(m=>!hid[m.k]&&!ERG_ONLY_KEYS.includes(m.k));
-  box.innerHTML=c.sess.map(s=>{
+  const mdef=k=>METRIC_DEFS.find(m=>m.k===k);
+  const mval=(m,st)=>{if(!m||!st)return '\u2014';try{if(m.filter(st))return m.fmtAvg(m.val(st));}catch(e){}return '\u2014';};
+  const info=c.sess.map(s=>{
     const abs=s.h.startT+Math.min(c.simT,s.h.timeMs);
     const st=_secCmpStrokeAt(s.strokes,abs);
     const gap=s.dNow-lead;
-    const gapTxt=s.done?fmtRecordTime(s.h.timeMs):(Math.abs(gap)<0.5?'Leader':Math.round(gap)+' m');
-    const row=(l,v)=>'<div style="display:flex;justify-content:space-between;gap:8px;font-size:11px;padding:1px 0;"><span style="color:var(--muted);">'+l+'</span><span style="color:var(--text);font-weight:600;">'+v+'</span></div>';
-    let h='<div style="border:2px solid '+s.color+';border-radius:8px;padding:8px 10px;background:var(--s2,rgba(255,255,255,.03));">';
-    h+='<div style="display:flex;align-items:center;gap:6px;margin-bottom:4px;"><span style="width:10px;height:10px;background:'+s.color+';transform:rotate(45deg);display:inline-block;"></span><span style="font-size:11px;font-weight:700;color:var(--text);">'+fmtRecordDate(s.r.date)+'</span><span style="margin-left:auto;font-size:12px;font-weight:700;color:'+(s.done?'#1b7a34':(Math.abs(gap)<0.5?'#1b7a34':'#f54040'))+';">'+gapTxt+'</span></div>';
-    h+=row('Elapsed',_secCmpFmtElapsed(Math.min(c.simT,s.h.timeMs)));
-    h+=row('To go',Math.max(0,Math.round(c.sec.distance-s.dNow))+' m');
-    keys.forEach(m=>{
-      let v='—';
-      if(m.k==='hr'){const b=_secCmpHRAt(s.hr,abs);if(b!=null)v=f0(b)+' bpm';}
-      else if(st){try{if(m.filter(st))v=m.fmtAvg(m.val(st));}catch{}}
-      h+=row(m.l,v);
-    });
-    h+='</div>';
-    return h;
-  }).join('');
+    return {s,abs,st,
+      gapTxt:s.done?fmtRecordTime(s.h.timeMs):(Math.abs(gap)<0.5?'Leader':Math.round(gap)+' m'),
+      gapCol:s.done?'#1b7a34':(Math.abs(gap)<0.5?'#1b7a34':'#f54040'),
+      el:_secCmpFmtElapsed(Math.min(c.simT,s.h.timeMs)),
+      toGo:Math.max(0,Math.round(c.sec.distance-s.dNow))+' m',
+      name:_secEsc(s.r.label||'')};
+  });
+  if(box&&!c.full){
+    box.innerHTML=info.map(o=>{
+      const s=o.s;
+      const row=(l,v)=>'<div style="display:flex;justify-content:space-between;gap:8px;font-size:11px;padding:1px 0;"><span style="color:var(--muted);">'+l+'</span><span style="color:var(--text);font-weight:600;">'+v+'</span></div>';
+      let h='<div style="border:2px solid '+s.color+';border-radius:8px;padding:8px 10px;background:var(--s2,rgba(255,255,255,.03));">';
+      h+='<div style="display:flex;align-items:center;gap:6px;"><span style="width:10px;height:10px;background:'+s.color+';transform:rotate(45deg);display:inline-block;flex:0 0 auto;"></span><span style="font-size:11px;font-weight:700;color:var(--text);">'+fmtRecordDate(s.r.date)+'</span><span style="margin-left:auto;font-size:12px;font-weight:700;color:'+o.gapCol+';">'+o.gapTxt+'</span></div>';
+      h+='<div style="display:flex;align-items:center;gap:6px;margin-bottom:4px;"><span style="font-size:10px;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;min-width:0;">'+o.name+'</span><span style="margin-left:auto;font-size:12px;font-weight:700;color:var(--text);white-space:nowrap;">'+o.el+'</span></div>';
+      h+=row('To go',o.toGo);
+      keys.forEach(m=>{
+        let v='\u2014';
+        if(m.k==='hr'){const b=_secCmpHRAt(s.hr,o.abs);if(b!=null)v=f0(b)+' bpm';}
+        else v=mval(m,o.st);
+        h+=row(m.l,v);
+      });
+      return h+'</div>';
+    }).join('');
+  }
+  if(mini&&c.full){
+    const cell=(l,v)=>'<div style="display:flex;justify-content:space-between;gap:6px;font-size:11px;"><span style="color:var(--muted);">'+l+'</span><span style="color:var(--text);font-weight:700;">'+v+'</span></div>';
+    mini.innerHTML=info.map(o=>{
+      const s=o.s;
+      return '<div style="flex:0 0 auto;min-width:150px;max-width:190px;border:2px solid '+s.color+';border-radius:8px;padding:5px 8px;background:var(--s2);">'
+        +'<div style="display:flex;align-items:center;gap:5px;"><span style="width:8px;height:8px;background:'+s.color+';transform:rotate(45deg);display:inline-block;flex:0 0 auto;"></span><span style="font-size:11px;font-weight:700;color:var(--text);">'+fmtRecordDate(s.r.date)+'</span><span style="margin-left:auto;font-size:11px;font-weight:700;color:'+o.gapCol+';">'+o.gapTxt+'</span></div>'
+        +'<div style="font-size:10px;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;margin-bottom:2px;">'+o.name+'</div>'
+        +cell('To go',o.toGo)+cell('Pace',mval(mdef('pace'),o.st))+cell('Rate',mval(mdef('rate'),o.st))+cell('DPS',mval(mdef('dps'),o.st))
+        +'</div>';
+    }).join('');
+  }
 }
 
 function switchSession(idx) {
