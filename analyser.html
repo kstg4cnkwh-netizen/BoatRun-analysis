@@ -3063,7 +3063,7 @@ function _secEsc(s){return String(s==null?'':s).replace(/[&<>"']/g,c=>({'&':'&am
 function saveSectors(){
   try{localStorage.setItem('br_sectors',JSON.stringify(SECTORS_DB));}catch{toast('Sectors not saved — storage error');}
   schedulePushSectorsToPrefs();
-  try{renderStartSectors();}catch(e){}
+  secRefreshViews();
 }
 function schedulePushSectorsToPrefs(){
   if(!AnalyserDrive.isSignedIn())return;
@@ -3092,7 +3092,7 @@ function pullSectorsFromDrive(force,after){
     if(JSON.stringify(SECTORS_DB)===before){if(tChanged&&typeof after==='function')after();return;}
     try{localStorage.setItem('br_sectors',JSON.stringify(SECTORS_DB));}catch{}
     if(SESSIONS.length)renderSectors();
-    try{renderStartSectors();}catch(e){}
+    secRefreshViews();
     if(typeof after==='function')after();
   }).catch(()=>{}).finally(()=>{_sectorsPulling=false;});
 }
@@ -3732,6 +3732,31 @@ window.drawSector=function(editId){
   redraw();
   setTimeout(()=>{try{map.invalidateSize();if(edit&&pts.length>1)map.fitBounds(L.latLngBounds(pts),{padding:[40,40]});}catch{}},150);
 };
+/* Sector tile: same layout as the Metrics sector list (no pre-arm), plus rate. */
+function secTileHtml(x){
+  const b=x.best, n=(x.results||[]).length;
+  const tg=secTargetOf(x), isPlan=tg&&tg.mode==='plan';
+  const col=(lbl,val,c)=>'<div style="flex:1;min-width:0;"><div style="font-size:10px;font-weight:700;letter-spacing:.06em;color:var(--muted);">'+lbl+'</div><div style="font-size:15px;font-weight:800;color:'+c+';white-space:nowrap;">'+val+'</div></div>';
+  return '<div data-sec-open="'+_secEsc(x.id)+'" style="background:var(--s1);border:1px solid var(--border);border-radius:12px;padding:10px 12px;margin-bottom:8px;display:flex;align-items:center;gap:10px;cursor:pointer;">'
+    +'<div style="flex:1;min-width:0;"><div style="font-size:15px;font-weight:700;color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;margin-bottom:4px;">'+_secEsc(x.name)+'</div>'
+    +'<div style="display:flex;flex-wrap:wrap;align-items:center;gap:6px;margin-bottom:6px;"><span style="font-size:11px;color:var(--muted);">'+n+' result'+(n===1?'':'s')+'</span>'
+    +'<span style="display:inline-block;white-space:nowrap;font-size:11px;font-weight:700;padding:2px 8px;border-radius:10px;background:'+(isPlan?'rgba(41,184,255,.16)':tg?'rgba(46,224,106,.16)':'var(--s3)')+';color:'+(isPlan?'#29b8ff':tg?'#2ee06a':'var(--muted)')+';">'+(tg?(isPlan?'Target '+fmtRecordTime(tg.ms):'Target PB')+' \u00b7 '+fmtPaceU(sectorPace(tg.ms,x.distance)):'No target')+'</span></div>'
+    +'<div style="display:flex;gap:8px;">'
+    +col('PB',b?fmtRecordTime(b.timeMs):'--',b?'#2ee06a':'var(--muted)')
+    +col('DISTANCE',x.distance+' m','var(--text)')
+    +col('PACE',b?fmtPaceU(sectorPace(b.timeMs,x.distance)):'--','var(--text)')
+    +col('RATE',(b&&b.rate!=null)?Number(b.rate).toFixed(1):'--','var(--text)')
+    +'</div></div>'
+    +'<div style="color:var(--muted);font-size:20px;">\u203A</div></div>';
+}
+function secTilesWire(root,fromList){
+  root.querySelectorAll('[data-sec-open]').forEach(t=>{t.onclick=()=>window.openSectorDetail(t.dataset.secOpen,fromList);});
+}
+function secRefreshViews(){
+  try{renderStartSectors();}catch(e){}
+  try{if(document.getElementById('_seclist_modal')&&typeof window._secListRender==='function')window._secListRender();}catch(e){}
+  try{const d=document.getElementById('_secdet_modal');if(d&&d._render)d._render();}catch(e){}
+}
 window.showSectorList=function(){
   if(!isPro()){showPlanModal('Sectors are a Pro feature.');return;}
   document.getElementById('_seclist_modal')?.remove();
@@ -3739,54 +3764,104 @@ window.showSectorList=function(){
   overlay.id='_seclist_modal';
   overlay.style.cssText='position:fixed;inset:0;background:rgba(0,0,0,.72);display:flex;align-items:center;justify-content:center;z-index:9998;padding:16px;';
   const panel=document.createElement('div');
-  panel.style.cssText='background:var(--s1);border:1px solid var(--border);border-radius:10px;max-width:760px;width:100%;max-height:86vh;overflow-y:auto;padding:14px 16px;';
+  panel.style.cssText='background:var(--s2);border:1px solid var(--border);border-radius:10px;max-width:720px;width:100%;max-height:86vh;overflow-y:auto;padding:14px 16px;';
   overlay.appendChild(panel);
   overlay.onclick=e=>{if(e.target===overlay)overlay.remove();};
   document.body.appendChild(overlay);
   const render=()=>{
+    if(!document.getElementById('_seclist_modal'))return;
     const list=SECTORS_DB.filter(x=>!x.deleted).sort((a,b)=>String(a.name).localeCompare(String(b.name)));
-    const td='padding:6px 8px;border-bottom:1px solid var(--border);white-space:nowrap;font-size:11px;';
-    let h='<div style="display:flex;align-items:center;gap:10px;margin-bottom:12px;"><div style="font-size:13px;font-weight:600;color:var(--text);">Sector list</div><span style="font-size:11px;color:var(--muted);">'+list.length+' saved</span><button id="_seclist_draw" style="margin-left:auto;background:var(--s3);border:1px solid var(--border);color:var(--text);border-radius:6px;padding:4px 10px;font-size:11px;cursor:pointer;">✎ Draw</button><button id="_seclist_import" style="background:var(--s3);border:1px solid var(--border);color:var(--text);border-radius:6px;padding:4px 10px;font-size:11px;cursor:pointer;">Import</button>'+(list.length?'<button id="_seclist_shareall" style="background:var(--s3);border:1px solid var(--border);color:var(--text);border-radius:6px;padding:4px 10px;font-size:11px;cursor:pointer;">Share all</button>':'')+'<button id="_seclist_close" style="background:var(--s3);border:1px solid var(--border);color:var(--muted);border-radius:6px;padding:4px 10px;font-size:11px;cursor:pointer;">Close</button></div>';
-    if(!list.length){
-      h+='<div class="sz-loading">No sectors yet. Tap ✎ Draw to draw one on the map, or open a session and click ＋ Create Sector.</div>';
-    }else{
-      h+='<div class="twrap" style="max-height:none;"><table style="width:100%;"><thead><tr><th style="text-align:left;">Sector</th><th>Distance</th><th>Results</th><th>PB</th><th>PB Pace</th><th>PB Date</th><th>Target</th><th></th></tr></thead><tbody>';
-      list.forEach(x=>{
-        const b=x.best;
-        const pbDate=b?(b.fileId?'<a href="#" style="color:var(--accent,#29b8ff);" data-act="best" data-id="'+x.id+'">'+fmtRecordDate(b.date)+'</a>':fmtRecordDate(b.date)):'—';
-        h+='<tr data-row="'+x.id+'" style="cursor:pointer;"><td style="'+td+'text-align:left;font-weight:600;">'+_secEsc(x.name)+'</td>'
-          +'<td style="'+td+'">'+x.distance+' m</td>'
-          +'<td style="'+td+'">'+((x.results||[]).length)+'</td>'
-          +'<td style="'+td+'">'+(b?fmtRecordTime(b.timeMs):'—')+'</td>'
-          +'<td style="'+td+'">'+(b?fmtPaceU(sectorPace(b.timeMs,x.distance)):'—')+'</td>'
-          +'<td style="'+td+'">'+pbDate+'</td>'
-          +(()=>{const tg=secTargetOf(x);return '<td style="'+td+'"><a href="#" style="color:var(--accent,#29b8ff);" data-act="target" data-id="'+x.id+'">'+(tg?(tg.mode==='plan'?fmtRecordTime(tg.ms):'PB')+' \u00b7 '+fmtPaceU(sectorPace(tg.ms,x.distance)):'set')+'</a></td>';})()
-          +'<td style="'+td+'text-align:right;"><a href="#" style="color:var(--accent,#29b8ff);" data-act="compare" data-id="'+x.id+'">compare</a> · <a href="#" style="color:var(--accent,#29b8ff);" data-act="share" data-id="'+x.id+'">share</a> · <a href="#" style="color:var(--accent,#29b8ff);" data-act="edit" data-id="'+x.id+'">edit</a> · <a href="#" style="color:#f54040;" data-act="delete" data-id="'+x.id+'">delete</a></td></tr>';
-      });
-      h+='</tbody></table></div>';
-    }
+    let h='<div style="display:flex;align-items:center;gap:8px;margin-bottom:12px;"><div style="font-size:13px;font-weight:600;color:var(--text);">Sectors</div><span style="font-size:11px;color:var(--muted);">'+list.length+' saved</span>'
+      +'<button class="hbtn" id="_seclist_import" style="margin-left:auto;font-size:11px;">Import</button>'
+      +'<button class="hbtn" id="_seclist_draw" style="font-size:11px;">\u270E Draw</button>'
+      +'<button class="hbtn" id="_seclist_close" style="font-size:11px;">Close</button></div>';
+    if(!list.length)h+='<div class="sz-loading">No sectors yet. Tap \u270E Draw to draw one on the map, or open a session and click \uFF0B Create Sector.</div>';
+    else list.forEach(x=>{h+=secTileHtml(x);});
     panel.innerHTML=h;
     document.getElementById('_seclist_close').onclick=()=>overlay.remove();
-    if(!render._pulled){render._pulled=true;pullSectorsFromDrive(true,()=>{if(document.getElementById('_seclist_modal'))render();});}
     document.getElementById('_seclist_import').onclick=()=>window.importSectorsFile(render);
     document.getElementById('_seclist_draw').onclick=()=>{overlay.remove();window.drawSector();};
-    const _sa=document.getElementById('_seclist_shareall');
-    if(_sa)_sa.onclick=()=>window.shareSectors(list.map(x=>x.id));
-    panel.querySelectorAll('tr[data-row]').forEach(tr=>{tr.onclick=()=>{overlay.remove();window.openSectorCompare(tr.dataset.row);};});
-    panel.querySelectorAll('a[data-act]').forEach(a=>{
+    secTilesWire(panel,true);
+  };
+  window._secListRender=render;
+  render();
+  pullSectorsFromDrive(true,render);
+};
+/* Sector detail: same as the Metrics sector card, plus compare, share, edit. */
+window.openSectorDetail=function(id,fromList){
+  if(!isPro()){showPlanModal('Sectors are a Pro feature.');return;}
+  if(!SECTORS_DB.some(x=>x.id===id&&!x.deleted)){toast('Sector not found');return;}
+  document.getElementById('_secdet_modal')?.remove();
+  const overlay=document.createElement('div');
+  overlay.id='_secdet_modal';
+  overlay.style.cssText='position:fixed;inset:0;background:rgba(0,0,0,.72);display:flex;align-items:center;justify-content:center;z-index:9998;padding:16px;';
+  const panel=document.createElement('div');
+  panel.style.cssText='background:var(--s2);border:1px solid var(--border);border-radius:10px;max-width:720px;width:100%;max-height:86vh;overflow-y:auto;padding:14px 16px;';
+  overlay.appendChild(panel);
+  const close=()=>overlay.remove();
+  overlay.onclick=e=>{if(e.target===overlay)close();};
+  document.body.appendChild(overlay);
+  const card='background:var(--s1);border:1px solid var(--border);border-radius:12px;';
+  const btn='background:var(--s1);border:1px solid var(--border);border-radius:12px;padding:8px 4px;font-size:12px;font-weight:700;color:var(--accent,#29b8ff);cursor:pointer;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:4px;flex:1;min-width:0;';
+  const render=()=>{
+    const s=SECTORS_DB.find(x=>x.id===id&&!x.deleted);
+    if(!s){close();return;}
+    const b=s.best;
+    const res=(s.results||[]).filter(r=>r&&r.timeMs>0).slice().sort((p,q)=>(Date.parse(q.date)||0)+(q.startT||0)-(Date.parse(p.date)||0)-(p.startT||0));
+    const tg=secTargetOf(s), isPlan=tg&&tg.mode==='plan';
+    let h='<div style="display:flex;align-items:center;gap:10px;margin-bottom:10px;"><button class="hbtn" id="_secdet_back" style="font-size:11px;">\u2190 '+(fromList?'Sectors':'Close')+'</button><div style="flex:1;min-width:0;font-size:16px;font-weight:800;color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;text-align:right;">'+_secEsc(s.name)+'</div></div>';
+    h+='<div style="display:flex;gap:8px;margin-bottom:10px;align-items:stretch;"><div style="flex:1;min-width:0;'+card+'padding:12px 14px;display:flex;align-items:center;gap:12px;">'
+      +'<div style="flex:1;min-width:0;"><div style="font-size:11px;font-weight:700;letter-spacing:.08em;color:var(--muted);">PERSONAL BEST</div>'
+      +'<div style="font-size:30px;font-weight:800;color:'+(b?'#2ee06a':'var(--muted)')+';">'+(b?fmtRecordTime(b.timeMs):'--')+'</div>'
+      +'<div style="font-size:13px;color:var(--text);">'+(b?fmtPaceU(sectorPace(b.timeMs,s.distance))+' '+paceULabel()+(b.rate!=null?' \u00b7 '+Number(b.rate).toFixed(1)+' spm':'')+' \u00b7 '+fmtRecordDate(b.date):'No result yet')+'</div></div>'
+      +'<div style="text-align:right;font-size:13px;color:var(--muted);">'+s.distance+' m<br>'+res.length+' result'+(res.length===1?'':'s')+'</div></div>'
+      +'<button data-det="map" style="'+btn+'flex:0 0 72px;"><span style="font-size:22px;">\uD83D\uDCCD</span>MAP</button></div>';
+    h+='<div style="display:flex;gap:8px;margin-bottom:10px;">'
+      +'<button data-det="compare" style="'+btn+'">COMPARE</button>'
+      +'<button data-det="share" style="'+btn+'">SHARE</button>'
+      +'<button data-det="edit" style="'+btn+'">EDIT</button>'
+      +'<button data-det="delete" style="'+btn+'color:#f54040;">DELETE</button></div>';
+    h+='<div style="'+card+'padding:12px 14px;margin-bottom:10px;display:flex;align-items:center;gap:10px;">'
+      +'<div style="flex:1;min-width:0;"><div style="font-size:11px;font-weight:700;letter-spacing:.08em;color:var(--muted);margin-bottom:4px;">TARGET</div>'
+      +'<div style="font-size:14px;font-weight:700;color:'+(isPlan?'#29b8ff':tg?'#2ee06a':'var(--muted)')+';">'+(tg?(isPlan?'Planned '+fmtRecordTime(tg.ms):'PB '+fmtRecordTime(tg.ms))+' \u00b7 '+fmtPaceU(sectorPace(tg.ms,s.distance))+' '+paceULabel():'No target')+'</div></div>'
+      +'<button class="hbtn" data-det="target" style="font-size:11px;">Set target</button></div>';
+    if(res.length){
+      const td='padding:6px 8px;border-bottom:1px solid var(--border);white-space:nowrap;font-size:12px;';
+      h+='<div style="'+card+'padding:8px 10px;"><div class="twrap" style="max-height:none;"><table style="width:100%;"><thead><tr><th style="text-align:left;">Date</th><th>Time</th><th>Pace</th><th>Rate</th></tr></thead><tbody>';
+      res.forEach((r,i)=>{
+        const isPB=b&&((b.key&&r.key===b.key)||Math.abs(b.timeMs-r.timeMs)<50);
+        const dt=fmtRecordDate(r.date);
+        h+='<tr'+(isPB?' style="background:rgba(46,224,106,.12);"':'')+'>'
+          +'<td style="'+td+'text-align:left;">'+(r.fileId?'<a href="#" data-res="'+i+'" style="color:var(--accent,#29b8ff);font-weight:700;text-decoration:none;">'+dt+'</a>':dt)+'</td>'
+          +'<td style="'+td+'">'+fmtRecordTime(r.timeMs)+(isPB?' <span style="color:#2ee06a;font-weight:800;">PB</span>':'')+'</td>'
+          +'<td style="'+td+'">'+fmtPaceU(sectorPace(r.timeMs,s.distance))+'</td>'
+          +'<td style="'+td+'">'+(r.rate!=null?Number(r.rate).toFixed(1):'--')+'</td></tr>';
+      });
+      h+='</tbody></table></div></div>';
+    }
+    panel.innerHTML=h;
+    document.getElementById('_secdet_back').onclick=close;
+    panel.querySelectorAll('[data-det]').forEach(el=>{
+      el.onclick=()=>{
+        const a=el.dataset.det;
+        if(a==='map')window.showSectorOnMap(id);
+        else if(a==='compare')window.openSectorCompare(id);
+        else if(a==='share')window.shareSectors([id]);
+        else if(a==='edit')window.editSector(id);
+        else if(a==='target')window.editSectorTarget(id,secRefreshViews);
+        else if(a==='delete'){window.deleteSector(id);if(!SECTORS_DB.some(x=>x.id===id&&!x.deleted)){close();secRefreshViews();}}
+      };
+    });
+    panel.querySelectorAll('a[data-res]').forEach(a=>{
       a.onclick=e=>{
         e.preventDefault();
-        e.stopPropagation();
-        const id=a.dataset.id, act=a.dataset.act;
-        if(act==='delete'){window.deleteSector(id);render();}
-        else if(act==='edit'){overlay.remove();window.editSector(id);}
-        else if(act==='compare'){overlay.remove();window.openSectorCompare(id);}
-        else if(act==='best'){overlay.remove();window.loadSectorBest(id);}
-        else if(act==='share'){window.shareSectors([id]);}
-        else if(act==='target'){window.editSectorTarget(id,render);}
+        const r=res[+a.dataset.res];if(!r)return;
+        close();document.getElementById('_seclist_modal')?.remove();
+        openSectorResultSession(r);
       };
     });
   };
+  overlay._render=render;
   render();
 };
 let _sectorHL=null;
@@ -3856,49 +3931,19 @@ window.deleteSector=function(id){
   saveSectors();
   renderSectors();
 };
-/* Start page: Sectors pane above the Summary. */
+/* Start page: Sectors pane above the Summary, one tile per sector. */
 function renderStartSectors(){
   const box=document.getElementById('sz-sectors'); if(!box)return;
   if(!isPro()){box.style.display='none';box.innerHTML='';return;}
   box.style.display='';
   const list=SECTORS_DB.filter(x=>!x.deleted).sort((a,b)=>String(a.name).localeCompare(String(b.name)));
-  const td='padding:5px 6px;white-space:nowrap;font-size:11px;';
-  const lk='color:var(--accent,#29b8ff);text-decoration:none;';
-  const act=(a,id,t,c)=>'<a href="#" style="'+(c?'color:'+c+';text-decoration:none;':lk)+'" data-act="'+a+'" data-id="'+id+'">'+t+'</a>';
-  let h='<div class="sz-lhd" style="margin-bottom:8px;">Sectors<span style="display:flex;gap:6px;"><button class="hbtn" id="sz-sec-draw" style="font-size:10px;">\u270E Draw</button><button class="hbtn" id="sz-sec-import" style="font-size:10px;">Import</button></span></div>';
-  if(!list.length){
-    h+='<div class="sz-loading">No sectors yet. Tap \u270E Draw to draw one on the map.</div>';
-  }else{
-    h+='<div class="twrap" style="max-height:340px;overflow:auto;"><table style="width:100%;"><thead><tr><th style="text-align:left;">Sector</th><th>Distance</th><th>Results</th><th>PB Date</th><th>PB</th><th>PB Pace</th></tr></thead><tbody>';
-    list.forEach(x=>{
-      const b=x.best;
-      const pbDate=b?(b.fileId?act('best',x.id,fmtRecordDate(b.date)):fmtRecordDate(b.date)):'\u2014';
-      h+='<tr><td style="'+td+'text-align:left;font-weight:600;border-bottom:0;">'+_secEsc(x.name)+'</td>'
-        +'<td style="'+td+'border-bottom:0;">'+x.distance+' m</td>'
-        +'<td style="'+td+'border-bottom:0;">'+((x.results||[]).length)+'</td>'
-        +'<td style="'+td+'border-bottom:0;">'+pbDate+'</td>'
-        +'<td style="'+td+'border-bottom:0;">'+(b?fmtRecordTime(b.timeMs):'\u2014')+'</td>'
-        +'<td style="'+td+'border-bottom:0;">'+(b?fmtPaceU(sectorPace(b.timeMs,x.distance)):'\u2014')+'</td></tr>'
-        +'<tr><td colspan="6" style="'+td+'text-align:left;padding-top:0;padding-bottom:7px;border-bottom:1px solid var(--border);">'
-        +act('compare',x.id,'compare')+' \u00b7 '+act('share',x.id,'share')+' \u00b7 '+act('edit',x.id,'edit')+' \u00b7 '+act('map',x.id,'show on map')+' \u00b7 '+act('delete',x.id,'delete','#f54040')+'</td></tr>';
-    });
-    h+='</tbody></table></div>';
-  }
+  let h='<div class="sz-lhd" style="margin-bottom:8px;">Sectors<span style="display:flex;gap:6px;"><button class="hbtn" id="sz-sec-import" style="font-size:10px;">Import</button><button class="hbtn" id="sz-sec-draw" style="font-size:10px;">\u270E Draw</button></span></div>';
+  if(!list.length)h+='<div class="sz-loading">No sectors yet. Tap \u270E Draw to draw one on the map.</div>';
+  else h+='<div style="max-height:420px;overflow-y:auto;">'+list.map(secTileHtml).join('')+'</div>';
   box.innerHTML=h;
   document.getElementById('sz-sec-draw').onclick=()=>window.drawSector();
   document.getElementById('sz-sec-import').onclick=()=>window.importSectorsFile(renderStartSectors);
-  box.querySelectorAll('a[data-act]').forEach(a=>{
-    a.onclick=e=>{
-      e.preventDefault();
-      const id=a.dataset.id, ac=a.dataset.act;
-      if(ac==='delete'){window.deleteSector(id);renderStartSectors();}
-      else if(ac==='edit')window.editSector(id);
-      else if(ac==='compare')window.openSectorCompare(id);
-      else if(ac==='best')window.loadSectorBest(id);
-      else if(ac==='share')window.shareSectors([id]);
-      else if(ac==='map')window.showSectorOnMap(id);
-    };
-  });
+  secTilesWire(box,false);
 }
 window.showSectorOnMap=function(id){
   if(!isPro()){showPlanModal('Sectors are a Pro feature.');return;}
@@ -3907,7 +3952,7 @@ window.showSectorOnMap=function(id){
   document.getElementById('_secmap_modal')?.remove();
   const overlay=document.createElement('div');
   overlay.id='_secmap_modal';
-  overlay.style.cssText='position:fixed;inset:0;background:rgba(0,0,0,.72);display:flex;align-items:center;justify-content:center;z-index:9998;padding:8px;';
+  overlay.style.cssText='position:fixed;inset:0;background:rgba(0,0,0,.72);display:flex;align-items:center;justify-content:center;z-index:10000;padding:8px;';
   const panel=document.createElement('div');
   panel.style.cssText='background:var(--s1);border:1px solid var(--border);border-radius:10px;width:100%;max-width:1000px;height:86vh;box-sizing:border-box;display:flex;flex-direction:column;overflow:hidden;padding:12px 14px;';
   panel.innerHTML='<div style="display:flex;align-items:center;gap:10px;margin-bottom:8px;"><div style="font-size:13px;font-weight:600;color:var(--text);">'+_secEsc(s.name)+' \u00b7 '+s.distance+' m</div><button class="hbtn" id="_secmap_close" style="margin-left:auto;font-size:11px;">Close</button></div>'
