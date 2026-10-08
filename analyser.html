@@ -2677,7 +2677,7 @@ function sessHasVideo(f){
   if(!f) return false;
   return /_VID1/.test(String(f.name||'')) || sessVidIds().has(f.id);
 }
-const VID_BADGE='<span class="asc-badge" title="Has video" style="background:rgba(46,204,113,.18);color:#2ecc71;">&#127909; Video</span>';
+const VID_BADGE='<span class="asc-badge" title="Has video" style="background:#b9e8c6;color:#000!important;">&#127909; Video</span>';
 /* Erg fix-ups on load, for sessions saved by older Metrics builds:
    1. The PM5 sends its stroke packet twice per stroke, and older builds saved a
       record for each. The repeat carries the same drive data (peak force and
@@ -3302,18 +3302,18 @@ function renderSectors(){
   const nAll=SECTORS_DB.filter(s=>!s.deleted).length;
   const lbl=document.getElementById('sectorlbl');
   if(lbl&&!_sectorScanBusy)lbl.textContent=nAll+' saved';
-  if(!rows.length){body.innerHTML='<div style="font-size:10px;color:var(--muted);padding:4px 0;">No sectors in this session'+(nAll?' · <a href="#" style="color:var(--accent,#29b8ff);" onclick="event.preventDefault();window.showSectorList()">sector list ('+nAll+')</a>':'')+'</div>';return;}
+  if(!rows.length){body.innerHTML='<div style="font-size:10px;color:var(--muted);padding:4px 0;">No sectors in this session'+(nAll?' · <a href="#" style="color:#1a5276;" onclick="event.preventDefault();window.showSectorList()">sector list ('+nAll+')</a>':'')+'</div>';return;}
   rows.sort((a,b)=>a.h.startT-b.h.startT);
   const td='padding:4px 6px;border-bottom:1px solid var(--border);white-space:nowrap;';
   const box2='background:var(--s1);border-radius:14px;padding:8px 10px;box-shadow:var(--pill-sh);';
   let h='<div class="sumgrp-hd">This session</div><div class="twrap" style="'+box2+'margin-bottom:12px;"><table style="width:100%;font-size:10px;"><thead><tr><th style="text-align:left;">Sector</th><th>Time (PB)</th><th>Pace (PB)</th><th>Rate</th></tr></thead><tbody>';
   rows.forEach(r=>{
     const s=r.s, b=s.best, isPB=b&&Math.abs(b.timeMs-r.h.timeMs)<50;
-    const pbDate=b?(b.fileId?'<a href="#" style="color:var(--accent,#29b8ff);" onclick="event.preventDefault();event.stopPropagation();window.loadSectorBest(\''+s.id+'\')">'+fmtRecordDate(b.date)+'</a>':fmtRecordDate(b.date)):'—';
+    const pbDate=b?(b.fileId?'<a href="#" style="color:#1a5276;" onclick="event.preventDefault();event.stopPropagation();window.loadSectorBest(\''+s.id+'\')">'+fmtRecordDate(b.date)+'</a>':fmtRecordDate(b.date)):'—';
     const hk=s.id+'|'+Math.round(r.h.startT);
     const ck=((cur&&cur.fileId)||(cur&&cur.label)||'local')+'|'+Math.round(r.h.startT);
-    h+='<tr data-hl="'+hk+'" data-t1="'+Math.round(r.h.endT)+'" style="cursor:pointer;" onclick="window.highlightSector(\''+s.id+'\','+Math.round(r.h.startT)+','+Math.round(r.h.endT)+')"><td style="'+td+'text-align:left;"><div style="font-weight:600;">'+_secEsc(s.name)+'</div><div style="color:var(--muted);">'+s.distance+'m · <a href="#" style="color:var(--accent,#29b8ff);" onclick="event.preventDefault();event.stopPropagation();window.openSectorCompare(\''+s.id+'\',\''+_secEsc(ck)+'\')">compare</a></div></td>'
-      +'<td style="'+td+'">'+fmtRecordTime(r.h.timeMs)+(isPB?' <span style="color:#2ee06a;font-weight:700;">PB</span>':(b?' <span style="color:var(--muted);">('+fmtRecordTime(b.timeMs)+')</span>':''))+'</td>'
+    h+='<tr data-hl="'+hk+'" data-t1="'+Math.round(r.h.endT)+'" style="cursor:pointer;" onclick="window.highlightSector(\''+s.id+'\','+Math.round(r.h.startT)+','+Math.round(r.h.endT)+')"><td style="'+td+'text-align:left;"><div style="font-weight:600;">'+_secEsc(s.name)+'</div><div style="color:var(--muted);">'+s.distance+'m · <a href="#" style="color:#1a5276;" onclick="event.preventDefault();event.stopPropagation();window.openSectorCompare(\''+s.id+'\',\''+_secEsc(ck)+'\')">compare</a></div></td>'
+      +'<td style="'+td+'">'+fmtRecordTime(r.h.timeMs)+(isPB?' <span style="color:#1b7a34;font-weight:700;">PB</span>':(b?' <span style="color:var(--muted);">('+fmtRecordTime(b.timeMs)+')</span>':''))+'</td>'
       +'<td style="'+td+'">'+fmtPaceU(sectorPace(r.h.timeMs,s.distance))+(isPB?'':(b?' <span style="color:var(--muted);">('+fmtPaceU(sectorPace(b.timeMs,s.distance))+')</span>':''))+'</td>'
       +'<td style="'+td+'">'+(r.rate!=null?r.rate.toFixed(1):'—')+'</td></tr>';
   });
@@ -3323,7 +3323,7 @@ function renderSectors(){
   rows.forEach(r=>{
     const s=r.s, b=s.best;
     if(_pbSeen.has(s.id))return; _pbSeen.add(s.id);
-    const pbDate=b?(b.fileId?'<a href="#" style="color:var(--accent,#29b8ff);" onclick="event.preventDefault();event.stopPropagation();window.loadSectorBest(\''+s.id+'\')">'+fmtRecordDate(b.date)+'</a>':fmtRecordDate(b.date)):'—';
+    const pbDate=b?(b.fileId?'<a href="#" style="color:#1a5276;" onclick="event.preventDefault();event.stopPropagation();window.loadSectorBest(\''+s.id+'\')">'+fmtRecordDate(b.date)+'</a>':fmtRecordDate(b.date)):'—';
     h+='<tr><td style="'+td+'text-align:left;font-weight:600;">'+_secEsc(s.name)+'</td>'
       +'<td style="'+td+'">'+(b?fmtRecordTime(b.timeMs):'')+'</td>'
       +'<td style="'+td+'">'+(b?fmtPaceU(sectorPace(b.timeMs,s.distance)):'')+'</td>'
@@ -3456,7 +3456,7 @@ function _sectorPanelUpdate(){
     const old=c.editId?SECTORS_DB.find(x=>x.id===c.editId):null;
     el.innerHTML='<div style="display:flex;align-items:center;gap:8px;margin-bottom:8px;"><b>'+(c.editId?'Redraw sector':'New sector')+'</b><span id="sectorAdjustLen" style="color:var(--muted);"></span></div>'
       +'<div style="color:var(--muted);font-size:10px;margin-bottom:8px;">Drag S or F, click the track to move the nearest end, or nudge along the track.</div>'
-      +row('start','Start','#2ee06a')+row('finish','Finish','#f54040')
+      +row('start','Start','#1b7a34')+row('finish','Finish','#f54040')
       +'<input type="text" id="sectorAdjustName" class="brsearch" placeholder="Sector name" style="width:100%;box-sizing:border-box;margin:4px 0 8px;" value="'+(old?_secEsc(old.name):'')+'">'
       +'<div style="display:flex;gap:6px;"><button class="dzbtn dzbtn-pri" onclick="window.sectorSaveCreate()">Save sector</button><button class="dzbtn dzbtn-sec" onclick="cancelSectorCreate()"><span>Cancel</span></button></div>';
     const mb=document.getElementById('mapbox');
@@ -4169,8 +4169,8 @@ function _secCmpRenderPicker(){
     const ok=_secCmpAvailable(r), isPB=sec.best&&sec.best.key===r.key;
     h+='<tr style="opacity:'+(ok?1:0.45)+';"><td style="'+td+'"><input type="checkbox" data-key="'+_secEsc(r.key)+'" '+(ok?'':'disabled')+(c.picked.has(r.key)?' checked':'')+'></td>'
       +'<td style="'+td+'text-align:left;">'+fmtRecordDate(r.date)+'</td>'
-      +'<td style="'+td+'text-align:left;">'+(ok?'<a href="#" data-open="'+_secEsc(r.key)+'" style="color:var(--accent,#29b8ff);">'+_secEsc(r.label)+'</a>':_secEsc(r.label)+' <span style="color:var(--muted);">(not on Drive)</span>')+'</td>'
-      +'<td style="'+td+'">'+fmtRecordTime(r.timeMs)+(isPB?' <span style="color:#2ee06a;font-weight:700;">PB</span>':'')+'</td>'
+      +'<td style="'+td+'text-align:left;">'+(ok?'<a href="#" data-open="'+_secEsc(r.key)+'" style="color:#1a5276;">'+_secEsc(r.label)+'</a>':_secEsc(r.label)+' <span style="color:var(--muted);">(not on Drive)</span>')+'</td>'
+      +'<td style="'+td+'">'+fmtRecordTime(r.timeMs)+(isPB?' <span style="color:#1b7a34;font-weight:700;">PB</span>':'')+'</td>'
       +'<td style="'+td+'">'+fmtPaceU(sectorPace(r.timeMs,sec.distance))+'</td>'
       +'<td style="'+td+'">'+(r.rate!=null?r.rate.toFixed(1):'—')+'</td></tr>';
   });
@@ -4393,7 +4393,7 @@ function _secCmpCards(){
     const gapTxt=s.done?fmtRecordTime(s.h.timeMs):(Math.abs(gap)<0.5?'Leader':Math.round(gap)+' m');
     const row=(l,v)=>'<div style="display:flex;justify-content:space-between;gap:8px;font-size:11px;padding:1px 0;"><span style="color:var(--muted);">'+l+'</span><span style="color:var(--text);font-weight:600;">'+v+'</span></div>';
     let h='<div style="border:2px solid '+s.color+';border-radius:8px;padding:8px 10px;background:var(--s2,rgba(255,255,255,.03));">';
-    h+='<div style="display:flex;align-items:center;gap:6px;margin-bottom:4px;"><span style="width:10px;height:10px;background:'+s.color+';transform:rotate(45deg);display:inline-block;"></span><span style="font-size:11px;font-weight:700;color:var(--text);">'+fmtRecordDate(s.r.date)+'</span><span style="margin-left:auto;font-size:12px;font-weight:700;color:'+(s.done?'#2ee06a':(Math.abs(gap)<0.5?'#2ee06a':'#f54040'))+';">'+gapTxt+'</span></div>';
+    h+='<div style="display:flex;align-items:center;gap:6px;margin-bottom:4px;"><span style="width:10px;height:10px;background:'+s.color+';transform:rotate(45deg);display:inline-block;"></span><span style="font-size:11px;font-weight:700;color:var(--text);">'+fmtRecordDate(s.r.date)+'</span><span style="margin-left:auto;font-size:12px;font-weight:700;color:'+(s.done?'#1b7a34':(Math.abs(gap)<0.5?'#1b7a34':'#f54040'))+';">'+gapTxt+'</span></div>';
     h+=row('Elapsed',_secCmpFmtElapsed(Math.min(c.simT,s.h.timeMs)));
     h+=row('To go',Math.max(0,Math.round(c.sec.distance-s.dNow))+' m');
     keys.forEach(m=>{
