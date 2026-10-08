@@ -3782,6 +3782,12 @@ function secTileHtml(x){
 function secTilesWire(root,fromList){
   root.querySelectorAll('[data-sec-open]').forEach(t=>{t.onclick=()=>window.openSectorDetail(t.dataset.secOpen,fromList);});
 }
+function secSaveTarget(id,mode,ms){
+  SEC_TARGETS[id]={mode,ms:mode==='plan'?(ms||0):0,t:Date.now()};
+  try{localStorage.setItem('br_sec_targets',JSON.stringify(SEC_TARGETS));}catch(e){}
+  pushSecTargets().then(ok=>{if(!ok&&AnalyserDrive.isSignedIn())toast('Target saved here \u2014 Drive update failed');});
+  secRefreshViews();
+}
 function secRefreshViews(){
   try{renderStartSectors();}catch(e){}
   try{if(document.getElementById('_seclist_modal')&&typeof window._secListRender==='function')window._secListRender();}catch(e){}
@@ -3832,7 +3838,7 @@ window.openSectorDetail=function(id,fromList){
   overlay.onclick=e=>{if(e.target===overlay)close();};
   document.body.appendChild(overlay);
   const card='background:var(--s1);border:1px solid var(--border);border-radius:12px;';
-  const btn='background:var(--s1);border:1px solid var(--border);border-radius:12px;padding:8px 4px;font-size:12px;font-weight:700;color:var(--accent,#29b8ff);cursor:pointer;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:4px;flex:1;min-width:0;';
+  const btn='background:var(--s1);border:1px solid var(--border);border-radius:12px;padding:8px 4px;font-size:12px;font-weight:700;color:#1a5276;cursor:pointer;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:4px;flex:1;min-width:0;';
   const render=()=>{
     const s=SECTORS_DB.find(x=>x.id===id&&!x.deleted);
     if(!s){close();return;}
@@ -3842,8 +3848,8 @@ window.openSectorDetail=function(id,fromList){
     let h='<div style="display:flex;align-items:center;gap:10px;margin-bottom:10px;"><button class="hbtn" id="_secdet_back" style="font-size:11px;">\u2190 '+(fromList?'Sectors':'Close')+'</button><div style="flex:1;min-width:0;font-size:16px;font-weight:800;color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;text-align:right;">'+_secEsc(s.name)+'</div></div>';
     h+='<div style="display:flex;gap:8px;margin-bottom:10px;align-items:stretch;"><div style="flex:1;min-width:0;'+card+'padding:12px 14px;display:flex;align-items:center;gap:12px;">'
       +'<div style="flex:1;min-width:0;"><div style="font-size:11px;font-weight:700;letter-spacing:.08em;color:var(--muted);">PERSONAL BEST</div>'
-      +'<div style="font-size:30px;font-weight:800;color:'+(b?'#2ee06a':'var(--muted)')+';">'+(b?fmtRecordTime(b.timeMs):'--')+'</div>'
-      +'<div style="font-size:13px;color:var(--text);">'+(b?fmtPaceU(sectorPace(b.timeMs,s.distance))+' '+paceULabel()+(b.rate!=null?' \u00b7 '+Number(b.rate).toFixed(1)+' spm':'')+' \u00b7 '+fmtRecordDate(b.date):'No result yet')+'</div></div>'
+      +'<div style="font-size:30px;font-weight:800;color:'+(b?'#1b7a34':'var(--muted)')+';">'+(b?fmtRecordTime(b.timeMs):'--')+'</div>'
+      +'<div style="font-size:13px;color:var(--text);">'+(b?fmtPaceU(sectorPace(b.timeMs,s.distance))+' '+paceULabel()+(b.rate!=null?' \u00b7 '+Number(b.rate).toFixed(1)+' spm':'')+' \u00b7 <span style="color:#1a5276;font-weight:700;">'+fmtRecordDate(b.date)+'</span>':'No result yet')+'</div></div>'
       +'<div style="text-align:right;font-size:13px;color:var(--muted);">'+s.distance+' m<br>'+res.length+' result'+(res.length===1?'':'s')+'</div></div>'
       +'<button data-det="map" style="'+btn+'flex:0 0 72px;"><span style="font-size:22px;">\uD83D\uDCCD</span>MAP</button></div>';
     h+='<div style="display:flex;gap:8px;margin-bottom:10px;">'
@@ -3851,10 +3857,25 @@ window.openSectorDetail=function(id,fromList){
       +'<button data-det="share" style="'+btn+'">SHARE</button>'
       +'<button data-det="edit" style="'+btn+'">EDIT</button>'
       +'<button data-det="delete" style="'+btn+'color:#f54040;">DELETE</button></div>';
-    h+='<div style="'+card+'padding:12px 14px;margin-bottom:10px;display:flex;align-items:center;gap:10px;">'
-      +'<div style="flex:1;min-width:0;"><div style="font-size:11px;font-weight:700;letter-spacing:.08em;color:var(--muted);margin-bottom:4px;">TARGET</div>'
-      +'<div style="font-size:14px;font-weight:700;color:'+(isPlan?'#29b8ff':tg?'#2ee06a':'var(--muted)')+';">'+(tg?(isPlan?'Planned '+fmtRecordTime(tg.ms):'PB '+fmtRecordTime(tg.ms))+' \u00b7 '+fmtPaceU(sectorPace(tg.ms,s.distance))+' '+paceULabel():'No target')+'</div></div>'
-      +'<button class="hbtn" data-det="target" style="font-size:11px;">Set target</button></div>';
+    {const tc=SEC_TARGETS[id]||{}, plan=tc.mode==='plan';
+      const seg=(on)=>'flex:1;padding:7px 6px;border-radius:7px;border:none;font-size:11px;font-weight:600;cursor:pointer;'+(on?'background:#007aff;color:#fff;box-shadow:0 1px 2px rgba(0,0,0,.15);':'background:transparent;color:var(--text);');
+      h+='<div style="'+card+'padding:12px 14px;margin-bottom:10px;">'
+        +'<div style="font-size:11px;font-weight:700;letter-spacing:.08em;color:var(--muted);margin-bottom:8px;">TARGET</div>'
+        +'<div style="display:flex;gap:2px;background:var(--s3);border-radius:9px;padding:2px;margin-bottom:8px;">'
+        +'<button data-tmode="pb" style="'+seg(!plan)+'">PB</button><button data-tmode="plan" style="'+seg(plan)+'">PLANNED TIME</button></div>';
+      if(plan){
+        const ms=tc.ms>0?tc.ms:(b?b.timeMs:0), t0=Math.round(ms/1000),hh=Math.floor(t0/3600),mm=Math.floor(t0%3600/60),ss=t0%60;
+        const opt=(n,sel,pad)=>{let o='';for(let k=0;k<n;k++)o+='<option value="'+k+'"'+(k===sel?' selected':'')+'>'+(pad?String(k).padStart(2,'0'):k)+'</option>';return o;};
+        const st='font-size:18px;font-weight:700;padding:6px 4px;border:1px solid var(--border);border-radius:8px;background:var(--s2);color:var(--text);font-family:inherit;';
+        h+='<div style="display:flex;align-items:center;gap:10px;"><div style="display:flex;align-items:center;gap:4px;">'
+          +'<select id="_secdet_h" style="'+st+'">'+opt(6,hh,false)+'</select><span style="font-size:18px;font-weight:700;color:var(--text);">:</span>'
+          +'<select id="_secdet_m" style="'+st+'">'+opt(60,mm,true)+'</select><span style="font-size:18px;font-weight:700;color:var(--text);">:</span>'
+          +'<select id="_secdet_s" style="'+st+'">'+opt(60,ss,true)+'</select></div>'
+          +'<div style="font-size:14px;color:var(--text);">'+(tc.ms>0?fmtPaceU(sectorPace(tc.ms,s.distance))+' '+paceULabel():'Constant pace')+'</div></div>';
+      } else {
+        h+='<div style="font-size:14px;color:var(--text);">'+(b?fmtRecordTime(b.timeMs)+' \u00b7 '+fmtPaceU(sectorPace(b.timeMs,s.distance))+' '+paceULabel():'')+'</div>';
+      }
+      h+='<div style="font-size:11px;color:var(--muted);margin-top:6px;">'+(plan?(tc.ms>0?'':'Enter a time. ')+'Live sector shows metres ahead or behind a boat at constant pace.':(b?'Live sector shows metres ahead or behind your PB row.':'No PB yet.'))+'</div></div>';}
     if(res.length){
       const td='padding:6px 8px;border-bottom:1px solid var(--border);white-space:nowrap;font-size:12px;';
       h+='<div style="'+card+'padding:8px 10px;"><div class="twrap" style="max-height:none;"><table style="width:100%;"><thead><tr><th style="text-align:left;">Date</th><th>Time</th><th>Pace</th><th>Rate</th></tr></thead><tbody>';
@@ -3862,8 +3883,8 @@ window.openSectorDetail=function(id,fromList){
         const isPB=b&&((b.key&&r.key===b.key)||Math.abs(b.timeMs-r.timeMs)<50);
         const dt=fmtRecordDate(r.date);
         h+='<tr'+(isPB?' style="background:rgba(46,224,106,.12);"':'')+'>'
-          +'<td style="'+td+'text-align:left;">'+(r.fileId?'<a href="#" data-res="'+i+'" style="color:var(--accent,#29b8ff);font-weight:700;text-decoration:none;">'+dt+'</a>':dt)+'</td>'
-          +'<td style="'+td+'">'+fmtRecordTime(r.timeMs)+(isPB?' <span style="color:#2ee06a;font-weight:800;">PB</span>':'')+'</td>'
+          +'<td style="'+td+'text-align:left;">'+(r.fileId?'<a href="#" data-res="'+i+'" style="color:#1a5276;font-weight:700;text-decoration:none;">'+dt+'</a>':'<span style="color:#1a5276;">'+dt+'</span>')+'</td>'
+          +'<td style="'+td+'">'+fmtRecordTime(r.timeMs)+(isPB?' <span style="color:#1b7a34;font-weight:800;">PB</span>':'')+'</td>'
           +'<td style="'+td+'">'+fmtPaceU(sectorPace(r.timeMs,s.distance))+'</td>'
           +'<td style="'+td+'">'+(r.rate!=null?Number(r.rate).toFixed(1):'--')+'</td></tr>';
       });
@@ -3880,6 +3901,22 @@ window.openSectorDetail=function(id,fromList){
         else if(a==='edit')window.editSector(id);
         else if(a==='target')window.editSectorTarget(id,secRefreshViews);
         else if(a==='delete'){window.deleteSector(id);if(!SECTORS_DB.some(x=>x.id===id&&!x.deleted)){close();secRefreshViews();}}
+      };
+    });
+    panel.querySelectorAll('[data-tmode]').forEach(el=>{
+      el.onclick=()=>{
+        const m=el.dataset.tmode, cur=SEC_TARGETS[id]||{};
+        let ms=cur.ms>0?cur.ms:0;
+        if(m==='plan'&&!(ms>0)&&s.best&&s.best.timeMs>0)ms=Math.round(s.best.timeMs/1000)*1000;
+        secSaveTarget(id,m,ms);
+      };
+    });
+    ['_secdet_h','_secdet_m','_secdet_s'].forEach(k=>{
+      const el=document.getElementById(k);
+      if(el)el.onchange=()=>{
+        const g=q=>{const e=document.getElementById(q);return e?(+e.value||0):0;};
+        const ms=(g('_secdet_h')*3600+g('_secdet_m')*60+g('_secdet_s'))*1000;
+        if(ms>0){secSaveTarget(id,'plan',ms);toast('Target: '+fmtRecordTime(ms));}
       };
     });
     panel.querySelectorAll('a[data-res]').forEach(a=>{
@@ -4107,6 +4144,7 @@ async function openSectorResultSession(r){
   }catch(err){if(!driveAuthExpired(err))toast('Load failed: '+err.message);}
 }
 function closeSectorCompare(){
+  try{_secCmpExitFull();}catch(e){}
   if(_secCmp){
     if(_secCmp.raf)cancelAnimationFrame(_secCmp.raf);
     if(_secCmp.map){try{_secCmp.map.remove();}catch{}}
@@ -4187,15 +4225,18 @@ function _secCmpBuildView(){
   const c=_secCmp;if(!c)return;
   const sec=c.sec, body=document.getElementById('_seccmp_body');
   const sp=[1,2,4,8,16].map(v=>'<button class="hbtn" data-spd="'+v+'" style="font-size:11px;min-width:34px;">'+v+'×</button>').join('');
-  body.innerHTML='<div id="_seccmp_map" style="height:420px;border-radius:10px;overflow:hidden;background:#030d1e;margin-bottom:8px;"></div>'
-    +'<div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:10px;">'
+  c.follow=true;c.full=false;c.lastFit=0;
+  body.innerHTML='<div id="_seccmp_stage"><div id="_seccmp_map" style="'+SECCMP_MAP_CSS+'"></div>'
+    +'<div id="_seccmp_ctrls" style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:10px;">'
     +'<button class="hbtn" id="_seccmp_back" style="font-size:11px;">‹ Sessions</button>'
+    +'<button class="hbtn" id="_seccmp_full" style="font-size:11px;">\u26F6 Full screen</button>'
+    +'<button class="hbtn" id="_seccmp_follow" style="font-size:11px;">\u25CE Centre</button>'
     +'<button class="hbtn" id="_seccmp_play" style="font-size:11px;min-width:60px;">▶ Play</button>'
     +'<button class="hbtn" id="_seccmp_reset" style="font-size:11px;">⟲</button>'
     +'<span style="display:flex;gap:4px;">'+sp+'</span>'
     +'<input type="range" id="_seccmp_scrub" min="0" max="'+Math.round(c.dur)+'" step="100" value="0" style="flex:1;min-width:160px;">'
     +'<span id="_seccmp_clock" style="font-size:12px;font-weight:600;color:var(--text);min-width:56px;text-align:right;">0:00.0</span>'
-    +'</div><div id="_seccmp_cards" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(210px,1fr));gap:8px;"></div>';
+    +'</div></div><div id="_seccmp_cards" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(210px,1fr));gap:8px;"></div>';
   const map=L.map('_seccmp_map',{zoomControl:true,attributionControl:true});
   map.attributionControl.setPrefix('');
   L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}',{maxZoom:19,attribution:'Esri'}).addTo(map);
@@ -4213,7 +4254,11 @@ function _secCmpBuildView(){
   });
   map.fitBounds(datum.getBounds(),{padding:[30,30]});
   setTimeout(()=>{if(_secCmp&&_secCmp.map)_secCmp.map.invalidateSize();},120);
-  document.getElementById('_seccmp_back').onclick=()=>{_secCmpPause();if(c.map){c.map.remove();c.map=null;}_secCmpRenderPicker();};
+  document.getElementById('_seccmp_back').onclick=()=>{_secCmpPause();_secCmpExitFull();if(c.map){c.map.remove();c.map=null;}_secCmpRenderPicker();};
+  document.getElementById('_seccmp_full').onclick=_secCmpToggleFull;
+  document.getElementById('_seccmp_follow').onclick=()=>{c.follow=!c.follow;_secCmpFollowUI();if(c.follow)_secCmpCentre(true);};
+  map.on('dragstart',()=>{if(c.follow){c.follow=false;_secCmpFollowUI();}});
+  _secCmpFollowUI();
   document.getElementById('_seccmp_play').onclick=()=>{c.playing?_secCmpPause():_secCmpPlay();};
   document.getElementById('_seccmp_reset').onclick=()=>{_secCmpPause();c.simT=0;_secCmpDraw(true);};
   document.getElementById('_seccmp_scrub').oninput=e=>{c.simT=+e.target.value;_secCmpDraw(true);};
@@ -4221,6 +4266,59 @@ function _secCmpBuildView(){
   _secCmpSpeedUI();
   _secCmpDraw(true);
 }
+const SECCMP_MAP_CSS='height:420px;border-radius:10px;overflow:hidden;background:#030d1e;margin-bottom:8px;';
+function _secCmpFollowUI(){
+  const c=_secCmp;if(!c)return;
+  const b=document.getElementById('_seccmp_follow');if(!b)return;
+  b.style.background=c.follow?'#29b8ff':'';b.style.color=c.follow?'#000':'';
+}
+/* Keep every boat in view: fit the map to the current boat positions. */
+function _secCmpCentre(force){
+  const c=_secCmp;if(!c||!c.map||!c.follow)return;
+  const now=performance.now();
+  if(!force&&now-c.lastFit<250)return;
+  c.lastFit=now;
+  const pts=c.sess.map(s=>s.marker&&s.marker.getLatLng()).filter(Boolean);
+  if(!pts.length)return;
+  try{c.map.fitBounds(L.latLngBounds(pts).pad(0.15),{padding:[60,60],maxZoom:17,animate:false});}catch(e){}
+}
+function _secCmpToggleFull(){
+  const c=_secCmp;if(!c)return;
+  if(c.full){_secCmpExitFull();return;}
+  const st=document.getElementById('_seccmp_stage'), m=document.getElementById('_seccmp_map'), ct=document.getElementById('_seccmp_ctrls');
+  if(!st||!m)return;
+  c.full=true;
+  st.style.cssText='position:fixed;inset:0;z-index:10001;background:var(--s1);display:flex;flex-direction:column;box-sizing:border-box;padding:env(safe-area-inset-top,0px) env(safe-area-inset-right,0px) env(safe-area-inset-bottom,0px) env(safe-area-inset-left,0px);';
+  m.style.cssText='flex:1;min-height:0;background:#030d1e;';
+  if(ct){ct.style.margin='0';ct.style.padding='8px 10px';}
+  const fb=document.getElementById('_seccmp_full');if(fb)fb.textContent='\u2715 Exit full screen';
+  try{
+    if(st.requestFullscreen){c.realFS=true;st.requestFullscreen().catch(()=>{c.realFS=false;});}
+    else if(st.webkitRequestFullscreen){c.realFS=true;st.webkitRequestFullscreen();}
+  }catch(e){c.realFS=false;}
+  setTimeout(()=>{if(_secCmp&&_secCmp.map){_secCmp.map.invalidateSize();_secCmpCentre(true);}},200);
+}
+function _secCmpExitFull(){
+  const c=_secCmp;if(!c||!c.full)return;
+  c.full=false;
+  const st=document.getElementById('_seccmp_stage'), m=document.getElementById('_seccmp_map'), ct=document.getElementById('_seccmp_ctrls');
+  if(st)st.style.cssText='';
+  if(m)m.style.cssText=SECCMP_MAP_CSS;
+  if(ct){ct.style.margin='0 0 10px';ct.style.padding='';}
+  const fb=document.getElementById('_seccmp_full');if(fb)fb.textContent='\u26F6 Full screen';
+  try{
+    if(document.fullscreenElement&&document.exitFullscreen)document.exitFullscreen().catch(()=>{});
+    else if(document.webkitFullscreenElement&&document.webkitExitFullscreen)document.webkitExitFullscreen();
+  }catch(e){}
+  c.realFS=false;
+  setTimeout(()=>{if(_secCmp&&_secCmp.map){_secCmp.map.invalidateSize();_secCmpCentre(true);}},200);
+}
+function _secCmpFSChange(){
+  const c=_secCmp;
+  if(c&&c.full&&c.realFS&&!document.fullscreenElement&&!document.webkitFullscreenElement)_secCmpExitFull();
+}
+document.addEventListener('fullscreenchange',_secCmpFSChange);
+document.addEventListener('webkitfullscreenchange',_secCmpFSChange);
 function _secCmpSpeedUI(){
   const c=_secCmp;if(!c)return;
   document.querySelectorAll('#_seccmp_body button[data-spd]').forEach(b=>{
@@ -4263,6 +4361,7 @@ function _secCmpDraw(force){
     s.done=t>=s.h.timeMs;
     if(s.done)s.dNow=c.sec.distance;
   });
+  _secCmpCentre(force);
   const clk=document.getElementById('_seccmp_clock');if(clk)clk.textContent=_secCmpFmtElapsed(t);
   const sc=document.getElementById('_seccmp_scrub');if(sc&&document.activeElement!==sc)sc.value=Math.round(t);
   const now=performance.now();
