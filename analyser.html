@@ -1240,7 +1240,7 @@ const AnalyserDrive = {
     this._folderPending = (async () => {
       let out = [], page = null;
       do {
-        const url = `https://www.googleapis.com/drive/v3/files?spaces=appDataFolder&q=trashed%3Dfalse&fields=nextPageToken,files(id,name,createdTime,size,description)&pageSize=1000` + (page ? '&pageToken=' + encodeURIComponent(page) : '');
+        const url = `https://www.googleapis.com/drive/v3/files?spaces=appDataFolder&q=trashed%3Dfalse&fields=nextPageToken,files(id,name,createdTime,size,description,appProperties)&pageSize=1000` + (page ? '&pageToken=' + encodeURIComponent(page) : '');
         const resp = await this._api(url, {}, 'Session list');
         this._ok(resp, 'Session list');
         const d = await resp.json();
@@ -1342,7 +1342,7 @@ const AnalyserDrive = {
     const d = new Date(+m[1], +m[2] - 1, +m[3], +m[4], +m[5], 0, 0);
     return isNaN(d.getTime()) ? null : d.getTime();
   },
-  async tombstoneSession(fileName) {
+  async tombstoneSession(fileName, sid) {
     try {
       const fid = await this._findManifest();
       if (!fid) return;                       // no index yet, nothing to mark
@@ -1351,15 +1351,20 @@ const AnalyserDrive = {
       const doc = await r.json();
       const sessions = (doc && doc.sessions) || {};
       const deleted = this._pruneDeleted((doc && doc.deleted) || {});
-      /* Filenames encode minutes, not milliseconds, so match the index entry
-         whose id falls in the same minute rather than trusting an exact value. */
-      const target = this._idFromName(fileName);
-      if (target == null) return;
-      let hit = null;
-      for (const id of Object.keys(sessions)) {
-        if (Math.abs(+id - target) < 60000) { hit = id; break; }
+      let mark = null;
+      if (sid != null && sid !== '') {
+        mark = String(sid);
+      } else {
+        /* No session id on the file: fall back to the minute in the filename,
+           but only when exactly one session sits in that minute. Two phones on
+           the same outing share a minute, and guessing would tombstone the
+           wrong one. */
+        const target = this._idFromName(fileName);
+        if (target == null) return;
+        const hits = Object.keys(sessions).filter(id => Math.abs(+id - target) < 60000);
+        if (hits.length > 1) return;
+        mark = hits[0] || String(target);
       }
-      const mark = hit || String(target);
       delete sessions[mark];
       deleted[mark] = Date.now();
       const form = new FormData();
@@ -1475,7 +1480,8 @@ const AnalyserDrive = {
     this._check();
     const content = await this.fetchSession(fileId);
     const wlm = Array.isArray(content.workoutLapMetrics) ? content.workoutLapMetrics : [];
-    const dst = wlm.length ? wlm : (Array.isArray(content.laps) ? content.laps : []);
+    const ml = Array.isArray(content.manualLaps) ? content.manualLaps : [];
+    const dst = ml.length ? ml : wlm.length ? wlm : (Array.isArray(content.laps) ? content.laps : []);
     let dstUse = dst;
     if (!dstUse.length && types.length === 1) { content.laps = [{ n: 1, dist: content.distance, time: content.duration, pace: content.avgPace, rate: content.avgRate, startT: 0, startD: 0, type: null }]; dstUse = content.laps; }
     if (!dstUse.length) throw new Error('no laps in session file');
@@ -1486,6 +1492,21 @@ const AnalyserDrive = {
     const r = await this._api(`https://www.googleapis.com/upload/drive/v3/files/${fileId}?uploadType=multipart`, {
       method: 'PATCH', body: form }, 'Lap types', 45000, fileId);
     this._ok(r, 'Lap types');
+  },
+  /* Laps drawn by hand in the Analyser. Stored as the elapsed time of each
+     lap's last stroke, in their own field, so the laps Metrics recorded stay
+     untouched and can be restored. Null removes them. */
+  async patchManualLaps(fileId, ends) {
+    this._check();
+    const content = await this.fetchSession(fileId);
+    if (ends && ends.length) content.manualLaps = ends.map(x => ({ t: +(+x.t).toFixed(2), type: x.type || null }));
+    else delete content.manualLaps;
+    const form = new FormData();
+    form.append('metadata', new Blob([JSON.stringify({})], { type: 'application/json' }));
+    form.append('file', new Blob([JSON.stringify(content)], { type: 'application/json' }));
+    const r = await this._api(`https://www.googleapis.com/upload/drive/v3/files/${fileId}?uploadType=multipart`, {
+      method: 'PATCH', body: form }, 'Laps', 45000, fileId);
+    this._ok(r, 'Laps');
   },
   async patchFavourite(fileId, isFav) {
     this._check();
@@ -2376,7 +2397,8 @@ function sessionToAnalyserFmt(s) {
     squadCode: s.squadCode || null,
     name: s.name || null,
     vidSync: s.vidSync || null,
-    videoFlags: s.videoFlags || null };
+    videoFlags: s.videoFlags || null,
+    manualLaps: (Array.isArray(s.manualLaps) && s.manualLaps.length) ? s.manualLaps : null };
 }
 // ══════════════════════════════════════════════════════════════════════════
 // GARMIN FIT / TCX IMPORT
@@ -2694,7 +2716,7 @@ function ergFixAnalyserData(d) {
     if (dd > 0) d.sum.work_dist_m = Math.round(dd);
   }
   const laps = d.laps || [];
-  if (!laps.some(l => l.type === 'rest')) {
+  if (!(d.manualLaps && d.manualLaps.length) && !laps.some(l => l.type === 'rest')) {
     const el = _ergLapsFromIntervals(iv, null, null);
     if (el) {
       const t0 = Date.parse(d.sum.start_time || '');
@@ -4582,17 +4604,12 @@ async function showAddComparePicker() {
                         star.textContent = isFav ? '★' : '☆';
                         star.title = isFav ? 'Remove favourite' : 'Add favourite';
                         star.className = 'sz-star' + (isFav ? ' on' : '');
-                        star.onclick = async () => {
-                            const wantFav = !isFav;
-                            star.disabled = true; star.style.opacity = '.5';
-                            try {
-                                const newName = await AnalyserDrive.patchFavourite(f.id, wantFav);
-                                f.name = newName;
-                                renderDA();
-                            } catch (e) {
-                                toast('Favourite failed: ' + e.message);
-                                star.disabled = false; star.style.opacity = '1';
-                            }
+                        star.onclick = () => {
+                            favTapOptimistic(f, star, v => {
+                                star.textContent = v ? '★' : '☆';
+                                star.title = v ? 'Remove favourite' : 'Add favourite';
+                                star.className = 'sz-star' + (v ? ' on' : '');
+                            });
                         };
 
                         const btn = document.createElement('div');
@@ -5183,17 +5200,13 @@ function showDrivePicker(files, onSelect) {
       star.textContent=isFav?'★':'☆';
       star.title=isFav?'Remove favourite':'Add favourite';
       star.style.cssText='padding:9px 8px;background:'+(isFav?'rgba(241,196,15,.15)':'transparent')+';border:1px solid var(--border);border-radius:6px;color:'+(isFav?'#f1c40f':'var(--muted)')+';cursor:pointer;font-size:.95rem;flex-shrink:0;';
-      star.onclick=async()=>{
-        const wantFav=!isFav;
-        star.disabled=true;star.style.opacity='.5';
-        try{
-          const newName=await AnalyserDrive.patchFavourite(f.id,wantFav);
-          f.name=newName;
-          renderList();
-        }catch(e){
-          toast('Favourite failed: '+e.message);
-          star.disabled=false;star.style.opacity='1';
-        }
+      star.onclick=()=>{
+        favTapOptimistic(f,star,v=>{
+          star.textContent=v?'★':'☆';
+          star.title=v?'Remove favourite':'Add favourite';
+          star.style.background=v?'rgba(241,196,15,.15)':'transparent';
+          star.style.color=v?'#f1c40f':'var(--muted)';
+        });
       };
 
       const btn=document.createElement('div');
@@ -5232,7 +5245,7 @@ function showDrivePicker(files, onSelect) {
       del.onclick=async()=>{
         if(!confirm('Delete this session permanently?\n\nIt will be removed from Google Drive, and from every device on its next sync.\n\nThis cannot be undone.'))return;
         del.textContent='…';del.disabled=true;
-        try{await AnalyserDrive.deleteFile(f.id);await AnalyserDrive.tombstoneSession(f.name);fileList=fileList.filter(x=>x.id!==f.id);renderList();}
+        try{await AnalyserDrive.deleteFile(f.id);await AnalyserDrive.tombstoneSession(f.name,f.appProperties&&f.appProperties.sid);fileList=fileList.filter(x=>x.id!==f.id);renderList();}
         catch(e){toast('Delete failed: '+e.message);del.textContent='🗑';del.disabled=false;}
       };
 
@@ -6165,6 +6178,8 @@ function refreshSelButtons(){
   if(!lapOn&&!r)_selLapN=null;
   const lb=document.getElementById('lapAddCurveBtn');
   if(lb)lb.style.display=(lapOn&&_selLapN!=='all'&&curveGroups.length<MAX_GROUPS)?'':'none';
+  const mb=document.getElementById('lapMakeBtn');
+  if(mb)mb.style.display=(r&&!lapOn)?'':'none';
   document.querySelectorAll('#laptbl tbody tr[data-lap]').forEach(tr=>{
     const key=(typeof _showLaps==='undefined'||!_showLaps||!_showLaps.length)?'all':+tr.dataset.lap;
     tr.classList.toggle('yhl',lapOn&&_selLapN===key);
@@ -7806,10 +7821,12 @@ function buildLaps(){
   const hasWorkLaps=showLaps.some(l=>l.type==='work');
   const lapEditBtns=_lapEditMode?
     `<button class="laptypebtn" data-type="" style="--btc:var(--g);border-color:var(--g);color:var(--g);margin-left:8px;" onclick="saveLapTypes()" title="Apply the lap types and rebuild">✓ Save lap types</button>`+
-    `<button class="laptypebtn" data-type="" style="--btc:var(--muted);border-color:var(--muted);color:var(--muted);" onclick="cancelLapTypes()" title="Discard the changes">✕ Cancel</button>`
+    `<button class="laptypebtn" data-type="" style="--btc:var(--muted);border-color:var(--muted);color:var(--muted);" onclick="cancelLapTypes()" title="Discard the changes">✕ Cancel</button>`+
+    ((SESSIONS[activeSessionIdx]&&SESSIONS[activeSessionIdx].d&&SESSIONS[activeSessionIdx].d.manualLaps)?`<button class="laptypebtn" data-type="" style="--btc:var(--o);border-color:var(--o);color:var(--o);" onclick="resetManualLaps()" title="Go back to the laps recorded in Metrics">↺ Original laps</button>`:'')
     :
-    `<button class="laptypebtn" data-type="" style="--btc:var(--b);border-color:var(--b);color:var(--b);margin-left:8px;" onclick="editLapTypes()" title="Change which laps are warmup, work, rest or cooldown">✎ Edit lap types</button>`;
+    `<button class="laptypebtn" data-type="" style="--btc:var(--b);border-color:var(--b);color:var(--b);margin-left:8px;" onclick="editLapTypes()" title="Change lap types, join laps, or restore the original laps">✎ Edit laps</button>`;
   const lapCurveBtns=_lapEditMode?'':
+    `<button class="laptypebtn" id="lapMakeBtn" data-type="" style="--btc:var(--o);border-color:var(--o);color:var(--o);display:none;" onclick="makeLapFromSelection()" title="Turn the strokes selected on the chart into their own lap">✂ Make lap from selection</button>`+
     `<button class="laptypebtn" id="lapAddCurveBtn" data-type="" style="--btc:var(--g);border-color:var(--g);color:var(--g);display:none;" onclick="addLapToCurves()" title="Add the selected lap to the curve comparison">＋ Add to curves</button>`+
     (hasWorkLaps?`<button class="laptypebtn" data-type="" style="--btc:var(--g);border-color:var(--g);color:var(--g);" onclick="addWorkLapsToCurves()" title="Add every work interval as its own curve group">＋ Add all work intervals to curves</button>`:'');
   document.getElementById('laptypebar').innerHTML=((hasType&&barTypes.length)?
@@ -7823,7 +7840,7 @@ function buildLaps(){
     ${hasType?(_lapEditMode
       ?`<td><select class="lapedit-sel" data-i="${i}" onclick="event.stopPropagation()" style="font-size:9px;padding:2px 3px;background:var(--s3);color:var(--text);border:1px solid var(--s3);border-radius:4px;">${['',...availTypes].map(t=>`<option value="${t}"${(_lapEditDraft[i]||'')===t?' selected':''}>${t||'—'}</option>`).join('')}</select></td>`
       :`<td>${lapTypeChip(l.type)}</td>`):''}
-    <td>Lap ${i+1}</td>
+    <td style="white-space:nowrap;">Lap ${i+1}${(_lapEditMode&&i<showLaps.length-1)?` <button onclick="event.stopPropagation();mergeLapNext(${i})" title="Join this lap with the next one" style="font-size:9px;padding:2px 5px;margin-left:4px;background:var(--s3);color:var(--text);border:1px solid var(--muted);border-radius:4px;cursor:pointer;">join ↓</button>`:''}</td>
     <td>${(+l.distance_m||0).toFixed(0)}m</td>
     <td>${fmtTime(+l.time_s)}</td>
     <td style="color:var(--mc-pace)">${fmtPaceU(+l.pace_s_per_500m)}</td>
@@ -7888,12 +7905,14 @@ function saveLapTypes(){
      and the Drive file is a third — both need the same types or a reload, an
      export, or the Metrics log will still show the old ones. */
   const sess=(typeof SESSIONS!=='undefined'&&activeSessionIdx>=0)?SESSIONS[activeSessionIdx]:null;
-  if(sess&&sess.d&&Array.isArray(sess.d.workoutLapMetrics)){
+  if(sess&&sess.d&&Array.isArray(sess.d.manualLaps)&&sess.d.manualLaps.length){
+    _types.forEach((t,i)=>{ if(sess.d.manualLaps[i]) sess.d.manualLaps[i].type=t; });
+  } else if(sess&&sess.d&&Array.isArray(sess.d.workoutLapMetrics)){
     _types.forEach((t,i)=>{ if(sess.d.workoutLapMetrics[i]) sess.d.workoutLapMetrics[i].type=t; });
   }
   if(sess&&sess.fileId&&AnalyserDrive.isSignedIn()){
     if(typeof toast==='function')toast('Saving lap types\u2026');
-    AnalyserDrive.patchLapTypes(sess.fileId,_types)
+    _lapDriveQ(()=>AnalyserDrive.patchLapTypes(sess.fileId,_types))
       .then(()=>{ if(typeof toast==='function')toast('\u2714 Lap types saved to Drive'); })
       .catch(e=>{ if(typeof toast==='function')toast('Drive save failed: '+e.message,3000); });
   } else if(typeof toast==='function'){
@@ -7904,6 +7923,126 @@ function cancelLapTypes(){
   _lapEditMode=false;_lapEditDraft=[];
   buildLaps();
 }
+/* ── Manual laps ──────────────────────────────────────────────────────────
+   A lap is stored as the elapsed time of its last stroke plus its type. The
+   lap rows are rebuilt from the strokes, so distance, time, pace, rate and HR
+   always match the data. */
+function _lapsFromEnds(ends,startMs){
+  const n=ST.length;if(!n||!ends||!ends.length)return[];
+  const offset=ST[0].dist||0;
+  const sorted=ends.slice().sort((a,b)=>a.t-b.t);
+  const out=[];let prev=-1;
+  sorted.forEach((x,k)=>{
+    let e=prev;
+    while(e+1<n&&(ST[e+1].elapsed||0)<=x.t+0.01)e++;
+    if(k===sorted.length-1)e=n-1;
+    if(e<=prev)return;
+    const s=prev+1;
+    const d0=s===0?offset:(ST[s-1].dist||0);
+    const t0=s===0?0:(ST[s-1].elapsed||0);
+    const dist=Math.max(0,(ST[e].dist||0)-d0);
+    const time=Math.max(0,(ST[e].elapsed||0)-t0);
+    const rv=[],hb=[];
+    for(let i=s;i<=e;i++){
+      const q=ST[i];
+      if(q.rate>5&&q.rate<50)rv.push(q.rate);
+      // Erg strokes can carry session-relative times, so fall back to start + elapsed.
+      const abs=q.ms>1e12?q.ms:((startMs>1e12&&q.elapsed!=null)?startMs+q.elapsed*1000:null);
+      if(abs!=null){const b=nearestHRAt(abs);if(b>40&&b<220)hb.push(b);}
+    }
+    const lap={lap:out.length+1,distance_m:dist,time_s:+time.toFixed(1),
+      pace_s_per_500m:dist>0?+(time*500/dist).toFixed(1):null,
+      stroke_rate_spm:rv.length?+(rv.reduce((a,b)=>a+b,0)/rv.length).toFixed(1):null,
+      type:x.type||null,start_time_s:+t0.toFixed(1),start_dist_m:d0-offset,_manual:true};
+    if(hb.length){lap.avg_hr_bpm=Math.round(hb.reduce((a,b)=>a+b,0)/hb.length);lap.max_hr_bpm=Math.max(...hb);}
+    out.push(lap);prev=e;
+  });
+  return out;
+}
+function _currentLapEnds(){
+  if(!ST.length)return[];
+  const useLaps=LAPS.filter(l=>'stroke_rate_spm' in l);
+  assignLapNumbers();
+  const ends=[];
+  useLaps.forEach((l,k)=>{
+    let last=-1;
+    for(let i=0;i<ST.length;i++)if(ST[i].lapNum===k+1)last=i;
+    if(last>=0)ends.push({t:ST[last].elapsed||0,type:l.type||null});
+  });
+  if(!ends.length)ends.push({t:ST[ST.length-1].elapsed||0,type:null});
+  return ends;
+}
+function _lapDriveQ(fn){
+  const p=(window._lapSaveQ||Promise.resolve()).then(fn);
+  window._lapSaveQ=p.catch(()=>{});
+  return p;
+}
+function _saveManualLaps(sess,ends){
+  if(sess&&sess.fileId&&AnalyserDrive.isSignedIn()){
+    toast('Saving laps\u2026');
+    _lapDriveQ(()=>AnalyserDrive.patchManualLaps(sess.fileId,ends))
+      .then(()=>toast('\u2714 Laps saved to Drive'))
+      .catch(e=>toast('Drive save failed: '+e.message,3000));
+  } else {
+    toast('Laps updated \u2014 no Drive file, so this session only',3000);
+  }
+}
+function _refreshAfterLapChange(){
+  _selLapN=null;
+  clearSelection();
+  buildLaps();
+  if(_lastSum)buildCards(_lastSum);
+  if(typeof schedRender==='function')schedRender();
+}
+function _applyLapEnds(ends){
+  const sess=(typeof SESSIONS!=='undefined'&&activeSessionIdx>=0)?SESSIONS[activeSessionIdx]:null;
+  const newLaps=_lapsFromEnds(ends,Date.parse((sess&&sess.d&&sess.d.sum&&sess.d.sum.start_time)||(_lastSum&&_lastSum.start_time)||''));
+  if(!newLaps.length)return;
+  const others=LAPS.filter(l=>!('stroke_rate_spm' in l));
+  LAPS=[...newLaps,...others];
+  if(sess&&sess.d){sess.d.laps=newLaps;sess.d.manualLaps=ends;}
+  if(_lapEditMode)_lapEditDraft=newLaps.map(l=>l.type||'');
+  _refreshAfterLapChange();
+  _saveManualLaps(sess,ends);
+}
+function makeLapFromSelection(){
+  const r=_selAbsRange();
+  if(!r){toast('Select strokes on the chart first');return;}
+  const a=r[0],b=r[1];
+  const cur=_currentLapEnds();
+  const tA=a>0?(ST[a-1].elapsed||0):null;
+  const tB=ST[b].elapsed||0;
+  const typeAt=t=>{const x=cur.find(c=>c.t>=t-0.01);return x?x.type:null;};
+  const keep=cur.filter(c=>(tA!=null&&c.t<tA-0.01)||c.t>tB+0.01);
+  if(tA!=null)keep.push({t:tA,type:typeAt(tA)});
+  keep.push({t:tB,type:typeAt(tB)});
+  keep.sort((x,y)=>x.t-y.t);
+  _applyLapEnds(keep);
+}
+function mergeLapNext(i){
+  readLapEditDraft();
+  const cur=_currentLapEnds();
+  if(i<0||i>=cur.length-1)return;
+  cur.forEach((c,k)=>{if(k<_lapEditDraft.length)c.type=_lapEditDraft[k]||null;});
+  cur[i+1].type=cur[i].type;
+  cur.splice(i,1);
+  _applyLapEnds(cur);
+}
+function resetManualLaps(){
+  const sess=(typeof SESSIONS!=='undefined'&&activeSessionIdx>=0)?SESSIONS[activeSessionIdx]:null;
+  if(!sess||!sess.d||!sess.d.manualLaps)return;
+  if(!confirm('Go back to the laps recorded in Metrics?\n\nYour hand-made laps will be removed.'))return;
+  const orig=sess.d._origLaps||[];
+  const others=LAPS.filter(l=>!('stroke_rate_spm' in l));
+  sess.d.laps=orig;sess.d.manualLaps=null;
+  LAPS=[...orig,...others];
+  _lapEditMode=false;_lapEditDraft=[];
+  _refreshAfterLapChange();
+  _saveManualLaps(sess,null);
+}
+window.makeLapFromSelection=makeLapFromSelection;
+window.mergeLapNext=mergeLapNext;
+window.resetManualLaps=resetManualLaps;
 window.editLapTypes=editLapTypes;
 window.saveLapTypes=saveLapTypes;
 window.cancelLapTypes=cancelLapTypes;
@@ -8075,7 +8214,10 @@ function mountData(d,label){
   ST=d.strokes||[];
   _rawOarAngles = ST.map(s => s.oarAngle);  // snapshot before any conversion
   computeStrokeAngles(ST);
-  HR=d.hr||[]; buildHRIndex(); LAPS=[...(d.laps||[]),...(d.glaps||[])]; GPSTRACE=d.gpsTrace||[];
+  HR=d.hr||[]; buildHRIndex();
+  if(!d._origLaps)d._origLaps=d.laps||[];
+  if(Array.isArray(d.manualLaps)&&d.manualLaps.length&&ST.length)d.laps=_lapsFromEnds(d.manualLaps,Date.parse((d.sum&&d.sum.start_time)||''));
+  LAPS=[...(d.laps||[]),...(d.glaps||[])]; GPSTRACE=d.gpsTrace||[];
   viewS=0; viewE=ST.length-1; selS=-1; selE=-1;
   if(!ST.length&&LAPS.length){toast('No stroke data — showing laps only',4000);}
   else if(!ST.length){toast('No stroke data found in this file',4000);return;}
@@ -8429,18 +8571,12 @@ async function showStartup(){
         star.textContent='★';
         star.title=isFav?'Remove favourite':'Add favourite';
         star.className='asc-fav'+(isFav?' on':'');
-        star.onclick=async(ev)=>{
+        star.onclick=(ev)=>{
           ev.stopPropagation();
-          const wantFav=!isFav;
-          star.disabled=true;star.style.opacity='.5';
-          try{
-            const newName=await AnalyserDrive.patchFavourite(f.id,wantFav);
-            f.name=newName;
-            renderList();
-          }catch(e){
-            toast('Favourite failed: '+e.message);
-            star.disabled=false;star.style.opacity='1';
-          }
+          favTapOptimistic(f,star,v=>{
+            star.title=v?'Remove favourite':'Add favourite';
+            star.className='asc-fav'+(v?' on':'');
+          });
         };
 
         const btn=document.createElement('div');btn.className='asc';
@@ -8472,7 +8608,7 @@ async function showStartup(){
         del.onclick=async()=>{
           if(!confirm('Delete this session permanently?\n\nIt will be removed from Google Drive, and from every device on its next sync.\n\nThis cannot be undone.'))return;
           del.innerHTML='…';del.disabled=true;
-          try{await AnalyserDrive.deleteFile(f.id);await AnalyserDrive.tombstoneSession(f.name);fileList=fileList.filter(x=>x.id!==f.id);renderList();}
+          try{await AnalyserDrive.deleteFile(f.id);await AnalyserDrive.tombstoneSession(f.name,f.appProperties&&f.appProperties.sid);fileList=fileList.filter(x=>x.id!==f.id);renderList();}
           catch(e){toast('Delete failed: '+e.message);del.innerHTML='<img src="icons/Delete.svg">';del.disabled=false;}
         };
         row.appendChild(btn);row.appendChild(del);
@@ -10781,6 +10917,24 @@ su.addEventListener('dragleave',()=>su.classList.remove('over'));
 su.addEventListener('drop',e=>{e.preventDefault();su.classList.remove('over');if(e.dataTransfer.files.length){loadFiles(e.dataTransfer.files, !_addMode);_addMode=false;}});
 
 window.addEventListener('resize',()=>{if(ST.length)schedRender();});
+
+// ── Optimistic favourite toggle: repaint now, rename on Drive in background ──
+function favTapOptimistic(f,star,paint){
+  const cur=(star._fav===undefined)?/_FAV1/.test(f.name):star._fav;
+  const want=!cur;
+  star._fav=want;
+  paint(want);
+  const oldName=f.name;
+  const base=f.name.replace(/_FAV1/,'');
+  f.name=want?base.replace(/\.json$/,'_FAV1.json'):base;
+  star._q=(star._q||Promise.resolve())
+    .then(()=>AnalyserDrive.patchFavourite(f.id,want))
+    .then(n=>{if(star._fav===want)f.name=n;})
+    .catch(e=>{
+      toast('Favourite failed: '+e.message);
+      if(star._fav===want){star._fav=!want;paint(!want);f.name=oldName;}
+    });
+}
 
 // ── Toast ────────────────────────────────────────────────────────────────────
 function toast(msg,ms=2500){
