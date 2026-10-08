@@ -3723,11 +3723,15 @@ window.drawSector=function(editId){
   mc.addEventListener('contextmenu',ev=>ev.preventDefault());
   map.on('click',e=>{if(Date.now()<_noClickUntil)return;snap();pts.push([e.latlng.lat,e.latlng.lng]);dirty=true;redraw();});
   if(edit&&pts.length>1)map.fitBounds(L.latLngBounds(pts),{padding:[40,40]});
-  else if(leafletMap&&mapBaseLine)map.fitBounds(mapBaseLine.getBounds(),{padding:[20,20]});
-  else if(others.length)map.fitBounds(L.featureGroup(others).getBounds(),{padding:[30,30]});
   else{
-    map.setView([-25,134],4);
-    if(navigator.geolocation)navigator.geolocation.getCurrentPosition(p=>{try{map.setView([p.coords.latitude,p.coords.longitude],15);}catch{}},()=>{},{timeout:8000});
+    /* New sector: start at your location. Until it arrives (or if it is
+       refused) show the session track, saved sectors, or Australia. */
+    if(leafletMap&&mapBaseLine)map.fitBounds(mapBaseLine.getBounds(),{padding:[20,20]});
+    else if(others.length)map.fitBounds(L.featureGroup(others).getBounds(),{padding:[30,30]});
+    else map.setView([-25,134],4);
+    if(navigator.geolocation)navigator.geolocation.getCurrentPosition(p=>{
+      try{if(!pts.length&&document.getElementById('_secdraw_map'))map.setView([p.coords.latitude,p.coords.longitude],16);}catch{}
+    },()=>{},{enableHighAccuracy:true,timeout:10000,maximumAge:60000});
   }
   const close=()=>{try{map.remove();}catch{}overlay.remove();};
   document.getElementById('_secdraw_close').onclick=close;
