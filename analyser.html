@@ -4300,10 +4300,12 @@ function _secCmpToggleFull(){
   const st=document.getElementById('_seccmp_stage'), m=document.getElementById('_seccmp_map'), ct=document.getElementById('_seccmp_ctrls');
   if(!st||!m)return;
   c.full=true;
-  st.style.cssText='position:fixed;inset:0;z-index:10001;background:var(--s1);display:flex;flex-direction:column;box-sizing:border-box;padding:env(safe-area-inset-top,0px) env(safe-area-inset-right,0px) env(safe-area-inset-bottom,0px) env(safe-area-inset-left,0px);';
-  m.style.cssText='flex:1;min-height:0;background:#030d1e;';
-  if(ct){ct.style.margin='0';ct.style.padding='8px 10px';}
-  const mi=document.getElementById('_seccmp_mini');if(mi)mi.style.cssText='display:flex;gap:6px;overflow-x:auto;padding:6px 10px 0;flex:0 0 auto;';
+  st.style.cssText='position:fixed;inset:0;z-index:10001;background:var(--s1);display:grid;grid-template-rows:minmax(0,1fr) auto auto;grid-template-columns:minmax(0,1fr);width:100%;height:100%;box-sizing:border-box;padding:env(safe-area-inset-top,0px) env(safe-area-inset-right,0px) env(safe-area-inset-bottom,0px) env(safe-area-inset-left,0px);';
+  /* Change single properties only: replacing the map's whole style wipes the
+     position:relative Leaflet sets, and the map then spills over the page. */
+  m.style.position='relative';m.style.height='100%';m.style.minHeight='0';m.style.borderRadius='0';m.style.marginBottom='0';
+  if(ct){ct.style.margin='0';ct.style.padding='8px 10px';ct.style.background='var(--s1)';}
+  const mi=document.getElementById('_seccmp_mini');if(mi)mi.style.cssText='display:flex;gap:6px;overflow-x:auto;padding:6px 10px 0;background:var(--s1);';
   const fb=document.getElementById('_seccmp_full');if(fb)fb.textContent='\u2715 Exit full screen';
   _secCmpCards();
   try{
@@ -4317,8 +4319,8 @@ function _secCmpExitFull(){
   c.full=false;
   const st=document.getElementById('_seccmp_stage'), m=document.getElementById('_seccmp_map'), ct=document.getElementById('_seccmp_ctrls');
   if(st)st.style.cssText='';
-  if(m)m.style.cssText=SECCMP_MAP_CSS;
-  if(ct){ct.style.margin='0 0 10px';ct.style.padding='';}
+  if(m){m.style.position='relative';m.style.height='420px';m.style.minHeight='';m.style.borderRadius='10px';m.style.marginBottom='8px';}
+  if(ct){ct.style.margin='0 0 10px';ct.style.padding='';ct.style.background='';}
   const mi=document.getElementById('_seccmp_mini');if(mi){mi.style.cssText='display:none;';mi.innerHTML='';}
   setTimeout(_secCmpCards,0);
   const fb=document.getElementById('_seccmp_full');if(fb)fb.textContent='\u26F6 Full screen';
