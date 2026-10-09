@@ -13617,7 +13617,9 @@ function vidExportRun(mode){
 
   const comp=document.createElement('canvas'); comp.width=Ow; comp.height=Oh;
   const cctx=comp.getContext('2d');
-  const stream=comp.captureStream(30);
+  let stream=comp.captureStream(0);
+  let vtrack=stream.getVideoTracks()[0]||null;
+  if(!(vtrack && typeof vtrack.requestFrame==='function')){ stream.getTracks().forEach(t=>{ try{ t.stop(); }catch(e){} }); stream=comp.captureStream(30); vtrack=null; }
   try{
     const vs = el.captureStream ? el.captureStream() : (el.mozCaptureStream?el.mozCaptureStream():null);
     if(vs){ vs.getAudioTracks().forEach(t=>{ try{ stream.addTrack(t); }catch(e){} }); }
@@ -13643,7 +13645,7 @@ function vidExportRun(mode){
   };
 
   VID.exporting=true;
-  VID_EXPORT={rec,comp,cctx,stream,clip:a,el,Ow,Oh,raf:null,started:false,cancelled:false,mode,direct,mime,t0:SR.t0,t1:SR.t1};
+  VID_EXPORT={rec,comp,cctx,stream,vtrack,clip:a,el,Ow,Oh,raf:null,vfc:null,n:0,started:false,cancelled:false,mode,direct,mime,t0:SR.t0,t1:SR.t1};
   vidExportUI(true);
 
   el.muted=true;
@@ -13655,7 +13657,8 @@ function vidExportRun(mode){
     try{ rec.start(250); }catch(e){ toast('Recorder start failed'); vidExportCleanup(); return; }
     const p=el.play();
     if(p&&p.catch) p.catch(()=>{});
-    VID_EXPORT.raf=requestAnimationFrame(vidExportFrame);
+    el.addEventListener('ended',vidFinishExport,{once:true});
+    vidExportSchedule();
   };
   el.addEventListener('seeked',begin,{once:true});
   setTimeout(begin,350); // fallback if seeked doesn't fire
@@ -13821,17 +13824,19 @@ function vidExportFrame(){
     if(VID.cfg.showCurve){ cctx.globalAlpha=1; vidDrawCurve(cctx,Ow,Oh,st); }
     cctx.globalAlpha=1;
   }
-  vidDraw();
+  if(X.vtrack){ try{ X.vtrack.requestFrame(); }catch(e){} }
+  X.n=(X.n||0)+1; if(X.n%6===0) vidDraw();
   const t0=X.t0||0, t1=X.t1||el.duration||0;
   vidExportProgress(Math.max(0,el.currentTime-t0),t1-t0);
 
   if(el.ended || (t1 && el.currentTime>=t1-0.03)){ vidFinishExport(); return; }
-  X.raf=requestAnimationFrame(vidExportFrame);
+  vidExportSchedule();
 }
 
 function vidFinishExport(){
   const X=VID_EXPORT; if(!X) return;
   if(X.raf){ cancelAnimationFrame(X.raf); X.raf=null; }
+  if(X.vfc!=null && X.el.cancelVideoFrameCallback){ try{ X.el.cancelVideoFrameCallback(X.vfc); }catch(e){} X.vfc=null; }
   try{ X.el.pause(); }catch(e){}
   try{ if(X.rec.state!=='inactive') X.rec.stop(); }catch(e){}
 }
@@ -13840,8 +13845,15 @@ function vidCancelExport(){
   const X=VID_EXPORT; if(!X) return;
   X.cancelled=true;
   if(X.raf){ cancelAnimationFrame(X.raf); X.raf=null; }
+  if(X.vfc!=null && X.el.cancelVideoFrameCallback){ try{ X.el.cancelVideoFrameCallback(X.vfc); }catch(e){} X.vfc=null; }
   try{ X.el.pause(); }catch(e){}
   try{ if(X.rec.state!=='inactive') X.rec.stop(); }catch(e){ vidExportCleanup(); }
+}
+
+function vidExportSchedule(){
+  const X=VID_EXPORT; if(!X) return;
+  if(X.el.requestVideoFrameCallback){ X.raf=null; X.vfc=X.el.requestVideoFrameCallback(()=>{ X.vfc=null; vidExportFrame(); }); }
+  else X.raf=requestAnimationFrame(vidExportFrame);
 }
 
 function vidExportCleanup(){
