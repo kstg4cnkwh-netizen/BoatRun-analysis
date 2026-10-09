@@ -10105,7 +10105,7 @@ window.showWorkoutsModal=function(opts){
      and its limits. */
   const qField=key=>{
     const q=quick;
-    if(key[0]==='v'||key[0]==='r'){
+    if(/^[vr]\d+$/.test(key)){
       const iv=q.ivs[+key.slice(1)];if(!iv)return null;
       if(key[0]==='r')return {get:()=>iv.restS,set:v=>{iv.restS=v;},k:'t',min:0,max:Q_REST_MAX};
       return iv.mode==='time'?{get:()=>iv.value,set:v=>{iv.value=v;},k:'t',min:Q_MIN_T,max:35940}:{get:()=>iv.value,set:v=>{iv.value=v;},k:'d',min:Q_MIN_D,max:50000};
