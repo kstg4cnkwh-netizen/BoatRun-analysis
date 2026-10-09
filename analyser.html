@@ -867,6 +867,9 @@ function setTier(t) {
 }
 function isPro() { const t = getTier(); return t === 'pro' || t === 'coach'; }
 function isCoach() { return getTier() === 'coach'; }
+const ANALYSER_TRIAL_DAYS = 30;
+let _trialUntil = 0;
+function trialDaysLeft() { return _trialUntil > Date.now() ? Math.ceil((_trialUntil - Date.now()) / 86400000) : 0; }
 // ── FIREBASE AUTH (account + entitlement) ───────────────────────────────────
 const firebaseConfig = {
   apiKey: "AIzaSyBXpkmVnRzp6a-FqWmjxqrjzxdHtKiwP7I",
@@ -973,7 +976,14 @@ const AnalyserAuth = {
       }
       if (!r.ok) { console.error('entitlement sync: HTTP ' + r.status); return; }
       const data = await r.json();
-      setTier(data && data.tier ? data.tier : 'basic');
+      /* App-granted trial: Metrics stores the trial start on the account but
+         never writes a tier for it, so a trial user read as Basic here. Treat
+         the trial as Coach, same as Metrics does, unless a paid tier exists. */
+      const paid = data && (data.tier === 'pro' || data.tier === 'coach') ? data.tier : null;
+      const ts = Number(data && data.trialStart) || 0;
+      const trialEnd = ts > 0 ? ts + ANALYSER_TRIAL_DAYS * 86400000 : 0;
+      _trialUntil = (!paid && trialEnd > Date.now()) ? trialEnd : 0;
+      setTier(paid || (_trialUntil ? 'coach' : 'basic'));
     } catch (e) { console.error('entitlement sync failed', e); }
   }
 };
@@ -9651,7 +9661,7 @@ function showPlanModal(msg){
   </div>
   ${msg?`<div style="font-size:12px;color:var(--text);margin-bottom:14px;">${msg}</div>`:''}
   <div style="display:flex;align-items:center;gap:8px;">
-  <div style="padding:8px 14px;border-radius:8px;background:${isCoach()?'#8e44ad':(pro?'var(--b)':'var(--s2)')};color:${isCoach()?'#fff':(pro?'#000':'var(--text)')};font-weight:700;">${isCoach()?'COACH':(pro?'PRO':'BASIC')}</div>
+  <div style="padding:8px 14px;border-radius:8px;background:${isCoach()?'#8e44ad':(pro?'var(--b)':'var(--s2)')};color:${isCoach()?'#fff':(pro?'#000':'var(--text)')};font-weight:700;">${isCoach()?'COACH':(pro?'PRO':'BASIC')}</div>${trialDaysLeft()?`<div style="font-size:12px;color:var(--text);font-weight:600;">Trial \u2014 ${trialDaysLeft()} day${trialDaysLeft()===1?'':'s'} left</div>`:''}
   </div>
   <div style="font-size:11px;color:var(--muted);margin-top:12px;line-height:1.5;">Subscriptions are bought in the BoatRun app (Account &amp; Plan). Sign in here with the same account and your plan follows you automatically.</div>
   <div style="border:1px solid var(--border);border-radius:8px;padding:12px;margin-top:14px;">
@@ -10031,6 +10041,7 @@ window.showWorkoutsModal=function(opts){
     const rows=st.map((s,i)=>'<div data-top="'+i+'">'+(s.type==='repeat'?editRepeat(s,i)
       :editRow(s,String(i),false,i===0||(hasWarm&&i<=1),i===st.length-1||(hasCool&&i>=st.length-2)))+'</div>');
     if(hasWarm)rows.splice(1,0,startRowEdit());
+    if(erg)rows.push(eSplitRow());
     h+=rows.join('')
       +'<div class="add-step-row">'
       +'<button class="add-step-btn work" data-a="add" data-m="work">+ WORK</button>'
@@ -10132,6 +10143,32 @@ window.showWorkoutsModal=function(opts){
     if(opts.onSaved&&opts.newVenue){overlay.remove();try{opts.onSaved(w.id);}catch{}return;}
     openId=w.id;renderList();toast('"'+name+'" saved');
   };
+  /* PM5 split while editing a one-work-step erg workout. Kept on edit._split
+     (and edit._splitMode) until SAVE writes it into edit.erg. */
+  const eSingle=()=>{
+    if(!edit||!isErgW(edit)||(edit.steps||[]).length!==1)return null;
+    const w=edit.steps[0];
+    return (w&&w.type==='work'&&(w.mode==='time'||w.mode==='distance')&&w.value>0)?w:null;
+  };
+  const eSplitSync=()=>{
+    const wk=eSingle();
+    if(edit._split==null){const x=edit.erg&&edit.erg.single;edit._split=(x&&x.split>0)?x.split:0;edit._splitMode=x?x.mode:'';}
+    if(wk&&edit._splitMode&&edit._splitMode!==wk.mode)edit._split=0;
+    if(wk)edit._splitMode=wk.mode;
+    return wk;
+  };
+  const eSplitRow=()=>{
+    const wk=eSplitSync();if(!wk)return '';
+    const t=wk.mode==='time', v=edit._split||0;
+    return '<div class="step-row" style="background:#fdf2f1;"><div class="step-check" style="visibility:hidden;"></div>'
+      +'<span style="font-size:12px;font-weight:800;color:'+ERG+';flex-shrink:0;">PM5 SPLIT</span>'
+      +'<span style="flex:1;text-align:right;font-size:11px;color:#555;">'+(t?'0:00':'0')+' for none</span>'
+      +'<div class="step-val-row">'
+      +'<button class="stepper-btn" style="width:44px;height:44px;font-size:25px;flex-shrink:0;" data-a="esplit" data-d="-1">&#8722;</button>'
+      +'<input class="step-val-input" type="text" inputmode="'+(t?'text':'numeric')+'" value="'+(t?fmtT(v):String(v))+'" data-esplit="1">'
+      +'<button class="stepper-btn" style="width:44px;height:44px;font-size:25px;flex-shrink:0;" data-a="esplit" data-d="1">+</button>'
+      +'<span class="step-val-unit">'+(t?'m : ss':'metres')+'</span></div></div>';
+  };
   const render=()=>{if(quick)renderQuick();else if(edit)renderEdit();else renderList();};
   /* Details: read-only view of one planned workout, with EDIT (where allowed) or CLOSE. */
   const renderDetails=w=>{
@@ -10155,6 +10192,13 @@ window.showWorkoutsModal=function(opts){
       f.set(qClamp(f,v));renderQuick();return;
     }
     if(!edit)return;
+    if(t.dataset.esplit!=null){
+      const wk=eSingle();if(!wk)return;
+      let v;
+      if(wk.mode==='time'){const p=String(t.value).trim().split(':');v=p.length>1?((parseInt(p[0],10)||0)*60+(parseInt(p[1],10)||0)):(parseInt(p[0],10)||0);}
+      else v=parseFloat(t.value)||0;
+      edit._split=Math.max(0,Math.min(wk.value,Math.round(v)));renderEdit();return;
+    }
     if(t.dataset.v!=null){
       const s=getStep(t.dataset.v);
       if(s.mode==='time'){const p=String(t.value).trim().split(':');let v=p.length>1?((parseInt(p[0],10)||0)*60+(parseInt(p[1],10)||0)):(parseInt(p[0],10)||0);s.value=Math.min(35940,Math.max(10,Math.round(v)));s.timeValue=s.value;}
@@ -10270,6 +10314,13 @@ window.showWorkoutsModal=function(opts){
       ensureBookends();sel=new Set();renderEdit();return;
     }
     if(a==='start'){edit.startMode=b.dataset.m;renderEdit();return;}
+    if(a==='esplit'){
+      const wk=eSingle();if(!wk)return;
+      let v=edit._split||0;
+      if(wk.mode==='time')v=(d<0&&v<=10)?0:(d>0?nextTime(v):prevTime(v||10));
+      else v=v+d*50;
+      edit._split=Math.max(0,Math.min(wk.value,Math.round(v)));renderEdit();return;
+    }
     if(a==='sel'){const i=+p;if(sel.has(i))sel.delete(i);else sel.add(i);renderEdit();return;}
     if(a==='add'){
       const s=newStep(b.dataset.m), st=edit.steps, last=st[st.length-1];
@@ -10329,6 +10380,15 @@ window.showWorkoutsModal=function(opts){
         const _o=_mDB().find(x=>x&&x.id===w.id);
         if(w.venue!=='erg'||!_o||_sig(_o.steps)!==_sig(w.steps))delete w.erg;
       }
+      /* One work step on the erg: save its PM5 shape, split included. */
+      {
+        const ws=w.venue==='erg'&&(w.steps||[]).length===1?w.steps[0]:null;
+        if(ws&&ws.type==='work'&&(ws.mode==='time'||ws.mode==='distance')&&ws.value>0){
+          const sp=(edit._split>0&&edit._split<ws.value&&edit._splitMode===ws.mode)?edit._split:0;
+          w.erg={single:{mode:ws.mode,value:ws.value,split:sp}};
+        }
+      }
+      delete w._split;delete w._splitMode;
       w.note=String(w.note||'').trim();if(!w.note)delete w.note;
       if(w.venue==='erg')w.startMode='lap5';
       const DB=_mDB();const i=DB.findIndex(x=>x.id===w.id);
