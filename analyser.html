@@ -10058,6 +10058,22 @@ window.showWorkoutsModal=function(opts){
     const nt=document.getElementById('_wkt_note');
     if(nt)nt.oninput=()=>{edit.note=nt.value;};
   };
+  /* + ERG WORKOUT from the calendar: same quick erg pieces as the Workouts
+     list, plus a custom step-by-step workout. */
+  const renderNewErg=()=>{
+    const qi=(k,t,sub)=>'<button type="button" data-a="quick" data-m="'+k+'" style="display:flex;align-items:center;gap:10px;width:100%;text-align:left;background:#fff;border:1px solid #e0e0e5;border-left:4px solid '+ERG+';border-radius:12px;box-shadow:0 1px 3px rgba(0,0,0,.07);padding:10px 12px;margin-bottom:6px;font-family:inherit;font-size:14px;font-weight:800;color:#000;cursor:pointer;">'
+      +'<span style="flex:1;min-width:0;pointer-events:none;">'+t+'<div style="font-size:11px;font-weight:500;color:#555;margin-top:2px;">'+sub+'</div></span>'
+      +'<span style="font-size:20px;font-weight:700;color:#c7c7cc;pointer-events:none;">&#8250;</span></button>';
+    panel.innerHTML=hdr('New erg workout')
+      +'<div style="font-size:10px;font-weight:800;letter-spacing:.08em;color:#8e8e93;margin:2px 2px 6px;">QUICK ERG PIECES</div>'
+      +qi('dist','Single Distance','Fixed metres, with a split length')
+      +qi('time','Single Time','Fixed duration, with a split length')
+      +qi('const','Constant Intervals','Identical work + rest, repeated')
+      +qi('var','Variable Intervals','Different work/rest each rep')
+      +'<div style="font-size:10px;font-weight:800;letter-spacing:.08em;color:#8e8e93;margin:12px 2px 6px;">CUSTOM</div>'
+      +qi('custom','Custom Workout','Build it step by step')
+      +'<div class="wkt-actions" style="margin-top:8px;"><button class="wkt-btn del" data-a="close">CANCEL</button></div>';
+  };
   const renderQuick=()=>{
     const q=quick;
     const T={dist:'Single Distance',time:'Single Time',const:'Constant Intervals',var:'Variable Intervals'}[q.kind];
@@ -10258,9 +10274,13 @@ window.showWorkoutsModal=function(opts){
       if((edit||quick)&&!confirm('Close without saving?'))return;
       overlay.remove();return;
     }
+    if(a==='quick'&&b.dataset.m==='custom'){
+      edit={id:Date.now().toString(),name:'',venue:'erg',startMode:'lap5',steps:[newStep('work')],_new:true};
+      sel=new Set();renderEdit();return;
+    }
     if(a==='quick'){quick=qNew(b.dataset.m);renderQuick();return;}
     if(quick){
-      if(a==='qcancel'){quick=null;renderList();return;}
+      if(a==='qcancel'){quick=null;if(opts.newVenue==='erg')renderNewErg();else renderList();return;}
       if(a==='qsave'){qSave();return;}
       if(a==='qcmode'){quick.cmode=b.dataset.m;renderQuick();return;}
       if(a==='qvmode'){const iv=quick.ivs[+b.dataset.i];if(iv&&iv.mode!==b.dataset.m){iv.mode=b.dataset.m;iv.value=iv.mode==='time'?120:500;}renderQuick();return;}
@@ -10366,7 +10386,7 @@ window.showWorkoutsModal=function(opts){
     if(a==='tpace'&&s){if(s.targetPace!=null)delete s.targetPace;else s.targetPace=120;renderEdit();return;}
     if(a==='arate'&&s&&s.targetRate!=null){s.targetRate=Math.max(10,Math.min(50,s.targetRate+d));renderEdit();return;}
     if(a==='apace'&&s&&s.targetPace!=null){s.targetPace=Math.max(60,Math.min(300,s.targetPace+d*2));renderEdit();return;}
-    if(a==='cancel'){if(opts.newVenue||opts.editId){overlay.remove();return;}edit=null;sel=new Set();renderList();return;}
+    if(a==='cancel'){if(opts.newVenue==='erg'&&!opts.editId){edit=null;sel=new Set();renderNewErg();return;}if(opts.newVenue||opts.editId){overlay.remove();return;}edit=null;sel=new Set();renderList();return;}
     if(a==='save'){
       const name=String(edit.name||'').trim();
       if(!name){alert('Enter a workout name');return;}
@@ -10412,8 +10432,11 @@ window.showWorkoutsModal=function(opts){
   }else if(opts.newVenue){
     const erg=opts.newVenue==='erg';
     _wktVenueView=erg?'erg':'water';
-    edit={id:Date.now().toString(),name:'',venue:erg?'erg':'water',startMode:'lap5',steps:erg?[newStep('work')]:[newStep('warmup'),newStep('work'),newStep('cooldown')],_new:true};
-    renderEdit();
+    if(erg)renderNewErg();
+    else{
+      edit={id:Date.now().toString(),name:'',venue:'water',startMode:'lap5',steps:[newStep('warmup'),newStep('work'),newStep('cooldown')],_new:true};
+      renderEdit();
+    }
   }else renderList();
   if(AnalyserDrive.isSignedIn())AnalyserDrive.pullPrefs().then(cur=>{if(!cur)return;applyWorkoutsFromPrefs(cur.workouts);if(!edit&&!opts.viewId&&!opts.viewW&&document.getElementById('_wkt_modal'))renderList();}).catch(()=>{});
 };
