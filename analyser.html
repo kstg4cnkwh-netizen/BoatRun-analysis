@@ -2355,29 +2355,50 @@ function _ergLapsFromIntervals(iv, hrTrace, t0) {
   }
   return out.length ? out : null;
 }
-/* Sessions post-processed by Metrics before 261010_2 read 5-10% slow for the
-   first minute of each piece. Rebuild speed from the corrected GPS distance. */
+/* Sessions post-processed by Metrics before 261010_2 can read slow at the start
+   of short pieces. Rebuild pace from the recorded GPS speed (phone speed, with
+   position speed where the phone speed collapsed), levelled to session distance. */
 function _fixOldPpPace(s) {
   try {
-    if (!s || !s._pp || s._ppv2 || s.sessionMode === 'erg') return;
+    if (!s || !s._pp || s._ppv3 || s.sessionMode === 'erg') return;
     const m = /Metrics_(\d{6})_(\d+)/.exec(s.appBuild || '');
     if (m && (+m[1] > 261010 || (+m[1] === 261010 && +m[2] >= 2))) return;
+    const raw = (s.gpsRawTrace || []).filter(p => p && p.t != null && (p.vIn != null || p.rawSpd != null)).sort((a, b) => a.t - b.t);
+    if (raw.length < 30) return;
+    const tA = raw.map(p => p.t);
+    const vA = raw.map(p => {
+      let v = p.vIn != null ? p.vIn : p.rawSpd;
+      const ps = p.posSpd;
+      if (ps != null && ps >= 1.5 && v < 0.5 * ps) v = ps;
+      return (v >= 0 && v < 8) ? v : null;
+    });
+    // Level: session distance over moving GPS speed distance (kept within 5%).
     const g = (s.gpsTrace || []).filter(p => p && p.t != null && p.dist != null).sort((a, b) => a.t - b.t);
-    const N = g.length, GAP = 4000;
-    if (N < 10) return;
-    const tA = g.map(p => p.t), D = g.map(p => p.dist);
-    const seg = new Array(N); let k = 0;
-    for (let i = 0; i < N; i++) { if (i > 0 && tA[i] - tA[i - 1] > GAP) k++; seg[i] = k; }
-    const s0 = {}, s1 = {}; seg.forEach((q, i) => { if (s0[q] == null) s0[q] = i; s1[q] = i; });
-    const at = t => { let lo = 0, hi = N - 1; while (hi - lo > 1) { const mm = (lo + hi) >> 1; if (tA[mm] < t) lo = mm; else hi = mm; } const f = (t - tA[lo]) / ((tA[hi] - tA[lo]) || 1); return D[lo] + f * (D[hi] - D[lo]); };
-    const vS = g.map((p, i) => { const ta = Math.max(tA[s0[seg[i]]], tA[i] - 3000), tb = Math.min(tA[s1[seg[i]]], tA[i] + 3000); if (tb - ta < 4000) return null; const v = (at(tb) - at(ta)) / ((tb - ta) / 1000); return v < 0.25 ? 0 : v; });
-    const V = t => { if (t == null || t < tA[0] || t > tA[N - 1]) return null; let lo = 0, hi = N - 1; while (hi - lo > 1) { const mm = (lo + hi) >> 1; if (tA[mm] < t) lo = mm; else hi = mm; } if (vS[lo] == null || vS[hi] == null || tA[hi] - tA[lo] > GAP) return null; const f = (t - tA[lo]) / ((tA[hi] - tA[lo]) || 1); return vS[lo] + f * (vS[hi] - vS[lo]); };
+    let k = 1;
+    if (g.length > 10) {
+      const dAt = t => { let lo = 0, hi = g.length - 1; if (t <= g[0].t) return g[0].dist; if (t >= g[hi].t) return g[hi].dist; while (hi - lo > 1) { const mm = (lo + hi) >> 1; if (g[mm].t < t) lo = mm; else hi = mm; } const f = (t - g[lo].t) / ((g[hi].t - g[lo].t) || 1); return g[lo].dist + f * (g[hi].dist - g[lo].dist); };
+      let dv = 0, dg = 0;
+      for (let i = 1; i < raw.length; i++) {
+        const dt = (tA[i] - tA[i - 1]) / 1000;
+        if (!(dt > 0 && dt <= 3) || vA[i] == null || vA[i - 1] == null || vA[i] < 1.5) continue;
+        dv += (vA[i] + vA[i - 1]) / 2 * dt; dg += dAt(tA[i]) - dAt(tA[i - 1]);
+      }
+      if (dv > 500 && dg > 0) k = Math.max(0.95, Math.min(1.05, dg / dv));
+    }
+    const V = t => {
+      if (t == null || t < tA[0] || t > tA[tA.length - 1]) return null;
+      let lo = 0, hi = tA.length - 1;
+      while (hi - lo > 1) { const mm = (lo + hi) >> 1; if (tA[mm] < t) lo = mm; else hi = mm; }
+      let sum = 0, n = 0;
+      for (let i = Math.max(0, lo - 6); i <= Math.min(tA.length - 1, hi + 6); i++) if (Math.abs(tA[i] - t) <= 3000 && vA[i] != null) { sum += vA[i]; n++; }
+      return n >= 4 ? k * sum / n : null;
+    };
     (s.strokes || []).forEach(st => { if (!st || st.t == null) return; const v = V(st.t); if (v != null && v >= 0.5) st.pace = +(500 / v).toFixed(2); });
     if (Array.isArray(s.paceTrace) && Array.isArray(s.paceTimes)) {
       s.paceTrace = s.paceTrace.map((p, i) => { const v = V(s.paceTimes[i]); return (v != null && v >= 0.5) ? +(500 / v).toFixed(2) : p; });
       if (s.paceTrace.length) s.avgMovingPace = +(s.paceTrace.length / s.paceTrace.reduce((a, b) => a + 1 / b, 0)).toFixed(1);
     }
-    s._ppv2 = 1;
+    s._ppv3 = 1;
   } catch (e) {}
 }
 function sessionToAnalyserFmt(s) {
