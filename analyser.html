@@ -294,6 +294,10 @@
 .sz-prompt p{font-size:.85rem;color:var(--muted);margin:0;}
 .sz-list{width:100%;max-width:480px;}
 .sz-sumcol{display:none;}
+@media (max-width:1199px){
+  .sz-grid{display:flex;flex-direction:column;}
+  .sz-calcol{order:-1;}
+}
 @media (min-width:1200px){
   .sz-list{max-width:1560px;}
   .sz-grid{display:grid;grid-template-columns:minmax(0,1.05fr) minmax(0,1fr) minmax(0,1fr);gap:14px;align-items:start;}
@@ -10848,7 +10852,7 @@ function renderStartupCalendar(){
   }else{
     const base=new Date(now.getFullYear(),now.getMonth()+_calMonthOff,1);
     h='<div class="sz-lhd" style="display:flex;align-items:center;gap:6px;flex-wrap:wrap;">Calendar'+'<span style="display:flex;gap:4px;margin-left:8px;"><button id="cal-mine" class="filt-chip'+(!_wktCtx?' on':'')+'" style="'+CH+'">Mine</button><button id="cal-squad" class="filt-chip'+(_wktCtx?' on':'')+'" style="'+CH+'">'+'<span style="display:inline-block;flex-shrink:0;width:8px;height:8px;border-radius:50%;background:'+CAL_COACH_COL+';box-shadow:0 0 0 1px rgba(0,0,0,.35);margin-right:5px;vertical-align:middle;"></span>'+'Squad'+(_wktCtx?' '+_wktCtx:'')+'</button></span>'
-      +'<span style="margin-left:auto;display:flex;align-items:center;gap:6px;">'
+      +'<span style="margin-left:auto;display:flex;align-items:center;gap:6px;flex-wrap:wrap;justify-content:flex-end;min-width:0;max-width:100%;">'
       +'<button id="cal-prev" class="filt-chip" style="'+CH+'">‹</button>'
       +'<span style="font-size:.8rem;font-weight:600;min-width:110px;text-align:center;">'+mLabel(base.getFullYear(),base.getMonth())+'</span>'
       +'<button id="cal-next" class="filt-chip" style="'+CH+'">›</button>'
