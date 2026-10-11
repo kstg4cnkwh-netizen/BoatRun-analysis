@@ -13912,9 +13912,9 @@ function vidCancelExport(){
   try{ if(X.rec.state!=='inactive') X.rec.stop(); }catch(e){ vidExportCleanup(); }
 }
 
-/* Frame-accurate MP4 export (WebCodecs). The clip plays at half speed and
-   every decoded frame is encoded with its own media timestamp, so timing in
-   the file comes from the video itself - no dropped or doubled frames. */
+/* Frame-accurate MP4 export (WebCodecs). Matches the original clip's size and
+   frame rate, steps it by seeking one source frame at a time and gives each
+   frame an exact constant timestamp, so it plays at true speed everywhere. */
 function vidCanWC(){
   return typeof VideoEncoder!=='undefined' && typeof VideoFrame!=='undefined'
     && !!(window.HTMLVideoElement && HTMLVideoElement.prototype.requestVideoFrameCallback);
@@ -13940,6 +13940,28 @@ function vidExportPaint(cctx,Ow,Oh,el){
     cctx.globalAlpha=1;
   }
 }
+/* Measures the clip's own frame interval (seconds) by playing a few frames
+   from t0 and reading their media timestamps. Snaps to the usual camera rates. */
+async function vidMeasureFps(el,t0){
+  const STD=[[24000,1001],[24,1],[25,1],[30000,1001],[30,1],[48,1],[50,1],[60000,1001],[60,1],[100,1],[120000,1001],[120,1]];
+  const snap=fps=>{ let best=null,bd=Infinity; for(const r of STD){ const f=r[0]/r[1], d=Math.abs(f-fps)/f; if(d<bd){ bd=d; best=r; } } return (best&&bd<0.03)?best:[Math.round(fps),1]; };
+  if(!el.requestVideoFrameCallback) return [30,1];
+  await new Promise(res=>{ let ok=false; const f=()=>{ if(ok) return; ok=true; el.removeEventListener('seeked',f); res(); }; el.addEventListener('seeked',f); el.currentTime=t0; setTimeout(f,1500); });
+  const ts=[];
+  await new Promise(res=>{
+    let end=false;
+    const fin=()=>{ if(end) return; end=true; try{ el.pause(); }catch(e){} res(); };
+    const cb=(now,md)=>{ if(end) return; if(md&&md.mediaTime!=null) ts.push(md.mediaTime); if(ts.length>=16){ fin(); return; } el.requestVideoFrameCallback(cb); };
+    el.requestVideoFrameCallback(cb);
+    el.playbackRate=0.25;
+    const p=el.play(); if(p&&p.catch) p.catch(()=>fin());
+    setTimeout(fin,4000);
+  });
+  const d=[]; for(let i=1;i<ts.length;i++){ const x=ts[i]-ts[i-1]; if(x>0.002&&x<0.2) d.push(x); }
+  if(d.length<3) return [30,1];
+  d.sort((p,q)=>p-q);
+  return snap(1/d[0]);
+}
 async function vidExportWC(){
   if(VID_EXPORT) return;
   const a=VID.clips[VID.active];
@@ -13948,67 +13970,73 @@ async function vidExportWC(){
   if(!el.videoWidth){ toast('Press play once so the video loads, then export'); return; }
   const SR=vidSecRange(a);
   if(!(SR.t1>SR.t0+0.2)){ toast('Finish must be after Start'); return; }
-  let Ow=el.videoWidth, Oh=el.videoHeight;
-  const cap=1920, big=Math.max(Ow,Oh);
-  if(big>cap){ Ow=Math.round(Ow*cap/big); Oh=Math.round(Oh*cap/big); }
-  if(Ow%2) Ow++; if(Oh%2) Oh++;
   let Mx=null;
   try{ Mx=await vidLoadMuxer(); }catch(e){ Mx=null; }
   if(!Mx){ toast('Could not load MP4 writer — using recorder instead',4000); vidExportRun('mp4'); return; }
-  let codec=null;
-  for(const c of ['avc1.640028','avc1.4d0028','avc1.42E028','avc1.42E01F']){
-    try{ const r=await VideoEncoder.isConfigSupported({codec:c,width:Ow,height:Oh,bitrate:10000000,framerate:30}); if(r&&r.supported){ codec=c; break; } }catch(e){}
+  const st0=document.getElementById('vidExportStatus'); if(st0) st0.textContent='Reading video settings…';
+  const rate0=el.playbackRate||1;
+  el.muted=true;
+  let FR=[30,1];
+  try{ FR=await vidMeasureFps(el,SR.t0); }catch(e){ FR=[30,1]; }
+  try{ el.playbackRate=rate0; }catch(e){}
+  const FPS=FR[0]/FR[1], FD=1e6*FR[1]/FR[0];
+  /* Same size as the original where the encoder allows it, stepping down only if it refuses. */
+  const Vw=el.videoWidth, Vh=el.videoHeight, big=Math.max(Vw,Vh);
+  const sizes=[];
+  [big,3840,2560,1920,1280].forEach(c=>{ if(c<=big){ const k=c/big; let w=Math.round(Vw*k), h=Math.round(Vh*k); if(w%2) w++; if(h%2) h++; if(!sizes.some(z=>z[0]===w&&z[1]===h)) sizes.push([w,h]); } });
+  const codecs=['avc1.640034','avc1.640033','avc1.640032','avc1.64002A','avc1.640028','avc1.4d0034','avc1.4d0033','avc1.4d0028','avc1.42E034','avc1.42E028','avc1.42E01F'];
+  let Ow=0, Oh=0, codec=null, br=0;
+  for(const z of sizes){
+    const b=Math.max(8e6,Math.min(120e6,Math.round(z[0]*z[1]*FPS*0.2)));
+    for(const c of codecs){
+      try{ const r=await VideoEncoder.isConfigSupported({codec:c,width:z[0],height:z[1],bitrate:b,framerate:FPS,latencyMode:'quality'}); if(r&&r.supported){ codec=c; break; } }catch(e){}
+    }
+    if(codec){ Ow=z[0]; Oh=z[1]; br=b; break; }
   }
   if(!codec){ vidExportRun('mp4'); return; }
-  const muxer=new Mx.Muxer({target:new Mx.ArrayBufferTarget(),video:{codec:'avc',width:Ow,height:Oh},fastStart:'in-memory',firstTimestampBehavior:'offset'});
+  if(Ow<Vw-2) toast('This browser can only encode '+Ow+'×'+Oh+' — exporting at that size',5000);
+  const mxv={codec:'avc',width:Ow,height:Oh};
+  if(FR[1]===1) mxv.frameRate=FR[0];
+  const muxer=new Mx.Muxer({target:new Mx.ArrayBufferTarget(),video:mxv,fastStart:'in-memory',firstTimestampBehavior:'offset'});
   let encErr=null;
   const enc=new VideoEncoder({output:(ch,meta)=>{ try{ muxer.addVideoChunk(ch,meta); }catch(e){ encErr=e; } },error:e=>{ encErr=e; }});
-  enc.configure({codec,width:Ow,height:Oh,bitrate:10000000,framerate:30});
+  enc.configure({codec,width:Ow,height:Oh,bitrate:br,framerate:FPS,latencyMode:'quality'});
   const comp=document.createElement('canvas'); comp.width=Ow; comp.height=Oh;
   const cctx=comp.getContext('2d');
+  cctx.imageSmoothingEnabled=true; cctx.imageSmoothingQuality='high';
   VID.exporting=true;
-  const X={wc:true,el,clip:a,comp,cctx,Ow,Oh,raf:null,vfc:null,started:true,cancelled:false,done:false,t0:SR.t0,t1:SR.t1,n:0,lastT:-1,rate:el.playbackRate||1,resolve:null};
+  const X={wc:true,el,clip:a,comp,cctx,Ow,Oh,raf:null,vfc:null,started:true,cancelled:false,done:false,t0:SR.t0,t1:SR.t1,n:0,rate:rate0,resolve:null};
   VID_EXPORT=X;
   vidExportUI(true);
-  const finish=new Promise(res=>{ X.resolve=res; });
   el.muted=true;
-  el.pause();
-  await new Promise(res=>{ let ok=false; const f=()=>{ if(ok) return; ok=true; el.removeEventListener('seeked',f); res(); }; el.addEventListener('seeked',f); el.currentTime=SR.t0; setTimeout(f,1500); });
-  const onFrame=(now,md)=>{
-    X.vfc=null;
-    if(X.cancelled||X.done) return;
-    const t=(md&&md.mediaTime!=null)?md.mediaTime:el.currentTime;
-    if(t>=X.t1-0.001){ X.done=true; X.resolve(); return; }
-    if(t>X.lastT+0.0005){
-      X.lastT=t;
-      vidExportPaint(cctx,Ow,Oh,el);
-      const fr=new VideoFrame(comp,{timestamp:Math.round(t*1e6)});
-      try{ enc.encode(fr,{keyFrame:X.n%60===0}); }catch(e){ encErr=e; }
-      fr.close(); X.n++;
-      if(X.n%10===0) vidDraw();
-      vidExportProgress(Math.max(0,t-X.t0),X.t1-X.t0);
-    }
-    if(enc.encodeQueueSize>6){
-      el.pause();
-      const w=()=>{
-        if(X.cancelled||X.done) return;
-        if(enc.encodeQueueSize>2){ setTimeout(w,20); return; }
-        X.vfc=el.requestVideoFrameCallback(onFrame);
-        const p=el.play(); if(p&&p.catch) p.catch(()=>{});
-      };
-      setTimeout(w,20);
-      return;
-    }
-    X.vfc=el.requestVideoFrameCallback(onFrame);
-  };
-  el.addEventListener('ended',()=>{ if(!X.done){ X.done=true; if(X.resolve) X.resolve(); } },{once:true});
-  X.vfc=el.requestVideoFrameCallback(onFrame);
-  el.playbackRate=0.5;
-  const p=el.play(); if(p&&p.catch) p.catch(()=>{});
-  await finish;
   try{ el.pause(); }catch(e){}
+  const seekTo=t=>new Promise(res=>{
+    let s=false, f=!el.requestVideoFrameCallback, end=false;
+    const fin=()=>{ if(end) return; end=true; clearTimeout(hard); el.removeEventListener('seeked',onS); res(); };
+    const chk=()=>{ if(s&&f) fin(); };
+    const onS=()=>{ s=true; chk(); if(!f) setTimeout(()=>{ f=true; chk(); },120); };
+    if(el.requestVideoFrameCallback) el.requestVideoFrameCallback(()=>{ f=true; chk(); });
+    el.addEventListener('seeked',onS);
+    const hard=setTimeout(fin,2500);
+    el.currentTime=t;
+  });
+  const total=SR.t1-SR.t0;
+  const N=Math.max(1,Math.floor(total*FPS));
+  const KEY=Math.max(1,Math.round(FPS*2));
+  for(let n=0;n<N;n++){
+    if(X.cancelled) break;
+    await seekTo(SR.t0+(n+0.25)/FPS);
+    if(X.cancelled) break;
+    vidExportPaint(cctx,Ow,Oh,el);
+    const fr=new VideoFrame(comp,{timestamp:Math.round(n*FD),duration:Math.round(FD)});
+    try{ enc.encode(fr,{keyFrame:n%KEY===0}); }catch(e){ encErr=e; }
+    fr.close(); X.n++;
+    if(encErr) break;
+    while(enc.encodeQueueSize>4 && !X.cancelled) await new Promise(r=>setTimeout(r,10));
+    if(X.n%10===0) vidDraw();
+    vidExportProgress(n/FPS,total);
+  }
   try{ el.playbackRate=X.rate; }catch(e){}
-  if(X.vfc!=null){ try{ el.cancelVideoFrameCallback(X.vfc); }catch(e){} X.vfc=null; }
   if(X.cancelled){ try{ enc.close(); }catch(e){} vidExportCleanup(); toast('Export cancelled'); return; }
   const s=document.getElementById('vidExportStatus'); if(s) s.textContent='Finishing MP4…';
   try{ await enc.flush(); enc.close(); muxer.finalize(); }catch(e){ encErr=encErr||e; }
@@ -14019,7 +14047,7 @@ async function vidExportWC(){
   link.download=vidExportName(a.name)+'.mp4';
   document.body.appendChild(link); link.click(); link.remove();
   setTimeout(()=>URL.revokeObjectURL(url),6000);
-  vidExportCleanup(); toast('MP4 saved');
+  vidExportCleanup(); toast('MP4 saved · '+Ow+'×'+Oh+' · '+(Math.round(FPS*100)/100)+' fps');
 }
 
 function vidExportSchedule(){
