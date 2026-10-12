@@ -22,6 +22,22 @@
     window.close();
   }
 }catch{}})();
+// Deep link from a BoatRun calendar event: analyser.html?open=<session start ms>&mode=water|erg.
+// Held in sessionStorage so it survives a sign-in redirect, then opened by showStartup().
+(function(){try{
+  var q=new URLSearchParams(location.search),o=q.get('open');
+  if(!o||!/^\d{10,14}$/.test(o))return;
+  sessionStorage.setItem('_ad_open',JSON.stringify({t:+o,m:q.get('mode')==='erg'?'erg':'water',ts:Date.now()}));
+  history.replaceState({},'',location.pathname);
+}catch{}})();
+function adPeekPendingOpen(){
+  try{
+    var v=JSON.parse(sessionStorage.getItem('_ad_open')||'null');
+    if(!v||!v.t||Date.now()-(v.ts||0)>1800000){sessionStorage.removeItem('_ad_open');return null;}
+    return v;
+  }catch(e){return null;}
+}
+function adClearPendingOpen(){try{sessionStorage.removeItem('_ad_open');}catch(e){}}
 </script>
 <style>
   /* system font */
@@ -3015,6 +3031,45 @@ async function recordFindFile(r, mode){
   let f=pick(AnalyserDrive.cachedList('RowSess_'));
   if(!f)f=pick(await AnalyserDrive.list());
   return f;
+}
+/* Calendar deep link (analyser.html?open=<start ms>&mode=). The request stays
+   pending until it either opens or is definitely not on Drive, so an expired
+   sign-in or a showStartup() that runs first cannot swallow it. */
+let _adOpenBusy=false;
+async function adRunPendingOpen(){
+  const po=adPeekPendingOpen();
+  if(!po||_adOpenBusy||!AnalyserDrive.isSignedIn())return;
+  po.tries=(po.tries||0)+1;
+  if(po.tries>3){adClearPendingOpen();toast('Could not open the session \u2014 sign in again and tap the link once more',6000);return;}
+  try{sessionStorage.setItem('_ad_open',JSON.stringify(po));}catch(e){}
+  _adOpenBusy=true;
+  const d=new Date(po.t);
+  const when=d.toLocaleDateString(undefined,{day:'numeric',month:'short'})+' '+d.toLocaleTimeString(undefined,{hour:'2-digit',minute:'2-digit'});
+  toast('Opening session '+when+'\u2026',4000);
+  try{
+    let files=[];
+    try{AnalyserDrive._invalidateFolder&&AnalyserDrive._invalidateFolder();}catch(e){}
+    try{files=await AnalyserDrive.list();}
+    catch(err){if(driveAuthExpired(err))return;toast('Could not read Drive: '+((err&&err.message)||err),5000);return;}
+    const cand=[];
+    (files||[]).forEach(f=>{
+      const mm=String(f.name||'').match(/RowSess_(\d{4})-(\d{2})-(\d{2})_(\d{2})(\d{2})/);if(!mm)return;
+      const ft=new Date(+mm[1],+mm[2]-1,+mm[3],+mm[4],+mm[5]).getTime();
+      const dd=Math.abs(ft-po.t);
+      if(dd>180000)return;
+      const erg=/_ERG(?:_|\.)/.test(f.name);
+      cand.push({f,dd:dd+((po.m==='erg')===erg?0:600000)});
+    });
+    cand.sort((a,b)=>a.dd-b.dd);
+    if(!cand.length){adClearPendingOpen();toast('Session '+when+' is not on Drive yet \u2014 open BoatRun on the phone to upload it',6000);return;}
+    const f=cand[0].f;
+    let session=null;
+    try{session=await AnalyserDrive.fetchSession(f.id);}
+    catch(err){if(driveAuthExpired(err))return;toast('Load failed: '+((err&&err.message)||err),5000);return;}
+    adClearPendingOpen();
+    applySessionUnits(session);
+    addSessionFromData(sessionToAnalyserFmt(session),f.name.replace('RowSess_','').replace('.json',''),true,f.id);
+  }finally{_adOpenBusy=false;}
 }
 async function loadRecordEntry(r, mode){
   if(!r)return;
@@ -8790,6 +8845,7 @@ async function showStartup(){
     return;
   }
 
+  if(adPeekPendingOpen())setTimeout(adRunPendingOpen,400);
   document.getElementById('app').style.display='none';
   el.innerHTML=`<div class="sz-list">
     <div class="brpill-row">
