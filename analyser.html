@@ -325,6 +325,13 @@ function adClearPendingOpen(){try{sessionStorage.removeItem('_ad_open');}catch(e
   .sz-sumwrap>#sz-nav{margin-bottom:14px;}
 }
 #sz-sectors .hbtn,#sz-nav .hbtn{background:#fff;color:#1a5276;border:none;border-radius:14px;padding:7px 12px;font-size:11px;font-weight:700;letter-spacing:.03em;text-transform:uppercase;box-shadow:0 2px 5px rgba(0,0,0,.18);}
+#_navdraw_modal .hbtn{background:#fff;color:#1a5276;border:2px solid #1a5276;border-radius:12px;padding:10px 16px;font-size:14px!important;font-weight:800;letter-spacing:.03em;text-transform:uppercase;box-shadow:0 3px 8px rgba(0,0,0,.35);}
+#_navdraw_modal .hbtn:hover{background:#1a5276;color:#fff;}
+#_navdraw_modal #_navdraw_close{background:#3a3a3c;color:#fff;border-color:#3a3a3c;}
+#_navdraw_modal #_navdraw_clear,#_navdraw_modal #_navdraw_del{color:#c0392b!important;border-color:#c0392b;}
+#_navdraw_modal #_navdraw_save{font-size:15px;font-weight:800;padding:11px 26px;border-radius:12px;box-shadow:0 3px 8px rgba(0,0,0,.35);}
+#_navdraw_modal .leaflet-control-zoom a{width:44px;height:44px;line-height:44px;font-size:24px;font-weight:800;}
+#_navdraw_modal #_navdraw_name,#_navdraw_modal #_navdraw_to{font-size:14px!important;padding:10px 12px;}
 #sz-sectors .hbtn:hover,#sz-nav .hbtn:hover{background:var(--acc,#1a5276);color:#fff;border:none;}
 .sz-lhd{font-size:.75rem;font-weight:600;letter-spacing:.1em;color:var(--muted);text-transform:uppercase;margin-bottom:2px;display:flex;align-items:center;justify-content:space-between;}
 .sz-signout{font-size:.75rem;color:var(--b);cursor:pointer;font-weight:400;text-transform:none;letter-spacing:0;}
@@ -4595,6 +4602,36 @@ window.navClub=function(){
   render();
   navClubPullAll(true);
 };
+/* Last on-water session location [lat,lon,ts]: noted whenever an on-water
+   session is opened, and looked up on Drive when nothing newer is known. */
+const NAV_LASTWATER_KEY='br_lastwater_ll';
+function navLastWaterCached(){try{const v=JSON.parse(localStorage.getItem(NAV_LASTWATER_KEY)||'null');return Array.isArray(v)&&isFinite(v[0])&&isFinite(v[1])?v:null;}catch{return null;}}
+function navNoteWater(d){
+  try{
+    if(!d||(d.sum&&d.sum.session_mode==='erg'))return;
+    const p=(d.gpsTrace||[]).find(q=>q&&q.lat!=null&&q.lon!=null);if(!p)return;
+    const ts=Date.parse((d.sum&&d.sum.start_time)||'')||0;
+    const c=navLastWaterCached();
+    if(c&&(c[2]||0)>ts)return;
+    localStorage.setItem(NAV_LASTWATER_KEY,JSON.stringify([p.lat,p.lon,ts]));
+  }catch{}
+}
+async function navLastWater(){
+  const c=navLastWaterCached();
+  try{
+    if(!AnalyserDrive.isSignedIn())return c;
+    const f=(await AnalyserDrive.list()).find(x=>!_sumParseFn(x.name).erg);
+    if(!f)return c;
+    const ts=_sumParseFn(f.name).approxTs||0;
+    if(c&&(c[2]||0)>=ts-600000)return c;
+    const s=await AnalyserDrive.fetchSession(f.id);
+    const p=((s&&s.gpsTrace)||[]).find(q=>q&&q.lat!=null&&q.lon!=null);
+    if(!p)return c;
+    const v=[p.lat,p.lon,ts];
+    try{localStorage.setItem(NAV_LASTWATER_KEY,JSON.stringify(v));}catch{}
+    return v;
+  }catch{return c;}
+}
 /* ── Draw / edit modal ── */
 window.navDraw=function(editId,newMode,clubCode){
   if(!isPro()){showPlanModal('Lanes & hazards are a Pro feature.');return;}
@@ -4644,12 +4681,12 @@ window.navDraw=function(editId,newMode,clubCode){
   const help={
     lane:'Lane: a one-way lane. Tap the map in the direction boats travel; arrows show the direction. Use ⇄ Reverse to flip it. Rowers are warned when they drift off it or row the wrong way.',
     divider:'Divider: a line to keep clear of, on either side. Tap along it. Rowers are warned when they get too close.',
-    hazard:'Hazard: tap once for a point (e.g. a post), or tap along a hazard line. Rowers are warned when their course passes within 5 m in the next 50 m.'
+    hazard:'Hazard: tap once for a point (e.g. a post), or tap along a hazard line. Rowers are warned when their course passes within 5 m in the next 10 s.'
   };
   const updHead=()=>{
     document.getElementById('_navdraw_title').textContent=(edit?'Edit ':'Draw ')+NAV_LBL[mode].toLowerCase()+(club0?' \u00b7 club '+(club0.name||club0.code):'');
     document.getElementById('_navdraw_help').textContent=help[mode]+' Drag a point to move it, tap a point to delete it, long-press the line to add one.';
-    panel.querySelectorAll('[data-nd-mode]').forEach(b=>{const on=b.dataset.ndMode===mode;b.style.background=on?navColor({mode:b.dataset.ndMode}):'';b.style.color=on?'#000':'';b.style.fontWeight=on?'700':'';});
+    panel.querySelectorAll('[data-nd-mode]').forEach(b=>{const on=b.dataset.ndMode===mode,c=navColor({mode:b.dataset.ndMode});b.style.background=on?c:'#000';b.style.color=on?'#000':c;b.style.borderColor=c;});
     const rv=document.getElementById('_navdraw_rev');if(rv)rv.style.display=mode==='lane'?'':'none';
   };
   const updLen=()=>{
@@ -4715,12 +4752,20 @@ window.navDraw=function(editId,newMode,clubCode){
   if(pts.length>1)map.fitBounds(L.latLngBounds(pts),{padding:[40,40]});
   else if(pts.length===1)map.setView(pts[0],17);
   else{
-    if(typeof leafletMap!=='undefined'&&leafletMap&&typeof mapBaseLine!=='undefined'&&mapBaseLine)map.fitBounds(mapBaseLine.getBounds(),{padding:[20,20]});
+    /* Start where you are. No location: where you last rowed on water. */
+    const lw=navLastWaterCached();
+    if(lw)map.setView([lw[0],lw[1]],16);
+    else if(typeof leafletMap!=='undefined'&&leafletMap&&typeof mapBaseLine!=='undefined'&&mapBaseLine)map.fitBounds(mapBaseLine.getBounds(),{padding:[20,20]});
     else if(others.length)map.fitBounds(L.featureGroup(others).getBounds(),{padding:[30,30]});
     else map.setView([-25,134],4);
-    if(!others.length&&navigator.geolocation)navigator.geolocation.getCurrentPosition(p=>{
-      try{if(!pts.length&&document.getElementById('_navdraw_map'))map.setView([p.coords.latitude,p.coords.longitude],16);}catch{}
-    },()=>{},{enableHighAccuracy:true,timeout:10000,maximumAge:60000});
+    let moved=false;
+    map.once('dragstart zoomstart',()=>{moved=true;});
+    const live=()=>!pts.length&&!moved&&document.getElementById('_navdraw_map');
+    const useLastWater=()=>{navLastWater().then(v=>{try{if(v&&live())map.setView([v[0],v[1]],16);}catch{}});};
+    if(navigator.geolocation)navigator.geolocation.getCurrentPosition(p=>{
+      try{if(live())map.setView([p.coords.latitude,p.coords.longitude],16);}catch{}
+    },useLastWater,{enableHighAccuracy:true,timeout:10000,maximumAge:60000});
+    else useLastWater();
   }
   const close=()=>{try{map.remove();}catch{}overlay.remove();};
   document.getElementById('_navdraw_close').onclick=close;
@@ -9377,6 +9422,7 @@ function mountData(d,label){
   if(!d._origLaps)d._origLaps=d.laps||[];
   if(Array.isArray(d.manualLaps)&&d.manualLaps.length&&ST.length)d.laps=_lapsFromEnds(d.manualLaps,Date.parse((d.sum&&d.sum.start_time)||''));
   LAPS=[...(d.laps||[]),...(d.glaps||[])]; GPSTRACE=d.gpsTrace||[];
+  try{navNoteWater(d);}catch{}
   viewS=0; viewE=ST.length-1; selS=-1; selE=-1;
   if(!ST.length&&LAPS.length){toast('No stroke data — showing laps only',4000);}
   else if(!ST.length){toast('No stroke data found in this file',4000);return;}
