@@ -1,0 +1,217 @@
+<!doctype html>
+<html lang="en-AU">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1"/>
+<meta name="theme-color" content="#081226"/>
+<meta name="robots" content="noindex"/>
+<title>BoatRun — Lanes &amp; Hazards Editor</title>
+<link rel="icon" type="image/png" href="icons/icon-192.png">
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@600;700&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" crossorigin=""/>
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" crossorigin=""></script>
+<style>
+:root{--navy:#081226;--panel:#0F1C3A;--ink:#EFF3FA;--dim:rgba(239,243,250,.62);--coral:#FF5A3C;--lane:#ffd60a;--div:#ff3b30;--haz:#ff9500;}
+*{box-sizing:border-box;margin:0;padding:0;}
+html,body{height:100%;}
+body{font-family:'Inter',-apple-system,system-ui,sans-serif;background:var(--navy);color:var(--ink);display:flex;flex-direction:column;}
+header{display:flex;align-items:center;gap:10px;padding:10px 14px;border-bottom:1px solid rgba(255,255,255,.1);flex-wrap:wrap;}
+.brand{font-family:'Space Grotesk',sans-serif;font-weight:700;font-size:17px;color:var(--ink);text-decoration:none;margin-right:6px;}
+.fname{font-size:13px;color:var(--dim);flex:1;min-width:120px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.b{font-family:inherit;font-size:13px;font-weight:700;padding:9px 13px;border-radius:9px;border:1px solid rgba(255,255,255,.2);background:transparent;color:var(--ink);cursor:pointer;white-space:nowrap;}
+.b:hover{border-color:rgba(255,255,255,.45);}
+.b.coral{background:var(--coral);border-color:var(--coral);color:#fff;}
+.b.lane{background:var(--lane);border-color:var(--lane);color:#000;}
+.b.div{background:var(--div);border-color:var(--div);color:#fff;}
+.b.haz{background:var(--haz);border-color:var(--haz);color:#000;}
+.b:disabled{opacity:.35;cursor:default;}
+main{flex:1;min-height:0;display:flex;}
+#map{flex:1;min-width:0;background:#0E3346;}
+aside{width:340px;max-width:44vw;background:var(--panel);border-left:1px solid rgba(255,255,255,.1);display:flex;flex-direction:column;min-height:0;}
+@media(max-width:760px){main{flex-direction:column;}aside{width:auto;max-width:none;height:42vh;border-left:none;border-top:1px solid rgba(255,255,255,.1);}}
+.bar{padding:10px 12px;border-bottom:1px solid rgba(255,255,255,.1);display:flex;gap:6px;flex-wrap:wrap;}
+.mode{padding:9px 12px;font-size:13px;color:var(--dim);border-bottom:1px solid rgba(255,255,255,.1);min-height:38px;}
+.mode b{color:var(--ink);}
+#list{flex:1;overflow-y:auto;padding:8px;}
+.it{background:rgba(255,255,255,.05);border:1px solid rgba(255,255,255,.08);border-left:5px solid #888;border-radius:10px;padding:8px 10px;margin-bottom:8px;cursor:pointer;}
+.it.sel{border-color:rgba(255,255,255,.5);background:rgba(255,255,255,.1);}
+.it input{width:100%;background:transparent;border:none;border-bottom:1px solid rgba(255,255,255,.2);color:var(--ink);font:600 14px Inter,sans-serif;padding:3px 0;margin-bottom:6px;}
+.it input:focus{outline:none;border-bottom-color:var(--coral);}
+.row{display:flex;gap:6px;align-items:center;flex-wrap:wrap;}
+.row select{background:#0b1530;color:var(--ink);border:1px solid rgba(255,255,255,.2);border-radius:7px;padding:5px 6px;font:600 12px Inter,sans-serif;}
+.sm{font:700 11px Inter,sans-serif;padding:6px 9px;border-radius:7px;border:1px solid rgba(255,255,255,.2);background:transparent;color:var(--ink);cursor:pointer;}
+.sm.red{color:#ff8a7a;border-color:rgba(255,90,60,.5);}
+.meta{font-size:11.5px;color:var(--dim);margin-left:auto;}
+.empty{font-size:13px;color:var(--dim);padding:12px 6px;line-height:1.5;}
+.help{font-size:12px;color:var(--dim);padding:10px 12px;border-top:1px solid rgba(255,255,255,.1);line-height:1.5;}
+.vx{width:14px;height:14px;border-radius:50%;background:#fff;border:3px solid #000;box-sizing:border-box;}
+.vx.first{background:#2ee06a;}
+.vx.last{background:#f54040;}
+</style>
+</head>
+<body>
+<header>
+  <a class="brand" href="./">BoatRun</a>
+  <span style="font-family:'Space Grotesk',sans-serif;font-weight:600;">Lanes &amp; Hazards</span>
+  <span class="fname" id="fname">New file</span>
+  <button class="b" id="openBtn">Open file…</button>
+  <button class="b" id="newBtn">New</button>
+  <button class="b" id="satBtn">Map</button>
+  <button class="b coral" id="saveBtn">Download file</button>
+  <input type="file" id="fileIn" accept=".json,application/json" style="display:none">
+</header>
+<main>
+  <div id="map"></div>
+  <aside>
+    <div class="bar">
+      <button class="b lane" data-add="lane">+ Lane</button>
+      <button class="b div" data-add="divider">+ Divider</button>
+      <button class="b haz" data-add="hazard">+ Hazard</button>
+    </div>
+    <div class="mode" id="mode">Select an item, or add a new one.</div>
+    <div id="list"></div>
+    <div class="help">
+      <b>Lane</b>: one-way, drawn in the direction boats travel (yellow, with arrows). <b>Divider</b>: pass either side (dashed red). <b>Hazard</b>: one click for a point (post, buoy), more for a line (sandbank, wall).<br>
+      Click the map to add points to the selected item. Drag a point to move it, double-click a point to delete it. Open a course file to add lines to it: its sectors are kept and shown in grey. Download saves the same file with the lines added.
+    </div>
+  </aside>
+</main>
+<script>
+'use strict';
+const ESRI='https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}';
+const OSM='https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png';
+const COL={lane:'#ffd60a',divider:'#ff3b30',hazard:'#ff9500'};
+const NAMES={lane:'Lane',divider:'Divider',hazard:'Hazard'};
+let file=null, fileName='BoatRun_lines.json', lines=[], selId=null, sat=true, dirty=false;
+
+const map=L.map('map',{zoomControl:true,doubleClickZoom:false}).setView([-31.8985,152.4620],14);
+const tSat=L.tileLayer(ESRI,{maxZoom:20,maxNativeZoom:19,attribution:'Esri'}).addTo(map);
+const tOsm=L.tileLayer(OSM,{maxZoom:20,maxNativeZoom:19,attribution:'© OpenStreetMap'});
+map.attributionControl.setPrefix('');
+const secLayer=L.layerGroup().addTo(map), lineLayer=L.layerGroup().addTo(map), editLayer=L.layerGroup().addTo(map);
+
+function esc(s){return String(s==null?'':s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));}
+function uid(){return 'l'+Date.now().toString(36)+Math.random().toString(36).slice(2,6);}
+function mode(m){return m==='divider'||m==='hazard'?m:'lane';}
+function hav(a,b){const R=6371000,r=Math.PI/180,dLat=(b[0]-a[0])*r,dLon=(b[1]-a[1])*r,x=Math.sin(dLat/2)**2+Math.cos(a[0]*r)*Math.cos(b[0]*r)*Math.sin(dLon/2)**2;return 2*R*Math.atan2(Math.sqrt(x),Math.sqrt(1-x));}
+function brg(a,b){const r=Math.PI/180,p1=a[0]*r,p2=b[0]*r,dl=(b[1]-a[1])*r;return (Math.atan2(Math.sin(dl)*Math.cos(p2),Math.cos(p1)*Math.sin(p2)-Math.sin(p1)*Math.cos(p2)*Math.cos(dl))/r+360)%360;}
+function dest(a,b,d){const R=6371000,r=Math.PI/180,br=b*r,p1=a[0]*r,l1=a[1]*r,dd=d/R;const p2=Math.asin(Math.sin(p1)*Math.cos(dd)+Math.cos(p1)*Math.sin(dd)*Math.cos(br));return [p2/r,(l1+Math.atan2(Math.sin(br)*Math.sin(dd)*Math.cos(p1),Math.cos(dd)-Math.sin(p1)*Math.sin(p2)))/r];}
+function lenM(p){let d=0;for(let i=1;i<p.length;i++)d+=hav(p[i-1],p[i]);return d;}
+function fmtM(m){m=Math.round(m);return m>=1000?(m/1000).toFixed(2)+' km':m+' m';}
+function arrows(p){const out=[];let carry=60;for(let i=0;i<p.length-1;i++){const len=hav(p[i],p[i+1]),b=brg(p[i],p[i+1]);if(len<1)continue;let d=Math.min(carry,len/2);while(d<len){out.push({p:dest(p[i],b,d),b});d+=120;}carry=d-len;}return out;}
+function svgArrow(b){return L.divIcon({className:'',iconSize:[22,22],iconAnchor:[11,11],html:'<svg width="22" height="22" viewBox="0 0 24 24" style="transform:rotate('+b.toFixed(0)+'deg)"><path d="M12 2 L21 21 L12 16 L3 21 Z" fill="#ffd60a" stroke="#000" stroke-width="1.5"/></svg>'});}
+function hazIcon(){return L.divIcon({className:'',iconSize:[28,28],iconAnchor:[14,14],html:'<svg width="28" height="28" viewBox="0 0 24 24"><path d="M12 2 L23 21 L1 21 Z" fill="#ff9500" stroke="#000" stroke-width="1.6"/><path d="M12 8 V14 M12 16.5 V18" stroke="#000" stroke-width="2.4" stroke-linecap="round"/></svg>'});}
+function secLatLon(x,y,o){const R=6371000,k=Math.PI/180;return [o.lat+y/(R*k),o.lon+x/(R*k*Math.cos(o.lat*k))];}
+
+function drawSectors(){
+  secLayer.clearLayers();
+  const secs=(file&&Array.isArray(file.sectors))?file.sectors:[];
+  const all=[];
+  secs.forEach(s=>{
+    if(!s||!s.origin||!Array.isArray(s.ref)||s.ref.length<2)return;
+    const pts=s.ref.map(p=>secLatLon(p[0],p[1],s.origin));
+    all.push(...pts);
+    L.polyline(pts,{color:'#bbb',weight:4,opacity:.8,dashArray:'2 8',interactive:false}).bindTooltip(String(s.name||'Sector')).addTo(secLayer);
+  });
+  return all;
+}
+function draw(){
+  lineLayer.clearLayers();editLayer.clearLayers();
+  lines.forEach(l=>{
+    const m=mode(l.mode), sel=l.id===selId, p=l.pts;
+    if(!p.length)return;
+    const click=()=>{select(l.id);};
+    if(m==='hazard'&&p.length===1){L.marker(p[0],{icon:hazIcon()}).on('click',click).bindTooltip(esc(l.name)).addTo(lineLayer);}
+    else if(p.length>=2){
+      L.polyline(p,{color:'#000',weight:sel?11:9,opacity:.45,bubblingMouseEvents:false}).on('click',click).addTo(lineLayer);
+      L.polyline(p,{color:COL[m],weight:sel?6:4,opacity:1,dashArray:m==='divider'?'12 8':null,bubblingMouseEvents:false}).on('click',click).bindTooltip(esc(l.name)).addTo(lineLayer);
+      if(m==='lane')arrows(p).forEach(a=>L.marker(a.p,{icon:svgArrow(a.b),interactive:false}).addTo(lineLayer));
+      if(m==='hazard')L.marker(p[Math.floor(p.length/2)],{icon:hazIcon(),interactive:false}).addTo(lineLayer);
+    }
+    if(sel){
+      p.forEach((q,i)=>{
+        const cls='vx'+(i===0?' first':'')+(i===p.length-1&&p.length>1?' last':'');
+        const mk=L.marker(q,{draggable:true,icon:L.divIcon({className:'',iconSize:[14,14],iconAnchor:[7,7],html:'<div class="'+cls+'"></div>'})}).addTo(editLayer);
+        mk.on('drag',e=>{const ll=e.target.getLatLng();p[i]=[+ll.lat.toFixed(6),+ll.lng.toFixed(6)];});
+        mk.on('dragend',()=>{dirty=true;draw();renderList();});
+        mk.on('dblclick',e=>{L.DomEvent.stop(e);p.splice(i,1);dirty=true;draw();renderList();});
+      });
+    }
+  });
+}
+function renderList(){
+  const box=document.getElementById('list');
+  if(!lines.length){box.innerHTML='<div class="empty">No lanes, dividers or hazards yet. Use the buttons above, then click the map.</div>';}
+  else box.innerHTML=lines.map(l=>{
+    const m=mode(l.mode), p=l.pts;
+    const info=m==='hazard'&&p.length===1?'point':(p.length<2?p.length+' pt':fmtM(lenM(p))+' · '+p.length+' pts');
+    return '<div class="it'+(l.id===selId?' sel':'')+'" data-id="'+l.id+'" style="border-left-color:'+COL[m]+'">'
+      +'<input value="'+esc(l.name)+'" data-name="'+l.id+'" maxlength="40">'
+      +'<div class="row"><select data-mode="'+l.id+'">'+['lane','divider','hazard'].map(k=>'<option value="'+k+'"'+(k===m?' selected':'')+'>'+NAMES[k]+'</option>').join('')+'</select>'
+      +(m==='lane'?'<button class="sm" data-rev="'+l.id+'">Reverse</button>':'')
+      +'<button class="sm" data-zoom="'+l.id+'">Zoom</button>'
+      +'<button class="sm red" data-del="'+l.id+'">Delete</button>'
+      +'<span class="meta">'+info+'</span></div></div>';
+  }).join('');
+  const s=lines.find(l=>l.id===selId);
+  document.getElementById('mode').innerHTML=s?('Editing <b>'+esc(s.name)+'</b> — click the map to add points.'):'Select an item, or add a new one.';
+  document.getElementById('fname').textContent=fileName+(dirty?' • unsaved':'');
+}
+function select(id){selId=(selId===id)?null:id;draw();renderList();}
+document.getElementById('list').addEventListener('click',e=>{
+  const t=e.target;let id;
+  if((id=t.dataset.del)){const l=lines.find(x=>x.id===id);if(l&&confirm('Delete "'+l.name+'"?')){lines=lines.filter(x=>x.id!==id);if(selId===id)selId=null;dirty=true;draw();renderList();}return;}
+  if((id=t.dataset.rev)){const l=lines.find(x=>x.id===id);if(l){l.pts.reverse();dirty=true;draw();renderList();}return;}
+  if((id=t.dataset.zoom)){const l=lines.find(x=>x.id===id);if(l&&l.pts.length){if(l.pts.length===1)map.setView(l.pts[0],18);else map.fitBounds(L.latLngBounds(l.pts).pad(0.2));}return;}
+  if(t.tagName==='INPUT'||t.tagName==='SELECT'||t.tagName==='OPTION')return;
+  const it=t.closest('.it');if(it)select(it.dataset.id);
+});
+document.getElementById('list').addEventListener('input',e=>{const id=e.target.dataset.name;if(!id)return;const l=lines.find(x=>x.id===id);if(l){l.name=e.target.value;dirty=true;document.getElementById('fname').textContent=fileName+' • unsaved';}});
+document.getElementById('list').addEventListener('change',e=>{const id=e.target.dataset.mode;if(!id)return;const l=lines.find(x=>x.id===id);if(l){l.mode=e.target.value;dirty=true;draw();renderList();}});
+document.querySelectorAll('[data-add]').forEach(b=>b.onclick=()=>{
+  const m=b.dataset.add, n=lines.filter(l=>mode(l.mode)===m).length+1;
+  const l={id:uid(),name:NAMES[m]+' '+n,mode:m,pts:[]};
+  lines.push(l);selId=l.id;dirty=true;draw();renderList();
+});
+map.on('click',e=>{
+  const l=lines.find(x=>x.id===selId);if(!l)return;
+  l.pts.push([+e.latlng.lat.toFixed(6),+e.latlng.lng.toFixed(6)]);
+  dirty=true;draw();renderList();
+});
+document.getElementById('satBtn').onclick=e=>{sat=!sat;if(sat){map.removeLayer(tOsm);tSat.addTo(map);}else{map.removeLayer(tSat);tOsm.addTo(map);}e.target.textContent=sat?'Map':'Satellite';};
+document.getElementById('newBtn').onclick=()=>{if(dirty&&!confirm('Discard unsaved changes?'))return;file=null;fileName='BoatRun_lines.json';lines=[];selId=null;dirty=false;secLayer.clearLayers();draw();renderList();};
+document.getElementById('openBtn').onclick=()=>{if(dirty&&!confirm('Discard unsaved changes?'))return;document.getElementById('fileIn').click();};
+document.getElementById('fileIn').onchange=async e=>{
+  const f=e.target.files&&e.target.files[0];e.target.value='';if(!f)return;
+  let d;try{d=JSON.parse(await f.text());}catch(x){alert('Not a JSON file');return;}
+  if(!d||(d.type!=='boatrun-sectors'&&d.type!=='boatrun-lines')){alert('Not a BoatRun course or line file');return;}
+  file=d;fileName=f.name;
+  lines=(Array.isArray(d.lines)?d.lines:[]).map(r=>({id:uid(),name:String(r.name||'Line'),mode:mode(r.mode),pts:(Array.isArray(r.pts)?r.pts:[]).filter(p=>Array.isArray(p)&&isFinite(+p[0])&&isFinite(+p[1])).map(p=>[+p[0],+p[1]])}));
+  selId=null;dirty=false;
+  const secPts=drawSectors();
+  const all=secPts.concat(lines.flatMap(l=>l.pts));
+  if(all.length)map.fitBounds(L.latLngBounds(all).pad(0.15));
+  draw();renderList();
+};
+document.getElementById('saveBtn').onclick=()=>{
+  const bad=lines.filter(l=>l.pts.length<(mode(l.mode)==='hazard'?1:2));
+  if(bad.length&&!confirm(bad.length+' item(s) have too few points and will be left out. Continue?'))return;
+  const out=lines.filter(l=>!bad.includes(l)).map(l=>({name:String(l.name||NAMES[mode(l.mode)]).slice(0,40),mode:mode(l.mode),pts:l.pts.map(p=>[+(+p[0]).toFixed(6),+(+p[1]).toFixed(6)])}));
+  let doc;
+  if(file&&file.type==='boatrun-sectors'){doc=Object.assign({},file,{lines:out});}
+  else doc={type:'boatrun-lines',v:1,exported:new Date().toISOString(),lines:out};
+  const a=document.createElement('a');
+  a.href=URL.createObjectURL(new Blob([JSON.stringify(doc)],{type:'application/json'}));
+  a.download=fileName;document.body.appendChild(a);a.click();
+  setTimeout(()=>{URL.revokeObjectURL(a.href);a.remove();},1000);
+  dirty=false;renderList();
+};
+window.addEventListener('beforeunload',e=>{if(dirty){e.preventDefault();e.returnValue='';}});
+document.addEventListener('keydown',e=>{
+  if(e.key==='Escape'){selId=null;draw();renderList();}
+  if((e.key==='z'||e.key==='Z')&&(e.metaKey||e.ctrlKey)){const l=lines.find(x=>x.id===selId);if(l&&l.pts.length){e.preventDefault();l.pts.pop();dirty=true;draw();renderList();}}
+});
+draw();renderList();
+</script>
+</body>
+</html>
