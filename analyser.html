@@ -325,6 +325,8 @@ function adClearPendingOpen(){try{sessionStorage.removeItem('_ad_open');}catch(e
   .sz-sumwrap>#sz-nav{margin-bottom:14px;}
 }
 #sz-sectors .hbtn,#sz-nav .hbtn{background:#fff;color:#1a5276;border:none;border-radius:14px;padding:7px 12px;font-size:11px;font-weight:700;letter-spacing:.03em;text-transform:uppercase;box-shadow:0 2px 5px rgba(0,0,0,.18);}
+.leaflet-control-layers{font-size:14px;font-weight:700;color:#000;}
+.leaflet-control-layers label{padding:3px 0;}
 #_navdraw_modal .hbtn{background:#fff;color:#1a5276;border:2px solid #1a5276;border-radius:12px;padding:10px 16px;font-size:14px!important;font-weight:800;letter-spacing:.03em;text-transform:uppercase;box-shadow:0 3px 8px rgba(0,0,0,.35);}
 #_navdraw_modal .hbtn:hover{background:#1a5276;color:#fff;}
 #_navdraw_modal #_navdraw_close{background:#3a3a3c;color:#fff;border-color:#3a3a3c;}
@@ -3788,7 +3790,7 @@ window.drawSector=function(editId){
   document.body.appendChild(overlay);
   const map=L.map('_secdraw_map',{zoomControl:true,attributionControl:true,doubleClickZoom:false});
   map.attributionControl.setPrefix('');
-  L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}',{maxZoom:19,attribution:'Esri'}).addTo(map);
+  addSatLayers(map);
   const others=[];
   SECTORS_DB.forEach(s=>{
     if(s.deleted||!s.origin||!Array.isArray(s.ref)||(edit&&s.id===edit.id))return;
@@ -4602,6 +4604,25 @@ window.navClub=function(){
   render();
   navClubPullAll(true);
 };
+/* Satellite base maps. NSW aerial (NSW Spatial Services, ~7-10 cm photos)
+   is far sharper than Esri and shows buoys and posts, but only covers NSW.
+   Buoys & seamarks (OpenSeaMap) overlays charted buoys and beacons.
+   The choices are remembered. */
+const SAT_PREF_KEY='br_sat_base', SEAMARK_PREF_KEY='br_seamarks';
+function addSatLayers(map){
+  const esri=L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}',{maxZoom:22,maxNativeZoom:19,attribution:'Esri'});
+  const nsw=L.tileLayer('https://maps.six.nsw.gov.au/arcgis/rest/services/public/NSW_Imagery/MapServer/tile/{z}/{y}/{x}',{maxZoom:22,maxNativeZoom:21,attribution:'\u00a9 NSW Spatial Services'});
+  const sea=L.tileLayer('https://tiles.openseamap.org/seamark/{z}/{x}/{y}.png',{maxZoom:22,maxNativeZoom:18,attribution:'\u00a9 OpenSeaMap'});
+  let pref='esri';try{pref=localStorage.getItem(SAT_PREF_KEY)||'esri';}catch{}
+  (pref==='nsw'?nsw:esri).addTo(map);
+  let seaOn=true;try{seaOn=localStorage.getItem(SEAMARK_PREF_KEY)!=='0';}catch{}
+  if(seaOn)sea.addTo(map);
+  try{map.setMaxZoom(22);}catch{}
+  L.control.layers({'Satellite (world)':esri,'NSW aerial (sharper)':nsw},{'Buoys & seamarks':sea},{collapsed:false,position:'topright'}).addTo(map);
+  map.on('baselayerchange',e=>{try{localStorage.setItem(SAT_PREF_KEY,e.layer===nsw?'nsw':'esri');}catch{}});
+  map.on('overlayadd overlayremove',e=>{if(e.layer===sea)try{localStorage.setItem(SEAMARK_PREF_KEY,e.type==='overlayadd'?'1':'0');}catch{}});
+  return esri;
+}
 /* Last on-water session location [lat,lon,ts]: noted whenever an on-water
    session is opened, and looked up on Drive when nothing newer is known. */
 const NAV_LASTWATER_KEY='br_lastwater_ll';
@@ -4660,7 +4681,7 @@ window.navDraw=function(editId,newMode,clubCode){
   document.body.appendChild(overlay);
   const map=L.map('_navdraw_map',{zoomControl:true,attributionControl:true,doubleClickZoom:false});
   map.attributionControl.setPrefix('');
-  L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}',{maxZoom:19,attribution:'Esri'}).addTo(map);
+  addSatLayers(map);
   const others=[];
   SECTORS_DB.forEach(s=>{
     if(s.deleted||!s.origin||!Array.isArray(s.ref))return;
@@ -4853,7 +4874,7 @@ window.showSectorOnMap=function(id){
   document.body.appendChild(overlay);
   const map=L.map('_secmap_map',{zoomControl:true,attributionControl:true});
   map.attributionControl.setPrefix('');
-  L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}',{maxZoom:19,attribution:'Esri'}).addTo(map);
+  addSatLayers(map);
   const o=s.origin, ll=s.ref.map(p=>sectorLatLon(p[0],p[1],o));
   const line=L.polyline(ll,{color:'#ffb020',weight:4,opacity:0.95}).bindTooltip(s.name).addTo(map);
   [[true,'#2ee06a'],[false,'#f54040']].forEach(([st,col])=>{
@@ -8952,7 +8973,7 @@ function buildMap(){
      and far more useful on water - you can see the actual river bank. */
   leafletMap=L.map('mapbox',{zoomControl:true,attributionControl:true});
   leafletMap.attributionControl.setPrefix('');
-  L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}',{maxZoom:19,attribution:'Esri'}).addTo(leafletMap);
+  addSatLayers(leafletMap);
   mapBaseLine=L.polyline(latlngs,{color:'#29b8ff',weight:3,opacity:0.85}).addTo(leafletMap);
   L.circleMarker(latlngs[0],{radius:6,fillColor:'#fff',color:'#000',weight:2,fillOpacity:1}).bindTooltip('Start',{permanent:false}).addTo(leafletMap);
   L.circleMarker(latlngs[latlngs.length-1],{radius:6,fillColor:'#f54040',color:'#000',weight:2,fillOpacity:1}).bindTooltip('Finish',{permanent:false}).addTo(leafletMap);
