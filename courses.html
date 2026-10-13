@@ -168,10 +168,10 @@ footer{background:var(--navy);color:var(--ink-faint);border-top:1px solid rgba(2
   <div class="wrap">
     <span class="eyebrow hero-eyebrow">Courses · Pro</span>
     <h1>Courses</h1>
-    <p>Ready-made timed courses. Add one to BoatRun and every time you row through it you get a time, a personal best, and live metres ahead or behind your PB.</p>
+    <p>Ready-made timed courses. Add one to BoatRun and every time you row through it you get a time, a personal best, and live metres ahead or behind your PB. Courses can also carry the lanes, dividers and hazards for that water — shown on your map, with a warning while you row.</p>
     <div class="steps">
-      <div class="step"><b>1 · OPEN THE APP</b><span>In BoatRun go to HOME ▸ LOG ▸ COURSES. Every course on this page is listed there.</span></div>
-      <div class="step"><b>2 · DOWNLOAD</b><span>Tap DOWNLOAD on a course. It is added to your Sectors on the phone and in the Web Analyser.</span></div>
+      <div class="step"><b>1 · OPEN THE APP</b><span>In BoatRun go to HOME ▸ SECTORS ▸ COURSES. Every course on this page is listed there.</span></div>
+      <div class="step"><b>2 · DOWNLOAD</b><span>Tap DOWNLOAD on a course. It is added to your Sectors on the phone and in the Web Analyser, with its lanes and hazards added to LINES.</span></div>
       <div class="step"><b>3 · ROW</b><span>Row through it and you are timed automatically. In the Analyser, tap Scan all to find your past times.</span></div>
     </div>
   </div>
@@ -184,10 +184,11 @@ footer{background:var(--navy);color:var(--ink-faint);border-top:1px solid rgba(2
       <div class="chips" id="areaChips"></div>
     </div>
     <div id="secList"><div class="msg">Loading courses…</div></div>
-    <p class="credit">Map imagery © Esri. Green line = start gate, red line = finish gate, orange line = course. The Download button here saves the course file for importing in the Web Analyser (Sectors ▸ Import).</p>
+    <p class="credit">Map imagery © Esri. Green line = start gate, red line = finish gate, orange line = course. Yellow with arrows = lane, dashed red = divider, orange triangle = hazard. The Download button here saves the course file for importing in the Web Analyser (Sectors ▸ Import).</p>
     <div class="howto">
       <h3>Want your course listed?</h3>
       <p>Draw it in the Web Analyser (Sectors → ✎ Draw), tap Share, and email the file to <a href="mailto:bigwig.91mash@icloud.com?subject=BoatRun%20course%20for%20the%20website">bigwig.91mash@icloud.com</a> with the river and club name.</p>
+      <p>To add your club's lanes, dividers and hazards, open the course file in the <a href="./lines.html">Lanes &amp; Hazards editor</a>, draw them, download the file and email it the same way.</p>
     </div>
   </div>
 </section>
@@ -200,7 +201,7 @@ footer{background:var(--navy);color:var(--ink-faint);border-top:1px solid rgba(2
       <button class="sbtn sbtn-ghost" id="mmClose" type="button">Close</button>
     </div>
     <div id="mmMap"></div>
-    <div class="legend"><span><i style="background:#2ee06a"></i>Start</span><span><i style="background:#f54040"></i>Finish</span><span><i style="background:#ffb020"></i>Course</span></div>
+    <div class="legend"><span><i style="background:#2ee06a"></i>Start</span><span><i style="background:#f54040"></i>Finish</span><span><i style="background:#ffb020"></i>Course</span><span><i style="background:#ffd60a"></i>Lane</span><span><i style="background:repeating-linear-gradient(90deg,#ff3b30 0 6px,transparent 6px 9px)"></i>Divider</span><span><i style="background:#ff9500"></i>Hazard</span></div>
   </div>
 </div>
 
@@ -216,6 +217,9 @@ footer{background:var(--navy);color:var(--ink-faint);border-top:1px solid rgba(2
    The course list lives in courses.json (next to this page), NOT here.
    The BoatRun app reads the same courses.json, so adding a line there
    updates this page and the app together — no app update needed.
+   A course file may also hold "lines" (lanes, dividers, hazards) added
+   with lines.html. They are drawn on that file's maps here and added to
+   the rower's LINES in the app.
    ═══════════════════════════════════════════════════════════════════ */
 const COURSES_INDEX = 'courses.json';
 
@@ -254,6 +258,30 @@ function drawSector(map,sec,w){
   });
   return line;
 }
+/* ── Lanes, dividers and hazards carried in a course file ── */
+function lnMode(m){return m==='divider'||m==='hazard'?m:'lane';}
+function lnPts(r){return Array.isArray(r&&r.pts)?r.pts.filter(p=>Array.isArray(p)&&isFinite(+p[0])&&isFinite(+p[1])).map(p=>[+p[0],+p[1]]):[];}
+function hav(a,b){const R=6371000,r=Math.PI/180,dLat=(b[0]-a[0])*r,dLon=(b[1]-a[1])*r,x=Math.sin(dLat/2)**2+Math.cos(a[0]*r)*Math.cos(b[0]*r)*Math.sin(dLon/2)**2;return 2*R*Math.atan2(Math.sqrt(x),Math.sqrt(1-x));}
+function brg(a,b){const r=Math.PI/180,p1=a[0]*r,p2=b[0]*r,dl=(b[1]-a[1])*r;return (Math.atan2(Math.sin(dl)*Math.cos(p2),Math.cos(p1)*Math.sin(p2)-Math.sin(p1)*Math.cos(p2)*Math.cos(dl))/r+360)%360;}
+function dest(a,b,d){const R=6371000,r=Math.PI/180,br=b*r,p1=a[0]*r,l1=a[1]*r,dd=d/R;const p2=Math.asin(Math.sin(p1)*Math.cos(dd)+Math.cos(p1)*Math.sin(dd)*Math.cos(br));return [p2/r,(l1+Math.atan2(Math.sin(br)*Math.sin(dd)*Math.cos(p1),Math.cos(dd)-Math.sin(p1)*Math.sin(p2)))/r];}
+function lnArrows(p){const out=[];let carry=60;for(let i=0;i<p.length-1;i++){const len=hav(p[i],p[i+1]),b=brg(p[i],p[i+1]);if(len<1)continue;let d=Math.min(carry,len/2);while(d<len){out.push({p:dest(p[i],b,d),b});d+=120;}carry=d-len;}return out;}
+function hazIcon(s){return L.divIcon({className:'',iconSize:[s,s],iconAnchor:[s/2,s/2],html:'<svg width="'+s+'" height="'+s+'" viewBox="0 0 24 24"><path d="M12 2 L23 21 L1 21 Z" fill="#ff9500" stroke="#000" stroke-width="1.6"/><path d="M12 8 V14 M12 16.5 V18" stroke="#000" stroke-width="2.4" stroke-linecap="round"/></svg>'});}
+function drawLines(map,lines,big){
+  (lines||[]).forEach(r=>{
+    const m=lnMode(r.mode),p=lnPts(r),nm=esc(r.name||'');
+    if(m==='hazard'&&p.length===1){L.marker(p[0],{icon:hazIcon(big?26:18),interactive:!!big}).bindTooltip(nm).addTo(map);return;}
+    if(p.length<2)return;
+    L.polyline(p,{color:'#000',weight:big?8:6,opacity:.4,interactive:false}).addTo(map);
+    L.polyline(p,{color:m==='hazard'?'#ff9500':m==='divider'?'#ff3b30':'#ffd60a',weight:big?4:3,opacity:1,dashArray:m==='divider'?'12 8':null}).bindTooltip(nm).addTo(map);
+    if(m==='lane'&&big)lnArrows(p).forEach(a=>L.marker(a.p,{interactive:false,icon:L.divIcon({className:'',iconSize:[20,20],iconAnchor:[10,10],html:'<svg width="20" height="20" viewBox="0 0 24 24" style="transform:rotate('+a.b.toFixed(0)+'deg)"><path d="M12 2 L21 21 L12 16 L3 21 Z" fill="#ffd60a" stroke="#000" stroke-width="1.5"/></svg>'})}).addTo(map));
+    if(m==='hazard')L.marker(p[Math.floor(p.length/2)],{icon:hazIcon(big?26:18),interactive:false}).addTo(map);
+  });
+}
+function lnCount(lines){
+  if(!lines||!lines.length)return '';
+  const h=lines.filter(x=>lnMode(x.mode)==='hazard').length,l=lines.length-h;
+  return ' · '+[l?l+' lane'+(l===1?'':'s'):'',h?h+' hazard'+(h===1?'':'s'):''].filter(Boolean).join(', ');
+}
 function fmtDist(m){return m>=1000?(m/1000).toFixed(m%1000===0?0:2)+' km':m+' m';}
 
 async function loadAll(){
@@ -277,8 +305,10 @@ async function loadAll(){
       if(!r.ok)throw new Error('HTTP '+r.status);
       const d=await r.json();
       const arr=(d&&d.type==='boatrun-sectors'&&Array.isArray(d.sectors))?d.sectors.filter(validSector):[];
+      const lines=(d&&Array.isArray(d.lines))?d.lines.filter(x=>lnPts(x).length>=(lnMode(x.mode)==='hazard'?1:2)):[];
+      if(!arr.length&&lines.length)return [{linesOnly:true,name:'Lanes & hazards',distance:0,area,note:e.note||'',file:e.file,inFile:0,lines}];
       if(!arr.length)throw new Error('no courses');
-      return arr.map(s=>({sec:s,name:String(s.name||'Course'),distance:Math.round(+s.distance||0),area,note:e.note||'',file:e.file,inFile:arr.length}));
+      return arr.map(s=>({sec:s,name:String(s.name||'Course'),distance:Math.round(+s.distance||0),area,note:e.note||'',file:e.file,inFile:arr.length,lines}));
     }catch(err){
       console.warn('Course file failed:',e.file,err);
       return [{bad:true,name:fname||'Course file',area,note:'',file:e.file}];
@@ -309,7 +339,8 @@ function render(){
   let h='';
   Object.keys(groups).sort((a,b)=>a.localeCompare(b)).forEach(area=>{
     const g=groups[area].sort((a,b)=>a.it.name.localeCompare(b.it.name));
-    h+='<h3 class="area-h">'+esc(area)+'<span class="n">'+g.length+' COURSE'+(g.length===1?'':'S')+'</span></h3><div class="grid">';
+    const nc=g.filter(x=>!x.it.linesOnly).length;
+    h+='<h3 class="area-h">'+esc(area)+'<span class="n">'+nc+' COURSE'+(nc===1?'':'S')+'</span></h3><div class="grid">';
     g.forEach(({it,i})=>{
       if(it.bad){
         h+='<div class="card bad"><div class="thumb">File could not be loaded</div><div class="card-body"><h4>'+esc(it.name)+'</h4><div class="meta">Check the file name in courses.json</div></div></div>';
@@ -317,7 +348,7 @@ function render(){
       }
       h+='<div class="card"><div class="thumb" data-i="'+i+'" title="Open map"></div><div class="card-body">'
         +'<h4>'+esc(it.name)+'</h4>'
-        +'<div class="meta"><b>'+fmtDist(it.distance)+'</b> · '+esc(it.area)+(it.inFile>1?' · file has '+it.inFile+' courses':'')+'</div>'
+        +'<div class="meta">'+(it.linesOnly?esc(it.area)+lnCount(it.lines):'<b>'+fmtDist(it.distance)+'</b> · '+esc(it.area)+(it.inFile>1?' · file has '+it.inFile+' courses':'')+lnCount(it.lines))+'</div>'
         +(it.note?'<div class="note">'+esc(it.note)+'</div>':'')
         +'<div class="actions"><button type="button" class="sbtn sbtn-ghost" data-map="'+i+'">Map</button><a class="sbtn sbtn-coral" href="'+esc(it.file)+'" download>Download</a></div>'
         +'</div></div>';
@@ -334,29 +365,38 @@ function render(){
   }else thumbs.forEach(makeThumb);
 }
 
+/* Bounds of what a card shows: the course line, or the lines when a file
+   carries lanes and hazards only. */
+function fitTo(map,it,line,pad){
+  let b=line?line.getBounds():null;
+  if(!b&&it.lines&&it.lines.length){const pts=it.lines.flatMap(lnPts);if(pts.length)b=L.latLngBounds(pts);}
+  if(b&&b.isValid())map.fitBounds(b,{padding:[pad,pad],maxZoom:17});
+}
 function makeThumb(el){
   const it=ITEMS[+el.dataset.i];if(!it||it.bad||typeof L==='undefined')return;
   const map=L.map(el,{zoomControl:false,attributionControl:false,dragging:false,scrollWheelZoom:false,doubleClickZoom:false,boxZoom:false,keyboard:false,touchZoom:false,tap:false});
   L.tileLayer(TILE_URL,{maxZoom:18}).addTo(map);
-  const line=drawSector(map,it.sec,3);
-  map.fitBounds(line.getBounds(),{padding:[22,22]});
+  drawLines(map,it.lines,false);
+  const line=it.sec?drawSector(map,it.sec,3):null;
+  fitTo(map,it,line,22);
   thumbMaps.push(map);
 }
 
 function openMap(i){
   const it=ITEMS[i];if(!it||it.bad||typeof L==='undefined')return;
   closeMap();
-  document.getElementById('mmTitle').textContent=it.name+' · '+fmtDist(it.distance);
+  document.getElementById('mmTitle').textContent=it.linesOnly?(it.area+lnCount(it.lines)):(it.name+' · '+fmtDist(it.distance)+lnCount(it.lines));
   const dl=document.getElementById('mmDl');dl.href=it.file;
   document.getElementById('mapModal').classList.add('open');
   document.body.style.overflow='hidden';
   modalMap=L.map('mmMap',{zoomControl:true,attributionControl:true});
   modalMap.attributionControl.setPrefix('');
   L.tileLayer(TILE_URL,{maxZoom:19,attribution:'Esri'}).addTo(modalMap);
-  const line=drawSector(modalMap,it.sec,4);
-  line.bindTooltip(it.name);
-  modalMap.fitBounds(line.getBounds(),{padding:[40,40]});
-  setTimeout(()=>{try{modalMap.invalidateSize();modalMap.fitBounds(line.getBounds(),{padding:[40,40]});}catch(e){}},80);
+  drawLines(modalMap,it.lines,true);
+  const line=it.sec?drawSector(modalMap,it.sec,4):null;
+  if(line)line.bindTooltip(it.name);
+  fitTo(modalMap,it,line,40);
+  setTimeout(()=>{try{modalMap.invalidateSize();fitTo(modalMap,it,line,40);}catch(e){}},80);
 }
 function closeMap(){
   if(modalMap){try{modalMap.remove();}catch(e){}modalMap=null;}
