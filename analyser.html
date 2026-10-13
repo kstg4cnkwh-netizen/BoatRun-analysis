@@ -331,6 +331,7 @@ function adClearPendingOpen(){try{sessionStorage.removeItem('_ad_open');}catch(e
 #_navdraw_modal .hbtn:hover{background:#1a5276;color:#fff;}
 #_navdraw_modal #_navdraw_close{background:#3a3a3c;color:#fff;border-color:#3a3a3c;}
 #_navdraw_modal #_navdraw_clear,#_navdraw_modal #_navdraw_del{color:#c0392b!important;border-color:#c0392b;}
+#_navdraw_modal #_navdraw_again{background:#27ae60;color:#fff;border-color:#27ae60;}
 #_navdraw_modal #_navdraw_save{font-size:15px;font-weight:800;padding:11px 26px;border-radius:12px;box-shadow:0 3px 8px rgba(0,0,0,.35);}
 #_navdraw_modal .leaflet-control-zoom a{width:44px;height:44px;line-height:44px;font-size:24px;font-weight:800;}
 #_navdraw_modal #_navdraw_name,#_navdraw_modal #_navdraw_to{font-size:14px!important;padding:10px 12px;}
@@ -4654,7 +4655,7 @@ async function navLastWater(){
   }catch{return c;}
 }
 /* ── Draw / edit modal ── */
-window.navDraw=function(editId,newMode,clubCode){
+window.navDraw=function(editId,newMode,clubCode,keep){
   if(!isPro()){showPlanModal('Lanes & hazards are a Pro feature.');return;}
   const club0=clubCode?navClubByCode(clubCode):null;
   const edit=typeof editId==='string'?(club0?club0.lines:NAV_LINES).find(l=>l.id===editId&&!l.deleted):null;
@@ -4674,8 +4675,9 @@ window.navDraw=function(editId,newMode,clubCode){
     +'<button class="hbtn" id="_navdraw_rev" style="font-size:11px;">⇄ Reverse</button>'
     +((typeof leafletMap!=='undefined'&&leafletMap&&typeof mapBaseLine!=='undefined'&&mapBaseLine)?'<button class="hbtn" id="_navdraw_trk" style="font-size:11px;">From session track</button>':'')
     +'<input type="text" id="_navdraw_name" class="brsearch" placeholder="Name" style="flex:1;min-width:140px;box-sizing:border-box;" value="'+(edit?_secEsc(edit.name):'')+'">'
-    +(clubs.length?'<select id="_navdraw_to" class="brsearch" style="font-size:11px;max-width:200px;"'+(club0?' disabled':'')+'><option value="">Save to: my lines</option>'+clubs.map(c=>'<option value="'+c.code+'"'+(club0&&club0.code===c.code?' selected':'')+'>Save to club: '+_secEsc(c.name||c.code)+'</option>').join('')+'</select>':'')
+    +(clubs.length?'<select id="_navdraw_to" class="brsearch" style="font-size:11px;max-width:200px;"'+(club0?' disabled':'')+'><option value="">Save to: my lines</option>'+clubs.map(c=>'<option value="'+c.code+'"'+((club0?club0.code:(keep&&keep.to))===c.code?' selected':'')+'>Save to club: '+_secEsc(c.name||c.code)+'</option>').join('')+'</select>':'')
     +(edit?'<button class="hbtn" id="_navdraw_del" style="font-size:11px;color:#f54040;">Delete</button>':'')
+    +'<button class="hbtn" id="_navdraw_again" style="font-size:11px;">Save + add another</button>'
     +'<button class="dzbtn dzbtn-pri" id="_navdraw_save">Save</button></div>';
   overlay.appendChild(panel);
   document.body.appendChild(overlay);
@@ -4770,7 +4772,8 @@ window.navDraw=function(editId,newMode,clubCode){
   mc.addEventListener('pointercancel',_lpCancel);
   mc.addEventListener('contextmenu',ev=>ev.preventDefault());
   map.on('click',e=>{if(Date.now()<_noClickUntil)return;snap();pts.push([e.latlng.lat,e.latlng.lng]);redraw();});
-  if(pts.length>1)map.fitBounds(L.latLngBounds(pts),{padding:[40,40]});
+  if(keep&&keep.view)map.setView([keep.view[0],keep.view[1]],keep.view[2]);
+  else if(pts.length>1)map.fitBounds(L.latLngBounds(pts),{padding:[40,40]});
   else if(pts.length===1)map.setView(pts[0],17);
   else{
     /* Start where you are. No location: where you last rowed on water. */
@@ -4808,7 +4811,7 @@ window.navDraw=function(editId,newMode,clubCode){
     toast(pts.length+' points from the session track');
   };
   let saving=false;
-  const save=async()=>{
+  const save=async(again)=>{
     if(saving)return;
     const inp=document.getElementById('_navdraw_name');
     const name=((inp&&inp.value)||'').trim();
@@ -4822,16 +4825,21 @@ window.navDraw=function(editId,newMode,clubCode){
       saving=false;if(sb)sb.textContent='Save';
       if(!ok)return;
       if(edit&&!club0){const ix=NAV_LINES.findIndex(l=>l.id===edit.id);if(ix>=0){NAV_LINES[ix]={id:edit.id,name:edit.name,deleted:true,upd:Date.now()};navChanged();}}
+      const kv={view:[map.getCenter().lat,map.getCenter().lng,map.getZoom()],to:to.code};
       navRefreshViews();close();
+      if(again===true)setTimeout(()=>window.navDraw(null,mode,null,kv),0);
       toast(NAV_LBL[mode]+' saved to '+(to.name||to.code));
       return;
     }
     if(edit){const ix=NAV_LINES.findIndex(l=>l.id===edit.id);if(ix>=0)NAV_LINES[ix]={...NAV_LINES[ix],...rec};else NAV_LINES.push(rec);}
     else NAV_LINES.push(rec);
+    const kv={view:[map.getCenter().lat,map.getCenter().lng,map.getZoom()],to:''};
     navChanged();close();
+    if(again===true)setTimeout(()=>window.navDraw(null,mode,null,kv),0);
     toast(NAV_LBL[mode]+' saved');
   };
-  document.getElementById('_navdraw_save').onclick=save;
+  document.getElementById('_navdraw_save').onclick=()=>save(false);
+  document.getElementById('_navdraw_again').onclick=()=>save(true);
   document.getElementById('_navdraw_name').addEventListener('keydown',e=>{if(e.key==='Enter')save();});
   const del=document.getElementById('_navdraw_del');
   if(del)del.onclick=async()=>{
