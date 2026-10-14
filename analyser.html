@@ -791,12 +791,10 @@ body.light .hdrname{color:#fff;}
     <div class="sec-hd">
       <h2>Curve Comparison</h2>
       <div id="groupchips" style="display:flex;gap:6px;flex-wrap:wrap;"></div>
-      <button id="tplloadbtn" title="Open a stroke template file">Load stroke template</button>
-      <button id="tplbtn" title="Build or edit a stroke-rate template from your curve groups">Create / edit template</button>
-      <div id="tplchips"></div>
       <button id="tplfocusclose" style="display:none;">Show all curves</button>
       <button id="clearcurvebtn" style="display:none;">Remove all curves</button>
     </div>
+    <div id="tplbar" style="display:none;align-items:center;gap:8px;flex-wrap:wrap;margin:0 0 10px;"></div>
     <div class="curve-layout">
       <div class="curve-col">
         <div class="cbox"><canvas id="curveC" height="300"></canvas></div>
@@ -7450,7 +7448,7 @@ function updateStatsStrip(){
 
   const hasSel=selS>=0&&selE>=0&&selS!==selE;
   if(!hasSel){
-    document.getElementById('stripcontext').textContent='No selection';
+    document.getElementById('stripcontext').textContent=(typeof _tplPicking!=='undefined'&&_tplPicking)?'Drag across the strokes to add to the template':'No selection';
     document.getElementById('stripinner').innerHTML='';
     return;
   }
@@ -7464,7 +7462,10 @@ function updateStatsStrip(){
 
   function sp(l,v,c){return`<div class="sp-stat"><div class="l">${l}</div><div class="v" style="color:${c||'var(--text)'}">${v}</div></div>`;}
   let html='';
-  if(curveGroups.length<MAX_GROUPS){
+  if(typeof _tplPicking!=='undefined'&&_tplPicking){
+    const _tr=tplSelRate(strokes);
+    html+='<button id="tpladdselbtn" onclick="tplAddSelection()" style="background:#ffc947;color:#000;border:none;border-radius:14px;padding:7px 15px;font-size:10px;font-weight:700;cursor:pointer;box-shadow:0 2px 5px rgba(0,0,0,.22);">＋ Add to template'+(_tr?' · '+_tr.toFixed(1)+' spm':'')+'</button>';
+  }else if(curveGroups.length<MAX_GROUPS){
     html+='<button id="addcurvebtn" onclick="pinSelection()">＋ Add to curves</button>';
   }
   if(strokes.length>1){
@@ -7845,18 +7846,23 @@ function tplResolve(tpl, rate){
 }
 
 function tplAddCurrentGroup(gi){
-  if (!isPro()){ showPlanModal('Creating stroke templates is a Pro feature.'); return; }
   const g = curveGroups[gi];
   if (!g) return;
-  const c = computeGroupCurve(g.strokes);
-  if (!c || !c.data){ toast('That group has no curve data'); return; }
-  if (!c.avgRate){ toast('That group has no stroke rate'); return; }
+  tplAddStrokes(g.strokes);
+}
+/* Adds an averaged curve built from any set of strokes as one rate entry.
+   Returns true when it was added. */
+function tplAddStrokes(strokes){
+  if (!isPro()){ showPlanModal('Creating stroke templates is a Pro feature.'); return false; }
+  const c = computeGroupCurve(strokes || []);
+  if (!c || !c.data){ toast('Those strokes have no curve data'); return false; }
+  if (!c.avgRate){ toast('Those strokes have no stroke rate'); return false; }
   const kind = curvesAreForce() ? 'force' : 'accel';
   let t = tplActive();
   if (!t){ tplOpen.push(tplBlank(kind)); tplActiveIdx = tplOpen.length-1; t = tplActive(); }
   if (t.entries.length && t.kind !== kind){
     toast('This template holds ' + (t.kind === 'force' ? 'erg force' : 'on-water') + ' curves \u2014 they cannot be mixed');
-    return;
+    return false;
   }
   t.kind = kind;
   const rate = Math.round(c.avgRate*10)/10;
@@ -7867,8 +7873,133 @@ function tplAddCurrentGroup(gi){
   t.savedAt = null;
   tplSortEntries(t); tplStore();
   _tplPreviewRate = rate;
-  toast((ex >= 0 ? 'Replaced ' : 'Added ') + rate.toFixed(1) + ' spm');
-  renderTemplateModal(); buildCurveSection();
+  toast((ex >= 0 ? 'Replaced ' : 'Added ') + rate.toFixed(1) + ' spm \u00b7 ' + c.n + ' strokes');
+  renderTemplateModal(); buildCurveSection(); tplPickBar();
+  return true;
+}
+
+/* ── Pick strokes straight off the chart ──────────────────────────────────
+   The editor closes, a bar shows at the top, and the stats strip gets an
+   "Add to template" button for whatever is selected on the Stroke Chart. */
+let _tplPicking = false;
+function tplSelStrokes(){
+  const r = _selAbsRange();
+  return r ? ST.slice(r[0], r[1]+1) : [];
+}
+function tplSelRate(strokes){
+  const r = (strokes || []).filter(isRowStroke).map(s => s.rate);
+  return r.length ? arrMean(r) : null;
+}
+function tplStartPick(){
+  if (!isPro()){ showPlanModal('Creating stroke templates is a Pro feature.'); return; }
+  if (!ST.length){ toast('Open a session first'); return; }
+  if (!tplActive()){ tplOpen.push(tplBlank(curvesAreForce() ? 'force' : 'accel')); tplActiveIdx = tplOpen.length-1; tplStore(); }
+  _tplPicking = true;
+  const m = document.getElementById('_tplmodal'); if (m) m.remove();
+  tplPickBar();
+  updateStatsStrip();
+  const cb = document.getElementById('chartBlock');
+  if (cb) cb.scrollIntoView({behavior:'smooth', block:'start'});
+  toast('Drag across steady strokes at one rate on the Stroke Chart', 4000);
+}
+window.tplStartPick = tplStartPick;
+window.tplAddSelection = function(){
+  const st = tplSelStrokes();
+  if (st.length < 3){ toast('Select at least 3 strokes'); return; }
+  if (tplAddStrokes(st)){ clearSelection(); updateStatsStrip(); }
+};
+window.tplPickDone = function(){
+  _tplPicking = false;
+  const b = document.getElementById('_tplpickbar'); if (b) b.remove();
+  updateStatsStrip();
+  openTemplateModal();
+};
+function tplPickBar(){
+  if (!_tplPicking){ const old = document.getElementById('_tplpickbar'); if (old) old.remove(); return; }
+  let bar = document.getElementById('_tplpickbar');
+  if (!bar){
+    bar = document.createElement('div');
+    bar.id = '_tplpickbar';
+    bar.style.cssText = 'position:fixed;top:10px;left:50%;transform:translateX(-50%);z-index:9500;display:flex;align-items:center;gap:10px;flex-wrap:wrap;justify-content:center;max-width:calc(100vw - 24px);background:#ffc947;color:#000;border-radius:18px;padding:8px 10px 8px 16px;box-shadow:0 6px 20px rgba(0,0,0,.35);font-family:-apple-system,BlinkMacSystemFont,Helvetica Neue,sans-serif;font-size:12px;';
+    document.body.appendChild(bar);
+  }
+  const t = tplActive();
+  const rates = t ? t.entries.map(e => e.rate.toFixed(0)).join(', ') : '';
+  bar.innerHTML = '<span><b>' + escHtml((t && t.name) || 'Template') + '</b> \u00b7 ' + (rates ? rates + ' spm' : 'no rates yet') + '</span>'
+    + '<span style="opacity:.75;">Select strokes on the chart \u2192 \uff0b Add to template</span>'
+    + '<button onclick="tplPickDone()" style="border:none;border-radius:12px;background:#000;color:#fff;padding:6px 14px;font-size:12px;font-weight:700;cursor:pointer;">Done</button>';
+}
+/* ── Template dropdown in the Curve Comparison pane ───────────────────────
+   Lists the templates open here plus the ones saved to Metrics on Drive.
+   Picking one makes it the active template drawn over a focused curve. */
+var _tplDrive = [], _tplDriveT = 0;
+function tplRefreshDrive(force){
+  if (!AnalyserDrive.isSignedIn()) return;
+  if (!force && Date.now() - _tplDriveT < 20000) return;
+  _tplDriveT = Date.now();
+  AnalyserDrive.pullPrefs().then(cur => {
+    _tplDrive = (cur && Array.isArray(cur.strokeTemplates))
+      ? cur.strokeTemplates.filter(x => x && !x.deleted && tplValid(x) && x.entries.length) : [];
+    buildTplSelect();
+  }).catch(() => {});
+}
+function tplListAll(){
+  const out = tplOpen.map((t,i) => ({key:'o'+i, t, open:true, i}));
+  _tplDrive.forEach((t,j) => { if (!tplOpen.some(o => o.id && o.id === t.id)) out.push({key:'d'+j, t, open:false, j}); });
+  out.sort((a,b) => String(a.t.name||'').localeCompare(String(b.t.name||'')));
+  return out;
+}
+function buildTplSelect(){
+  const host = document.getElementById('tplbar');
+  if (!host) return;
+  const can = isPro() || isCoach();
+  host.style.display = can ? 'flex' : 'none';
+  if (!can){ host.innerHTML = ''; return; }
+  const BS = 'border:none;border-radius:14px;background:var(--pill);color:var(--text);padding:6px 13px;font-size:10px;font-weight:700;cursor:pointer;box-shadow:0 2px 5px rgba(0,0,0,.20);font-family:inherit;';
+  const act = tplActive();
+  let o = '<option value="none"'+(act?'':' selected')+'>No template</option>';
+  tplListAll().forEach(x => {
+    const n = x.t.entries.length;
+    o += '<option value="'+x.key+'"'+(x.open && x.i === tplActiveIdx ? ' selected' : '')+'>'
+      + escHtml(x.t.name || 'Template') + ' \u00b7 ' + n + ' rate' + (n === 1 ? '' : 's')
+      + (x.t.kind === 'force' ? ' \u00b7 erg' : '') + (x.open && !x.t.savedAt && n ? ' \u00b7 unsaved' : '') + '</option>';
+  });
+  o += '<option disabled>\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500</option><option value="file">Open template file\u2026</option>';
+  if (isPro()) o += '<option value="new">\uff0b New template\u2026</option>';
+  host.innerHTML = '<span style="font-size:10px;font-weight:700;letter-spacing:.08em;color:var(--muted);">STROKE TEMPLATE</span>'
+    + '<select id="tplsel" style="max-width:260px;">' + o + '</select>'
+    + (isPro() && act ? '<button id="tpleditbtn" style="'+BS+'">Edit</button>' : '')
+    + (act ? '<button id="tplclosebtn" style="'+BS+'color:var(--muted);">Close</button>' : '')
+    + (act && tplHasEntries(act) && curveGroups.length && tplFocusIdx < 0 ? '<span style="font-size:10px;color:var(--muted);">Tap a curve pill to overlay it</span>' : '');
+  const sel = document.getElementById('tplsel');
+  sel.onchange = () => {
+    const v = sel.value;
+    if (v === 'none'){ tplSetActive(-1); return; }
+    if (v === 'file'){ buildTplSelect(); tplImportPick(); return; }
+    if (v === 'new'){ buildTplSelect(); tplNew(); openTemplateModal(); return; }
+    if (v[0] === 'o'){ tplSetActive(+v.slice(1)); return; }
+    if (v[0] === 'd'){
+      const src = _tplDrive[+v.slice(1)];
+      if (!src){ buildTplSelect(); return; }
+      const t = JSON.parse(JSON.stringify(src));
+      t.savedAt = t.savedAt || t.rev || Date.now();
+      tplSortEntries(t);
+      tplOpen.push(t);
+      tplSetActive(tplOpen.length-1);
+      toast('Opened \u201c' + (t.name || 'Template') + '\u201d' + (curveGroups.length ? ' \u2014 tap a curve pill to overlay it' : ''));
+    }
+  };
+  const eb = document.getElementById('tpleditbtn'); if (eb) eb.onclick = openTemplateModal;
+  const cb = document.getElementById('tplclosebtn'); if (cb) cb.onclick = () => tplCloseOne(tplActiveIdx);
+}
+/* An untouched blank template is not worth keeping open. */
+function tplDropEmpty(){
+  const t = tplActive();
+  if (t && !t.entries.length && (!t.name || t.name === 'New template')){
+    tplOpen.splice(tplActiveIdx, 1);
+    tplActiveIdx = tplOpen.length ? 0 : -1;
+    tplStore(); buildCurveSection();
+  }
 }
 function tplRemoveEntry(i){
   const t = tplActive();
@@ -7909,7 +8040,7 @@ function tplSyncPush(t, del){
     const list = (cur && Array.isArray(cur.strokeTemplates)) ? cur.strokeTemplates.filter(x => x && x.id && x.id !== t.id) : [];
     list.push(rec);
     return AnalyserDrive.pushPrefs({strokeTemplates:list});
-  }).catch(() => false);
+  }).then(ok => { if (ok) tplRefreshDrive(true); return ok; }).catch(() => false);
 }
 function tplExport(){
   const t = tplActive();
@@ -7986,6 +8117,12 @@ function openTemplateModal(){
   if (!isPro()){ showPlanModal('Creating and editing stroke templates is a Pro feature.'); return; }
   const old = document.getElementById('_tplmodal');
   if (old) old.remove();
+  if (_tplPicking){ _tplPicking = false; tplPickBar(); updateStatsStrip(); }
+  if (!tplActive()){
+    if (tplOpen.length) tplActiveIdx = 0;
+    else { tplOpen.push(tplBlank(curvesAreForce() ? 'force' : 'accel')); tplActiveIdx = tplOpen.length-1; }
+    tplStore(); buildCurveSection();
+  }
   const overlay = document.createElement('div');
   overlay.id = '_tplmodal';
   overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,.72);display:flex;align-items:center;justify-content:center;z-index:9999;padding:12px;';
@@ -7994,7 +8131,7 @@ function openTemplateModal(){
   panel.style.cssText = 'background:var(--s1);border:1px solid var(--border);border-radius:10px;padding:16px;max-width:540px;width:100%;max-height:88vh;overflow:auto;color:var(--text);font-family:-apple-system, BlinkMacSystemFont, Helvetica Neue, sans-serif;';
   overlay.appendChild(panel);
   document.body.appendChild(overlay);
-  overlay.onclick = e => { if (e.target === overlay) overlay.remove(); };
+  overlay.onclick = e => { if (e.target === overlay){ overlay.remove(); tplDropEmpty(); } };
   renderTemplateModal();
 }
 window.openTemplateModal = openTemplateModal;
@@ -8017,16 +8154,18 @@ function renderTemplateModal(){
       + '</div>';
   }
 
-  let groupsHtml;
+  const canPick = ST.length > 0;
+  const BY = 'padding:11px 14px;border-radius:8px;border:none;background:#ffc947;color:#000;cursor:pointer;font-size:.88rem;font-weight:700;font-family:inherit;width:100%;';
+  const pickHtml = '<button id="tplpickbtn" style="'+BY+(canPick?'':'opacity:.4;cursor:default;')+'"'+(canPick?'':' disabled')+'>\uff0b Select strokes on the chart</button>'
+    + (canPick ? '' : '<div style="font-size:.72rem;color:var(--muted);margin-top:6px;">Open a session first.</div>');
+  let groupsHtml = '';
   if (curveGroups.length){
-    groupsHtml = curveGroups.map((g,i)=>{
+    groupsHtml = '<div style="font-size:.72rem;color:var(--muted);margin:10px 0 6px;">Or add a curve group you already pinned:</div>' + curveGroups.map((g,i)=>{
       const c = computeGroupCurve(g.strokes);
       const ok = !!(c && c.data && c.avgRate);
       const lbl = ok ? f1(c.avgRate)+' spm' : 'no rate';
       return '<button data-tpladd="'+i+'"'+(ok?'':' disabled')+' style="'+B+'background:'+g.color+';color:#000;border-color:'+g.color+';margin:0 6px 6px 0;'+(ok?'':'opacity:.35;cursor:default;')+'">\uff0b '+g.label+' \u00b7 '+lbl+'</button>';
     }).join('');
-  } else {
-    groupsHtml = '<div style="font-size:.78rem;color:var(--muted);line-height:1.5;">Drag a selection on the main chart, tap \u201c\uff0b Add to curves\u201d, then come back here. Add one group per stroke rate \u2014 e.g. 18, 22, 26, 30, 34.</div>';
   }
 
   let rows = '';
@@ -8045,19 +8184,19 @@ function renderTemplateModal(){
 
   panel.innerHTML =
     '<div style="font-size:1rem;font-weight:700;margin-bottom:4px;color:var(--b);">Create / Edit Stroke Template</div>'+
-    '<div style="font-size:.75rem;color:var(--muted);line-height:1.5;margin-bottom:12px;">Add an averaged curve for each stroke rate you want as a target. Save it and it appears in Metrics on the same Google account, drawn live over your own curve in Row, Cox or Erg.</div>'+
+    '<div style="font-size:.78rem;color:var(--text);line-height:1.6;margin-bottom:12px;"><b>1.</b> Name it. <b>2.</b> Tap Select strokes, drag across steady strokes at one rate, tap \uff0b Add to template. Repeat for each rate you want (e.g. 20, 24, 28, 32). <b>3.</b> Tap Save \u2014 it appears in Metrics on the same Google account.</div>'+
 
     openHtml+
 
     (t ? '<input id="tplname" type="text" maxlength="40" placeholder="Template name" value="'+escHtml(t.name||'')+'" style="display:block;width:100%;box-sizing:border-box;padding:9px 11px;margin-bottom:14px;background:var(--s2);border:1px solid var(--border);border-radius:6px;color:var(--text);font-size:.9rem;font-family:inherit;">'
         : '<div style="font-size:.8rem;color:var(--muted);margin-bottom:14px;">No template open \u2014 tap New template below to start one.</div>')+
 
-    (t ? '<div style="font-size:.72rem;font-weight:700;letter-spacing:.06em;color:var(--muted);margin-bottom:6px;">ADD FROM CURVE GROUP</div>'+
-         '<div style="margin-bottom:14px;">'+groupsHtml+'</div>' : '')+
+    (t ? '<div style="font-size:.72rem;font-weight:700;letter-spacing:.06em;color:var(--muted);margin-bottom:6px;">ADD STROKES</div>'+
+         '<div style="margin-bottom:14px;">'+pickHtml+groupsHtml+'</div>' : '')+
 
     (t ? '<div style="font-size:.72rem;font-weight:700;letter-spacing:.06em;color:var(--muted);margin-bottom:6px;">'+n+' RATE'+(n===1?'':'S')+(t.kind==='force'?' \u00b7 ERG FORCE':(n?' \u00b7 ON-WATER':''))+'</div>'+
          (n ? '<table style="width:100%;border-collapse:collapse;font-size:.8rem;margin-bottom:14px;">'+rows+'</table>'
-            : '<div style="font-size:.78rem;color:var(--muted);margin-bottom:14px;">Empty.</div>') : '')+
+            : '<div style="font-size:.78rem;color:var(--muted);margin-bottom:14px;">No rates yet.</div>') : '')+
 
     (n ? '<div style="font-size:.72rem;font-weight:700;letter-spacing:.06em;color:var(--muted);margin-bottom:6px;">PREVIEW AT <span id="tplratelbl" style="color:var(--b);">'+_tplPreviewRate.toFixed(1)+'</span> SPM</div>'+
          '<div style="margin-bottom:6px;"><canvas id="tplPrevC"></canvas></div>'+
@@ -8093,10 +8232,12 @@ function renderTemplateModal(){
     drawTemplatePreview();
   };
   document.getElementById('tplnewbtn').onclick = tplNew;
+  const pickBtn = document.getElementById('tplpickbtn');
+  if (pickBtn) pickBtn.onclick = tplStartPick;
   document.getElementById('tplexport').onclick = tplExport;
   document.getElementById('tplfilebtn').onclick = () => { const t = tplActive(); if (!tplHasEntries(t)){ toast('Template is empty'); return; } tplSortEntries(t); tplDownload(t); toast('Template file saved'); };
   document.getElementById('tpldelall').onclick = tplDeleteActive;
-  document.getElementById('tplclose').onclick = () => { const m = document.getElementById('_tplmodal'); if (m) m.remove(); };
+  document.getElementById('tplclose').onclick = () => { const m = document.getElementById('_tplmodal'); if (m) m.remove(); tplDropEmpty(); };
   drawTemplatePreview();
 }
 
@@ -8173,11 +8314,8 @@ function buildCurveSection(){
   if(layout)layout.style.display=hasGroups?'':'none';
   document.getElementById('clearcurvebtn').style.display=hasGroups?'':'none';
 
-  // Entitlement gating on the two template buttons
-  const _mk=document.getElementById('tplbtn');
-  if(_mk)_mk.style.display=isPro()?'':'none';
-  const _ld=document.getElementById('tplloadbtn');
-  if(_ld)_ld.style.display=(isPro()||isCoach())?'':'none';
+  buildTplSelect();
+  tplRefreshDrive(false);
 
   // Curve group pills — body focuses, right-edge cap removes
   const _chipHost=document.getElementById('groupchips');
@@ -8198,20 +8336,6 @@ function buildCurveSection(){
       tplFocusIdx=i;hideTooltip();buildCurveSection();
     };
   });
-
-  // Open template pills — body activates, right-edge cap closes
-  const _tplHost=document.getElementById('tplchips');
-  if(_tplHost){
-    _tplHost.innerHTML=tplOpen.map((t,i)=>
-      `<span class="tpl-chip${i===tplActiveIdx?' on':''}" data-tplsel="${i}" title="${i===tplActiveIdx?'Active template':'Tap to make this the active template'}">${escHtml(t.name||'Template')} \u00b7 ${t.entries.length}r${t.savedAt?'':' \u2022'}<span class="tpl-chip-x" data-tplclose="${i}" title="Close this template">\u00d7</span></span>`
-    ).join('');
-    _tplHost.querySelectorAll('[data-tplclose]').forEach(x=>{
-      x.onclick=e=>{e.stopPropagation();tplCloseOne(+x.dataset.tplclose);};
-    });
-    _tplHost.querySelectorAll('[data-tplsel]').forEach(c=>{
-      c.onclick=()=>{const i=+c.dataset.tplsel;if(i!==tplActiveIdx)tplSetActive(i);};
-    });
-  }
 
   const _tplClose=document.getElementById('tplfocusclose');
   if(_tplClose)_tplClose.style.display=(tplFocusIdx>=0)?'':'none';
@@ -12595,12 +12719,10 @@ document.getElementById('addcompbtn').onclick=showAddComparePicker;
 document.getElementById('xmode').onchange=schedRender;
 document.getElementById('emaMode').onchange=schedRender;
 document.getElementById('clearcurvebtn').onclick=clearAllCurves;
-document.getElementById('tplbtn').onclick=openTemplateModal;
 document.getElementById('tplmenubtn').onclick=()=>{document.getElementById('filemenu').classList.remove('open');openTemplateModal();};
 document.getElementById('tplmenubtn').querySelector('span').textContent='Create / edit stroke template';
 tplLoadStored();
 document.getElementById('tplfocusclose').onclick=tplExitFocus;
-document.getElementById('tplloadbtn').onclick=tplImportPick;
 document.getElementById('cards').addEventListener('click',e=>{const c=e.target.closest('[data-vis]');if(c)window.toggleVis(c.dataset.vis);});
 
 const su=document.getElementById('startup');
