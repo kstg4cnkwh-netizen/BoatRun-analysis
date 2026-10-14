@@ -109,18 +109,27 @@ kbd{
   border-radius:6px;padding:2px 7px;color:var(--ink);white-space:nowrap;
 }
 
+/* chip legend */
+.chips{display:flex;flex-wrap:wrap;gap:8px;margin:6px 0 4px;}
+.chip{font-family:'Roboto Mono',monospace;font-size:12px;font-weight:700;padding:4px 10px;border-radius:100px;border:1px solid var(--line);white-space:nowrap;}
+.chip.off{background:#2a2f3a;color:#c9ced8;}
+.chip.on{background:#1e8e4e;color:#fff;border-color:#27ae60;}
+.chip.amber{background:#c77a12;color:#fff;border-color:#e69a2e;}
+
 /* ===== CARDS ===== */
 .panel{background:var(--panel);border:1px solid var(--line);border-radius:var(--radius);padding:20px 22px;margin:0 0 18px;}
 .panel p:last-child{margin-bottom:0;}
 .mode-head{display:flex;align-items:center;gap:10px;margin:0 0 4px;}
 .tag{font-family:'Roboto Mono',monospace;font-size:11px;font-weight:600;letter-spacing:.1em;text-transform:uppercase;padding:4px 10px;border-radius:100px;border:1px solid var(--line);color:var(--teal);border-color:rgba(47,211,198,.35);background:rgba(47,211,198,.12);}
 
-.btnrow{display:flex;flex-wrap:wrap;gap:10px;margin:0 0 8px;}
+.btnrow{display:flex;flex-wrap:wrap;gap:10px;margin:0 0 8px;align-items:center;}
 .btn{display:inline-flex;align-items:center;gap:8px;text-decoration:none;font-size:14px;font-weight:600;padding:11px 18px;border-radius:10px;transition:transform .12s,filter .12s;}
 .btn:active{transform:translateY(1px);}
 .btn-coral{background:var(--coral);color:#fff;}
 .btn-ghost{background:transparent;color:var(--ink);border:1px solid var(--line);}
 .btn:hover{filter:brightness(1.08);}
+.store-badge{display:inline-flex;align-items:center;text-decoration:none;}
+.store-badge img{height:44px;width:131px;object-fit:contain;display:block;}
 
 .toc{background:var(--panel);border:1px solid var(--line);border-radius:var(--radius);padding:18px 22px;margin:28px 0 0;}
 .toc h4{font-family:'Roboto Mono',monospace;font-size:12px;font-weight:600;letter-spacing:.06em;text-transform:uppercase;color:var(--ink-faint);margin:0 0 8px;}
@@ -181,10 +190,10 @@ footer a:hover{color:var(--ink);}
 
 <h2 id="install">1. Install the app</h2>
 <div class="btnrow">
-  <a class="btn btn-coral" href="https://testflight.apple.com/join/U1VQeYdz" target="_blank" rel="noopener">Get for iPhone — TestFlight</a>
-  <a class="btn btn-ghost" href="mailto:bigwig.91mash@icloud.com?subject=BoatRun%20Android%20beta%20request&amp;body=Please%20add%20me%20to%20the%20BoatRun%20Android%20beta.%20My%20Google%20account%20email%20address%20is%3A%20">Get for Android — email request</a>
+  <a class="store-badge" href="https://apps.apple.com/au/app/boatrun/id6792436401?itscg=30200&amp;itsct=apps_box_badge&amp;mttnsubad=6792436401" target="_blank" rel="noopener"><img src="https://toolbox.marketingtools.apple.com/api/v2/badges/download-on-the-app-store/black/en-us?releaseDate=1787702400" alt="Download on the App Store"></a>
+  <a class="btn btn-ghost" href="mailto:bigwig.91mash@icloud.com?subject=BoatRun%20Android%20early%20access&amp;body=Please%20send%20me%20BoatRun%20for%20Android%20%28free%20early%20access%29.%20My%20Google%20account%20email%20address%20is%3A%20">Get for Android — free early access</a>
 </div>
-<p>iPhone users install TestFlight first, then tap the link again to install BoatRun. Android users email their Google account address and get an invite back.</p>
+<p>iPhone users install BoatRun from the App Store. Android users email their Google account address and get the Google Play link back.</p>
 
 <hr class="rule"/>
 
@@ -204,8 +213,9 @@ footer a:hover{color:var(--ink);}
     <span class="sd">This is the tab you start and finish from.</span>
   </li>
   <li>
-    <span class="st">Connect Google Drive</span>
-    <span class="sd">Tap <kbd>☁ Connect to Drive</kbd> at the top right of HOME and sign in. Your sessions save to your own Drive, so they survive a new phone and can be opened in the Analyser.</span>
+    <span class="st">Tap Sign in</span>
+    <span class="sd">Tap <kbd>Sign in</kbd> at the top right of HOME and sign in with Google or Apple. Your Google Drive is linked as part of signing in — just follow the prompts.</span>
+    <span class="sd">One sign-in does it all: your subscription follows you to a new phone and the Analyser, and every session saves to a private folder in your own Drive.</span>
   </li>
   <li>
     <span class="st">Check your role in Settings</span>
@@ -225,16 +235,26 @@ footer a:hover{color:var(--ink);}
     <span class="st">Tap LIVE</span>
   </li>
   <li>
-    <span class="st">Connect to your squad — only if a coach is out with you</span>
-    <span class="sd">Tap <kbd>Connect Squad</kbd> and enter the code your coach gives you. Skip this if you're on your own.</span>
+    <span class="st">Use the chips at the top of the screen</span>
+    <span class="sd">Before you start, the top of the LIVE screen shows <kbd>♥ HR</kbd> <kbd>SQUAD</kbd> <kbd>WORKOUT</kbd> <kbd>VIDEO</kbd>. Tap a chip to set that thing up.</span>
+    <span class="chips"><span class="chip off">Grey = off</span><span class="chip on">Green = ready</span><span class="chip amber">Amber = you used it last time but it isn't ready now</span></span>
+    <span class="sd">If you press Start with an amber chip, BoatRun offers to connect it, or you can tap <kbd>Start Anyway</kbd>.</span>
   </li>
   <li>
-    <span class="st">Connect your heart rate strap — if you wear one</span>
-    <span class="sd">Put the strap on first (it needs skin contact to wake up), then tap <kbd>Connect HR</kbd>.</span>
+    <span class="st">♥ HR — if you wear a heart rate strap</span>
+    <span class="sd">Put the strap on first (it needs skin contact to wake up), then tap the chip.</span>
+  </li>
+  <li>
+    <span class="st">SQUAD — only if a coach is out with you</span>
+    <span class="sd">Tap the chip and enter the code your coach gives you, or scan their QR. Skip it if you're on your own.</span>
+  </li>
+  <li>
+    <span class="st">WORKOUT — if you want a structured piece</span>
+    <span class="sd">Tap the chip and pick a workout. If one is planned on your calendar for today, the app offers it when you open it.</span>
   </li>
   <li>
     <span class="st">Get the boat on the water and mount the phone</span>
-    <span class="sd">The phone must be lying within 30 degrees of flat in its mount, <strong>firmly mounted, not loose.</strong> </span>
+    <span class="sd">The phone must be lying within 30 degrees of flat in its mount, <strong>firmly mounted, not loose.</strong></span>
   </li>
   <li>
     <span class="st">Tap START CALIBRATION</span>
@@ -255,7 +275,7 @@ footer a:hover{color:var(--ink);}
   </li>
   <li>
     <span class="st">Finishing up</span>
-    <span class="sd"><kbd>Stop</kbd> → <kbd>Finish Session</kbd> → give it a name and save. It automatically uploads to your Drive on its own.</span>
+    <span class="sd"><kbd>Stop</kbd> → <kbd>Finish Session</kbd> → give it a name and save. It uploads to your Drive on its own.</span>
   </li>
 </ol>
 
@@ -273,15 +293,15 @@ footer a:hover{color:var(--ink);}
   </li>
   <li>
     <span class="st">Heart rate — pair the strap to the erg, not the phone</span>
-    <span class="sd">On the PM5: <kbd>More Options</kbd> → <kbd>Utilities</kbd> → pick your strap. BoatRun reads it through the erg.</span>
+    <span class="sd">On the PM5: <kbd>More Options</kbd> → <kbd>Utilities</kbd> → pick your strap. BoatRun reads it through the erg, and the <kbd>♥ HR</kbd> chip turns green.</span>
   </li>
   <li>
-    <span class="st">Connect to your squad — if your coach is running one</span>
-    <span class="sd">Tap <kbd>Connect Squad</kbd> and enter the code.</span>
+    <span class="st">SQUAD chip — if your coach is running one</span>
+    <span class="sd">Tap the <kbd>SQUAD</kbd> chip at the top of the screen and enter the code.</span>
   </li>
   <li>
     <span class="st">Either load a workout, or just row</span>
-    <span class="sd">Tap <kbd>Load Workout</kbd> and push it to the erg — the monitor then ends the piece for you.</span>
+    <span class="sd">Tap the <kbd>WORKOUT</kbd> chip and push the workout to the erg — the monitor then ends the piece for you.</span>
     <span class="sd">Or start rowing with no workout loaded, and when you're done press <kbd>Menu</kbd> on the PM5 to end the piece.</span>
   </li>
   <li>
@@ -303,7 +323,7 @@ footer a:hover{color:var(--ink);}
   </li>
   <li>
     <span class="st">Connect to it, and give the code to your rowers</span>
-    <span class="sd">Everyone in the squad — you included — must be on the same code. There's a QR code in Settings if that's easier than reading letters out.</span>
+    <span class="sd">Everyone in the squad — you included — must be on the same code. Use <kbd>SHOW QR</kbd> if that's easier than reading letters out.</span>
   </li>
   <li>
     <span class="st">COACH tab — one boat at a time</span>
@@ -325,9 +345,9 @@ footer a:hover{color:var(--ink);}
 <hr class="rule"/>
 
 <h2 id="log">6. Reviewing a session</h2>
-<p><kbd>HOME</kbd> → <kbd>LOG</kbd>. Tap any session to see its detail — splits, rate, distance, heart rate, stroke curve and map.</p>
+<p><kbd>HOME</kbd> → <kbd>LOG</kbd>. <kbd>CALENDAR</kbd> shows your sessions and planned workouts by day; <kbd>SESSIONS</kbd> is the full list. Tap any session to see its detail — splits, rate, distance, heart rate, stroke curve and map.</p>
 <div class="callout">
-  <p>Session missing after changing phones? Tap <kbd>☁ Sync with Drive</kbd> at the top of the LOG list to pull everything back down.</p>
+  <p>Changing phones? Just sign in on the new phone with the same account — your sessions come back on their own.</p>
 </div>
 
 <hr class="rule"/>
@@ -339,12 +359,12 @@ footer a:hover{color:var(--ink);}
 <p>Open it in a browser on a laptop or tablet. Nothing to install.</p>
 <ol class="steps">
   <li>
-    <span class="st">Tap Connect Google Drive</span>
-    <span class="sd">Use the same Google account you signed into on the phone.</span>
+    <span class="st">Tap Sign in</span>
+    <span class="sd">Use the same Google or Apple account you signed in with on the phone, then link Google Drive when it asks.</span>
   </li>
   <li>
     <span class="st">Open a session</span>
-    <span class="sd">Pick it from the list.</span>
+    <span class="sd">Pick it from the calendar or the list.</span>
   </li>
   <li>
     <span class="st">Tap any tile to see that metric</span>
