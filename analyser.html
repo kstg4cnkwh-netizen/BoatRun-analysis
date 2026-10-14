@@ -4465,9 +4465,9 @@ window.navCourseFile=function(){
     +'<input type="text" id="_navcrs_name" class="brsearch" placeholder="Course name (e.g. Head of the Yarra)" style="width:100%;box-sizing:border-box;margin-bottom:6px;">'
     +'<input type="text" id="_navcrs_area" class="brsearch" placeholder="Area (e.g. Yarra River, Melbourne AUS)" style="width:100%;box-sizing:border-box;margin-bottom:6px;">'
     +'<input type="text" id="_navcrs_note" class="brsearch" placeholder="Note (optional)" style="width:100%;box-sizing:border-box;margin-bottom:10px;">'
-    +'<div class="sz-lhd" style="margin:6px 0;">Sectors ('+secs.length+')</div>'
+    +'<div class="sz-lhd" style="margin:6px 0;">Sectors ('+secs.length+')'+(secs.length?'<button class="hbtn" data-crs-all="crs-sec" style="font-size:11px;">Deselect all</button>':'')+'</div>'
     +(secs.length?secs.map(s=>row('crs-sec',s.id,s.name,s.distance+' m','#ff2fd0')).join(''):'<div class="sz-loading">No sectors</div>')
-    +'<div class="sz-lhd" style="margin:12px 0 6px;">Lanes & hazards ('+lines.length+')</div>'
+    +'<div class="sz-lhd" style="margin:12px 0 6px;">Lanes & hazards ('+lines.length+')'+(lines.length?'<button class="hbtn" data-crs-all="crs-line" style="font-size:11px;">Deselect all</button>':'')+'</div>'
     +(lines.length?lines.map(l=>row('crs-line',l.id,l.name,NAV_LBL[navMode(l)],navColor(l))).join(''):'<div class="sz-loading">No lanes or hazards</div>')
     +'<div style="display:flex;gap:6px;margin-top:12px;"><button class="dzbtn dzbtn-pri" id="_navcrs_save" style="margin-left:auto;">Download course file</button></div>'
     +'<div id="_navcrs_out" style="margin-top:10px;"></div>';
@@ -4475,6 +4475,10 @@ window.navCourseFile=function(){
   overlay.onclick=e=>{if(e.target===overlay)overlay.remove();};
   document.body.appendChild(overlay);
   document.getElementById('_navcrs_close').onclick=()=>overlay.remove();
+  /* Select all / Deselect all for each list. The label follows the ticks. */
+  const crsAllLbl=()=>panel.querySelectorAll('[data-crs-all]').forEach(b=>{const k=b.dataset.crsAll;const box=[...panel.querySelectorAll('[data-'+k+']')];b.textContent=box.length&&box.every(e=>e.checked)?'Deselect all':'Select all';});
+  panel.querySelectorAll('[data-crs-all]').forEach(b=>b.onclick=e=>{e.preventDefault();const k=b.dataset.crsAll;const box=[...panel.querySelectorAll('[data-'+k+']')];const on=!box.every(x=>x.checked);box.forEach(x=>{x.checked=on;});crsAllLbl();});
+  panel.querySelectorAll('[data-crs-sec],[data-crs-line]').forEach(x=>x.addEventListener('change',crsAllLbl));
   document.getElementById('_navcrs_save').onclick=()=>{
     const name=document.getElementById('_navcrs_name').value.trim();
     const area=document.getElementById('_navcrs_area').value.trim();
@@ -7920,6 +7924,7 @@ function tplExport(){
     return;
   }
   toast('Saving to Metrics\u2026');
+  AnalyserDrive._ppP = null;
   tplSyncPush(t, false).then(ok => {
     if (ok) toast('Saved \u2014 \u201c' + (t.name || 'Template') + '\u201d will appear in Metrics');
     else { tplDownload(t); toast('Drive sync failed \u2014 saved as a file instead'); }
@@ -7939,6 +7944,7 @@ function tplImportPick(){
     inp.value = '';
     if (!files.length) return;
     let added = 0, bad = 0;
+    const loaded = [];
     for (const f of files){
       let o = null;
       try { o = JSON.parse(await f.text()); } catch { o = null; }
@@ -7946,13 +7952,15 @@ function tplImportPick(){
       o.points = o.points || CURVE_POINTS;
       o.kind = o.kind || 'accel';
       o.entries = o.entries.filter(x=>x && Array.isArray(x.data) && x.rate > 0);
-      o.savedAt = o.savedAt || Date.now();
-      o.id = tplNewId();
+      o.savedAt = Date.now();
       tplSortEntries(o);
-      /* Re-opening the same template replaces it rather than stacking copies. */
+      /* Re-opening the same template replaces it rather than stacking copies,
+         and keeps its id so Metrics updates the same template. */
       const dup = tplOpen.findIndex(x => x.name === o.name && x.kind === o.kind);
+      o.id = (dup >= 0 && tplOpen[dup].id) ? tplOpen[dup].id : (o.id || tplNewId());
       if (dup >= 0) tplOpen[dup] = o; else tplOpen.push(o);
       tplActiveIdx = (dup >= 0) ? dup : tplOpen.length-1;
+      loaded.push(o);
       added++;
     }
     _tplPreviewRate = null; tplFocusIdx = -1;
@@ -7960,6 +7968,15 @@ function tplImportPick(){
     toast(added
       ? ('Loaded ' + added + ' template' + (added === 1 ? '' : 's') + (bad ? ' \u00b7 ' + bad + ' skipped' : '') + ' \u2014 tap a curve pill to overlay it')
       : 'Not a BoatRun stroke template');
+    /* Opened templates are sent to Metrics too, one at a time so each push
+       sees the one before it. */
+    if (loaded.length && AnalyserDrive.isSignedIn()){
+      let ok = 0;
+      for (const t of loaded){ AnalyserDrive._ppP = null; if (await tplSyncPush(t, false)) ok++; }
+      toast(ok === loaded.length ? ('Sent to Metrics \u2014 ' + ok + ' template' + (ok === 1 ? '' : 's'))
+                                 : ('Drive sync failed for ' + (loaded.length - ok) + ' template' + (loaded.length - ok === 1 ? '' : 's') + ' \u2014 tap Save to retry'));
+      if (ok !== loaded.length){ loaded.forEach(t => { t.savedAt = null; }); tplStore(); renderTemplateModal(); }
+    }
   };
   inp.click();
 }
@@ -8051,6 +8068,7 @@ function renderTemplateModal(){
     '<div style="display:flex;gap:8px;flex-wrap:wrap;">'+
       '<button id="tplnewbtn" style="'+B+'flex:1;">New template</button>'+
       '<button id="tplexport" style="'+BP+'flex:1;'+((n&&!tplIsSaved())?'':'opacity:.35;cursor:default;')+'"'+((n&&!tplIsSaved())?'':' disabled')+'>'+((n&&tplIsSaved())?'Saved \u2713':'Save')+'</button>'+
+      '<button id="tplfilebtn" style="'+B+'flex:1;'+(n?'':'opacity:.35;cursor:default;')+'"'+(n?'':' disabled')+'>Export file</button>'+
       '<button id="tpldelall" style="'+B+'flex:1;color:#f54040;"'+(t?'':' disabled')+'>Delete</button>'+
       '<button id="tplclose" style="'+B+'flex:1;">Close</button>'+
     '</div>';
@@ -8076,6 +8094,7 @@ function renderTemplateModal(){
   };
   document.getElementById('tplnewbtn').onclick = tplNew;
   document.getElementById('tplexport').onclick = tplExport;
+  document.getElementById('tplfilebtn').onclick = () => { const t = tplActive(); if (!tplHasEntries(t)){ toast('Template is empty'); return; } tplSortEntries(t); tplDownload(t); toast('Template file saved'); };
   document.getElementById('tpldelall').onclick = tplDeleteActive;
   document.getElementById('tplclose').onclick = () => { const m = document.getElementById('_tplmodal'); if (m) m.remove(); };
   drawTemplatePreview();
