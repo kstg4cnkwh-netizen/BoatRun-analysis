@@ -15215,7 +15215,7 @@ body{font-size:14px;}
    tabs: blue general, green import, orange coach/lanes, red sectors, purple
    demo/templates, grey old/neutral. Backgrounds are unchanged. */
 :root,body.light{--acc:#007aff;--acc-g:#27ae60;--acc-r:#ff3b30;--acc-o:#fc4c02;--acc-y:#ffcc00;--acc-p:#8e44ad;}
-.brpill-row .dzbtn-sec,#sz-sectors .hbtn,#sz-nav .hbtn,.sec-hd .hbtn,#sz-cal .filt-chip,#sz-calday button,.sz-prompt .dzbtn-sec{
+.brpill-row .dzbtn-sec,#sz-sectors .hbtn,#sz-nav .hbtn,.sec-hd .hbtn,#sz-cal .filt-chip,.sz-prompt .dzbtn-sec{
   background:#fff;color:var(--bc,#007aff);border:2px solid var(--bc,#007aff);border-radius:14px;
   font-weight:800;letter-spacing:.03em;text-transform:uppercase;box-shadow:0 1px 3px rgba(0,0,0,.18);}
 .brpill-row .dzbtn-sec span,.sz-prompt .dzbtn-sec span{color:inherit;text-transform:uppercase;font-weight:800;}
@@ -15239,6 +15239,10 @@ body{font-size:14px;}
 #tplbtn:hover,#tplloadbtn:hover,#tplfocusclose:hover{background:#8e44ad;color:#fff;}
 .zoom-btn{background:#fff;color:#007aff;border:2px solid #007aff;font-weight:800;}
 .zoom-btn:hover{background:#007aff;color:#fff;border:2px solid #007aff;}
-.sz-del{background:#ff3b30;}
+.sz-del,#sz-calday .sz-del,#sz-cal .sz-del{background:#ff3b30;border:none;color:#fff;}
+.sz-del img{filter:brightness(0) invert(1);}
+/* Favourite stars: plain star, no button edge; grey off, orange on. */
+.asc-fav,#sz-calday .asc-fav,#sz-cal .asc-fav{background:none!important;border:none!important;box-shadow:none!important;color:#c7c7cc!important;text-transform:none;}
+.asc-fav.on,#sz-calday .asc-fav.on,#sz-cal .asc-fav.on{color:#fc4c02!important;}
 .sz-signout{color:#ff3b30;font-weight:700;}
 </style>
