@@ -3776,10 +3776,10 @@ function _secSimplify(pts,tol){
 }
 /* ── Plot cursor: a cross with a ring round it replaces the hand on every map
    you draw on (sectors, lanes, dividers, hazards). Ring size is set from the
-   RING box on the map: hidden, 10, 20, 30, 50 or 100 m. Mouse only - a touch
+   RING box on the map: hidden, 10 (default), 20, 30, 50 or 100 m. Mouse only - a touch
    screen has no pointer to follow. */
 const PLOT_RING_KEY='br_plotRing', PLOT_RINGS=[0,10,20,30,50,100];
-function plotRingM(){try{const v=localStorage.getItem(PLOT_RING_KEY);if(v!==null&&PLOT_RINGS.includes(+v))return +v;}catch{}return 20;}
+function plotRingM(){try{const v=localStorage.getItem(PLOT_RING_KEY);if(v!==null&&PLOT_RINGS.includes(+v))return +v;}catch{}return 10;}
 function plotCursorOn(map){
   if(!map||map._plotCur)return;
   const c=map.getContainer();
@@ -4453,9 +4453,11 @@ function renderStartNav(){
   const srt=a=>a.sort((p,q)=>String(p.name).localeCompare(String(q.name)));
   const mine=srt(navLive()), clubs=navClubsLive();
   const b=(id,t)=>'<button class="hbtn" id="'+id+'" style="font-size:10px;">'+t+'</button>';
+  /* Same look as the Lane / Divider / Hazard buttons in the draw popup. */
+  const nb=(id,m)=>{const c=navColor({mode:m});return '<button class="hbtn" id="'+id+'" style="font-size:11px;background:#000;color:'+c+';border-color:'+c+';">+ '+NAV_LBL[m]+'</button>';};
   const sub=t=>'<div style="font-size:10px;font-weight:700;letter-spacing:.08em;color:var(--muted);margin:10px 0 6px;">'+t+'</div>';
   let h='<div class="sz-lhd" style="margin-bottom:8px;">Lanes & hazards<span style="display:flex;gap:6px;flex-wrap:wrap;justify-content:flex-end;">'
-    +b('sz-nav-lane','+ Lane')+b('sz-nav-div','+ Divider')+b('sz-nav-haz','+ Hazard')+'</span></div>'
+    +nb('sz-nav-lane','lane')+nb('sz-nav-div','divider')+nb('sz-nav-haz','hazard')+'</span></div>'
     +'<div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:4px;">'+b('sz-nav-club','\u{1F465} Club')+b('sz-nav-course','Course file')+b('sz-nav-share','Share')+b('sz-nav-import','Import')+'</div>'
     +'<div style="max-height:520px;overflow-y:auto;">';
   if(clubs.length||mine.length)h+=sub('MY LINES');
@@ -15206,4 +15208,37 @@ body{font-size:14px;}
 .card .val{font-weight:600;letter-spacing:-.02em;}
 .card .lbl,.seglbl,thead th{text-transform:none!important;letter-spacing:0!important;}
 .sec-hd .hbtn,.segbtn,.laptypebtn,.filt-chip,.brpill-row .dzbtn,#stripcontext{text-transform:none!important;letter-spacing:0!important;}
+
+/* ══ App button pass (2026-10-15) ══ Same buttons as Metrics: white with a
+   2px coloured edge and bold coloured text, filled with that colour on hover
+   or when selected. Each area keeps its own colour, matching the app's HOME
+   tabs: blue general, green import, orange coach/lanes, red sectors, purple
+   demo/templates, grey old/neutral. Backgrounds are unchanged. */
+:root,body.light{--acc:#007aff;--acc-g:#27ae60;--acc-r:#ff3b30;--acc-o:#fc4c02;--acc-y:#ffcc00;--acc-p:#8e44ad;}
+.brpill-row .dzbtn-sec,#sz-sectors .hbtn,#sz-nav .hbtn,.sec-hd .hbtn,#sz-cal .filt-chip,#sz-calday button,.sz-prompt .dzbtn-sec{
+  background:#fff;color:var(--bc,#007aff);border:2px solid var(--bc,#007aff);border-radius:14px;
+  font-weight:800;letter-spacing:.03em;text-transform:uppercase;box-shadow:0 1px 3px rgba(0,0,0,.18);}
+.brpill-row .dzbtn-sec span,.sz-prompt .dzbtn-sec span{color:inherit;text-transform:uppercase;font-weight:800;}
+#sz-cal .filt-chip[data-pv="today"]{--bc:#fc4c02;}
+.brpill-row .dzbtn-sec:hover,#sz-sectors .hbtn:hover,#sz-nav .hbtn:hover,.sec-hd .hbtn:hover,#sz-cal .filt-chip:hover,.sz-prompt .dzbtn-sec:hover{
+  background:var(--bc,#007aff);color:#fff;border-color:var(--bc,#007aff);}
+.brpill-row .dzbtn-sec:hover img,.sz-prompt .dzbtn-sec:hover img{filter:brightness(0) invert(1);}
+.brpill-row .dzbtn-pri{background:var(--acc-g);color:#fff;border:2px solid var(--acc-g);font-weight:800;letter-spacing:.03em;text-transform:uppercase;}
+#sz-coach{--bc:#fc4c02;} #sz-squad{--bc:#27ae60;} #sz-openfile{--bc:#007aff;} #sz-demo{--bc:#8e44ad;} #sz-oldacct{--bc:#636366;}
+#sz-sectors .hbtn{--bc:#c0392b;}
+#sz-nav .hbtn{--bc:#fc4c02;}
+#sz-cal .filt-chip{--bc:#007aff;}
+#sz-cal .filt-chip.on,#sz-cal .filt-chip.on:hover{background:var(--bc);color:#fff;}
+.sec-hd .hbtn{--bc:#007aff;padding:6px 12px;font-size:10px;}
+.filt-chip{font-weight:800;}
+.filt-chip.on,.segbtn.on,.sess-tab.on{background:#007aff;color:#fff;}
+#addcurvebtn{background:#007aff;color:#fff;font-weight:800;}
+#selclear,#clearcurvebtn{background:#fff;color:#ff3b30;border:2px solid #ff3b30!important;font-weight:800;}
+#selclear:hover,#clearcurvebtn:hover{background:#ff3b30;color:#fff;}
+#tplbtn,#tplloadbtn,#tplfocusclose{background:#fff;color:#8e44ad;border:2px solid #8e44ad!important;font-weight:800;}
+#tplbtn:hover,#tplloadbtn:hover,#tplfocusclose:hover{background:#8e44ad;color:#fff;}
+.zoom-btn{background:#fff;color:#007aff;border:2px solid #007aff;font-weight:800;}
+.zoom-btn:hover{background:#007aff;color:#fff;border:2px solid #007aff;}
+.sz-del{background:#ff3b30;}
+.sz-signout{color:#ff3b30;font-weight:700;}
 </style>
