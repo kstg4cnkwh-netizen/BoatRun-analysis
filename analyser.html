@@ -835,7 +835,7 @@ body.light .hdrname{color:#fff;}
     </div>
     <div class="info-col info-wide info-fixed inpill">
       <div id="sectorsec" style="display:none;">
-        <div class="sec-hd" style="padding:0 0 4px;"><h2>Sectors</h2><span id="sectorlbl" style="font-size:10px;color:var(--muted);"></span><button class="hbtn" id="sectorListBtn" style="margin-left:auto;font-size:10px;" onclick="window.showSectorList()">Sector list</button><button class="hbtn" id="sectorScanBtn" style="font-size:10px;" onclick="window.scanAllSectors()">Scan all</button><button class="hbtn" id="sectorAddBtn" style="font-size:10px;" onclick="window.startSectorCreate()">＋ Create Sector</button><button class="hbtn" id="sectorDrawBtn" style="font-size:10px;" onclick="window.drawSector()">✎ Draw</button><button class="hbtn" id="sectorHideBtn" style="font-size:10px;background:#ffb020;color:#000;font-weight:600;" onclick="window.toggleSectorsHidden()">Hide on map</button><button class="hbtn" id="sectorCurveBtn" style="font-size:10px;display:none;" onclick="window.addSectorToCurves()">＋ Add to curves</button></div>
+        <div class="sec-hd" style="padding:0 0 4px;"><h2>Sectors</h2><span id="sectorlbl" style="font-size:10px;color:var(--muted);"></span><button class="hbtn" id="sectorListBtn" style="margin-left:auto;font-size:10px;" onclick="window.showSectorList()">Sector list</button><button class="hbtn" id="sectorScanBtn" style="font-size:10px;" onclick="window.scanAllSectors()">Scan all</button><button class="hbtn" id="sectorAddBtn" style="font-size:10px;" onclick="window.startSectorCreate()">＋ Create Sector</button><button class="hbtn" id="sectorDrawBtn" style="font-size:10px;" onclick="window.drawSector()">✎ Draw</button><button class="hbtn" id="sectorCurveBtn" style="font-size:10px;display:none;" onclick="window.addSectorToCurves()">＋ Add to curves</button></div>
         <div id="sectorbody"></div>
       </div>
     </div>
@@ -850,7 +850,7 @@ body.light .hdrname{color:#fff;}
     <div class="ms-pill secpill" id="paneMap" data-pane="paneMap"><div class="pane-grip" title="Drag to move this pane"><span></span></div>
     <div class="map-col">
       <div id="mapsec" style="display:none;">
-        <div class="sec-hd" style="padding:0 0 4px;"><h2>Route Map</h2><span id="maplbl" style="font-size:10px;color:var(--muted);"></span><button class="hbtn" id="mapSizeBtn" style="margin-left:auto;font-size:10px;" onclick="window.toggleMapSize()">Larger ⤢</button></div>
+        <div class="sec-hd" style="padding:0 0 4px;"><h2>Route Map</h2><span id="maplbl" style="font-size:10px;color:var(--muted);"></span><span style="margin-left:auto;display:flex;gap:6px;align-items:center;"><button class="hbtn" id="mapSecBtn" style="font-size:10px;display:none;" onclick="window.toggleSectorsHidden()" title="Show or hide sectors on the map">Sectors</button><button class="hbtn" id="mapHazBtn" style="font-size:10px;display:none;" onclick="window.toggleHazardsHidden()" title="Show or hide hazards on the map">Hazards</button><button class="hbtn" id="mapSizeBtn" style="font-size:10px;" onclick="window.toggleMapSize()">Larger ⤢</button></span></div>
         <div id="mapbox"></div>
       </div>
     </div>
@@ -3403,9 +3403,25 @@ function updateSectorsFromData(d,label,fileId,onlyId){
   if(changed)saveSectors();
   return changed;
 }
-let _sectorsHidden=false;
+let _sectorsHidden=(()=>{try{return localStorage.getItem('br_map_hide_sec')==='1';}catch{return false;}})();
+let _hazardsHidden=(()=>{try{return localStorage.getItem('br_map_hide_haz')==='1';}catch{return false;}})();
+/* Route Map header: Sectors and Hazards toggles. Filled = shown on the map. */
+function mapLayerBtnsUpdate(){
+  const sb=document.getElementById('mapSecBtn'), hb=document.getElementById('mapHazBtn');
+  const pro=isPro();
+  const paint=(b,on,col)=>{if(!b)return;b.style.display=pro?'':'none';b.style.background=on?col:'';b.style.color=on?'#000':'';b.style.borderColor=on?col:'';b.style.fontWeight=on?'700':'';b.textContent=(on?'\u2713 ':'')+(b===sb?'Sectors':'Hazards');};
+  paint(sb,!_sectorsHidden,'#ffb020');
+  paint(hb,!_hazardsHidden,'#ff9500');
+}
+window.toggleHazardsHidden=function(){
+  _hazardsHidden=!_hazardsHidden;
+  try{localStorage.setItem('br_map_hide_haz',_hazardsHidden?'1':'0');}catch{}
+  try{drawRouteHazards();}catch(e){}
+  mapLayerBtnsUpdate();
+};
 window.toggleSectorsHidden=function(){
   _sectorsHidden=!_sectorsHidden;
+  try{localStorage.setItem('br_map_hide_sec',_sectorsHidden?'1':'0');}catch{}
   if(_sectorsHidden&&_sectorCreate)cancelSectorCreate();
   renderSectors();
 };
@@ -3427,10 +3443,10 @@ function renderSectors(){
   _sectorHLRestore();
   const cur=SESSIONS[activeSessionIdx];
   const erg=!!(cur&&cur.d&&cur.d.sum&&cur.d.sum.session_mode==='erg');
-  const _hdBtns=['sectorListBtn','sectorScanBtn','sectorAddBtn','sectorDrawBtn','sectorHideBtn'].map(i=>document.getElementById(i));
+  const _hdBtns=['sectorListBtn','sectorScanBtn','sectorAddBtn','sectorDrawBtn'].map(i=>document.getElementById(i));
   _hdBtns.forEach(b=>{if(b)b.style.display=isPro()?'':'none';});
   if(!isPro()){box.style.display='flex';const _l=document.getElementById('sectorlbl');if(_l)_l.textContent='';body.innerHTML='<div style="font-size:11px;color:var(--muted);padding:6px 0;">Sectors are a Pro feature — time yourself over the same stretch of water every session, with PBs and side-by-side playback.</div><button class="dzbtn dzbtn-pri" onclick="showPlanModal(\'Sectors are a Pro feature.\')">Upgrade to Pro</button>';return;}
-  const _hb=document.getElementById('sectorHideBtn');if(_hb)_hb.textContent=_sectorsHidden?'Show on map':'Hide on map';
+  try{mapLayerBtnsUpdate();}catch(e){}
   if(erg||GPSTRACE.length<2){box.style.display='flex';body.innerHTML='<div style="font-size:10px;color:var(--muted);padding:4px 0;">'+(erg?'Not available for erg sessions':'No GPS track')+'</div>';return;}
   box.style.display='flex';
   const rows=[];
@@ -4282,6 +4298,8 @@ function drawRouteHazards(){
   if(typeof leafletMap==='undefined'||!leafletMap||typeof mapBaseLine==='undefined'||!mapBaseLine)return;
   if(_routeHazLayer&&leafletMap.hasLayer(_routeHazLayer))_routeHazLayer.clearLayers();
   else _routeHazLayer=L.layerGroup().addTo(leafletMap);
+  try{mapLayerBtnsUpdate();}catch(e){}
+  if(_hazardsHidden)return;
   const box=mapBaseLine.getBounds().pad(0.5);
   const seen=new Set();
   navLive().concat(...navClubsLive().filter(c=>!c.gone).map(navClubLines)).forEach(l=>{
