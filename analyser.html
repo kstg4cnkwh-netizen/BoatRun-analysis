@@ -3846,6 +3846,7 @@ window.drawSector=function(editId){
     if(s.deleted||!s.origin||!Array.isArray(s.ref)||(edit&&s.id===edit.id))return;
     others.push(L.polyline(s.ref.map(p=>sectorLatLon(p[0],p[1],s.origin)),{color:'#ffb020',weight:2,opacity:0.8,dashArray:'6 6'}).bindTooltip(s.name).addTo(map));
   });
+  navDrawHazardsWithBuffer(map);
   const pts=[];
   if(edit){
     const o=edit.origin;
@@ -4296,6 +4297,37 @@ function drawRouteHazards(){
 }
 
 /* ── Club lines (Firebase) ── */
+/* Hazards (own and club) with their warning zone, for reference while
+   drawing a sector. 10 m is the app's default hazard warning distance.
+   A point gets a 10 m circle; a line gets a band 10 m each side, drawn as a
+   round-capped polyline whose pixel width is kept at 20 m on every zoom. */
+const NAV_HAZ_BUFFER_M=10;
+function navDrawHazardsWithBuffer(map){
+  const seen=new Set(), bands=[];
+  navLive().concat(...navClubsLive().filter(c=>!c.gone).map(navClubLines)).forEach(l=>{
+    if(navMode(l)!=='hazard'||seen.has(l.id))return;
+    seen.add(l.id);
+    const pts=navCleanPts(l); if(!pts.length)return;
+    const nm=(l.name||'Hazard')+' \u00b7 '+NAV_HAZ_BUFFER_M+' m warning zone';
+    if(pts.length===1){
+      L.circle(pts[0],{radius:NAV_HAZ_BUFFER_M,color:'#ff3b30',weight:1.5,dashArray:'4 4',fillColor:'#ff3b30',fillOpacity:0.28,interactive:false}).addTo(map);
+      L.marker(pts[0],{icon:navHazIconA(),keyboard:false,zIndexOffset:400,bubblingMouseEvents:true}).bindTooltip(nm).addTo(map);
+      return;
+    }
+    bands.push(L.polyline(pts,{color:'#ff3b30',opacity:0.3,weight:4,lineCap:'round',lineJoin:'round',interactive:false}).addTo(map));
+    L.polyline(pts,{color:'#ff9500',weight:3,opacity:1,bubblingMouseEvents:true}).bindTooltip(nm).addTo(map);
+  });
+  if(!bands.length)return;
+  const fit=()=>{
+    try{
+      const c=map.getCenter(), p0=map.latLngToContainerPoint(c), p1=map.latLngToContainerPoint([c.lat+(2*NAV_HAZ_BUFFER_M)/111320,c.lng]);
+      const w=Math.max(2,Math.abs(p0.y-p1.y));
+      bands.forEach(b=>b.setStyle({weight:w}));
+    }catch(e){}
+  };
+  map.on('load zoomend viewreset',fit);
+  if(map._loaded)fit();
+}
 function navClubsLive(){return NAV_CLUBS.filter(c=>c&&c.code&&!c.deleted);}
 function navClubLines(c){return (c&&Array.isArray(c.lines)?c.lines:[]).filter(navOk);}
 function navClubByCode(code){return navClubsLive().find(c=>c.code===code)||null;}
