@@ -300,6 +300,11 @@ function adClearPendingOpen(){try{sessionStorage.removeItem('_ad_open');}catch(e
   }
 
 
+.br-plot.leaflet-container,.br-plot .leaflet-grab,.br-plot.leaflet-dragging .leaflet-grab,.br-plot .leaflet-interactive,.br-plot .leaflet-marker-icon{cursor:none!important;}
+.br-plot .leaflet-control,.br-plot .leaflet-control *{cursor:auto!important;}
+.br-plot-cur{position:absolute;z-index:650;pointer-events:none;display:none;}
+.br-plot-ring{background:rgba(0,0,0,.72);color:#fff;border-radius:8px;padding:5px 8px;font:600 11px -apple-system,BlinkMacSystemFont,Helvetica Neue,sans-serif;display:flex;align-items:center;gap:6px;}
+.br-plot-ring select{font:inherit;background:#fff;color:#000;border:none;border-radius:5px;padding:2px 4px;cursor:pointer!important;}
 </style>
 <style>
 #startup{min-height:calc(100vh - 52px);display:flex;flex-direction:column;align-items:center;justify-content:flex-start;padding:28px 16px 40px;box-sizing:border-box;}
@@ -3510,7 +3515,7 @@ function cancelSectorCreate(){
   _sectorClearLayers(_sectorCreate);
   _sectorCreate=null;
   document.getElementById('sectorAdjust')?.remove();
-  if(leafletMap){leafletMap.off('click',_sectorMapClick);leafletMap.getContainer().style.cursor='';setTimeout(()=>{if(leafletMap)leafletMap.invalidateSize();},50);}
+  if(leafletMap){leafletMap.off('click',_sectorMapClick);plotCursorOff(leafletMap);leafletMap.getContainer().style.cursor='';setTimeout(()=>{if(leafletMap)leafletMap.invalidateSize();},50);}
   if(mapBaseLine)mapBaseLine.setStyle({opacity:curveGroups.length?0.25:0.85});
   const b=document.getElementById('sectorAddBtn');if(b)b.textContent='＋ Create Sector';
 }
@@ -3651,7 +3656,7 @@ window.startSectorCreate=function(editId){
   clearSectorHighlight();
   _sectorCreate={i0:-1,i1:-1,line:null,start:null,finish:null,editId:(typeof editId==='string'?editId:null)};
   const b=document.getElementById('sectorAddBtn');if(b)b.textContent='✕ Cancel';
-  leafletMap.getContainer().style.cursor='crosshair';
+  plotCursorOn(leafletMap);
   leafletMap.on('click',_sectorMapClick);
   toast('Click the sector start on the track',4000);
 };
@@ -3769,6 +3774,51 @@ function _secSimplify(pts,tol){
   }
   return pts.filter((_,i)=>keep[i]);
 }
+/* ── Plot cursor: a cross with a ring round it replaces the hand on every map
+   you draw on (sectors, lanes, dividers, hazards). Ring size is set from the
+   RING box on the map: hidden, 10, 20, 30, 50 or 100 m. Mouse only - a touch
+   screen has no pointer to follow. */
+const PLOT_RING_KEY='br_plotRing', PLOT_RINGS=[0,10,20,30,50,100];
+function plotRingM(){try{const v=localStorage.getItem(PLOT_RING_KEY);if(v!==null&&PLOT_RINGS.includes(+v))return +v;}catch{}return 20;}
+function plotCursorOn(map){
+  if(!map||map._plotCur)return;
+  const c=map.getContainer();
+  c.classList.add('br-plot');
+  const el=document.createElement('div');el.className='br-plot-cur';c.appendChild(el);
+  let pt=null;
+  const draw=()=>{
+    if(!pt){el.style.display='none';return;}
+    const r=plotRingM();
+    let rp=0;
+    if(r){const ll=map.containerPointToLatLng(pt);rp=r/(40075016.686*Math.cos(ll.lat*Math.PI/180)/Math.pow(2,map.getZoom()+8));}
+    const arm=11,half=Math.ceil(Math.max(rp,arm)+3),sz=half*2;
+    const ln=(w,col)=>'<path d="M'+(half-arm)+' '+half+' H'+(half+arm)+' M'+half+' '+(half-arm)+' V'+(half+arm)+'" stroke="'+col+'" stroke-width="'+w+'" stroke-linecap="round"/>';
+    const ring=rp?'<circle cx="'+half+'" cy="'+half+'" r="'+rp.toFixed(1)+'" fill="rgba(255,255,255,.08)" stroke="#000" stroke-width="3.5"/><circle cx="'+half+'" cy="'+half+'" r="'+rp.toFixed(1)+'" fill="none" stroke="#fff" stroke-width="1.6"/>':'';
+    el.innerHTML='<svg width="'+sz+'" height="'+sz+'" viewBox="0 0 '+sz+' '+sz+'" style="display:block;overflow:visible;">'+ring+ln(4,'#000')+ln(1.8,'#fff')+'</svg>';
+    el.style.left=(pt.x-half)+'px';el.style.top=(pt.y-half)+'px';el.style.display='block';
+  };
+  const move=e=>{
+    if(e.pointerType&&e.pointerType!=='mouse'){pt=null;draw();return;}
+    if(e.target&&e.target.closest&&e.target.closest('.leaflet-control')){pt=null;draw();return;}
+    const b=c.getBoundingClientRect();pt={x:e.clientX-b.left,y:e.clientY-b.top};draw();
+  };
+  const leave=()=>{pt=null;draw();};
+  c.addEventListener('pointermove',move);
+  c.addEventListener('pointerleave',leave);
+  map.on('zoom zoomend',draw);
+  const ctl=L.control({position:'bottomleft'});
+  ctl.onAdd=()=>{
+    const d=L.DomUtil.create('div','br-plot-ring');
+    const cur=plotRingM();
+    d.innerHTML='RING <select>'+PLOT_RINGS.map(v=>'<option value="'+v+'"'+(v===cur?' selected':'')+'>'+(v?v+' m':'Hidden')+'</option>').join('')+'</select>';
+    L.DomEvent.disableClickPropagation(d);L.DomEvent.disableScrollPropagation(d);
+    d.querySelector('select').addEventListener('change',ev=>{try{localStorage.setItem(PLOT_RING_KEY,String(+ev.target.value));}catch{}draw();});
+    return d;
+  };
+  ctl.addTo(map);
+  map._plotCur={off(){c.classList.remove('br-plot');c.removeEventListener('pointermove',move);c.removeEventListener('pointerleave',leave);map.off('zoom zoomend',draw);try{ctl.remove();}catch{}el.remove();}};
+}
+function plotCursorOff(map){if(map&&map._plotCur){map._plotCur.off();map._plotCur=null;}}
 window.drawSector=function(editId){
   if(!isPro()){showPlanModal('Sectors are a Pro feature.');return;}
   if(_sectorCreate)cancelSectorCreate();
@@ -3790,6 +3840,7 @@ window.drawSector=function(editId){
   const map=L.map('_secdraw_map',{zoomControl:true,attributionControl:true,doubleClickZoom:false});
   map.attributionControl.setPrefix('');
   addSatLayers(map);
+  plotCursorOn(map);
   const others=[];
   SECTORS_DB.forEach(s=>{
     if(s.deleted||!s.origin||!Array.isArray(s.ref)||(edit&&s.id===edit.id))return;
@@ -4686,6 +4737,7 @@ window.navDraw=function(editId,newMode,clubCode,keep){
   const map=L.map('_navdraw_map',{zoomControl:true,attributionControl:true,doubleClickZoom:false});
   map.attributionControl.setPrefix('');
   addSatLayers(map);
+  plotCursorOn(map);
   const others=[];
   SECTORS_DB.forEach(s=>{
     if(s.deleted||!s.origin||!Array.isArray(s.ref))return;
