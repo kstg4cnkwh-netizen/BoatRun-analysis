@@ -4606,7 +4606,7 @@ window.navClub=function(){
     if(!document.getElementById('_navclub_modal'))return;
     const pro=isPro(), clubs=navClubsLive(), mine=navLive().sort((a,b)=>String(a.name).localeCompare(String(b.name)));
     let h='<div style="display:flex;align-items:center;gap:8px;margin-bottom:10px;"><div style="font-size:13px;font-weight:600;color:var(--text);">Club lanes & hazards</div><button class="hbtn" id="_navclub_close" style="margin-left:auto;font-size:11px;">Close</button></div>'
-      +'<div style="font-size:11px;color:var(--muted);margin-bottom:12px;line-height:1.45;">Club lines are kept under a club code. Rowers enter the code in Metrics (HOME ▸ SECTORS ▸ LINES ▸ CLUB LINES) and get every change automatically. Anyone with a Pro account and the club\'s edit password can add, edit and delete club lines here.</div>';
+      +'<div style="font-size:11px;color:var(--muted);margin-bottom:12px;line-height:1.45;">Club lines are kept under a club code. Rowers enter the code in the app (HOME ▸ DISPLAY ▸ Hazards &amp; Lanes ▸ CLUB LINES) and get every change automatically. Anyone with a Pro account and the club\'s edit password can add, edit and delete club lines here.</div>';
     clubs.forEach(c=>{
       const n=navClubLines(c).length;
       h+='<div style="background:var(--s1);border:1px solid var(--border);border-radius:12px;padding:10px 12px;margin-bottom:10px;">'
@@ -4783,7 +4783,7 @@ window.navDraw=function(editId,newMode,clubCode,keep){
   const help={
     lane:'Lane: a one-way lane. Tap the map in the direction boats travel; arrows show the direction. Use ⇄ Reverse to flip it. Rowers are warned when they drift off it or row the wrong way.',
     divider:'Divider: a line to keep clear of, on either side. Tap along it. Rowers are warned when they get too close.',
-    hazard:'Hazard: tap once for a point (e.g. a post), or tap along a hazard line. Rowers are warned when their course passes within 5 m in the next 10 s.'
+    hazard:'Hazard: tap once for a point (e.g. a post), or tap along a hazard line. Rowers are warned when their course will pass within their hazard warning distance (10 m unless they change it in the app) in the next 10 s.'
   };
   const updHead=()=>{
     document.getElementById('_navdraw_title').textContent=(edit?'Edit ':'Draw ')+NAV_LBL[mode].toLowerCase()+(club0?' \u00b7 club '+(club0.name||club0.code):'');
@@ -11931,6 +11931,7 @@ function renderStartupCalendar(){
       +'</div>';}
     }
     if(!_seqShown)h+=_othRows;
+    if(!_wktCtx&&!WKT_ENABLED&&_calSel>=todayK)h+='<div style="font-size:12px;color:var(--muted);margin:10px 0 4px;line-height:1.5;">To plan workouts here, open BoatRun on your phone signed in with Google Drive linked. Planning switches on by itself.</div>';
     if(!_calBtnsShown&&_ciEd){
       const BB='flex:1 1 0;min-width:0;min-height:48px;line-height:1.2;padding:10px 6px;border-radius:10px;border:none;box-shadow:0 2px 8px rgba(0,0,0,.22);font-family:-apple-system,Roboto,sans-serif;font-size:11px;font-weight:700;letter-spacing:.06em;cursor:pointer;color:#fff;';
       h+='<div style="display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:6px;margin-top:20px;">'
@@ -12471,7 +12472,7 @@ function pvRender(){
     +'</span></div>';
   let note='';
   if(!_pv.combined&&_wktCtx)note=(sqCanEdit()?'Coach — you can plan workouts for '+_secEsc(pvSqName(_wktCtx)):'View only — import workouts into your own calendar');
-  else if(!WKT_ENABLED)note='Workout sync is off — turn it on in Metrics to plan your own workouts.';
+  else if(!WKT_ENABLED)note='To plan your own workouts, open BoatRun on your phone signed in with Google Drive linked. Planning switches on here by itself.';
   else if(_pv.combined)note='Your plan plus the squads you tick. Changes go to your own plan.';
   // ---------- calendar ----------
   /* Rowed sessions (own calendar only), shown lightly greyed; a planned
