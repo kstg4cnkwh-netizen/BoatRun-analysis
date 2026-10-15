@@ -4268,9 +4268,32 @@ function navFromPrefs(prefs){
 }
 function navRefreshViews(){
   try{renderStartNav();}catch(e){}
+  try{drawRouteHazards();}catch(e){}
   try{const c=document.getElementById('_navclub_modal');if(c&&c._render)c._render();}catch(e){}
 }
 function navChanged(){navSaveLocal();navPush();navRefreshViews();}
+/* Hazards on the session route map: your own and your clubs', any within
+   2 km of the track. Orange warning sign for a point, orange line for a
+   hazard line; hover for the name. */
+let _routeHazLayer=null;
+function navHazIconA(){return L.divIcon({className:'',iconSize:[24,24],iconAnchor:[12,12],html:'<svg width="24" height="24" viewBox="0 0 24 24"><path d="M12 2 L23 21 L1 21 Z" fill="#ff9500" stroke="#000" stroke-width="1.6"/><path d="M12 8 V14 M12 16.5 V18" stroke="#000" stroke-width="2.4" stroke-linecap="round"/></svg>'});}
+function drawRouteHazards(){
+  if(typeof leafletMap==='undefined'||!leafletMap||typeof mapBaseLine==='undefined'||!mapBaseLine)return;
+  if(_routeHazLayer&&leafletMap.hasLayer(_routeHazLayer))_routeHazLayer.clearLayers();
+  else _routeHazLayer=L.layerGroup().addTo(leafletMap);
+  const box=mapBaseLine.getBounds().pad(0.5);
+  const seen=new Set();
+  navLive().concat(...navClubsLive().filter(c=>!c.gone).map(navClubLines)).forEach(l=>{
+    if(navMode(l)!=='hazard'||seen.has(l.id))return;
+    seen.add(l.id);
+    if(!l.pts.some(p=>box.contains(p)))return;
+    const nm=l.name||'Hazard';
+    if(l.pts.length===1){L.marker(l.pts[0],{icon:navHazIconA(),keyboard:false,zIndexOffset:400}).bindTooltip(nm).addTo(_routeHazLayer);return;}
+    L.polyline(l.pts,{color:'#000',weight:8,opacity:0.45,interactive:false}).addTo(_routeHazLayer);
+    L.polyline(l.pts,{color:'#ff9500',weight:4,opacity:1}).bindTooltip(nm).addTo(_routeHazLayer);
+    L.marker(l.pts[Math.floor(l.pts.length/2)],{icon:navHazIconA(),keyboard:false,zIndexOffset:400}).bindTooltip(nm).addTo(_routeHazLayer);
+  });
+}
 
 /* ── Club lines (Firebase) ── */
 function navClubsLive(){return NAV_CLUBS.filter(c=>c&&c.code&&!c.deleted);}
@@ -9199,6 +9222,8 @@ function buildMap(){
   const nPts=GPSTRACE.length;
   const distM=GPSTRACE[nPts-1].dist??0;
   document.getElementById('maplbl').textContent=`${nPts} GPS pts · ${Math.round(distM)}m`;
+  _routeHazLayer=null;
+  try{drawRouteHazards();}catch(e){}
   updateMapGroups();
 }
 
