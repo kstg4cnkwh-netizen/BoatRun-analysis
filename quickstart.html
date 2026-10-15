@@ -37,6 +37,7 @@ body{
 }
 a{color:inherit;}
 .wrap{max-width:820px;margin:0 auto;padding:0 24px;}
+@media(max-width:480px){.wrap{padding:0 16px;}}
 .eyebrow{
   display:inline-flex;align-items:center;gap:8px;
   font-family:'Roboto Mono',monospace;font-size:11px;font-weight:600;
@@ -79,6 +80,7 @@ em{color:var(--amber);font-style:normal;}
 .callout{border-left:3px solid var(--coral);background:var(--coral-dim);border-radius:0 10px 10px 0;padding:14px 18px;margin:0 0 18px;}
 .callout p{color:var(--ink);margin:0;font-size:14.5px;}
 .callout p + p{margin-top:8px;}
+.callout a{color:var(--coral);}
 
 /* ===== STEPS ===== */
 ol.steps{list-style:none;counter-reset:s;padding:0;margin:0 0 18px;}
@@ -111,10 +113,13 @@ kbd{
 
 /* chip legend */
 .chips{display:flex;flex-wrap:wrap;gap:8px;margin:6px 0 4px;}
-.chip{font-family:'Roboto Mono',monospace;font-size:12px;font-weight:700;padding:4px 10px;border-radius:100px;border:1px solid var(--line);white-space:nowrap;}
+.chip{font-family:'Roboto Mono',monospace;font-size:12px;font-weight:700;padding:4px 10px;border-radius:100px;border:1px solid var(--line);}
 .chip.off{background:#2a2f3a;color:#c9ced8;}
 .chip.on{background:#1e8e4e;color:#fff;border-color:#27ae60;}
 .chip.amber{background:#c77a12;color:#fff;border-color:#e69a2e;}
+.chip.lb{background:#5dade2;color:#000;border-color:#85c1e9;}
+.chip.lg{background:#7ddc8f;color:#000;border-color:#a3e9b0;}
+.chip.blue{background:#1a5276;color:#fff;border-color:#2e86c1;}
 
 /* ===== CARDS ===== */
 .panel{background:var(--panel);border:1px solid var(--line);border-radius:var(--radius);padding:20px 22px;margin:0 0 18px;}
@@ -130,6 +135,12 @@ kbd{
 .btn:hover{filter:brightness(1.08);}
 .store-badge{display:inline-flex;align-items:center;text-decoration:none;}
 .store-badge img{height:44px;width:131px;object-fit:contain;display:block;}
+
+.next{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:12px;margin:0 0 18px;}
+.next a{display:block;text-decoration:none;background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:14px 16px;transition:border-color .15s;}
+.next a:hover{border-color:rgba(255,90,60,.5);}
+.next b{display:block;font-family:'Space Grotesk',sans-serif;font-size:15px;color:var(--ink);margin-bottom:2px;}
+.next span{display:block;font-size:13px;color:var(--ink-dim);line-height:1.5;}
 
 .toc{background:var(--panel);border:1px solid var(--line);border-radius:var(--radius);padding:18px 22px;margin:28px 0 0;}
 .toc h4{font-family:'Roboto Mono',monospace;font-size:12px;font-weight:600;letter-spacing:.06em;text-transform:uppercase;color:var(--ink-faint);margin:0 0 8px;}
@@ -168,7 +179,7 @@ footer a:hover{color:var(--ink);}
     </div>
     <span class="eyebrow">5 minutes</span>
     <h1 class="doc-title">Quick Start</h1>
-    <p class="doc-sub">The short version. Follow the steps for whichever role you are. Everything is already set to sensible defaults — you don't need to change any settings.</p>
+    <p class="doc-sub">The short version. Do the first-time setup once, then follow the steps for whichever role you are. Everything is already set to sensible defaults — you don't need to change any settings.</p>
 
     <div class="toc">
       <h4>On this page</h4>
@@ -180,6 +191,7 @@ footer a:hover{color:var(--ink);}
         <li><a href="#coach">Coach</a></li>
         <li><a href="#log">Reviewing a session</a></li>
         <li><a href="#analyser">Analyser</a></li>
+        <li><a href="#next">When you're ready for more</a></li>
       </ol>
     </div>
   </div>
@@ -201,43 +213,39 @@ footer a:hover{color:var(--ink);}
 <ol class="steps">
   <li>
     <span class="st">Open the app and pick a role</span>
-    <span class="sd">You'll see <kbd>ROW</kbd> <kbd>COX</kbd> <kbd>COACH</kbd> <kbd>ERG</kbd>. Tap whichever you are. You can change it later, and it doesn't lock you out of anything.</span>
+    <span class="sd">You'll see <kbd>ROW</kbd> <kbd>COX</kbd> <kbd>COACH</kbd> <kbd>ERG</kbd>. Tap whichever you are. You can change it any time in <kbd>HOME</kbd> → <kbd>SETTINGS</kbd>.</span>
     <span class="sd">Not ready to go rowing? Tap one of the <kbd>TRY A DEMO</kbd> buttons instead — it replays a real session so you can look around.</span>
   </li>
   <li>
     <span class="st">Allow the permissions it asks for</span>
-    <span class="sd">Sensors, location and Bluetooth. The app can't measure anything without them.</span>
+    <span class="sd">Motion sensors, location and Bluetooth. The app can't measure anything without them.</span>
   </li>
   <li>
-    <span class="st">Go to HOME</span>
-    <span class="sd">This is the tab you start and finish from.</span>
+    <span class="st">Sign in — step 1 of 2</span>
+    <span class="sd">Tap <kbd>SIGN IN · STEP 1 OF 2</kbd> on the launch screen, or <kbd>Sign in</kbd> at the top right of <kbd>HOME</kbd>. Use Apple or Google — and use the <strong>same one</strong> on every phone and in the Analyser.</span>
   </li>
   <li>
-    <span class="st">Tap Sign in</span>
-    <span class="sd">Tap <kbd>Sign in</kbd> at the top right of HOME and sign in with Google or Apple. Your Google Drive is linked as part of signing in — just follow the prompts.</span>
-    <span class="sd">One sign-in does it all: your subscription follows you to a new phone and the Analyser, and every session saves to a private folder in your own Drive.</span>
-  </li>
-  <li>
-    <span class="st">Check your role in Settings</span>
-    <span class="sd"><kbd>HOME</kbd> → <kbd>SETTINGS</kbd> → <kbd>ROLE</kbd>. That's the only setting you need to touch. Leave everything else alone for now.</span>
+    <span class="st">Link Google Drive — step 2 of 2</span>
+    <span class="sd">It's offered straight after step 1; the button reads <kbd>LINK DRIVE · STEP 2 OF 2</kbd> until it's done. Every session then saves to a private folder in your own Drive.</span>
+    <span class="sd">Your workouts, calendar, sectors, stroke templates, lanes and hazards also sync through Drive between the app, the Analyser and any other phone. There's nothing to export or import.</span>
   </li>
 </ol>
+<div class="callout">
+  <p>Want fewer buttons? <kbd>HOME</kbd> → <kbd>SETTINGS</kbd> → <kbd>SIMPLE</kbd> gives you Pace, Rate, DPS and HR and not much else. Your data is recorded the same either way.</p>
+</div>
 
 <hr class="rule"/>
 
 <h2 id="row">3. Row or Cox</h2>
 <div class="panel">
   <div class="mode-head"><span class="tag">On the water</span></div>
-  <p>Do the connecting on land, before you push off.</p>
+  <p>Do the connecting on land, before you push off. Row: the phone faces the stern, towards you. Cox: it faces the bow.</p>
 </div>
 <ol class="steps">
   <li>
-    <span class="st">Tap LIVE</span>
-  </li>
-  <li>
-    <span class="st">Use the chips at the top of the screen</span>
-    <span class="sd">Before you start, the top of the LIVE screen shows <kbd>♥ HR</kbd> <kbd>SQUAD</kbd> <kbd>WORKOUT</kbd> <kbd>VIDEO</kbd>. Tap a chip to set that thing up.</span>
-    <span class="chips"><span class="chip off">Grey = off</span><span class="chip on">Green = ready</span><span class="chip amber">Amber = you used it last time but it isn't ready now</span></span>
+    <span class="st">Go to the LIVE tab and use the chips at the top</span>
+    <span class="sd">Before you start, the top of the screen shows <kbd>♥ HR</kbd> <kbd>SQUAD</kbd> <kbd>WORKOUT</kbd> <kbd>VIDEO</kbd>. Tap a chip to set that thing up.</span>
+    <span class="chips"><span class="chip off">Grey = off</span><span class="chip on">Green = ready</span><span class="chip amber">Amber = used last time, not ready now</span></span>
     <span class="sd">If you press Start with an amber chip, BoatRun offers to connect it, or you can tap <kbd>Start Anyway</kbd>.</span>
   </li>
   <li>
@@ -245,37 +253,34 @@ footer a:hover{color:var(--ink);}
     <span class="sd">Put the strap on first (it needs skin contact to wake up), then tap the chip.</span>
   </li>
   <li>
-    <span class="st">SQUAD — only if a coach is out with you</span>
-    <span class="sd">Tap the chip and enter the code your coach gives you, or scan their QR. Skip it if you're on your own.</span>
+    <span class="st">SQUAD — only if a coach is watching</span>
+    <span class="sd">Enter the code your coach gives you, or <kbd>SCAN QR</kbd>, and your name. Skip it if you're on your own — it uses extra battery.</span>
   </li>
   <li>
     <span class="st">WORKOUT — if you want a structured piece</span>
-    <span class="sd">Tap the chip and pick a workout. If one is planned on your calendar for today, the app offers it when you open it.</span>
+    <span class="sd">Pick a workout. If one is planned on your calendar for today, the app offers it when you open it.</span>
   </li>
   <li>
-    <span class="st">Get the boat on the water and mount the phone</span>
-    <span class="sd">The phone must be lying within 30 degrees of flat in its mount, <strong>firmly mounted, not loose.</strong></span>
+    <span class="st">Mount the phone</span>
+    <span class="sd">Flat, screen up, within 30° of level, and <strong>firmly fixed to the boat — not loose.</strong> Portrait or landscape both work.</span>
   </li>
   <li>
-    <span class="st">Tap START CALIBRATION</span>
-    <span class="sd">Sit still, hands off, boat settled, for 8 seconds. The <kbd>Start</kbd> button stays greyed out until calibration finishes — that's normal.</span>
-  </li>
-  <li>
-    <span class="st">Tap Start</span>
-    <span class="sd">You're recording. Row.</span>
+    <span class="st">Sit still for a few seconds, then tap Start</span>
+    <span class="sd">There's no calibration step — the app sets itself up from the quietest few seconds before Start. Sitting still first gives it a clean reading. You're recording. Row.</span>
   </li>
   <li>
     <span class="st">Use Lap to split up your session</span>
-    <span class="sd">Tap <kbd>Lap</kbd> while moving and it just marks a split there and then.</span>
-    <span class="sd">Tap <kbd>Lap Ready</kbd> while sitting still and the button turns green and says <kbd>READY</kbd> — the new lap is armed but the clock is paused. It starts by itself once you take a couple of strokes, or you can tap the green <kbd>READY</kbd> button to disengage the ready logic.</span>
+    <span class="chips"><span class="chip blue">Lap — split now</span><span class="chip lb">Lap Ready — boat stopped</span><span class="chip lg">Ready — waiting for you</span></span>
+    <span class="sd">While moving, <kbd>Lap</kbd> marks a split there and then.</span>
+    <span class="sd">Sitting still, the button turns light blue and reads <kbd>Lap Ready</kbd>. Tap it and the lap is armed but the clock is held — it turns green, reads <kbd>Ready</kbd>, and starts by itself after a couple of strokes. Tap the green <kbd>Ready</kbd> to start the lap straight away instead.</span>
   </li>
   <li>
-    <span class="st">Tap Lock to stop spray from affecting the screen.</span>
-    <span class="sd">Locks the screen against splashes and accidental touches. Slide to unlock.</span>
+    <span class="st">Tap LOCK to stop spray changing the screen</span>
+    <span class="sd">Locks out splashes and accidental touches. Slide to unlock.</span>
   </li>
   <li>
     <span class="st">Finishing up</span>
-    <span class="sd"><kbd>Stop</kbd> → <kbd>Finish Session</kbd> → give it a name and save. It uploads to your Drive on its own.</span>
+    <span class="sd"><kbd>Stop</kbd> → <kbd>Finish Session</kbd> → give it a name. It saves and uploads to your Drive on its own.</span>
   </li>
 </ol>
 
@@ -284,25 +289,25 @@ footer a:hover{color:var(--ink);}
 <h2 id="erg">4. Erg</h2>
 <div class="panel">
   <div class="mode-head"><span class="tag">Concept2 PM5</span></div>
-  <p>No calibration and no phone mounting — the erg supplies the numbers. Set your role to <kbd>ERG</kbd> first.</p>
+  <p>No phone mounting — the erg supplies the numbers. Pick the <kbd>ERG</kbd> role first.</p>
 </div>
 <ol class="steps">
   <li>
-    <span class="st">Wake the PM5, then tap Connect Erg</span>
-    <span class="sd">Press a button on the monitor so it's awake, then connect from the <kbd>LIVE</kbd> tab.</span>
+    <span class="st">Wake the PM5, then connect</span>
+    <span class="sd">Press a button on the monitor or take a stroke so it's awake, then tap <kbd>CONNECT ERG</kbd> and pick your PM5. The <kbd>PM5</kbd> pill turns green.</span>
   </li>
   <li>
     <span class="st">Heart rate — pair the strap to the erg, not the phone</span>
-    <span class="sd">On the PM5: <kbd>More Options</kbd> → <kbd>Utilities</kbd> → pick your strap. BoatRun reads it through the erg, and the <kbd>♥ HR</kbd> chip turns green.</span>
+    <span class="sd">On the PM5: <kbd>Menu</kbd> → <kbd>More Options</kbd> → <kbd>Utilities</kbd> → <kbd>Heart Rate</kbd> and pick your strap. BoatRun reads it through the erg, and the <kbd>♥ HR</kbd> chip turns green.</span>
   </li>
   <li>
     <span class="st">SQUAD chip — if your coach is running one</span>
-    <span class="sd">Tap the <kbd>SQUAD</kbd> chip at the top of the screen and enter the code.</span>
+    <span class="sd">Tap <kbd>SQUAD</kbd> and enter the code.</span>
   </li>
   <li>
     <span class="st">Either load a workout, or just row</span>
-    <span class="sd">Tap the <kbd>WORKOUT</kbd> chip and push the workout to the erg — the monitor then ends the piece for you.</span>
-    <span class="sd">Or start rowing with no workout loaded, and when you're done press <kbd>Menu</kbd> on the PM5 to end the piece.</span>
+    <span class="sd">Tap <kbd>WORKOUT</kbd> and pick one — it's pushed onto the monitor, which then runs the piece and ends it for you.</span>
+    <span class="sd">Or start rowing with no workout loaded, and press <kbd>Menu</kbd> on the PM5 when you're done.</span>
   </li>
   <li>
     <span class="st">Finish Session and save</span>
@@ -314,72 +319,88 @@ footer a:hover{color:var(--ink);}
 <h2 id="coach">5. Coach</h2>
 <div class="panel">
   <div class="mode-head"><span class="tag">Launch or bank</span></div>
-  <p>Your crews send their live data to a squad code. You watch it. Set your role to <kbd>COACH</kbd> first.</p>
+  <p>Your crews send their live data to a squad code. You watch it. Pick the <kbd>COACH</kbd> role first.</p>
 </div>
 <ol class="steps">
   <li>
     <span class="st">Get a squad code</span>
-    <span class="sd"><kbd>HOME</kbd> → <kbd>SETTINGS</kbd> → <kbd>CREATE SQUAD</kbd> for your own code, or just use the shared testing code <kbd>AAAAAAA</kbd> for a first try.</span>
+    <span class="sd"><kbd>HOME</kbd> → <kbd>SETTINGS</kbd> → <kbd>CREATE A NEW SQUAD</kbd> for your own code, or use the open test code <kbd>AAAAAAA</kbd> for a first try.</span>
   </li>
   <li>
     <span class="st">Connect to it, and give the code to your rowers</span>
-    <span class="sd">Everyone in the squad — you included — must be on the same code. Use <kbd>SHOW QR</kbd> if that's easier than reading letters out.</span>
+    <span class="sd">Everyone — you included — must be on the same code. <kbd>SHOW QR</kbd> lets them scan it off your phone.</span>
   </li>
   <li>
-    <span class="st">COACH tab — one boat at a time</span>
-    <span class="sd">Tap a boat to open its detail view.</span>
+    <span class="st">COACH tab — every boat on the map, one tile each</span>
+    <span class="sd">Tap a boat's tile for its detail. Hold a tile to choose which metrics the tiles show.</span>
   </li>
   <li>
     <span class="st">SQUAD tab, phone upright — every boat listed</span>
   </li>
   <li>
     <span class="st">SQUAD tab, phone turned sideways — race mode</span>
-    <span class="sd">Boats shown side by side with the gaps between them. This is the one for pieces.</span>
+    <span class="sd">Boats on a race track with the gaps between them. This is the one for pieces.</span>
   </li>
   <li>
     <span class="st">INTERVALS tab — the results table</span>
-    <span class="sd">Every piece each crew has done, so you can compare them afterwards. <kbd>LAP ALL BOATS</kbd> splits the whole squad at once.</span>
+    <span class="sd">Every piece each crew has done. <kbd>LAP ALL BOATS</kbd> splits the whole squad at once.</span>
   </li>
 </ol>
+<div class="callout">
+  <p>A squad link drains the phones' batteries all session. Keep the coach phone on charge in the launch.</p>
+</div>
 
 <hr class="rule"/>
 
 <h2 id="log">6. Reviewing a session</h2>
 <p><kbd>HOME</kbd> → <kbd>LOG</kbd>. <kbd>CALENDAR</kbd> shows your sessions and planned workouts by day; <kbd>SESSIONS</kbd> is the full list. Tap any session to see its detail — splits, rate, distance, heart rate, stroke curve and map.</p>
 <div class="callout">
-  <p>Changing phones? Just sign in on the new phone with the same account — your sessions come back on their own.</p>
+  <p>Changing phones? Sign in on the new phone with the same account and link the same Drive — your sessions, workouts and everything else come back on their own.</p>
 </div>
 
 <hr class="rule"/>
 
-<h2 id="analyser">7. Analyser — the bigger screen version</h2>
+<h2 id="analyser">7. Analyser — the big-screen version</h2>
 <div class="btnrow">
   <a class="btn btn-coral" href="https://boatrun.au/analyser.html">Open the Analyser</a>
 </div>
 <p>Open it in a browser on a laptop or tablet. Nothing to install.</p>
 <ol class="steps">
   <li>
-    <span class="st">Tap Sign in</span>
-    <span class="sd">Use the same Google or Apple account you signed in with on the phone, then link Google Drive when it asks.</span>
+    <span class="st">Sign in, then link Google Drive</span>
+    <span class="sd"><kbd>Sign in · Step 1 of 2</kbd> with the same Apple or Google account as your phone, then <kbd>Link Google Drive · Step 2 of 2</kbd>.</span>
   </li>
   <li>
     <span class="st">Open a session</span>
-    <span class="sd">Pick it from the calendar or the list.</span>
+    <span class="sd">Click it on the calendar or in the Sessions list.</span>
   </li>
   <li>
-    <span class="st">Tap any tile to see that metric</span>
-    <span class="sd">The tiles across the top switch what the chart is showing.</span>
+    <span class="st">Click a summary card to show or hide that metric</span>
+    <span class="sd">The cards across the top switch what the main chart is showing.</span>
   </li>
   <li>
-    <span class="st">Drag across a section of the chart, then tap ＋ Add to curves</span>
-    <span class="sd">That averages the stroke curve for just that bit of the row. Do it again on another section and you can compare them side by side — start of the piece against the end, before a change against after.</span>
+    <span class="st">Drag across part of the chart, then tap ＋ Add to curves</span>
+    <span class="sd">That averages the stroke curve for just that stretch. Do it again on another stretch to compare them side by side — start of the piece against the end, before a change against after.</span>
   </li>
 </ol>
 
 <hr class="rule"/>
 
+<h2 id="next">8. When you're ready for more</h2>
+<p>All in the full guide. Most of these need Pro.</p>
+<div class="next">
+  <a href="./guide.html#workouts"><b>Workouts</b><span>Build intervals with targets and beeps.</span></a>
+  <a href="./guide.html#calendar"><b>Calendar and planning</b><span>Plan your week, or follow your squad's plan.</span></a>
+  <a href="./guide.html#templates"><b>Stroke templates</b><span>Build a target stroke shape in the Analyser and row against it live.</span></a>
+  <a href="./guide.html#sectors"><b>Sectors and courses</b><span>Time yourself every time you row a stretch of water, and race your PB.</span></a>
+  <a href="./guide.html#lines"><b>Lanes and hazards</b><span>Warnings before you hit a post, and alerts when you drift off your lane.</span></a>
+  <a href="./guide.html#display"><b>Display</b><span>Choose your tiles and layouts.</span></a>
+</div>
+
+<hr class="rule"/>
+
 <h2>Stuck?</h2>
-<p>The <a href="./guide.html" style="color:var(--coral);">full User Guide</a> covers everything in detail, and <a href="./support.html" style="color:var(--coral);">Support</a> has the common problems. Anything else, email <a href="mailto:bigwig.91mash@icloud.com?subject=BoatRun%20support" style="color:var(--coral);">bigwig.91mash@icloud.com</a>.</p>
+<p>The <a href="./guide.html#trouble" style="color:var(--coral);">Troubleshooting</a> section of the full User Guide covers the common problems. Anything else, email <a href="mailto:bigwig.91mash@icloud.com?subject=BoatRun%20support" style="color:var(--coral);">bigwig.91mash@icloud.com</a>.</p>
 
 </div>
 </section>
