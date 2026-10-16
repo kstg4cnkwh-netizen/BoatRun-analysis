@@ -56,11 +56,11 @@ header{
   background:rgba(8,18,38,.86);backdrop-filter:blur(10px);
   border-bottom:1px solid rgba(255,255,255,.08);
 }
-.nav{display:flex;align-items:center;justify-content:space-between;height:64px;color:var(--ink);}
-.brand{display:flex;align-items:center;gap:9px;font-family:'Space Grotesk',sans-serif;font-weight:700;font-size:18px;letter-spacing:-.01em;text-decoration:none;}
+.nav{display:flex;align-items:center;justify-content:space-between;gap:24px;height:64px;color:var(--ink);max-width:1360px;}
+.brand{flex:0 0 auto;display:flex;align-items:center;gap:9px;font-family:'Space Grotesk',sans-serif;font-weight:700;font-size:18px;letter-spacing:-.01em;text-decoration:none;}
 .brand .dot{width:9px;height:9px;border-radius:2px;background:var(--coral);transform:rotate(45deg);}
-.navlinks{display:flex;gap:24px;font-size:14px;font-weight:500;}
-.navlinks a{text-decoration:none;color:var(--ink-dim);transition:color .15s;}
+.navlinks{flex:1;display:flex;justify-content:center;align-items:center;gap:18px;font-size:14px;font-weight:500;}
+.navlinks a{text-decoration:none;color:var(--ink-dim);transition:color .15s;white-space:nowrap;}
 .navlinks a:hover{color:var(--ink);}
 .navcta{
   display:inline-flex;align-items:center;gap:8px;
@@ -68,7 +68,7 @@ header{
   font-size:13px;font-weight:700;padding:9px 16px;border-radius:9px;
   letter-spacing:.01em;
 }
-.navright{display:flex;align-items:center;gap:10px;}
+.navright{flex:0 0 auto;display:flex;align-items:center;gap:10px;}
 .navmenu-btn{display:none;width:42px;height:42px;border-radius:10px;border:1px solid rgba(255,255,255,.22);background:transparent;flex-direction:column;align-items:center;justify-content:center;gap:4px;cursor:pointer;padding:0;}
 .navmenu-btn span{display:block;width:18px;height:2px;border-radius:2px;background:var(--ink);transition:transform .2s,opacity .2s;}
 .navmenu-btn.open span:nth-child(1){transform:translateY(6px) rotate(45deg);}
@@ -79,7 +79,7 @@ header{
 .navdrop a{display:block;padding:13px 4px;color:var(--ink);text-decoration:none;font-size:15.5px;font-weight:500;border-bottom:1px solid rgba(255,255,255,.07);}
 .navdrop a:last-child{border-bottom:none;}
 .navdrop a:active{color:var(--coral);}
-@media(max-width:1240px){
+@media(max-width:1300px){
   .navlinks{display:none;}
   .navmenu-btn{display:inline-flex;}
 }
@@ -197,7 +197,6 @@ h2.section-h{font-family:'Space Grotesk',sans-serif;font-size:clamp(26px,3.4vw,3
 .pro-tag{display:inline-block;margin-left:8px;font-family:'Roboto Mono',monospace;font-size:10px;font-weight:600;letter-spacing:.08em;color:#fff;background:var(--coral);padding:2px 8px;border-radius:100px;vertical-align:middle;}
 
 /* lanes & hazards illustration */
-.navmap{display:block;width:100%;height:auto;}
 .legend{display:flex;flex-wrap:wrap;gap:8px 16px;margin-top:18px;}
 .legend span{display:inline-flex;align-items:center;gap:8px;font-size:13px;font-weight:600;color:rgba(14,20,32,.72);}
 .legend i{display:inline-block;width:26px;height:5px;border-radius:3px;}
@@ -311,11 +310,11 @@ footer{background:var(--navy);color:var(--ink-faint);border-top:1px solid rgba(2
   <div class="wrap nav">
     <a class="brand" href="./"><span class="dot"></span>BoatRun</a>
     <nav class="navlinks">
-      <a href="#rowers">For Rowers</a>
+      <a href="#rowers">Rowers</a>
       <a href="./courses.html">Courses</a>
       <a href="#lanes">Lanes &amp; Hazards</a>
       <a href="#planning">Planning</a>
-      <a href="#coaches">For Coaches</a>
+      <a href="#coaches">Coaches</a>
       <a href="#analysis">Analysis</a>
       <a href="#spectator">Spectator</a>
       <a href="#pricing">Plans</a>
@@ -330,13 +329,13 @@ footer{background:var(--navy);color:var(--ink-faint);border-top:1px solid rgba(2
     </div>
   </div>
   <nav class="navdrop" id="navDrop">
-    <a href="#rowers">For Rowers</a>
+    <a href="#rowers">Rowers</a>
     <a href="#courses">Sectors &amp; Courses</a>
     <a href="./courses.html">Courses</a>
     <a href="#lanes">Lanes, Dividers &amp; Hazards</a>
     <a href="#planning">Training Calendar &amp; Planning</a>
     <a href="#erg">Squad Erg</a>
-    <a href="#coaches">For Coaches</a>
+    <a href="#coaches">Coaches</a>
     <a href="#analysis">Analysis</a>
     <a href="#spectator">Spectator</a>
     <a href="#pricing">Plans</a>
@@ -456,49 +455,8 @@ footer{background:var(--navy);color:var(--ink-faint);border-top:1px solid rgba(2
       </div>
     </div>
     <div class="fr-media">
-      <div class="shot" style="background:#0B2236;border-color:rgba(14,20,32,.18);">
-        <svg class="navmap" viewBox="0 0 640 440" role="img" aria-label="Map showing a one-way lane with arrows, a dashed divider, hazard markers and a live hazard warning">
-          <rect width="640" height="440" fill="#1E5B86"/>
-          <path d="M0 0 H640 V70 C520 96 430 60 330 84 C220 110 120 80 0 104 Z" fill="#5E8A4E"/>
-          <path d="M0 440 H640 V356 C540 336 450 372 330 350 C220 330 110 368 0 344 Z" fill="#5E8A4E"/>
-          <path d="M0 104 C120 80 220 110 330 84 C430 60 520 96 640 70" fill="none" stroke="#C9B98A" stroke-width="6" opacity=".7"/>
-          <path d="M0 344 C110 368 220 330 330 350 C450 372 540 336 640 356" fill="none" stroke="#C9B98A" stroke-width="6" opacity=".7"/>
-          <path d="M20 168 C170 150 300 170 430 150 C520 136 580 146 630 140" fill="none" stroke="#000" stroke-width="10" opacity=".35"/>
-          <path d="M20 168 C170 150 300 170 430 150 C520 136 580 146 630 140" fill="none" stroke="#ffd60a" stroke-width="5"/>
-          <g fill="#ffd60a" stroke="#000" stroke-width="1.5">
-            <path d="M0 -10 L9 9 L0 4 L-9 9 Z" transform="translate(130 158) rotate(85)"/>
-            <path d="M0 -10 L9 9 L0 4 L-9 9 Z" transform="translate(300 166) rotate(95)"/>
-            <path d="M0 -10 L9 9 L0 4 L-9 9 Z" transform="translate(480 144) rotate(83)"/>
-          </g>
-          <path d="M630 290 C500 300 380 278 260 296 C170 308 90 296 20 302" fill="none" stroke="#000" stroke-width="10" opacity=".35"/>
-          <path d="M630 290 C500 300 380 278 260 296 C170 308 90 296 20 302" fill="none" stroke="#ffd60a" stroke-width="5"/>
-          <g fill="#ffd60a" stroke="#000" stroke-width="1.5">
-            <path d="M0 -10 L9 9 L0 4 L-9 9 Z" transform="translate(520 294) rotate(-85)"/>
-            <path d="M0 -10 L9 9 L0 4 L-9 9 Z" transform="translate(330 285) rotate(-95)"/>
-            <path d="M0 -10 L9 9 L0 4 L-9 9 Z" transform="translate(140 302) rotate(-90)"/>
-          </g>
-          <path d="M10 232 C160 222 320 238 470 222 C540 215 600 222 630 218" fill="none" stroke="#000" stroke-width="9" opacity=".3"/>
-          <path d="M10 232 C160 222 320 238 470 222 C540 215 600 222 630 218" fill="none" stroke="#e74c3c" stroke-width="4" stroke-dasharray="14 9"/>
-          <path d="M470 262 C500 252 540 256 572 268" fill="none" stroke="#000" stroke-width="10" opacity=".45"/>
-          <path d="M470 262 C500 252 540 256 572 268" fill="none" stroke="#ff9500" stroke-width="6" stroke-linecap="round"/>
-          <path d="M521 244 L533 264 L509 264 Z" fill="#ff9500" stroke="#000" stroke-width="1.6"/>
-          <path d="M521 251 V257 M521 260 V261.5" stroke="#000" stroke-width="2.2" stroke-linecap="round"/>
-          <g transform="translate(372 196)">
-            <path d="M0 -14 L13 12 L-13 12 Z" fill="#ff9500" stroke="#000" stroke-width="1.8"/>
-            <path d="M0 -5 V3 M0 6.5 V8" stroke="#000" stroke-width="2.6" stroke-linecap="round"/>
-          </g>
-          <path d="M210 210 C250 204 290 200 330 198" fill="none" stroke="#fff" stroke-width="2.5" stroke-dasharray="3 6" opacity=".85"/>
-          <circle cx="210" cy="210" r="11" fill="#2E8BFF" stroke="#fff" stroke-width="3"/>
-          <g transform="translate(150 382)">
-            <rect x="0" y="0" width="340" height="44" rx="10" fill="#ff9500" stroke="#000" stroke-width="2"/>
-            <path d="M0 -11 L9 9 L0 4 L-9 9 Z" transform="translate(30 22) rotate(80)" fill="#000"/>
-            <text x="54" y="29" font-family="Roboto Mono, monospace" font-size="18" font-weight="700" fill="#000">⚠ HAZARD 18 m · 4 s</text>
-          </g>
-          <g transform="translate(18 18)">
-            <rect x="0" y="0" width="150" height="38" rx="9" fill="#1a5276" stroke="#fff" stroke-width="2"/>
-            <text x="75" y="25" text-anchor="middle" font-family="Roboto Mono, monospace" font-size="15" font-weight="700" fill="#fff">ON LANE</text>
-          </g>
-        </svg>
+      <div class="shot">
+        <img src="screenshot-hazards.png" alt="BoatRun live map with lanes, dividers and a hazard warning">
       </div>
     </div>
   </div>
@@ -888,7 +846,7 @@ footer{background:var(--navy);color:var(--ink-faint);border-top:1px solid rgba(2
   d.addEventListener('click',function(e){if(e.target.closest('a'))set(false);});
   document.addEventListener('click',function(e){if(!d.contains(e.target)&&!b.contains(e.target))set(false);});
   document.addEventListener('keydown',function(e){if(e.key==='Escape')set(false);});
-  window.addEventListener('resize',function(){if(window.innerWidth>1240)set(false);});
+  window.addEventListener('resize',function(){if(window.innerWidth>1300)set(false);});
 })();
 </script>
 
