@@ -1003,25 +1003,63 @@ const AnalyserAuth = {
     // open for hours can be holding a stale reference.
     const u = (typeof fbAuth !== 'undefined' && fbAuth.currentUser) || this.user;
     if (!u) return;
+    const RC_SYNC = 'https://boatrun-rc.davidmacready74.workers.dev';
     const read = async (force) => {
       const idToken = await u.getIdToken(force);
       return await fetch(`https://boatrun-default-rtdb.asia-southeast1.firebasedatabase.app/users/${u.uid}.json?auth=${encodeURIComponent(idToken)}`);
     };
-    try {
+    // Returns the /users/{uid} record (null if empty), or undefined on error.
+    const load = async () => {
       let r = await read(false);
       // RTDB answers 401 for BOTH an expired token and a rules denial, so mint
       // a fresh token and ask again before believing it.
       if (r.status === 401) r = await read(true);
       if (r.status === 401) {
         console.error('entitlement sync: RTDB refused a freshly issued token — check the .read rule on /users/$uid');
-        return;
+        return undefined;
       }
-      if (!r.ok) { console.error('entitlement sync: HTTP ' + r.status); return; }
-      const data = await r.json();
+      if (!r.ok) { console.error('entitlement sync: HTTP ' + r.status); return undefined; }
+      return await r.json();
+    };
+    /* Paid plan from either source:
+       tier       manual grants and club packs; grantedUntil / expiresAt is the
+                  expiry, none means permanent (same rule as Metrics)
+       storeTier  App Store / Google Play, written by the boatrun-rc Worker from
+                  RevenueCat. 3 days' grace so a late renewal never locks anyone out. */
+    const paidOf = (data) => {
+      if (!data) return null;
+      const now = Date.now();
+      const until = Number(data.grantedUntil || data.expiresAt || 0);
+      const manual = ((data.tier === 'pro' || data.tier === 'coach') && (!until || until > now)) ? data.tier : null;
+      const su = Number(data.storeUntil || 0);
+      const store = ((data.storeTier === 'pro' || data.storeTier === 'coach') && su + 3 * 86400000 > now) ? data.storeTier : null;
+      if (manual === 'coach' || store === 'coach') return 'coach';
+      return manual || store;
+    };
+    try {
+      let data = await load();
+      if (data === undefined) return;
+      let paid = paidOf(data);
+      /* Nothing paid on the account: have the Worker check RevenueCat once and
+         write the result, then read again. Picks up store subscribers from
+         before the webhook existed. At most every 6 hours per browser. */
+      if (!paid) {
+        let last = 0;
+        try { last = +localStorage.getItem('_rc_sync_t') || 0; } catch {}
+        if (Date.now() - last > 6 * 3600000) {
+          try { localStorage.setItem('_rc_sync_t', String(Date.now())); } catch {}
+          try {
+            const s = await fetch(RC_SYNC + '/sync/' + encodeURIComponent(u.uid));
+            if (s.ok) {
+              const d2 = await load();
+              if (d2 !== undefined) { data = d2; paid = paidOf(data); }
+            }
+          } catch (e) { console.warn('store plan sync failed', e); }
+        }
+      }
       /* App-granted trial: Metrics stores the trial start on the account but
          never writes a tier for it, so a trial user read as Basic here. Treat
          the trial as Coach, same as Metrics does, unless a paid tier exists. */
-      const paid = data && (data.tier === 'pro' || data.tier === 'coach') ? data.tier : null;
       const ts = Number(data && data.trialStart) || 0;
       const trialEnd = ts > 0 ? ts + ANALYSER_TRIAL_DAYS * 86400000 : 0;
       _trialUntil = (!paid && trialEnd > Date.now()) ? trialEnd : 0;
