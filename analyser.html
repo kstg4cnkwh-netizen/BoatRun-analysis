@@ -726,6 +726,7 @@ body.light .hdrname{color:#fff;}
     <div class="hmenu" id="filemenu">
       <button class="hbtn" id="resetbtn" style="display:none;"><img class="hmenu-icon" src="icons/Open.svg"><span>Open New File</span></button>
       <button class="hbtn" id="addcompbtn" style="display:none;"><img class="hmenu-icon" src="icons/Add.svg"><span>Add for comparison</span></button>
+      <button class="hbtn" id="sharelinkbtn" style="display:none;"><img class="hmenu-icon" src="icons/Export.svg"><span>Share link</span></button>
       <button class="hbtn" id="jsonbtn" style="display:none;"><img class="hmenu-icon" src="icons/Export.svg"><span>Share JSON</span></button>
       <button class="hbtn" id="tcxbtn" style="display:none;"><img class="hmenu-icon" src="icons/Export.svg"><span>Export TCX</span></button>
       <button class="hbtn" id="fitbtn" style="display:none;"><img class="hmenu-icon" src="icons/Export.svg"><span>Export FIT (Recommended)</span></button>
@@ -9760,6 +9761,7 @@ function mountData(d,label){
   document.getElementById('tcxbtn').style.display='';
   document.getElementById('fitbtn').style.display='';
   document.getElementById('jsonbtn').style.display='';
+  document.getElementById('sharelinkbtn').style.display='';
   document.getElementById('resetbtn').style.display='';
   document.getElementById('addcompbtn').style.display='';
   document.getElementById('filemenubtn').style.display='';
@@ -9799,6 +9801,7 @@ function resetApp(){
   document.getElementById('tcxbtn').style.display='none';
   document.getElementById('fitbtn').style.display='none';
   document.getElementById('jsonbtn').style.display='none';
+  document.getElementById('sharelinkbtn').style.display='none';
   document.getElementById('resetbtn').style.display='none';
   document.getElementById('closeallbtn').style.display='none';
   document.getElementById('addcompbtn').style.display='none';
@@ -10277,6 +10280,171 @@ ${trackpoints}        </Track>
   const d=new Date(startMs);
   a.download=boatrunFname()+'.tcx';
   a.click();URL.revokeObjectURL(url);toast('TCX exported');
+}
+/* ── SHARE LINK ───────────────────────────────────────────────────────────
+   Puts a read-only copy of one session on the BoatRun server and hands out a
+   link (boatrun.au/analyser.html?s=ID) instead of the whole file. Anyone with
+   the link opens it in the Analyser, no sign-in needed. The copy is gzipped,
+   carries no raw IMU/GPS traces and no squad code, and stays until the owner
+   taps STOP SHARING. /shared_idx/{uid}/{session start ms} remembers the link,
+   so sharing the same session again - from Metrics or the Analyser - gives
+   the same link and refreshes its copy. */
+const SHARE_DB = 'https://boatrun-default-rtdb.asia-southeast1.firebasedatabase.app';
+const SHARE_PAGE = 'https://boatrun.au/analyser.html?s=';
+const SHARE_DROP = ['imuTrace', 'gpsRawTrace', 'coachUploads', 'coachSeen', 'squadCode', 'noStrava', 'noC2'];
+function shareStrip(s) { const o = Object.assign({}, s); SHARE_DROP.forEach(k => { delete o[k]; }); return o; }
+function shareNewId() {
+    const A = 'ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz23456789';
+    const b = new Uint8Array(14); crypto.getRandomValues(b);
+    return Array.from(b, x => A[x % A.length]).join('');
+}
+async function sharePack(obj) {
+    const json = JSON.stringify(obj);
+    try {
+        if (typeof CompressionStream !== 'undefined') {
+            const cs = new Blob([json]).stream().pipeThrough(new CompressionStream('gzip'));
+            const u = new Uint8Array(await new Response(cs).arrayBuffer());
+            let bin = '';
+            for (let i = 0; i < u.length; i += 0x8000) bin += String.fromCharCode.apply(null, u.subarray(i, i + 0x8000));
+            return { z: 1, s: btoa(bin) };
+        }
+    } catch (e) {}
+    return { z: 0, s: json };
+}
+async function shareUnpack(rec) {
+    if (!rec || typeof rec.s !== 'string') return null;
+    if (!rec.z) return JSON.parse(rec.s);
+    const bin = atob(rec.s), u = new Uint8Array(bin.length);
+    for (let i = 0; i < bin.length; i++) u[i] = bin.charCodeAt(i);
+    const ds = new Blob([u]).stream().pipeThrough(new DecompressionStream('gzip'));
+    return JSON.parse(await new Response(ds).text());
+}
+async function shareAuth() {
+    try {
+        const u = (typeof fbAuth !== 'undefined' && fbAuth) ? fbAuth.currentUser : null;
+        if (!u) return null;
+        return { uid: u.uid, tok: await u.getIdToken() };
+    } catch (e) { return null; }
+}
+async function shareFb(path, method, body, tok) {
+    const r = await fetch(SHARE_DB + '/' + path + '.json' + (tok ? '?auth=' + encodeURIComponent(tok) : ''),
+        { method: method || 'GET', body: body === undefined ? undefined : JSON.stringify(body) });
+    if (!r.ok) throw new Error(r.status === 401 || r.status === 403 ? 'not allowed (server rules)' : 'server error ' + r.status);
+    try { return await r.json(); } catch (e) { return null; }
+}
+async function shareLookup(a, key) {
+    try {
+        const v = await shareFb('shared_idx/' + a.uid + '/' + key, 'GET', undefined, a.tok);
+        return (typeof v === 'string' && /^[A-Za-z0-9]{8,24}$/.test(v)) ? v : null;
+    } catch (e) { return null; }
+}
+async function sharePublish(a, key, payload, name, fmt) {
+    const packed = await sharePack(payload);
+    const sid = (await shareLookup(a, key)) || shareNewId();
+    await shareFb('shared/' + sid, 'PUT', { uid: a.uid, t: Date.now(), name: String(name || '').slice(0, 80), fmt: fmt, z: packed.z, s: packed.s, v: 1 }, a.tok);
+    await shareFb('shared_idx/' + a.uid + '/' + key, 'PUT', sid, a.tok);
+    return sid;
+}
+async function shareStop(a, key, sid) {
+    await shareFb('shared/' + sid, 'DELETE', undefined, a.tok);
+    try { await shareFb('shared_idx/' + a.uid + '/' + key, 'DELETE', undefined, a.tok); } catch (e) {}
+}
+/* opts: { key, name, build: async () => ({ payload, fmt }), signIn: fn } */
+function shareModal(opts) {
+    const old = document.getElementById('_shl_modal'); if (old) old.remove();
+    const ov = document.createElement('div'); ov.id = '_shl_modal';
+    ov.style.cssText = 'position:fixed;inset:0;z-index:100000;background:rgba(0,0,0,.65);display:flex;align-items:center;justify-content:center;padding:16px;';
+    const p = document.createElement('div');
+    p.style.cssText = 'background:#fff;color:#000;border-radius:16px;max-width:420px;width:100%;padding:18px;font-family:-apple-system,"Roboto",sans-serif;box-shadow:0 10px 36px rgba(0,0,0,.45);';
+    ov.appendChild(p); document.body.appendChild(ov);
+    ov.addEventListener('click', e => { if (e.target === ov) ov.remove(); });
+    const esc = v => String(v == null ? '' : v).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+    const btn = (id, txt, bg, fg, bd) => '<button type="button" id="' + id + '" style="flex:1;padding:13px 6px;border:' + (bd || 'none') + ';border-radius:10px;background:' + bg + ';color:' + (fg || '#fff') + ';font-size:14px;font-weight:800;letter-spacing:.04em;cursor:pointer;">' + txt + '</button>';
+    const show = html => {
+        p.innerHTML = '<div style="font-size:17px;font-weight:800;margin-bottom:8px;">Share link</div>' + html;
+        const c = p.querySelector('#_shl_close'); if (c) c.onclick = () => ov.remove();
+    };
+    (async () => {
+        const a = await shareAuth();
+        if (!a) {
+            show('<div style="font-size:14px;line-height:1.5;margin-bottom:14px;">Sign in to share a link to this session.</div><div style="display:flex;gap:8px;">' + btn('_shl_signin', 'SIGN IN', '#1a5276') + btn('_shl_close', 'CLOSE', '#e5e5ea', '#000') + '</div>');
+            p.querySelector('#_shl_signin').onclick = () => { ov.remove(); try { if (opts.signIn) opts.signIn(); } catch (e) {} };
+            return;
+        }
+        show('<div style="font-size:14px;color:#555;padding:6px 0 4px;">Creating link…</div>');
+        let sid;
+        try {
+            const b = await opts.build();
+            sid = await sharePublish(a, opts.key, b.payload, opts.name, b.fmt);
+        } catch (e) {
+            show('<div style="font-size:14px;line-height:1.5;margin-bottom:14px;color:#c0392b;">Could not create the link: ' + esc((e && e.message) || e) + '</div><div style="display:flex;">' + btn('_shl_close', 'CLOSE', '#e5e5ea', '#000') + '</div>');
+            return;
+        }
+        const url = SHARE_PAGE + sid;
+        show('<div style="font-size:13px;line-height:1.5;color:#333;margin-bottom:8px;">Anyone with this link can open <b>' + esc(opts.name || 'this session') + '</b> in the BoatRun Analyser. No sign-in needed.</div>'
+            + '<input id="_shl_url" readonly value="' + esc(url) + '" style="width:100%;box-sizing:border-box;padding:10px;border:1px solid #ccc;border-radius:8px;font-size:13px;margin-bottom:12px;color:#000;background:#f7f7f9;-webkit-user-select:text;user-select:text;"/>'
+            + '<div style="display:flex;gap:8px;margin-bottom:8px;">' + btn('_shl_share', 'SHARE', '#007aff') + btn('_shl_copy', 'COPY', '#1a5276') + '</div>'
+            + '<div style="display:flex;gap:8px;">' + btn('_shl_stop', 'STOP SHARING', '#fff', '#c0392b', '1px solid #c0392b') + btn('_shl_close', 'CLOSE', '#e5e5ea', '#000') + '</div>');
+        const copyB = p.querySelector('#_shl_copy'), stopB = p.querySelector('#_shl_stop');
+        copyB.onclick = async () => {
+            try { await navigator.clipboard.writeText(url); toast('Link copied'); return; } catch (e) {}
+            try { const i = p.querySelector('#_shl_url'); i.focus(); i.select(); document.execCommand('copy'); toast('Link copied'); } catch (e) {}
+        };
+        p.querySelector('#_shl_share').onclick = async () => {
+            const title = opts.name || 'BoatRun session';
+            const CS = window.Capacitor && window.Capacitor.Plugins && window.Capacitor.Plugins.Share;
+            if (CS && CS.share) { try { await CS.share({ title: title, text: title, url: url, dialogTitle: 'Share session' }); } catch (e) {} return; }
+            if (navigator.share) { try { await navigator.share({ title: title, url: url }); } catch (e) {} return; }
+            copyB.click();
+        };
+        stopB.onclick = async () => {
+            if (!confirm('Stop sharing? The link will stop working for everyone who has it.')) return;
+            stopB.disabled = true; stopB.textContent = 'STOPPING…';
+            try { await shareStop(a, opts.key, sid); toast('Link stopped'); ov.remove(); }
+            catch (e) { stopB.disabled = false; stopB.textContent = 'STOP SHARING'; toast('Could not stop sharing: ' + ((e && e.message) || e)); }
+        };
+    })();
+}
+/* Analyser side: a Drive session shares the full Metrics file (minus raw
+   traces); anything else (opened file, squad session) shares what is loaded. */
+function shareCurrentSessionLink() {
+  if (!ST.length) { toast('No session loaded'); return; }
+  const sess = SESSIONS[activeSessionIdx] || {};
+  const startMs = Date.parse((_lastSum && _lastSum.start_time) || '');
+  const key = isFinite(startMs) && startMs > 0 ? String(startMs) : ('a' + Date.now());
+  shareModal({
+    key: key,
+    name: _lastLabel,
+    signIn: () => { try { handleDriveBtnTap(); } catch (e) {} },
+    build: async () => {
+      if (sess.fileId) {
+        try { const raw = await AnalyserDrive.fetchSession(sess.fileId); if (raw && raw.strokes && raw.strokes.length) return { payload: shareStrip(raw), fmt: 'm' }; } catch (e) {}
+      }
+      return { payload: { name: _lastLabel, sum: _lastSum, strokes: ST, hr: HR, laps: LAPS, gpsTrace: GPSTRACE, vidSync: (sess.d && sess.d.vidSync) || null }, fmt: 'a' };
+    }
+  });
+}
+/* Recipient side: analyser.html?s=ID opens the shared copy read-only. It never
+   counts towards the viewer's own personal bests, and never changes their
+   saved HR zones. */
+async function openSharedSession(sid) {
+  toast('Loading shared session\u2026', 4000);
+  try {
+    const r = await fetch(SHARE_DB + '/shared/' + sid + '.json');
+    const rec = r.ok ? await r.json() : null;
+    if (!rec) { toast('This shared link is no longer available', 5000); try { showStartup(); } catch (e) {} return; }
+    const data = await shareUnpack(rec);
+    const isA = rec.fmt === 'a' || !!(data && data.strokes && data.strokes.length && typeof data.strokes[0].elapsed === 'number');
+    let d;
+    if (isA) d = data;
+    else { applySessionUnits(Object.assign({}, data, { hrZones: null })); d = sessionToAnalyserFmt(data); }
+    if (!d || !d.strokes || !d.strokes.length) throw new Error('no stroke data');
+    addSessionFromData(d, rec.name || d.name || 'Shared session', true, null, null, true);
+  } catch (e) {
+    console.error('shared load failed', e);
+    toast('Could not open the shared session: ' + ((e && e.message) || e), 5000);
+    try { showStartup(); } catch (e2) {}
+  }
 }
 function exportJSON() {
   if (!ST.length) { toast('No session loaded'); return; }
@@ -12833,6 +13001,7 @@ document.getElementById('closeallbtn').onclick=()=>{ location.href = location.pa
 document.getElementById('tcxbtn').onclick=exportTCX;
 document.getElementById('fitbtn').onclick=exportFIT;
 document.getElementById('jsonbtn').onclick=exportJSON;
+document.getElementById('sharelinkbtn').onclick=shareCurrentSessionLink;
 document.getElementById('openbtn').onclick=()=>{const s=document.getElementById('startup');if(s.innerHTML&&s.style.display!=='none'){s.style.display='none';s.innerHTML='';if(SESSIONS.length){document.getElementById('app').style.display='block';document.getElementById('summarybtn').style.display='';}}else{showStartup();}};
 document.getElementById('infobtn').onclick=showInfoModal;
 document.getElementById('reorderbtn').onclick=showReorderModal;
@@ -15214,6 +15383,9 @@ AnalyserAuth.onChange(()=>{ try{ updateDriveBtn(); }catch{} if(document.querySel
 AnalyserAuth.init();
 loadAnVidDir();
 (function(){
+  // Shared link:  analyser.html?s=ID  ->  read-only copy, no sign-in needed
+  const shareId=(new URLSearchParams(location.search).get('s')||'').replace(/[^A-Za-z0-9]/g,'');
+  if(shareId){ openSharedSession(shareId); return; }
   const xfer=localStorage.getItem('scull_xfer_session');
   if(xfer){
     try{
