@@ -1104,6 +1104,18 @@ function decSessName(t) {
     return new TextDecoder().decode(bytes);
   } catch { return ''; }
 }
+/* Boat type, from Metrics' filename marker _BT1X/2M/2X/4P/4M/4X/8P (+ _MIX). */
+const BOAT_ORDER = ['1x', '2-', '2x', '4+', '4-', '4x', '8+'];
+function boatFromFilename(n) {
+  const m = String(n || '').match(/_BT([1248])([XMP])(?=_|\.)/);
+  if (!m) return null;
+  const t = m[1] + ({ X: 'x', M: '-', P: '+' })[m[2]];
+  return BOAT_ORDER.includes(t) ? t : null;
+}
+function boatMixedFromFilename(n) { return /_MIX(?=_|\.)/.test(String(n || '')); }
+function boatLabel(t, mixed) { return t ? t + (mixed && t !== '1x' ? ' \u00b7 Mixed' : '') : ''; }
+/* Sort key: the order above, mixed straight after the same boat. No boat = null. */
+function boatRank(t, mixed) { const i = BOAT_ORDER.indexOf(t); return i < 0 ? null : i * 2 + (mixed ? 1 : 0); }
 function nameFromFilename(n) {
   const s = String(n || '');
   const e = s.match(/_NM([A-Za-z0-9\-~]+)/);
@@ -2533,6 +2545,8 @@ function sessionToAnalyserFmt(s) {
     avg_vel_eff_pct: s.avgVelEff, detected_axis: s.detectedAxis,
     cal_noise_floor_ms2: s.calNoiseFloor, cal_slope_thresh_ms3: s.calThresh,
     session_mode: s.sessionMode || 'water', erg: s.erg || null,
+    boat_type: (s.sessionMode !== 'erg' && BOAT_ORDER.includes(s.boatType)) ? s.boatType : null,
+    boat_mixed: !!(s.sessionMode !== 'erg' && s.boatMixed && s.boatType && s.boatType !== '1x'),
   };
   const num = v => (v!=null&&!isNaN(+v)) ? +v : NaN;
   const t0 = s.startTime;
@@ -2939,6 +2953,7 @@ function cleanSessLabel(label, d) {
 }
 function addSessionFromData(d, label, replace, fileId, squadCode, notOwn) {
   try { ergFixAnalyserData(d); } catch (e) { console.warn('ergFix', e); }
+  if (fileId && !squadCode) trNoteSession(d, fileId);
   try { label = cleanSessLabel(label, d); } catch (e) {}
   if (fileId && d && d.vidSync && Object.keys(d.vidSync).length) markSessHasVideo(fileId);
   if (!replace && SESSIONS.length) {
@@ -5985,6 +6000,8 @@ async function showAddComparePicker() {
                     const fav = /_FAV1/.test(name);
                     const erg = /_ERG(?:_|\.)/.test(name);
                     return {
+                        boat: boatFromFilename(name),
+                        mixed: boatMixedFromFilename(name),
                         distM: dist ? parseInt(dist[1]) : null,
                         durS: dur ? +dur[1]*3600 + +dur[2]*60 + +dur[3] : null,
                         name: nm,
@@ -6001,6 +6018,7 @@ async function showAddComparePicker() {
                     + '<button id="da-fav-btn" class="filt-chip">★ Favourites</button>'
                     + '<button id="da-sort-dist" class="filt-chip">Distance</button>'
                     + '<button id="da-sort-time" class="filt-chip">Time</button>'
+                    + '<button id="da-sort-boat" class="filt-chip">Boat</button>'
                     + '</div>';
                 content.appendChild(daBar);
                 const daRows = document.createElement('div');
@@ -6022,6 +6040,12 @@ async function showAddComparePicker() {
                         timeBtn.textContent = 'Time' + (on ? (daSortDir === 'desc' ? ' ▼' : ' ▲') : '');
                         timeBtn.className = 'filt-chip' + (on ? ' on' : '');
                     }
+                    const boatBtn = document.getElementById('da-sort-boat');
+                    if (boatBtn) {
+                        const on = daSortBy === 'boat';
+                        boatBtn.textContent = 'Boat' + (on ? (daSortDir === 'asc' ? ' ▲' : ' ▼') : '');
+                        boatBtn.className = 'filt-chip' + (on ? ' on' : '');
+                    }
                     daRows.innerHTML = '';
                     const q = daSearchQuery;
                     let shown = files.filter(f => {
@@ -6035,6 +6059,11 @@ async function showAddComparePicker() {
                     if (daSortBy) {
                         shown = [...shown].sort((a,b) => {
                             const pa = parseDA(a.name), pb = parseDA(b.name);
+                            if (daSortBy === 'boat') {
+                                const ra = boatRank(pa.boat, pa.mixed), rb = boatRank(pb.boat, pb.mixed);
+                                if (ra !== rb) { if (ra == null) return 1; if (rb == null) return -1; return daSortDir === 'asc' ? ra - rb : rb - ra; }
+                                return (pb.approxTs || 0) - (pa.approxTs || 0);
+                            }
                             const va = daSortBy === 'distance' ? pa.distM : pa.durS;
                             const vb = daSortBy === 'distance' ? pb.distM : pb.durS;
                             if (va == null && vb == null) return 0;
@@ -6080,7 +6109,7 @@ async function showAddComparePicker() {
                         btn.style.marginBottom = '0';
                         if (name) { const nd=document.createElement('div');nd.style.cssText='font-weight:700;font-size:.85rem;color:var(--text);margin-bottom:2px;';nd.textContent=name;btn.appendChild(nd); }
                         const dd = document.createElement('div'); dd.className='asc-date';
-                        dd.innerHTML = '<span>' + dateStr + '</span>';
+                        dd.innerHTML = '<span>' + dateStr + '</span>' + (p.boat ? '<span class="asc-badge">' + boatLabel(p.boat, p.mixed) + '</span>' : '');
                         btn.appendChild(dd);
                         const sd = document.createElement('div'); sd.className='asc-stats';
                         if(distM!=null)sd.innerHTML+='<div><span class="asc-v">'+(p.erg?Math.round(distM):(distM/1000).toFixed(2))+'</span><span class="asc-l">'+(p.erg?'m':'km')+'</span></div>';
@@ -6115,6 +6144,12 @@ async function showAddComparePicker() {
                 document.getElementById('da-sort-time').onclick = () => {
                     if (daSortBy !== 'time') { daSortBy = 'time'; daSortDir = 'desc'; }
                     else if (daSortDir === 'desc') { daSortDir = 'asc'; }
+                    else { daSortBy = null; }
+                    renderDA();
+                };
+                document.getElementById('da-sort-boat').onclick = () => {
+                    if (daSortBy !== 'boat') { daSortBy = 'boat'; daSortDir = 'asc'; }
+                    else if (daSortDir === 'asc') { daSortDir = 'desc'; }
                     else { daSortBy = null; }
                     renderDA();
                 };
@@ -6603,6 +6638,15 @@ function showDrivePicker(files, onSelect) {
   searchBox.autocomplete='off';
   searchBox.style.cssText='display:block;width:100%;box-sizing:border-box;padding:10px 12px;margin-bottom:12px;background:var(--s2);border:1px solid var(--border);border-radius:6px;color:var(--text);font-size:.9rem;font-family:-apple-system, BlinkMacSystemFont, Helvetica Neue, sans-serif;';
   panel.appendChild(searchBox);
+  /* Boat sort: 1x first, then 8+ first, then back to favourites-first. */
+  let pickBoatSort=null;
+  const pickBar=document.createElement('div');
+  pickBar.style.cssText='display:flex;gap:6px;flex-wrap:wrap;margin:-4px 0 10px;';
+  const pickBoatBtn=document.createElement('button');
+  pickBoatBtn.className='filt-chip';pickBoatBtn.textContent='Boat';
+  pickBoatBtn.onclick=()=>{pickBoatSort=pickBoatSort===null?'asc':pickBoatSort==='asc'?'desc':null;renderList();};
+  pickBar.appendChild(pickBoatBtn);
+  panel.appendChild(pickBar);
 
   let fileList=[...files];
   let searchQuery='';
@@ -6620,6 +6664,8 @@ function showDrivePicker(files, onSelect) {
     const erg=/_ERG(?:_|\.)/.test(name);
     const ts=name.match(/RowSess_(\d{4})-(\d{2})-(\d{2})_(\d{2})(\d{2})/);
     return {
+      boat: boatFromFilename(name),
+      mixed: boatMixedFromFilename(name),
       distM: dist?parseInt(dist[1]):null,
       durS: dur?+dur[1]*3600+ +dur[2]*60+ +dur[3]:null,
       strokes: str?parseInt(str[1]):null,
@@ -6636,7 +6682,15 @@ function showDrivePicker(files, onSelect) {
     [...panel.querySelectorAll('.drive-file-row')].forEach(el=>el.remove());
     const cancel=panel.querySelector('.drive-cancel-btn');
     const q=searchQuery;
+    pickBoatBtn.textContent='Boat'+(pickBoatSort?(pickBoatSort==='asc'?' ▲':' ▼'):'');
+    pickBoatBtn.className='filt-chip'+(pickBoatSort?' on':'');
     const sorted=[...fileList].sort((a,b)=>{
+      if(pickBoatSort){
+        const pa=parseFn(a.name),pb=parseFn(b.name);
+        const ra=boatRank(pa.boat,pa.mixed),rb=boatRank(pb.boat,pb.mixed);
+        if(ra!==rb){if(ra==null)return 1;if(rb==null)return -1;return pickBoatSort==='asc'?ra-rb:rb-ra;}
+        return (pb.approxTs||0)-(pa.approxTs||0);
+      }
       const fa=parseFn(a.name).favourite?1:0, fb=parseFn(b.name).favourite?1:0;
       return fb-fa;
     });
@@ -6685,6 +6739,7 @@ function showDrivePicker(files, onSelect) {
       const dateDiv=document.createElement('div');
       dateDiv.className='asc-date';
       dateDiv.innerHTML='<span>'+dateStr+'</span>'
+        +(p.boat?'<span class="asc-badge">'+boatLabel(p.boat,p.mixed)+'</span>':'')
         +(p.squadCode?'<span class="asc-badge">'+p.squadCode+'</span>':'')
         
         +(p.workout?'<span class="asc-badge asc-wkt">'+_secEsc(p.workout)+'</span>':'')
@@ -6802,9 +6857,11 @@ function buildMeta(fname,sum) {
   const safe=fname.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
   const sq=SESSIONS[activeSessionIdx]?.squadCode;
   const sqBadge=sq?' <span style="font-size:8px;background:var(--s3);border:1px solid var(--border);border-radius:3px;padding:1px 5px;color:var(--b);letter-spacing:.07em;vertical-align:middle;">'+sq+'</span>':'';
+  const bt=sum&&sum.boat_type;
+  const btBadge=bt?' <span title="Boat type" style="font-size:12px;font-weight:800;background:#fff;border-radius:4px;padding:1px 7px;color:#1a5276;letter-spacing:.04em;vertical-align:middle;">'+boatLabel(bt,sum.boat_mixed)+'</span>':'';
   document.getElementById('hdrmeta').innerHTML=
     '<span class="hdrname" style="cursor:pointer;border-bottom:1px dotted rgba(255,255,255,.5);font-size:19px;font-weight:700;" onclick="renameCurrentSession()" title="Tap to rename">'+safe+'</span>'
-    +' <span style="color:var(--muted);font-size:12px;">✎</span>'+sqBadge+'<br><span style="font-size:12px;font-weight:400;color:rgba(255,255,255,.75);">'+date+(time?' '+time:'')+' · '+dist+' · '+dur+'</span>'
+    +' <span style="color:var(--muted);font-size:12px;">✎</span>'+btBadge+sqBadge+'<br><span style="font-size:12px;font-weight:400;color:rgba(255,255,255,.75);">'+date+(time?' '+time:'')+' · '+dist+' · '+dur+'</span>'
     +'<div onclick="editSessionNote()" title="Tap to edit notes" style="cursor:pointer;margin-top:3px;font-size:12px;font-weight:400;line-height:1.35;white-space:pre-wrap;max-width:640px;color:'+(sum&&sum.note?'#ffe58a':'rgba(255,255,255,.55)')+';">'
     +(sum&&sum.note?'📝 '+String(sum.note).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'):'+ Add note')+'</div>';
 }
@@ -10027,6 +10084,7 @@ async function showStartup(){
   el.innerHTML=`<div class="sz-list">
     <div class="brpill-row">
       ${SESSIONS.length ? '<button class="dzbtn" id="sz-back" style="background:#fc4c02;border-color:#fc4c02;color:#fff;font-weight:800;box-shadow:0 3px 9px rgba(252,76,2,.45);"><span style="color:#fff;">&#10005; Back to session</span></button>' : ''}
+      <button class="dzbtn dzbtn-sec" id="sz-trends"><span>\u{1F4C8} Trends</span></button>
       <button class="dzbtn dzbtn-sec" id="sz-coach"><img src="icons/Import.svg"><span>Coach Sessions</span></button>
       <button class="dzbtn dzbtn-sec" id="sz-squad"><img src="icons/Import.svg"><span>From Squad</span></button>
       <button class="dzbtn dzbtn-sec" id="sz-openfile"><img src="icons/Open.svg"><span>Open file</span></button>
@@ -10052,6 +10110,7 @@ async function showStartup(){
   const _oldBtn=document.getElementById('sz-oldacct');
   if(_oldBtn) _oldBtn.onclick=()=>{ if(AnalyserDrive.isLegacyLinked()){ runLegacyMigration(); return; } toast('Sign in with the same Google account'); AnalyserDrive.signInLegacy(); };
   document.getElementById('sz-coach').onclick=loadCoachSessions;
+  document.getElementById('sz-trends').onclick=showTrendsModal;
   document.getElementById('sz-squad').onclick=loadFromSquad;
   document.getElementById('sz-openfile').onclick=()=>document.getElementById('fin').click();
   document.getElementById('sz-demo').onclick=()=>{ location.href = location.pathname + '?demo=demo1'; };
@@ -10081,7 +10140,8 @@ async function showStartup(){
         +'<button id="sz-mode-erg" class="filt-chip">Erg</button>'
         +'<button id="sz-sort-date" class="filt-chip">Date</button>'
         +'<button id="sz-sort-dist" class="filt-chip">Distance</button>'
-        +'<button id="sz-sort-time" class="filt-chip">Time</button>';
+        +'<button id="sz-sort-time" class="filt-chip">Time</button>'
+        +'<button id="sz-sort-boat" class="filt-chip">Boat</button>';
       document.getElementById('sz-fav-btn').onclick=()=>{favOnly=!favOnly;renderList();};
       document.getElementById('sz-mode-water').onclick=()=>{modeFilter=modeFilter==='water'?'':'water';renderList();};
       document.getElementById('sz-mode-erg').onclick=()=>{modeFilter=modeFilter==='erg'?'':'erg';renderList();};
@@ -10102,6 +10162,13 @@ async function showStartup(){
         else {sortBy='date';sortDir='desc';}
         renderList();
       };
+      /* Boat: 1x first, then 8+ first, then back to date. */
+      document.getElementById('sz-sort-boat').onclick=()=>{
+        if(sortBy!=='boat'){sortBy='boat';sortDir='asc';}
+        else if(sortDir==='asc'){sortDir='desc';}
+        else {sortBy='date';sortDir='desc';}
+        renderList();
+      };
     }
     let sumMonthOff=0,sumWeekOff=0;
     function parseFn(name){
@@ -10116,6 +10183,8 @@ async function showStartup(){
       const erg=/_ERG(?:_|\.)/.test(name);
       const ts=name.match(/RowSess_(\d{4})-(\d{2})-(\d{2})_(\d{2})(\d{2})/);
       return {
+        boat: boatFromFilename(name),
+        mixed: boatMixedFromFilename(name),
         distM: dist?parseInt(dist[1]):null,
         durS: dur?+dur[1]*3600+ +dur[2]*60+ +dur[3]:null,
         strokes: str?parseInt(str[1]):null,
@@ -10218,6 +10287,12 @@ async function showStartup(){
         timeBtn.textContent='Time'+(on?(sortDir==='desc'?' ▼':' ▲'):'');
         timeBtn.className='filt-chip'+(on?' on':'');
       }
+      const boatBtn=document.getElementById('sz-sort-boat');
+      if(boatBtn){
+        const on=sortBy==='boat';
+        boatBtn.textContent='Boat'+(on?(sortDir==='asc'?' ▲':' ▼'):'');
+        boatBtn.className='filt-chip'+(on?' on':'');
+      }
 
       const q=searchQuery;
       let shown=fileList.filter(f=>{
@@ -10235,6 +10310,11 @@ async function showStartup(){
           if(sortBy==='date'){
             const ta=pa.approxTs||_fnTs(a.name),tb=pb.approxTs||_fnTs(b.name);
             return sortDir==='desc'?tb-ta:ta-tb;
+          }
+          if(sortBy==='boat'){
+            const ra=boatRank(pa.boat,pa.mixed),rb=boatRank(pb.boat,pb.mixed);
+            if(ra!==rb){if(ra==null)return 1;if(rb==null)return -1;return sortDir==='asc'?ra-rb:rb-ra;}
+            return (pb.approxTs||_fnTs(b.name))-(pa.approxTs||_fnTs(a.name));
           }
           const va=sortBy==='distance'?pa.distM:pa.durS;
           const vb=sortBy==='distance'?pb.distM:pb.durS;
@@ -10275,6 +10355,7 @@ async function showStartup(){
         const dateDiv=document.createElement('div');
         dateDiv.className='asc-date';
         dateDiv.innerHTML='<span>'+dateStr+'</span>'
+          +(p.boat?'<span class="asc-badge">'+boatLabel(p.boat,p.mixed)+'</span>':'')
           +(p.squadCode?'<span class="asc-badge">'+p.squadCode+'</span>':'')
           
           +(p.workout?'<span class="asc-badge asc-wkt">'+_secEsc(p.workout)+'</span>':'')
@@ -10956,6 +11037,386 @@ function _sumRecordsCardsHTML(mode){
   return out;
 }
 let _sumOffsets={onwater:{m:0,w:0},erg:{m:0,w:0},combined:{m:0,w:0}};
+// ══════════════════════════════════════════════════════════════════════════
+// TRENDS — per boat type, how each metric has moved over time inside fixed
+// 2-spm rate bands, so a change in rate mix can't pass for a change in
+// technique. Each session is boiled down once to per-band averages (a
+// "digest") kept in this browser; only sessions not yet digested are
+// downloaded, newest first, for the boat and period on screen.
+// ══════════════════════════════════════════════════════════════════════════
+const TREND_V = 1, TREND_KEY = 'br_trend_v1', TREND_UI_KEY = 'br_trend_ui';
+const TREND_BAND_W = 2, TREND_BAND_MIN = 14, TREND_BAND_MAX = 40, TREND_MIN_STROKES = 10;
+/* No pure red or green - those mean worse / better in the legend. */
+const TREND_COLS = ['#2e86de', '#8e44ad', '#e67e22', '#00acc1', '#c2185b', '#3949ab', '#d4ac0d', '#5d6d7e', '#ff7043', '#6d4c41', '#26a69a', '#f06292', '#7e57c2'];
+const _trR = (v, d) => (v == null || !isFinite(v)) ? EM : (+v).toFixed(d);
+/* better: +1 higher is better, -1 lower is better, 0 neither. inv: draw the
+   axis upside down (pace), so up is always faster. */
+const TREND_METRICS = [
+  { k: 'spd', l: 'Pace', val: x => 500 / x, fmt: v => fmtPaceU(v), unit: () => paceULabel(), better: -1, inv: true },
+  { k: 'dps', l: 'Distance per stroke', val: x => x, fmt: v => fmtDPSU(v), unit: () => dpsULabelU(), better: 1 },
+  { k: 'slope', l: 'Positive catch slope', val: x => x, fmt: v => _trR(v, 0), unit: () => '', better: 1 },
+  { k: 'catchSlopeNeg', l: 'Negative catch slope', val: x => x, fmt: v => _trR(v, 0), unit: () => '', better: 0 },
+  { k: 'catchAccel', l: 'Catch accel', val: x => x, fmt: v => _trR(v, 1), unit: () => 'm/s²', better: 1 },
+  { k: 'catchDuration', l: 'Catch duration', val: x => x, fmt: v => _trR(v, 0), unit: () => 'ms', better: -1 },
+  { k: 'driveTimeMs', l: 'Drive time', val: x => x, fmt: v => _trR(v, 0), unit: () => 'ms', better: 0 },
+  { k: 'ratio', l: 'Stroke ratio', val: x => x, fmt: v => _trR(v, 2), unit: () => '', better: 0 },
+  { k: 'schar', l: 'Stroke Char', val: x => x, fmt: v => _trR(v, 0), unit: () => '%', better: 0 },
+  { k: 'impulse', l: 'Impulse', val: x => x, fmt: v => _trR(v, 0), unit: () => '', better: 0 },
+  { k: 'driveAccel', l: 'Drive accel', val: x => x, fmt: v => _trR(v, 1), unit: () => 'm/s²', better: 0 },
+  { k: 'recoveryAccel', l: 'Recovery accel', val: x => x, fmt: v => _trR(v, 1), unit: () => 'm/s²', better: 0 },
+  { k: 'rloss', l: 'Recovery loss', val: x => x, fmt: v => _trR(v, 1), unit: () => '%', better: -1 },
+  { k: 'checkDelta', l: 'Vel efficiency', val: x => x, fmt: v => _trR(v, 1), unit: () => '%', better: 1 },
+  { k: 'consistency', l: 'Catch consistency', val: x => x, fmt: v => _trR(v, 1), unit: () => '', better: -1 },
+  { k: 'hr', l: 'Heart rate', val: x => x, fmt: v => _trR(v, 0), unit: () => 'bpm', better: 0 }
+];
+let _trDB = null, _trSaveT = null;
+function trDB() {
+  if (!_trDB) { try { _trDB = JSON.parse(localStorage.getItem(TREND_KEY) || '{}') || {}; } catch { _trDB = {}; } }
+  return _trDB;
+}
+function trSave(now) {
+  clearTimeout(_trSaveT);
+  const w = () => { try { localStorage.setItem(TREND_KEY, JSON.stringify(_trDB || {})); } catch (e) {} };
+  if (now) w(); else _trSaveT = setTimeout(w, 1500);
+}
+/* One session (Analyser format) -> per-band trimmed means. Strokes count when
+   the rate is 14-40 spm and the pace is 1:00-5:30 /500m (no paddling or stops). */
+function trDigest(conv, size) {
+  const sum = (conv && conv.sum) || {};
+  const dg = { v: TREND_V, sz: size != null ? String(size) : null, t: Date.parse(sum.start_time) || 0, b: {} };
+  if (sum.session_mode === 'erg') { dg.erg = 1; return dg; }
+  const hr = (conv.hr || []).map(h => [Date.parse(h.ts), h.bpm]).filter(h => h[0] && h[1] > 40 && h[1] < 220).sort((a, b) => a[0] - b[0]);
+  const hrAt = ms => {
+    if (!hr.length) return null;
+    let lo = 0, hi = hr.length - 1;
+    while (lo < hi) { const mid = (lo + hi) >> 1; if (hr[mid][0] < ms) lo = mid + 1; else hi = mid; }
+    let best = hr[lo];
+    if (lo > 0 && Math.abs(hr[lo - 1][0] - ms) < Math.abs(best[0] - ms)) best = hr[lo - 1];
+    return Math.abs(best[0] - ms) <= 5000 ? best[1] : null;
+  };
+  const acc = {};
+  const put = (a, k, v, ok) => { if (v == null || !isFinite(v) || (ok && !ok(v))) return; (a.v[k] || (a.v[k] = [])).push(v); };
+  for (const s of (conv.strokes || [])) {
+    const r = s.rate, p = s.pace;
+    if (!(r >= TREND_BAND_MIN && r < TREND_BAND_MAX) || !(p >= 60 && p <= 330)) continue;
+    const b = Math.floor(r / TREND_BAND_W) * TREND_BAND_W;
+    const a = acc[b] || (acc[b] = { n: 0, v: {} });
+    a.n++;
+    put(a, 'spd', 500 / p);
+    put(a, 'dps', s.dps, v => v > 1 && v < 20);
+    put(a, 'slope', s.slope);
+    put(a, 'catchSlopeNeg', s.catchSlopeNeg);
+    put(a, 'catchAccel', s.catchAccel);
+    put(a, 'catchDuration', s.catchDuration, v => v > 0 && v < 1000);
+    put(a, 'driveTimeMs', s.driveTimeMs, v => v > 0 && v < 3000);
+    put(a, 'ratio', s.ratio, v => v > 0.3 && v < 6);
+    put(a, 'schar', s.schar, v => v >= 0 && v <= 100);
+    put(a, 'impulse', s.impulse);
+    put(a, 'driveAccel', s.driveAccel);
+    put(a, 'recoveryAccel', s.recoveryAccel);
+    put(a, 'rloss', s.rloss);
+    put(a, 'checkDelta', s.checkDelta, v => v > 50 && v <= 100);
+    put(a, 'consistency', s.consistency);
+    if (s.ms > 1e12) put(a, 'hr', hrAt(s.ms));
+  }
+  const tmean = arr => {
+    arr.sort((x, y) => x - y);
+    const k = arr.length >= 10 ? Math.floor(arr.length * 0.1) : 0;
+    const t = arr.slice(k, arr.length - k);
+    return t.reduce((x, y) => x + y, 0) / t.length;
+  };
+  Object.keys(acc).forEach(b => {
+    const a = acc[b];
+    if (a.n < TREND_MIN_STROKES) return;
+    const m = {};
+    Object.keys(a.v).forEach(k => { if (a.v[k].length >= TREND_MIN_STROKES) m[k] = +tmean(a.v[k]).toPrecision(5); });
+    dg.b[b] = { n: a.n, m };
+  });
+  return dg;
+}
+/* Any own Drive session opened here is digested on the way in, for free. */
+function trNoteSession(d, fileId) {
+  try {
+    if (!fileId || !d || !Array.isArray(d.strokes) || !d.strokes.length) return;
+    const db = trDB(), old = db[fileId];
+    db[fileId] = trDigest(d, old && old.sz);
+    trSave();
+  } catch (e) {}
+}
+async function showTrendsModal() {
+  if (!isPro()) { showPlanModal('Trends are a Pro feature.'); return; }
+  if (!AnalyserDrive.isSignedIn()) { toast('Link Google Drive first'); return; }
+  document.getElementById('_trend_modal')?.remove();
+  const ov = document.createElement('div');
+  ov.id = '_trend_modal';
+  ov.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,.72);display:flex;align-items:center;justify-content:center;z-index:9999;padding:12px;';
+  const pn = document.createElement('div');
+  pn.style.cssText = 'background:var(--s1);border:1px solid var(--border);border-radius:10px;width:min(96vw,1100px);height:min(92vh,900px);display:flex;flex-direction:column;overflow:hidden;color:var(--text);font-family:-apple-system,BlinkMacSystemFont,Helvetica Neue,sans-serif;';
+  const selCss = 'background:var(--s2);border:1px solid var(--border);color:var(--text);border-radius:6px;padding:7px 8px;font-size:12px;font-family:inherit;';
+  pn.innerHTML =
+    '<div style="display:flex;align-items:center;gap:10px;padding:10px 14px;border-bottom:1px solid var(--border);flex-shrink:0;">'
+    + '<div style="font-size:14px;font-weight:700;">Trends</div>'
+    + '<div id="_tr_status" style="font-size:11px;color:var(--muted);flex:1;min-width:0;"></div>'
+    + '<button id="_tr_scan" class="filt-chip" style="display:none;text-transform:none;"></button>'
+    + '<button id="_tr_close" style="background:var(--s3);border:1px solid var(--border);color:var(--muted);border-radius:6px;padding:4px 10px;font-size:11px;cursor:pointer;">Close</button></div>'
+    + '<div style="padding:10px 14px 0;flex-shrink:0;">'
+    + '<div id="_tr_boats" style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:8px;"></div>'
+    + '<div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-bottom:8px;">'
+    + '<select id="_tr_metric" style="' + selCss + '"></select>'
+    + '<div id="_tr_period" style="display:flex;gap:6px;flex-wrap:wrap;"></div></div>'
+    + '<div id="_tr_bands" style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:6px;align-items:center;"></div></div>'
+    + '<div id="_tr_wrap" style="position:relative;flex:1;min-height:200px;margin:0 14px;">'
+    + '<canvas id="_tr_cv" style="position:absolute;inset:0;width:100%;height:100%;cursor:default;"></canvas>'
+    + '<div id="_tr_tip" style="position:absolute;display:none;pointer-events:none;background:var(--s2);border:1px solid var(--border);border-radius:6px;padding:6px 8px;font-size:11px;line-height:1.45;white-space:nowrap;z-index:2;"></div>'
+    + '<div id="_tr_empty" style="position:absolute;inset:0;display:none;align-items:center;justify-content:center;color:var(--muted);font-size:13px;text-align:center;padding:20px;"></div></div>'
+    + '<div id="_tr_legend" style="padding:8px 14px 4px;font-size:12px;flex-shrink:0;max-height:26%;overflow-y:auto;"></div>'
+    + '<div style="padding:0 14px 10px;font-size:10.5px;color:var(--muted);flex-shrink:0;line-height:1.4;">Each point is one session’s average over its strokes in that rate band (10 strokes or more). Dashed lines are the trend. Pace and DPS move with wind and tide; the stroke metrics don’t. Click a point to open that session.</div>';
+  ov.appendChild(pn);
+  document.body.appendChild(ov);
+  const $ = id => document.getElementById(id);
+  const alive = () => document.body.contains(ov);
+  let stop = false, scanning = false, pts = [];
+  const close = () => { stop = true; window.removeEventListener('resize', draw); ov.remove(); trSave(true); };
+  $('_tr_close').onclick = close;
+  ov.onclick = e => { if (e.target === ov) close(); };
+
+  $('_tr_status').textContent = 'Loading sessions…';
+  let files = AnalyserDrive.cachedList('RowSess_');
+  if (!files) { try { files = await AnalyserDrive.list(); } catch (e) { $('_tr_status').textContent = 'Could not list Drive sessions'; return; } }
+  if (!alive()) return;
+  const _ts = n => { const m = String(n).match(/RowSess_(\d{4})-(\d{2})-(\d{2})_(\d{2})(\d{2})/); return m ? new Date(+m[1], +m[2] - 1, +m[3], +m[4], +m[5]).getTime() : 0; };
+  const water = files.filter(f => !/_ERG(?:_|\.)/.test(f.name)).map(f => {
+    const bt = boatFromFilename(f.name), mx = !!(bt && bt !== '1x' && boatMixedFromFilename(f.name));
+    return { f, ts: _ts(f.name), g: bt ? bt + (mx ? 'M' : '') : 'none' };
+  });
+  const gLabel = g => g === 'none' ? 'Untagged' : boatLabel(g.replace(/M$/, ''), /M$/.test(g));
+  const gRank = g => { if (g === 'none') return 999; const m = /M$/.test(g); return boatRank(g.replace(/M$/, ''), m); };
+  const gCount = {};
+  water.forEach(w => { gCount[w.g] = (gCount[w.g] || 0) + 1; });
+  const groups = Object.keys(gCount).sort((a, b) => gRank(a) - gRank(b));
+  if (!groups.length) { $('_tr_status').textContent = ''; $('_tr_empty').style.display = 'flex'; $('_tr_empty').textContent = 'No on-water sessions on Drive yet.'; return; }
+
+  let ui = {};
+  try { ui = JSON.parse(localStorage.getItem(TREND_UI_KEY) || '{}') || {}; } catch {}
+  if (!groups.includes(ui.g)) ui.g = groups.slice().sort((a, b) => gCount[b] - gCount[a])[0];
+  if (!TREND_METRICS.some(m => m.k === ui.k)) ui.k = 'spd';
+  const PERIODS = [['3M', 91], ['6M', 182], ['1Y', 365], ['All', 0]];
+  if (!PERIODS.some(p => p[0] === ui.p)) ui.p = '6M';
+  if (!Array.isArray(ui.bands)) ui.bands = null;
+  const saveUI = () => { try { localStorage.setItem(TREND_UI_KEY, JSON.stringify(ui)); } catch {} };
+  const cutoff = () => { const d = (PERIODS.find(p => p[0] === ui.p) || [0, 0])[1]; return d ? Date.now() - d * 86400000 : 0; };
+  const db = trDB();
+  const ok = f => { const d = db[f.id]; return !!(d && d.v === TREND_V && (!d.sz || !f.size || d.sz === String(f.size))); };
+  const inView = () => water.filter(w => w.g === ui.g && (!cutoff() || w.ts >= cutoff()));
+  const queue = () => inView().filter(w => !ok(w.f)).sort((a, b) => b.ts - a.ts);
+
+  $('_tr_metric').innerHTML = TREND_METRICS.map(m => '<option value="' + m.k + '">' + m.l + '</option>').join('');
+  $('_tr_metric').value = ui.k;
+  $('_tr_metric').onchange = e => { ui.k = e.target.value; saveUI(); draw(); };
+
+  function renderBoats() {
+    $('_tr_boats').innerHTML = groups.map(g => '<button class="filt-chip' + (g === ui.g ? ' on' : '') + '" data-g="' + g + '" style="text-transform:none;">' + gLabel(g) + ' <span style="opacity:.6;">' + gCount[g] + '</span></button>').join('');
+    $('_tr_boats').querySelectorAll('[data-g]').forEach(b => { b.onclick = () => { ui.g = b.dataset.g; ui.bands = null; saveUI(); renderBoats(); draw(); scan(); }; });
+  }
+  function renderPeriods() {
+    $('_tr_period').innerHTML = PERIODS.map(p => '<button class="filt-chip' + (p[0] === ui.p ? ' on' : '') + '" data-p="' + p[0] + '">' + p[0] + '</button>').join('');
+    $('_tr_period').querySelectorAll('[data-p]').forEach(b => { b.onclick = () => { ui.p = b.dataset.p; saveUI(); renderPeriods(); draw(); scan(); }; });
+  }
+  function status() {
+    if (!alive()) return;
+    const v = inView(), done = v.filter(w => ok(w.f)).length, q = v.length - done;
+    $('_tr_status').textContent = done + ' of ' + v.length + ' ' + gLabel(ui.g) + ' session' + (v.length === 1 ? '' : 's') + ' analysed' + (scanning ? ' · analysing…' : '');
+    const sb = $('_tr_scan');
+    if (scanning) { sb.style.display = ''; sb.textContent = 'Stop'; sb.onclick = () => { stop = true; }; }
+    else if (q > 0) { sb.style.display = ''; sb.textContent = 'Analyse ' + q + ' more'; sb.onclick = () => scan(); }
+    else sb.style.display = 'none';
+  }
+  async function scan() {
+    if (scanning || !alive()) { status(); return; }
+    scanning = true; stop = false;
+    let since = 0;
+    while (!stop && alive()) {
+      const q = queue();
+      if (!q.length) break;
+      const w = q[0];
+      status();
+      try {
+        const s = await AnalyserDrive.fetchSession(w.f.id);
+        db[w.f.id] = trDigest(sessionToAnalyserFmt(s), w.f.size);
+      } catch (e) {
+        if (driveAuthExpired(e)) { stop = true; break; }
+        db[w.f.id] = { v: TREND_V, sz: w.f.size != null ? String(w.f.size) : null, t: w.ts, b: {}, fail: 1 };
+      }
+      trSave();
+      if (++since >= 3) { since = 0; draw(); }
+    }
+    scanning = false;
+    trSave(true);
+    if (alive()) { draw(); status(); }
+  }
+  const bandLbl = b => (+b) + '–' + (+b + TREND_BAND_W);
+  const bandCol = b => TREND_COLS[((+b - TREND_BAND_MIN) / TREND_BAND_W) % TREND_COLS.length];
+  function fit(arr) {
+    const n = arr.length;
+    if (n < 2) return null;
+    let sx = 0, sy = 0, sxx = 0, sxy = 0;
+    arr.forEach(p => { const x = p.t / 86400000; sx += x; sy += p.v; sxx += x * x; sxy += x * p.v; });
+    const den = n * sxx - sx * sx;
+    if (!den) return null;
+    const m = (n * sxy - sx * sy) / den, c = (sy - m * sx) / n;
+    return t => m * (t / 86400000) + c;
+  }
+  function draw() {
+    if (!alive()) return;
+    const met = TREND_METRICS.find(m => m.k === ui.k);
+    const cut = cutoff();
+    const byBand = {}, bandSess = {};
+    inView().forEach(w => {
+      const d = db[w.f.id];
+      if (!d || d.erg || !d.b) return;
+      const t = d.t || w.ts;
+      if (cut && t < cut) return;
+      Object.keys(d.b).forEach(b => {
+        const e = d.b[b], x = e.m && e.m[met.k];
+        if (x == null || !isFinite(x)) return;
+        const v = met.val(x);
+        if (!isFinite(v)) return;
+        (byBand[b] || (byBand[b] = [])).push({ t, v, n: e.n, w, b });
+        bandSess[b] = (bandSess[b] || 0) + 1;
+      });
+    });
+    const avail = Object.keys(byBand).sort((a, b) => a - b);
+    if (!ui.bands || !ui.bands.some(b => avail.includes(String(b)))) ui.bands = avail.slice().sort((a, b) => bandSess[b] - bandSess[a]).slice(0, 3).map(String);
+    const sel = ui.bands.map(String).filter(b => avail.includes(b));
+    $('_tr_bands').innerHTML = (avail.length ? '<span style="font-size:10px;font-weight:700;letter-spacing:.06em;color:var(--muted);margin-right:2px;">SPM</span>' : '')
+      + avail.map(b => {
+        const on = sel.includes(b), c = bandCol(b);
+        return '<button class="filt-chip" data-b="' + b + '" style="text-transform:none;' + (on ? 'background:' + c + ';color:#fff;' : '') + '">' + bandLbl(b) + ' <span style="opacity:.7;">' + bandSess[b] + '</span></button>';
+      }).join('');
+    $('_tr_bands').querySelectorAll('[data-b]').forEach(el => {
+      el.onclick = () => {
+        const b = el.dataset.b, cur = ui.bands.map(String);
+        ui.bands = cur.includes(b) ? cur.filter(x => x !== b) : cur.concat([b]);
+        if (!ui.bands.length) ui.bands = [b];
+        saveUI(); draw();
+      };
+    });
+    pts = [];
+    sel.forEach(b => byBand[b].forEach(p => pts.push(p)));
+    const cv = $('_tr_cv'), wrap = $('_tr_wrap'), emp = $('_tr_empty');
+    const dpr = window.devicePixelRatio || 1, W = wrap.clientWidth, H = wrap.clientHeight;
+    cv.width = Math.round(W * dpr); cv.height = Math.round(H * dpr);
+    const ctx = cv.getContext('2d');
+    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    ctx.clearRect(0, 0, W, H);
+    const legend = $('_tr_legend');
+    if (!pts.length) {
+      emp.style.display = 'flex';
+      emp.textContent = scanning ? 'Analysing sessions…' : (inView().length ? 'No ' + met.l.toLowerCase() + ' data for these sessions yet.' : 'No ' + gLabel(ui.g) + ' sessions in this period.');
+      legend.innerHTML = '';
+      return;
+    }
+    emp.style.display = 'none';
+    const C = pal();
+    let t0 = Infinity, t1 = -Infinity, v0 = Infinity, v1 = -Infinity;
+    pts.forEach(p => { t0 = Math.min(t0, p.t); t1 = Math.max(t1, p.t); v0 = Math.min(v0, p.v); v1 = Math.max(v1, p.v); });
+    if (t1 - t0 < 6 * 86400000) { t0 -= 3 * 86400000; t1 += 3 * 86400000; }
+    const tp = (t1 - t0) * 0.03; t0 -= tp; t1 += tp;
+    let vr = v1 - v0; if (!vr) vr = Math.abs(v0) * 0.05 || 1;
+    v0 -= vr * 0.1; v1 += vr * 0.1;
+    const PL = 70, PR = 14, PT = 10, PB = 26, pw = W - PL - PR, ph = H - PT - PB;
+    const X = t => PL + (t - t0) / (t1 - t0) * pw;
+    const Y = v => met.inv ? PT + (v - v0) / (v1 - v0) * ph : PT + ph - (v - v0) / (v1 - v0) * ph;
+    ctx.font = '10px -apple-system,BlinkMacSystemFont,Helvetica Neue,sans-serif';
+    // y grid
+    const raw = (v1 - v0) / 5, mag = Math.pow(10, Math.floor(Math.log10(raw))), nm = raw / mag;
+    const step = (nm < 1.5 ? 1 : nm < 3 ? 2 : nm < 7 ? 5 : 10) * mag;
+    ctx.strokeStyle = C.gridLn || 'rgba(128,128,128,.2)'; ctx.fillStyle = C.gridLb || C.muted; ctx.lineWidth = 1;
+    ctx.textAlign = 'right'; ctx.textBaseline = 'middle';
+    for (let v = Math.ceil(v0 / step) * step; v <= v1; v += step) {
+      const y = Y(v);
+      ctx.beginPath(); ctx.moveTo(PL, y); ctx.lineTo(PL + pw, y); ctx.stroke();
+      ctx.fillText(met.fmt(v), PL - 6, y);
+    }
+    ctx.save(); ctx.translate(12, PT + ph / 2); ctx.rotate(-Math.PI / 2); ctx.textAlign = 'center';
+    ctx.fillText(met.l + (met.unit() ? ' (' + met.unit() + ')' : '') + (met.inv ? '  ↑ faster' : ''), 0, 0); ctx.restore();
+    // x ticks: weeks for short spans, months otherwise
+    ctx.textAlign = 'center'; ctx.textBaseline = 'top';
+    const span = (t1 - t0) / 86400000;
+    const d = new Date(t0); d.setHours(0, 0, 0, 0);
+    if (span <= 70) { d.setDate(d.getDate() + ((8 - d.getDay()) % 7)); }
+    else { d.setDate(1); d.setMonth(d.getMonth() + 1); }
+    const mStep = span > 500 ? 3 : span > 240 ? 2 : 1;
+    while (d.getTime() <= t1) {
+      const x = X(d.getTime());
+      ctx.strokeStyle = C.gridLn || 'rgba(128,128,128,.2)';
+      ctx.beginPath(); ctx.moveTo(x, PT); ctx.lineTo(x, PT + ph); ctx.stroke();
+      ctx.fillText(d.toLocaleDateString('en-AU', span <= 70 ? { day: 'numeric', month: 'short' } : { month: 'short', year: '2-digit' }), x, PT + ph + 6);
+      if (span <= 70) d.setDate(d.getDate() + 7); else d.setMonth(d.getMonth() + mStep);
+    }
+    ctx.strokeStyle = C.frameLn || C.muted; ctx.strokeRect(PL, PT, pw, ph);
+    // bands: thin joining line, points, dashed trend
+    const rows = [];
+    sel.forEach(b => {
+      const arr = byBand[b].slice().sort((a, c) => a.t - c.t), col = bandCol(b);
+      ctx.strokeStyle = col; ctx.globalAlpha = 0.35; ctx.lineWidth = 1.2;
+      ctx.beginPath(); arr.forEach((p, i) => { const x = X(p.t), y = Y(p.v); i ? ctx.lineTo(x, y) : ctx.moveTo(x, y); }); ctx.stroke();
+      ctx.globalAlpha = 1;
+      arr.forEach(p => { p.x = X(p.t); p.y = Y(p.v); ctx.fillStyle = col; ctx.beginPath(); ctx.arc(p.x, p.y, 4, 0, Math.PI * 2); ctx.fill(); });
+      const f = fit(arr);
+      let txt = arr.length + ' session' + (arr.length === 1 ? '' : 's');
+      if (f) {
+        const ta = arr[0].t, tb = arr[arr.length - 1].t, fa = f(ta), fb = f(tb);
+        ctx.save(); ctx.setLineDash([7, 5]); ctx.strokeStyle = col; ctx.lineWidth = 2.5;
+        ctx.beginPath(); ctx.moveTo(X(ta), Y(fa)); ctx.lineTo(X(tb), Y(fb)); ctx.stroke(); ctx.restore();
+        const ch = fb - fa, rel = Math.abs(ch) / (Math.abs(fa) || 1);
+        const wk = Math.max(1, Math.round((tb - ta) / (7 * 86400000)));
+        let verdict = '<span style="color:var(--muted);">steady</span>';
+        if (rel >= 0.005) {
+          const good = met.better ? (met.better * ch > 0) : null;
+          const arrow = (met.inv ? ch < 0 : ch > 0) ? '▲' : '▼';
+          verdict = good == null ? '<span style="color:var(--muted);">' + arrow + '</span>'
+            : '<span style="color:' + (good ? '#27ae60' : '#e74c3c') + ';font-weight:700;">' + arrow + ' ' + (good ? 'better' : 'worse') + '</span>';
+        }
+        txt += ' · trend <b>' + met.fmt(fa) + '</b> → <b>' + met.fmt(fb) + '</b>' + (met.unit() ? ' ' + met.unit() : '') + ' over ' + wk + ' week' + (wk === 1 ? '' : 's') + ' · ' + verdict;
+      }
+      rows.push('<div style="display:flex;align-items:center;gap:8px;margin-bottom:4px;"><span style="width:12px;height:12px;border-radius:3px;background:' + col + ';flex-shrink:0;"></span><b style="min-width:72px;">' + bandLbl(b) + ' spm</b><span>' + txt + '</span></div>');
+    });
+    legend.innerHTML = rows.join('');
+  }
+  // tooltip + click to open
+  const near = e => {
+    const r = $('_tr_cv').getBoundingClientRect(), mx = e.clientX - r.left, my = e.clientY - r.top;
+    let best = null, bd = 100;
+    pts.forEach(p => { if (p.x == null) return; const dd = (p.x - mx) ** 2 + (p.y - my) ** 2; if (dd < bd) { bd = dd; best = p; } });
+    return { p: best, mx, my };
+  };
+  $('_tr_cv').addEventListener('mousemove', e => {
+    const { p, mx, my } = near(e), tip = $('_tr_tip');
+    $('_tr_cv').style.cursor = p ? 'pointer' : 'default';
+    if (!p) { tip.style.display = 'none'; return; }
+    const met = TREND_METRICS.find(m => m.k === ui.k);
+    const nm = nameFromFilename(p.w.f.name);
+    tip.innerHTML = '<b>' + new Date(p.t).toLocaleDateString('en-AU', { weekday: 'short', day: 'numeric', month: 'short', year: 'numeric' }) + '</b>' + (nm ? ' · ' + _secEsc(nm) : '')
+      + '<br>' + bandLbl(p.b) + ' spm · ' + p.n + ' strokes<br><b>' + met.fmt(p.v) + '</b> ' + met.unit();
+    tip.style.display = 'block';
+    const wW = $('_tr_wrap').clientWidth;
+    tip.style.left = Math.min(mx + 12, wW - tip.offsetWidth - 4) + 'px';
+    tip.style.top = Math.max(0, my - tip.offsetHeight - 10) + 'px';
+  });
+  $('_tr_cv').addEventListener('mouseleave', () => { $('_tr_tip').style.display = 'none'; });
+  $('_tr_cv').addEventListener('click', async e => {
+    const { p } = near(e);
+    if (!p) return;
+    const f = p.w.f, label = nameFromFilename(f.name) || f.name.replace('RowSess_', '').replace('.json', '');
+    close();
+    try { const session = await AnalyserDrive.fetchSession(f.id); applySessionUnits(session); addSessionFromData(sessionToAnalyserFmt(session), label, true, f.id); }
+    catch (err) { if (!driveAuthExpired(err)) toast('Load failed: ' + err.message); }
+  });
+  window.addEventListener('resize', draw);
+  renderBoats(); renderPeriods(); draw(); status();
+  scan();
+}
 async function showSummaryModal(){
   document.getElementById('_summary_modal')?.remove();
   const overlay=document.createElement('div');
