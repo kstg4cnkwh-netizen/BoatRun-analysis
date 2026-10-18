@@ -1579,6 +1579,12 @@ const AnalyserDrive = {
     if (!dstUse.length && types.length === 1) { content.laps = [{ n: 1, dist: content.distance, time: content.duration, pace: content.avgPace, rate: content.avgRate, startT: 0, startD: 0, type: null }]; dstUse = content.laps; }
     if (!dstUse.length) throw new Error('no laps in session file');
     types.forEach((t, i) => { if (dstUse[i]) dstUse[i].type = t || null; });
+    /* Laps made here also sit in the Metrics lap array (see patchManualLaps),
+       so the phone's log, work pace and session card need the same types. */
+    if (ml.length && content.lapsOrig && typeof content.lapsOrig === 'object') {
+      const rows = content[_metricsLapKey(content)];
+      if (Array.isArray(rows)) types.forEach((t, i) => { if (rows[i]) rows[i].type = t || null; });
+    }
     const form = new FormData();
     form.append('metadata', new Blob([JSON.stringify({})], { type: 'application/json' }));
     form.append('file', new Blob([JSON.stringify(content)], { type: 'application/json' }));
@@ -1592,8 +1598,28 @@ const AnalyserDrive = {
   async patchManualLaps(fileId, ends) {
     this._check();
     const content = await this.fetchSession(fileId);
-    if (ends && ends.length) content.manualLaps = ends.map(x => ({ t: +(+x.t).toFixed(2), type: x.type || null }));
-    else delete content.manualLaps;
+    const erg = content.sessionMode === 'erg';
+    if (ends && ends.length) {
+      content.manualLaps = ends.map(x => ({ t: +(+x.t).toFixed(2), type: x.type || null }));
+      /* The Metrics log, its lap table and the session card all read laps /
+         workoutLapMetrics, so the new laps are written there too, in Metrics'
+         own format. The recorded laps are kept once in lapsOrig so either app
+         can put them back. Erg laps come from the PM5 intervals, so erg
+         sessions keep manualLaps only. */
+      if (!erg) {
+        if (!content.lapsOrig || typeof content.lapsOrig !== 'object')
+          content.lapsOrig = { laps: content.laps || null, workoutLapMetrics: content.workoutLapMetrics || null };
+        const rows = _metricsLapRows(content, content.manualLaps);
+        if (rows.length) content[_metricsLapKey(content)] = rows;
+      }
+    } else {
+      delete content.manualLaps;
+      if (content.lapsOrig && typeof content.lapsOrig === 'object') {
+        content.laps = content.lapsOrig.laps || null;
+        content.workoutLapMetrics = content.lapsOrig.workoutLapMetrics || null;
+      }
+      delete content.lapsOrig;
+    }
     const form = new FormData();
     form.append('metadata', new Blob([JSON.stringify({})], { type: 'application/json' }));
     form.append('file', new Blob([JSON.stringify(content)], { type: 'application/json' }));
@@ -2539,6 +2565,15 @@ function sessionToAnalyserFmt(s) {
      does not begin at the start of the session - exactly what happens when a
      workout is loaded after the session is already under way. */
   const laps = lapSrc.map((l,i)=>({ lap:l.n, distance_m:l.dist, time_s:l.time, pace_s_per_500m:(l.pace!=null?l.pace:l.lapPace), stroke_rate_spm:l.rate, type:l.type||wlm[i]?.type||null, start_time_s:(l.startT!=null?l.startT:null), start_dist_m:(l.startD!=null?l.startD:null) }));
+  /* Once laps are made here the file's laps / workoutLapMetrics hold them, and
+     the recorded laps live in lapsOrig - that is what "Original laps" restores. */
+  const _lo=(s.sessionMode!=='erg'&&s.lapsOrig&&typeof s.lapsOrig==='object')?s.lapsOrig:null;
+  let _origLaps=null,_origWlm;
+  if(_lo){
+    const ow=_lo.workoutLapMetrics||[], os=ow.length?ow:(_lo.laps||[]);
+    _origLaps=os.map((l,i)=>({ lap:l.n, distance_m:l.dist, time_s:l.time, pace_s_per_500m:(l.pace!=null?l.pace:l.lapPace), stroke_rate_spm:l.rate, type:l.type||ow[i]?.type||null, start_time_s:(l.startT!=null?l.startT:null), start_dist_m:(l.startD!=null?l.startD:null) }));
+    _origWlm=ow.length?ow:null;
+  }
   const glaps = (s.garminLaps||[]).map(l=>({ lap:l.n, distance_m:l.dist, time_s:l.time, pace_s_per_500m:l.pace, avg_hr_bpm:l.avgHr, max_hr_bpm:l.maxHr, calories:l.cal, strokes:l.garminStrokes, avg_spm:l.garminAvgSpm, avg_stroke_dist_m:l.avgStrokeDist }));
   const gpsTrace = (s.gpsTrace||[]).filter(p=>p.lat!=null&&p.lon!=null).map(p=>({ lat:p.lat, lon:p.lon, t:p.t, dist:p.dist }));
   return { sum, strokes, hr, laps, glaps, gpsTrace,
@@ -2549,7 +2584,8 @@ function sessionToAnalyserFmt(s) {
     name: s.name || null,
     vidSync: s.vidSync || null,
     videoFlags: s.videoFlags || null,
-    manualLaps: (Array.isArray(s.manualLaps) && s.manualLaps.length) ? s.manualLaps : null };
+    manualLaps: (Array.isArray(s.manualLaps) && s.manualLaps.length) ? s.manualLaps : null,
+    ...(_origLaps ? { _origLaps, _origWlm } : {}) };
 }
 // ══════════════════════════════════════════════════════════════════════════
 // GARMIN FIT / TCX IMPORT
@@ -9541,6 +9577,81 @@ function _currentLapEnds(){
   if(!ends.length)ends.push({t:ST[ST.length-1].elapsed||0,type:null});
   return ends;
 }
+/* The array Metrics shows: workoutLapMetrics when the recorded session had
+   one, laps otherwise - decided from the recorded laps so it never flips. */
+function _metricsLapKey(c){
+  const o=(c.lapsOrig&&typeof c.lapsOrig==='object')?c.lapsOrig:c;
+  return (Array.isArray(o.workoutLapMetrics)&&o.workoutLapMetrics.length)?'workoutLapMetrics':'laps';
+}
+/* Laps in the Metrics app's own format, cut at the same strokes as
+   _lapsFromEnds, from the session file's own strokes and HR. Metrics groups
+   strokes by running whole-metre lap distance and by startT..startT+time, so
+   each boundary is put just past the lap's last stroke and before the next. */
+function _metricsLapRows(c,ends){
+  const st=(c.strokes||[]).filter(r=>r&&r.t!=null);
+  const n=st.length;if(!n||!ends||!ends.length)return[];
+  const t0=c.startTime||st[0].t;
+  const el=r=>(r.t-t0)/1000;
+  const offset=st[0].dist||0;
+  const hr=(c.hrTrace||[]).filter(h=>h&&h.hr>40&&h.hr<220);
+  const avg=a=>a.length?a.reduce((x,y)=>x+y,0)/a.length:null;
+  const sorted=ends.slice().sort((a,b)=>a.t-b.t);
+  const out=[];let prev=-1,bPrev=0;
+  sorted.forEach((x,k)=>{
+    let e=prev;
+    while(e+1<n&&el(st[e+1])<=x.t+0.01)e++;
+    if(k===sorted.length-1)e=n-1;
+    if(e<=prev)return;
+    const s0=prev+1;
+    const d0=s0===0?offset:(st[s0-1].dist||0);
+    const ts=s0===0?0:el(st[s0-1]);
+    const rEnd=(st[e].dist||0)-offset, rNext=e+1<n?(st[e+1].dist||0)-offset:Infinity;
+    let bEnd=Math.ceil(rEnd+1e-6);if(bEnd>=rNext)bEnd=Math.round(rEnd);
+    const dist=Math.max(0,bEnd-bPrev);
+    const tStart=s0===0?0:Math.ceil(ts*10+0.01)/10;
+    const time=Math.max(0,Math.ceil((el(st[e])-tStart)*10+1e-6)/10);
+    const g=st.slice(s0,e+1);
+    const rate=avg(g.map(q=>q.rate).filter(v=>v>5&&v<50));
+    const dps=avg(g.map(q=>q.dps).filter(v=>v>0&&v<30));
+    const cd=avg(g.map(q=>q.catchDuration).filter(v=>v>0));
+    const a=t0+ts*1000,b=t0+(ts+time)*1000;
+    const hb=hr.filter(h=>h.t>=a&&h.t<=b).map(h=>h.hr);
+    const pace=dist>0?+(time*500/dist).toFixed(1):0;
+    const r={n:out.length+1,type:x.type||null,startT:tStart,startD:s0===0?0:Math.round(d0),
+      dist,time,pace,lapPace:pace,
+      rate:rate!=null?+rate.toFixed(1):null,avgRate:rate!=null?+rate.toFixed(1):null,
+      strokes:g.length,manual:true};
+    if(dps!=null)r.avgDPS=+dps.toFixed(2);
+    if(cd!=null)r.avgCatchDur=Math.round(cd);
+    if(hb.length){r.avgHr=Math.round(avg(hb));r.maxHr=Math.max(...hb);}
+    out.push(r);prev=e;bPrev=bEnd;
+  });
+  return out;
+}
+/* Curve groups pinned from a lap follow the laps when they change: each moves
+   to the new lap holding most of its strokes. Two groups landing on the same
+   lap (a join) become one. Groups pinned from a chart selection stay put. */
+function _repinLapGroups(){
+  if(!curveGroups.some(g=>g.sessionIdx===activeSessionIdx&&g.lapN!=null))return;
+  assignLapNumbers();
+  const used=new Set(),drop=[];
+  curveGroups.forEach((g,gi)=>{
+    if(g.sessionIdx!==activeSessionIdx||g.lapN==null)return;
+    const cnt={};
+    for(let i=g.absS;i<=g.absE&&i<ST.length;i++){const ln=ST[i].lapNum;if(ln!=null)cnt[ln]=(cnt[ln]||0)+1;}
+    let best=null,bc=0;
+    Object.keys(cnt).forEach(k=>{if(cnt[k]>bc){bc=cnt[k];best=+k;}});
+    const rng=best!=null?lapStrokeRange(best):null;
+    if(!rng||rng[1]-rng[0]<2||used.has(best)){drop.push(gi);return;}
+    used.add(best);
+    g.absS=rng[0];g.absE=rng[1];g.strokes=ST.slice(rng[0],rng[1]+1);g.lapN=best;
+  });
+  for(let k=drop.length-1;k>=0;k--)curveGroups.splice(drop[k],1);
+  if(drop.length){tplFocusIdx=-1;curveGroups.forEach((g,i)=>{g.label='G'+(i+1);});}
+  buildCurveSection();
+  updateMapGroups();
+  applyGroupHighlights();
+}
 function _lapDriveQ(fn){
   const p=(window._lapSaveQ||Promise.resolve()).then(fn);
   window._lapSaveQ=p.catch(()=>{});
@@ -9560,6 +9671,7 @@ function _refreshAfterLapChange(){
   _selLapN=null;
   clearSelection();
   buildLaps();
+  try{_repinLapGroups();}catch(e){}
   if(_lastSum)buildCards(_lastSum);
   if(typeof schedRender==='function')schedRender();
 }
@@ -9604,6 +9716,7 @@ function resetManualLaps(){
   const orig=sess.d._origLaps||[];
   const others=LAPS.filter(l=>!('stroke_rate_spm' in l));
   sess.d.laps=orig;sess.d.manualLaps=null;
+  if('_origWlm' in sess.d)sess.d.workoutLapMetrics=sess.d._origWlm||null;
   LAPS=[...orig,...others];
   _lapEditMode=false;_lapEditDraft=[];
   _refreshAfterLapChange();
