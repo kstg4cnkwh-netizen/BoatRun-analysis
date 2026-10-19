@@ -6,5 +6,6 @@
     { "file": "sectors/BoatRun_Nepean_TT.json", "area": "Nepean River, Sydney AUS" },
     { "file": "sectors/BoatRun_Head_of_the_American.json", "area": "Lake Natoma, Sacramento USA" },
     { "file": "sectors/BoatRun_Head_of_the_Schuylkill.json", "area": "Schuylkill River, Philadelphia USA" }
+    { "file": "sectors/BoatRun_Head_of_the_Fish_Regatta_Fall.json", "area": "Fish Creek, Saratoga Springs USA" }
   ]
 }
