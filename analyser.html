@@ -1116,6 +1116,20 @@ function boatMixedFromFilename(n) { return /_MIX(?=_|\.)/.test(String(n || ''));
 function boatLabel(t, mixed) { return t ? t + (mixed && t !== '1x' ? ' \u00b7 Mixed' : '') : ''; }
 /* Sort key: the order above, mixed straight after the same boat. No boat = null. */
 function boatRank(t, mixed) { const i = BOAT_ORDER.indexOf(t); return i < 0 ? null : i * 2 + (mixed ? 1 : 0); }
+/* The filename with its boat marker replaced (no bt = marker removed). */
+function boatNameWith(name, bt, mixed) {
+  let n = String(name || '').replace(/_BT[1248][XMP](?=_|\.)/g, '').replace(/_MIX(?=_|\.)/g, '');
+  if (bt && BOAT_ORDER.includes(bt)) n = n.replace(/\.json$/, '_BT' + bt.replace('x', 'X').replace('-', 'M').replace('+', 'P') + (mixed && bt !== '1x' ? '_MIX' : '') + '.json');
+  return n;
+}
+/* Latest known Drive filename per file id, so the header can show a boat that
+   was tagged by renaming the file only (bulk tagging). */
+const _fidNames = {};
+function boatOfFid(fid) {
+  let n = _fidNames[fid];
+  if (!n) { try { const f = (AnalyserDrive.cachedList('RowSess_') || []).find(x => x.id === fid); if (f) n = f.name; } catch (e) {} }
+  return n ? { t: boatFromFilename(n), m: boatMixedFromFilename(n) } : null;
+}
 function nameFromFilename(n) {
   const s = String(n || '');
   const e = s.match(/_NM([A-Za-z0-9\-~]+)/);
@@ -1504,6 +1518,41 @@ const AnalyserDrive = {
     }, 'Rename', 45000, fileId);
     this._ok(r, 'Rename');
     this._invalidateFolder();
+  },
+  /* Boat type: written to the body and to the filename marker together. */
+  async patchBoat(fileId, bt, mixed) {
+    this._check();
+    const mResp = await this._api(`https://www.googleapis.com/drive/v3/files/${fileId}?fields=name`, {}, 'Boat', null, fileId);
+    this._ok(mResp, 'Boat');
+    const { name } = await mResp.json();
+    const newName = boatNameWith(name, bt, mixed);
+    const content = await this.fetchSession(fileId);
+    content.boatType = bt;
+    if (mixed && bt !== '1x') content.boatMixed = true; else delete content.boatMixed;
+    const form = new FormData();
+    form.append('metadata', new Blob([JSON.stringify({ name: newName })], { type: 'application/json' }));
+    form.append('file', new Blob([JSON.stringify(content)], { type: 'application/json' }));
+    const r = await this._api(`https://www.googleapis.com/upload/drive/v3/files/${fileId}?uploadType=multipart`, {
+      method: 'PATCH', body: form
+    }, 'Boat', 45000, fileId);
+    this._ok(r, 'Boat');
+    _fidNames[fileId] = newName;
+    this._invalidateFolder();
+    return newName;
+  },
+  /* Filename only - one small request per session, for tagging many old
+     sessions at once. Metrics and the Analyser both read the boat back from
+     the filename, the same way a favourite works. */
+  async renameBoat(fileId, name, bt, mixed) {
+    this._check();
+    const newName = boatNameWith(name, bt, mixed);
+    if (newName === name) return name;
+    const r = await this._api(`https://www.googleapis.com/drive/v3/files/${fileId}?fields=id,name`, {
+      method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ name: newName })
+    }, 'Boat', 20000, fileId);
+    this._ok(r, 'Boat');
+    _fidNames[fileId] = newName;
+    return newName;
   },
   /* Session note: kept in the body and mirrored to the file description, which
      Metrics reads from its plain folder listing (' ' = no note). */
@@ -6857,14 +6906,67 @@ function buildMeta(fname,sum) {
   const safe=fname.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
   const sq=SESSIONS[activeSessionIdx]?.squadCode;
   const sqBadge=sq?' <span style="font-size:8px;background:var(--s3);border:1px solid var(--border);border-radius:3px;padding:1px 5px;color:var(--b);letter-spacing:.07em;vertical-align:middle;">'+sq+'</span>':'';
-  const bt=sum&&sum.boat_type;
-  const btBadge=bt?' <span title="Boat type" style="font-size:12px;font-weight:800;background:#fff;border-radius:4px;padding:1px 7px;color:#1a5276;letter-spacing:.04em;vertical-align:middle;">'+boatLabel(bt,sum.boat_mixed)+'</span>':'';
+  let bt=sum&&sum.boat_type, bm=!!(sum&&sum.boat_mixed);
+  const _cs=SESSIONS[activeSessionIdx];
+  if(!bt&&_cs&&_cs.fileId){const o=boatOfFid(_cs.fileId);if(o&&o.t){bt=o.t;bm=o.m;}}
+  const _canBoat=!!(_cs&&_cs.fileId&&!_cs.squadCode&&!(sum&&sum.session_mode==='erg'));
+  const btBadge=bt
+    ?' <span title="Boat type'+(_canBoat?' \u2013 tap to change':'')+'"'+(_canBoat?' onclick="editSessionBoat()"':'')+' style="'+(_canBoat?'cursor:pointer;':'')+'font-size:12px;font-weight:800;background:#fff;border-radius:4px;padding:1px 7px;color:#1a5276;letter-spacing:.04em;vertical-align:middle;">'+boatLabel(bt,bm)+'</span>'
+    :(_canBoat?' <span title="Set the boat type" onclick="editSessionBoat()" style="cursor:pointer;font-size:11px;font-weight:700;border:1px dashed rgba(255,255,255,.6);border-radius:4px;padding:1px 7px;color:rgba(255,255,255,.85);vertical-align:middle;">+ Boat</span>':'');
   document.getElementById('hdrmeta').innerHTML=
     '<span class="hdrname" style="cursor:pointer;border-bottom:1px dotted rgba(255,255,255,.5);font-size:19px;font-weight:700;" onclick="renameCurrentSession()" title="Tap to rename">'+safe+'</span>'
     +' <span style="color:var(--muted);font-size:12px;">✎</span>'+btBadge+sqBadge+'<br><span style="font-size:12px;font-weight:400;color:rgba(255,255,255,.75);">'+date+(time?' '+time:'')+' · '+dist+' · '+dur+'</span>'
     +'<div onclick="editSessionNote()" title="Tap to edit notes" style="cursor:pointer;margin-top:3px;font-size:12px;font-weight:400;line-height:1.35;white-space:pre-wrap;max-width:640px;color:'+(sum&&sum.note?'#ffe58a':'rgba(255,255,255,.55)')+';">'
     +(sum&&sum.note?'📝 '+String(sum.note).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'):'+ Add note')+'</div>';
 }
+/* Boat picker: resolves {t, m} or null. */
+function _boatPickModal(bt, mixed, title, note, okLabel) {
+  return new Promise(resolve => {
+    document.getElementById('_boat_modal')?.remove();
+    const ov = document.createElement('div'); ov.id = '_boat_modal';
+    ov.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,.72);display:flex;align-items:center;justify-content:center;z-index:10000;padding:16px;';
+    const pn = document.createElement('div');
+    pn.style.cssText = 'background:var(--s1);border:1px solid var(--border);border-radius:10px;padding:16px;width:min(92vw,440px);color:var(--text);font-family:-apple-system,BlinkMacSystemFont,Helvetica Neue,sans-serif;';
+    ov.appendChild(pn); document.body.appendChild(ov);
+    let t = BOAT_ORDER.includes(bt) ? bt : '1x', m = !!mixed;
+    const done = v => { ov.remove(); resolve(v); };
+    const draw = () => {
+      pn.innerHTML = '<div style="font-size:1rem;font-weight:700;margin-bottom:6px;color:var(--b);">' + title + '</div>'
+        + (note ? '<div style="font-size:12px;color:var(--muted);margin-bottom:10px;line-height:1.45;">' + note + '</div>' : '')
+        + '<div style="display:flex;gap:6px;margin-bottom:10px;">' + BOAT_ORDER.map(x => '<button data-bt="' + x + '" class="filt-chip' + (x === t ? ' on' : '') + '" style="flex:1;min-width:0;padding:9px 0;text-transform:none;font-size:13px;">' + x + '</button>').join('') + '</div>'
+        + (t !== '1x' ? '<label style="display:flex;align-items:center;gap:8px;font-size:13px;margin-bottom:12px;cursor:pointer;"><input type="checkbox" id="_boat_mx"' + (m ? ' checked' : '') + '> Mixed crew</label>' : '')
+        + '<div style="display:flex;gap:8px;"><button id="_boat_cancel" style="flex:1;padding:9px 0;background:var(--s2);border:1px solid var(--border);border-radius:6px;color:var(--text);cursor:pointer;font-family:inherit;">Cancel</button>'
+        + '<button id="_boat_ok" style="flex:1;padding:9px 0;background:var(--b);border:1px solid var(--b);border-radius:6px;color:#000;font-weight:700;cursor:pointer;font-family:inherit;">' + (okLabel || 'Save') + '</button></div>';
+      pn.querySelectorAll('[data-bt]').forEach(b => { b.onclick = () => { t = b.dataset.bt; draw(); }; });
+      const mx = pn.querySelector('#_boat_mx'); if (mx) mx.onchange = () => { m = mx.checked; };
+      pn.querySelector('#_boat_cancel').onclick = () => done(null);
+      pn.querySelector('#_boat_ok').onclick = () => done({ t, m: t !== '1x' && m });
+    };
+    ov.onclick = e => { if (e.target === ov) done(null); };
+    draw();
+  });
+}
+/* Tap the boat badge (or + Boat) in the header: change it, saved to Drive. */
+function editSessionBoat(){
+  if(activeSessionIdx<0||activeSessionIdx>=SESSIONS.length)return;
+  const sess=SESSIONS[activeSessionIdx];
+  if(!sess.fileId||sess.squadCode)return;
+  const sum=(sess.d&&sess.d.sum)||_lastSum||{};
+  let bt=sum.boat_type,bm=!!sum.boat_mixed;
+  if(!bt){const o=boatOfFid(sess.fileId);if(o&&o.t){bt=o.t;bm=o.m;}}
+  _boatPickModal(bt||'1x',bm,'Boat type').then(r=>{
+    if(!r)return;
+    if(sess.d&&sess.d.sum){sess.d.sum.boat_type=r.t;sess.d.sum.boat_mixed=r.m;}
+    if(_lastSum){_lastSum.boat_type=r.t;_lastSum.boat_mixed=r.m;}
+    buildMeta(sess.label,_lastSum);
+    if(!AnalyserDrive.isSignedIn()){toast('Boat set here only \u2013 link Drive to save it');return;}
+    toast('Saving boat type\u2026');
+    AnalyserDrive.patchBoat(sess.fileId,r.t,r.m)
+      .then(()=>toast('\u2714 Boat type saved to Drive'))
+      .catch(e=>{if(!driveAuthExpired(e))toast('Drive save failed: '+e.message,3000);});
+  });
+}
+window.editSessionBoat=editSessionBoat;
 /* Notes typed here are saved into the session's Drive file, and Metrics picks
    them up on its next Drive check. Squad / file sessions only change here. */
 function editSessionNote(){
@@ -10131,6 +10233,7 @@ async function showStartup(){
     let modeFilter='';
     let sortBy='date';
     let sortDir='desc';
+    let _szShown=[],_szTagBusy=false,_szTagStop=false;
     const searchInput=document.getElementById('sz-search');
     if(searchInput) searchInput.oninput=()=>{searchQuery=searchInput.value.trim().toLowerCase();renderList();};
     const filterBar=document.getElementById('sz-filterbar');
@@ -10141,7 +10244,8 @@ async function showStartup(){
         +'<button id="sz-sort-date" class="filt-chip">Date</button>'
         +'<button id="sz-sort-dist" class="filt-chip">Distance</button>'
         +'<button id="sz-sort-time" class="filt-chip">Time</button>'
-        +'<button id="sz-sort-boat" class="filt-chip">Boat</button>';
+        +'<button id="sz-sort-boat" class="filt-chip">Boat</button>'
+        +'<button id="sz-tag-boats" class="filt-chip" style="text-transform:none;" title="Set the boat type on untagged sessions in this list">Tag boats\u2026</button>';
       document.getElementById('sz-fav-btn').onclick=()=>{favOnly=!favOnly;renderList();};
       document.getElementById('sz-mode-water').onclick=()=>{modeFilter=modeFilter==='water'?'':'water';renderList();};
       document.getElementById('sz-mode-erg').onclick=()=>{modeFilter=modeFilter==='erg'?'':'erg';renderList();};
@@ -10161,6 +10265,34 @@ async function showStartup(){
         else if(sortDir==='desc'){sortDir='asc';}
         else {sortBy='date';sortDir='desc';}
         renderList();
+      };
+      /* Bulk tag: every untagged on-water session in the list as it stands
+         (search and filters narrow it first). Filename-only renames, so it is
+         quick even for hundreds; tap again to stop. */
+      document.getElementById('sz-tag-boats').onclick=async()=>{
+        if(_szTagBusy){_szTagStop=true;return;}
+        const targets=_szShown.filter(f=>!/_ERG(?:_|\.)/.test(f.name)&&!boatFromFilename(f.name));
+        if(!targets.length){toast('No untagged on-water sessions in this list');return;}
+        const n=targets.length;
+        const r=await _boatPickModal('1x',false,'Tag boat type',
+          'Sets the boat for the '+n+' untagged on-water session'+(n===1?'':'s')+' in the list. Use search or the filters first to narrow it down. Sessions that already have a boat are left alone \u2013 change those one at a time from the session header.',
+          'Tag '+n+' session'+(n===1?'':'s'));
+        if(!r)return;
+        _szTagBusy=true;_szTagStop=false;
+        const btn=document.getElementById('sz-tag-boats');
+        let done=0,fail=0;
+        for(const f of targets){
+          if(_szTagStop)break;
+          if(btn)btn.textContent='Tagging '+(done+1)+'/'+n+' \u00b7 tap to stop';
+          try{f.name=await AnalyserDrive.renameBoat(f.id,f.name,r.t,r.m);}
+          catch(e){if(driveAuthExpired(e))break;fail++;}
+          done++;
+          if(done%10===0)renderList();
+        }
+        _szTagBusy=false;
+        try{AnalyserDrive._invalidateFolder();}catch(e){}
+        renderList();
+        toast('Tagged '+(done-fail)+' session'+(done-fail===1?'':'s')+' as '+boatLabel(r.t,r.m)+(fail?' \u00b7 '+fail+' failed':'')+(_szTagStop?' \u00b7 stopped':''),4000);
       };
       /* Boat: 1x first, then 8+ first, then back to date. */
       document.getElementById('sz-sort-boat').onclick=()=>{
@@ -10293,6 +10425,9 @@ async function showStartup(){
         boatBtn.textContent='Boat'+(on?(sortDir==='asc'?' ▲':' ▼'):'');
         boatBtn.className='filt-chip'+(on?' on':'');
       }
+      const tagBtn=document.getElementById('sz-tag-boats');
+      if(tagBtn&&!_szTagBusy)tagBtn.textContent='Tag boats\u2026';
+      fileList.forEach(f=>{_fidNames[f.id]=f.name;});
 
       const q=searchQuery;
       let shown=fileList.filter(f=>{
@@ -10324,6 +10459,7 @@ async function showStartup(){
           return sortDir==='desc'?vb-va:va-vb;
         });
       }
+      _szShown=shown;
       /* One builder for a session row, shared by this list and the calendar's
          daily session list so both look and behave the same. */
       const makeRow=f=>{
