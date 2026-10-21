@@ -3,8 +3,6 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<meta name="theme-color" content="#081226">
-<meta name="color-scheme" content="dark">
 <title>Australian Boat Race live</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -13,11 +11,14 @@
 <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
 <style>
 :root{
-  --bg:#081226; --panel:#0F1C3A; --ink:#EFF3FA; --muted:rgba(239,243,250,.62); --line:rgba(255,255,255,.12); --water:#16274B; --warn:#FFB648; --hot:#FF5A3C;
+  --bg:#E9EFF1; --panel:#FFFFFF; --ink:#12303E; --muted:#587482; --line:#C6D4DA; --water:#D2E1E7; --warn:#A8501A;
   --num:'Barlow Condensed','Arial Narrow',sans-serif; --body:'Barlow',system-ui,sans-serif;
 }
+@media (prefers-color-scheme:dark){
+  :root{ --bg:#0D1D25; --panel:#142A34; --ink:#E3EDF1; --muted:#8EA8B4; --line:#284450; --water:#1A3541; --warn:#E08A4F; }
+}
 *{box-sizing:border-box}
-html,body{margin:0;background:var(--bg);color:var(--ink);font-family:var(--body);font-size:16px;line-height:1.45;color-scheme:dark}
+html,body{margin:0;background:var(--bg);color:var(--ink);font-family:var(--body);font-size:16px;line-height:1.45}
 body{padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}
 .wrap{padding:max(10px,1vw) max(12px,1.5vw) 16px}
 header.top{display:grid;grid-template-columns:1fr 1fr;grid-template-areas:"icoL icoR" "ttl ttl" "rl rr";gap:10px 12px;align-items:center}
@@ -26,7 +27,8 @@ header.top{display:grid;grid-template-columns:1fr 1fr;grid-template-areas:"icoL 
 .corner{width:96px;height:96px;object-fit:contain}
 .ttl{grid-area:ttl;text-align:center;min-width:0}
 header h1{font-family:var(--num);font-weight:700;font-size:clamp(26px,5vw,44px);line-height:1;margin:0}
-.evlogo{display:block;margin:0 auto;width:min(92%,440px);height:auto;background:#E9EFF1;border-radius:10px;padding:6px 10px}
+.evlogo{display:block;margin:0 auto;width:min(92%,440px);height:auto}
+@media (prefers-color-scheme:dark){ .evlogo{background:#E9EFF1;border-radius:10px;padding:6px 10px} }
 #sub{margin:2px 0 0;color:var(--muted)}
 .ttl h2{font-family:var(--num);font-weight:600;font-size:clamp(20px,3.5vw,28px);margin:8px 0 0}
 .gap{font-family:var(--num);font-weight:700;font-size:clamp(26px,5vw,40px);line-height:1.1;margin:2px 0 0}
@@ -35,22 +37,22 @@ header h1{font-family:var(--num);font-weight:700;font-size:clamp(26px,5vw,44px);
 .races button{display:block;width:100%;text-align:left;font:inherit;border:1px solid var(--line);background:var(--panel);color:var(--ink);padding:8px 12px;border-radius:10px;cursor:pointer}
 .races button b{display:block;font-weight:600;font-size:16px;line-height:1.2}
 .races button .rs{display:block;font-size:13px;color:var(--muted)}
-.races button .rs.racing{color:var(--hot);font-weight:700}
+.races button .rs.racing{color:#C8452F;font-weight:700}
 .races button[aria-selected="true"]{background:var(--ink);color:var(--bg);border-color:var(--ink)}
 .races button[aria-selected="true"] .rs{color:var(--bg);opacity:.85}
-.races button[aria-selected="true"] .rs.racing{color:#C8452F;opacity:1}
+.races button[aria-selected="true"] .rs.racing{color:#FF8A73;opacity:1}
 .races button:focus-visible{outline:3px solid #4A9BC4;outline-offset:2px}
 .strip{background:var(--water);border-radius:10px;overflow:hidden;margin-top:10px}
 .strip svg{display:block;width:100%;height:auto}
 .board{display:grid;gap:10px;margin-top:10px;grid-template-columns:1fr 1fr;grid-template-areas:"st0 st1" "map map" "ls0 ls1"}
 #st0{grid-area:st0} #st1{grid-area:st1} #ls0{grid-area:ls0} #ls1{grid-area:ls1}
-#map{grid-area:map;min-height:320px;border-radius:10px;border:1px solid var(--line);z-index:0;background:var(--water)}
+#map{grid-area:map;min-height:320px;border-radius:10px;border:1px solid var(--line);z-index:0}
 .card{background:var(--panel);border:1px solid var(--line);border-top:8px solid var(--c);border-radius:10px;padding:10px}
 .card.stale{opacity:.55}
 .chead{display:flex;flex-direction:column;align-items:flex-start;gap:6px;margin-bottom:8px}
 .emb{width:44px;height:44px;flex:none;object-fit:contain}
 .emb.ph{border-radius:50%;display:flex;align-items:center;justify-content:center;color:#fff;font:700 16px var(--num);letter-spacing:.02em}
-.emb.wide{width:100%;height:56px;object-position:left center;background:#E9EFF1;border-radius:8px;padding:4px 8px}
+.emb.wide{width:100%;height:56px;object-position:left center}
 .chead .nm{font-family:var(--num);font-weight:600;font-size:19px;line-height:1.1}
 .stat{display:flex;flex-direction:column;align-items:flex-start;gap:2px;padding:8px 0;border-top:1px solid var(--line)}
 .stat b{font-family:var(--num);font-weight:700;font-size:34px;line-height:1;font-variant-numeric:tabular-nums}
@@ -61,16 +63,11 @@ header h1{font-family:var(--num);font-weight:700;font-size:clamp(26px,5vw,44px);
 .card td{padding:6px 0;border-top:1px solid var(--line);vertical-align:top;font-size:14px}
 .card td:first-child{font-weight:600;white-space:nowrap;width:1%;color:var(--muted);padding-right:10px}
 .card td .deg{display:block;font-size:13px;color:var(--muted)}
-footer{display:flex;align-items:center;gap:14px;color:var(--muted);font-size:13px;margin-top:14px;background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:10px 12px}
-.brand{display:flex;align-items:center;gap:10px;flex:none;color:var(--ink);text-decoration:none}
-.brlogo{width:52px;height:52px;border-radius:11px;object-fit:contain;flex:none}
-.brtxt{display:flex;flex-direction:column;line-height:1.05}
-.brtxt small{font-size:12px;letter-spacing:.08em;text-transform:uppercase;color:var(--muted)}
-.brtxt b{font-family:var(--num);font-weight:700;font-size:30px;letter-spacing:.01em;color:var(--ink)}
-.fnote{min-width:0}
-.getapp{margin-left:auto;flex:none;background:var(--hot);color:#fff;font-family:var(--num);font-weight:700;font-size:19px;letter-spacing:.02em;text-decoration:none;padding:10px 18px;border-radius:9px;white-space:nowrap;box-shadow:0 6px 18px -6px rgba(255,90,60,.6)}
+footer{display:flex;align-items:center;gap:10px;color:var(--muted);font-size:13px;margin-top:14px}
+.brlogo{width:32px;height:32px;border-radius:7px;object-fit:contain;flex:none}
+.getapp{margin-left:auto;flex:none;background:#EE5D31;color:#fff;font-family:var(--num);font-weight:700;font-size:16px;letter-spacing:.02em;text-decoration:none;padding:8px 14px;border-radius:8px;white-space:nowrap}
 .getapp:hover{filter:brightness(1.08)}
-@media (max-width:600px){ footer{flex-wrap:wrap} .getapp{margin-left:0;width:100%;text-align:center;order:2} .fnote{flex:1 1 100%;order:3} }
+@media (max-width:600px){ footer{flex-wrap:wrap} .getapp{margin-left:0;width:100%;text-align:center} }
 @media (min-width:1200px){
   html,body{font-size:1vw}
   .wrap{height:100vh;display:flex;flex-direction:column;padding:.8vw 1.2vw .5vw}
@@ -92,7 +89,7 @@ footer{display:flex;align-items:center;gap:14px;color:var(--muted);font-size:13p
   #st0 .note,#st1 .note{grid-column:2 / -1;margin:0;min-height:0}
   #map{min-height:0;height:100%;border-radius:.6vw}
   .card{padding:.9vw;overflow:auto;min-height:0;border-radius:.6vw;border-top-width:.45vw}
-  .emb.wide{height:4.6vw;border-radius:.5vw;padding:.3vw .6vw}
+  .emb.wide{height:4.6vw}
   .emb.ph{width:3.5vw;height:3.5vw;font-size:1.3vw}
   .chead .nm{font-size:1.6vw}
   .stat{padding:.5vw 0;gap:.1vw}
@@ -103,12 +100,9 @@ footer{display:flex;align-items:center;gap:14px;color:var(--muted);font-size:13p
   .card td{font-size:.92vw;padding:.25vw 0;line-height:1.2}
   .card td:first-child{padding-right:.6vw}
   .card td .deg{display:inline;font-size:.85vw;margin-left:.5vw}
-  footer{flex:none;margin-top:.5vw;font-size:.85vw;gap:1vw;padding:.4vw .8vw;border-radius:.6vw}
-  .brand{gap:.6vw}
-  .brlogo{width:2.8vw;height:2.8vw;border-radius:.6vw}
-  .brtxt small{font-size:.65vw}
-  .brtxt b{font-size:1.8vw}
-  .getapp{font-size:1.15vw;padding:.45vw 1.1vw;border-radius:.5vw}
+  footer{flex:none;margin-top:.4vw;font-size:.8vw;gap:.5vw}
+  .brlogo{width:1.4vw;height:1.4vw;border-radius:.3vw}
+  .getapp{font-size:.9vw;padding:.35vw .9vw;border-radius:.4vw}
 }
 </style>
 </head>
@@ -134,7 +128,7 @@ footer{display:flex;align-items:center;gap:14px;color:var(--muted);font-size:13p
     <div class="card" id="st1"></div>
     <div class="card" id="ls1"></div>
   </div>
-  <footer id="foot"><a class="brand" href="https://boatrun.au/" target="_blank" rel="noopener" aria-label="BoatRun"><img class="brlogo" id="brlogo" alt="BoatRun"><span class="brtxt"><small>Live tracking by</small><b>BoatRun</b></span></a><span class="fnote">Numbers are smoothed and run a few seconds behind the water.</span><a class="getapp" href="https://boatrun.au/" target="_blank" rel="noopener">Get the BoatRun app ›</a></footer>
+  <footer id="foot"><img class="brlogo" id="brlogo" alt="BoatRun"><span>Numbers are smoothed and run a few seconds behind the water. Live tracking by BoatRun.</span><a class="getapp" href="https://boatrun.au/" target="_blank" rel="noopener">Get the BoatRun app ›</a></footer>
 </div>
 
 <script>
@@ -184,32 +178,46 @@ const COURSE_SHORT = courseTail(COURSE_LONG, 2000);
 // side = which side of the page the race button goes. start = start time shown before the race, e.g. '10:30'.
 // crew = [seat, name, degree]
 const RACES = [
-  { name: "College Women", code: 'ABRCOLW', side: 'left', start: '9:15am', course: COURSE_SHORT, boatLen: 17.5,
+  { name: "College Women", code: 'ABRCOLW', side: 'left', start: '9:30am', course: COURSE_SHORT, boatLen: 17.5,
     crews: [
-      { phone: 'SYD CW', short: 'YY', name: 'YY College', logo: '', colour: '#EE5D31',
+      { phone: 'STA CW', short: "St Andrew's", name: "St Andrew's College", logo: '', colour: '#1D3C78',
         crew: [['Bow','',''],['2','',''],['3','',''],['4','',''],['5','',''],['6','',''],['7','',''],['Stroke','',''],['Cox','',''],['Coach','',''],['Coach','',''],['Coach','','']] },
-      { phone: 'MEL CW', short: 'ZZ', name: 'ZZ College', logo: '', colour: '#173E80',
+      { phone: 'TRIN CW', short: 'Trinity', name: 'Trinity College', logo: '', colour: '#8C1D2F',
         crew: [['Bow','',''],['2','',''],['3','',''],['4','',''],['5','',''],['6','',''],['7','',''],['Stroke','',''],['Cox','',''],['Coach','',''],['Coach','',''],['Coach','','']] }
     ] },
-  { name: "College Men", code: 'ABRCOLM', side: 'left', start: '9:30am', course: COURSE_SHORT, boatLen: 17.5,
+  { name: "College Men", code: 'ABRCOLM', side: 'left', start: '10:00am', course: COURSE_SHORT, boatLen: 17.5,
     crews: [
-      { phone: 'SYD CM', short: 'WW', name: 'WW College', logo: '', colour: '#EE5D31',
+      { phone: 'STJ CM', short: "St John's", name: "St John's College", logo: '', colour: '#1F6B3A',
         crew: [['Bow','',''],['2','',''],['3','',''],['4','',''],['5','',''],['6','',''],['7','',''],['Stroke','',''],['Cox','',''],['Coach','',''],['Coach','',''],['Coach','','']] },
-      { phone: 'MEL CM', short: 'XX', name: 'XX College', logo: '', colour: '#173E80',
+      { phone: 'TRIN CM', short: 'Trinity', name: 'Trinity College', logo: '', colour: '#8C1D2F',
         crew: [['Bow','',''],['2','',''],['3','',''],['4','',''],['5','',''],['6','',''],['7','',''],['Stroke','',''],['Cox','',''],['Coach','',''],['Coach','',''],['Coach','','']] }
     ] },
-  { name: "Men's eights", code: 'ABRMEN8', side: 'right', start: '10:00am', course: COURSE_LONG, boatLen: 17.5,
+  { name: "Schoolgirls", code: 'ABRSCHG', side: 'left', start: '10:30am', course: COURSE_LONG, boatLen: 17.5,
     crews: [
-      { phone: 'SYD M8', short: 'Sydney', name: 'University of Sydney', logo: 'emblems/sydney.svg', colour: '#EE5D31',
+      { phone: 'PLC SG', short: 'Pymble', name: 'Pymble Ladies College', logo: '', colour: '#5B2C83',
         crew: [['Bow','',''],['2','',''],['3','',''],['4','',''],['5','',''],['6','',''],['7','',''],['Stroke','',''],['Cox','',''],['Coach','',''],['Coach','',''],['Coach','','']] },
-      { phone: 'MEL M8', short: 'Melbourne', name: 'University of Melbourne', logo: 'emblems/melbourne.png', colour: '#173E80',
+      { phone: 'SCS SG', short: "St Catherine's", name: "St Catherine's School", logo: '', colour: '#0F2D52',
         crew: [['Bow','',''],['2','',''],['3','',''],['4','',''],['5','',''],['6','',''],['7','',''],['Stroke','',''],['Cox','',''],['Coach','',''],['Coach','',''],['Coach','','']] }
     ] },
-  { name: "Women's eights", code: 'ABRWOM8', side: 'right', start: '11:10am', course: COURSE_LONG, boatLen: 17.5,
+  { name: "Schoolboys", code: 'ABRSCHB', side: 'right', start: '11:00am', course: COURSE_LONG, boatLen: 17.5,
+    crews: [
+      { phone: 'TKS SB', short: "King's", name: "The King's School", logo: '', colour: '#B5121B',
+        crew: [['Bow','',''],['2','',''],['3','',''],['4','',''],['5','',''],['6','',''],['7','',''],['Stroke','',''],['Cox','',''],['Coach','',''],['Coach','',''],['Coach','','']] },
+      { phone: 'SJC SB', short: "Joey's", name: "St Joseph's College", logo: '', colour: '#002B5C',
+        crew: [['Bow','',''],['2','',''],['3','',''],['4','',''],['5','',''],['6','',''],['7','',''],['Stroke','',''],['Cox','',''],['Coach','',''],['Coach','',''],['Coach','','']] }
+    ] },
+  { name: "Women's eights", code: 'ABRWOM8', side: 'right', start: '11:30am', course: COURSE_LONG, boatLen: 17.5,
     crews: [
       { phone: 'SYD W8', short: 'Sydney', name: 'University of Sydney', logo: 'emblems/sydney.svg', colour: '#EE5D31',
         crew: [['Bow','',''],['2','',''],['3','',''],['4','',''],['5','',''],['6','',''],['7','',''],['Stroke','',''],['Cox','',''],['Coach','',''],['Coach','',''],['Coach','','']] },
       { phone: 'MEL W8', short: 'Melbourne', name: 'University of Melbourne', logo: 'emblems/melbourne.png', colour: '#173E80',
+        crew: [['Bow','',''],['2','',''],['3','',''],['4','',''],['5','',''],['6','',''],['7','',''],['Stroke','',''],['Cox','',''],['Coach','',''],['Coach','',''],['Coach','','']] }
+    ] },
+  { name: "Men's eights", code: 'ABRMEN8', side: 'right', start: '12:00pm', course: COURSE_LONG, boatLen: 17.5,
+    crews: [
+      { phone: 'SYD M8', short: 'Sydney', name: 'University of Sydney', logo: 'emblems/sydney.svg', colour: '#EE5D31',
+        crew: [['Bow','',''],['2','',''],['3','',''],['4','',''],['5','',''],['6','',''],['7','',''],['Stroke','',''],['Cox','',''],['Coach','',''],['Coach','',''],['Coach','','']] },
+      { phone: 'MEL M8', short: 'Melbourne', name: 'University of Melbourne', logo: 'emblems/melbourne.png', colour: '#173E80',
         crew: [['Bow','',''],['2','',''],['3','',''],['4','',''],['5','',''],['6','',''],['7','',''],['Stroke','',''],['Cox','',''],['Coach','',''],['Coach','',''],['Coach','','']] }
     ] }
 ];
@@ -362,7 +370,7 @@ function hull(x1, x2, y, cr, ratio){
     return `<image href="${esc(cr.boat)}" x="${x1}" y="${y - bh / 2}" width="${w}" height="${bh}" preserveAspectRatio="none"/>`;
   }
   const h = Math.max(1.5, w * ratio / 2), m = x1 + w * 0.47, e = h * 0.5;
-  return `<path d="M${x1},${y - e} C${x1 + w * 0.1},${y - h * 0.95} ${x1 + w * 0.3},${y - h} ${m},${y - h} C${x1 + w * 0.7},${y - h} ${x1 + w * 0.9},${y - h * 0.9} ${x2},${y - e} A${e},${e} 0 0 1 ${x2},${y + e} C${x1 + w * 0.9},${y + h * 0.9} ${x1 + w * 0.7},${y + h} ${m},${y + h} C${x1 + w * 0.3},${y + h} ${x1 + w * 0.1},${y + h * 0.95} ${x1},${y + e} A${e},${e} 0 0 1 ${x1},${y - e} Z" fill="${cr.colour}" stroke="rgba(255,255,255,.6)" stroke-width="1.5"/>`;
+  return `<path d="M${x1},${y - e} C${x1 + w * 0.1},${y - h * 0.95} ${x1 + w * 0.3},${y - h} ${m},${y - h} C${x1 + w * 0.7},${y - h} ${x1 + w * 0.9},${y - h * 0.9} ${x2},${y - e} A${e},${e} 0 0 1 ${x2},${y + e} C${x1 + w * 0.9},${y + h * 0.9} ${x1 + w * 0.7},${y + h} ${m},${y + h} C${x1 + w * 0.3},${y + h} ${x1 + w * 0.1},${y + h * 0.95} ${x1},${y + e} A${e},${e} 0 0 1 ${x1},${y - e} Z" fill="${cr.colour}"/>`;
 }
 const vw = el => el.clientWidth && el.clientWidth < 600 ? 520 : Math.max(1000, Math.round(el.clientWidth * 1.8));
 function drawClose(race, rows){
@@ -385,7 +393,7 @@ function drawClose(race, rows){
     g += `<line x1="${x}" y1="25" x2="${x}" y2="140" stroke="currentColor" stroke-opacity=".14"/>`;
     if (togo >= 0) t += `<text x="${M(x)}" y="19" text-anchor="middle" font-size="22" fill="currentColor" opacity=".65">${fmtM(togo)}</text>`;
   }
-  if (c.len > left && c.len < left + W) g += `<line x1="${X(c.len)}" y1="18" x2="${X(c.len)}" y2="142" stroke="#FF5A3C" stroke-width="3"/>`;
+  if (c.len > left && c.len < left + W) g += `<line x1="${X(c.len)}" y1="18" x2="${X(c.len)}" y2="142" stroke="#C8452F" stroke-width="3"/>`;
   rows.forEach((r, i) => {
     const off = S.results[race.code] || {}, sn = String(off.sydney || '').toLowerCase();
     const sydTop = sn === 'north' ? true : sn === 'south' ? false : race.swapLanes === false;
