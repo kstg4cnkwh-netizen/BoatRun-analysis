@@ -222,7 +222,7 @@ const RACES = [
 /* ═══════════════ END OF EDIT SECTION ═══════════════ */
 
 const DEMO = new URLSearchParams(location.search).has('demo');
-const S = { race: 0, trk: {}, results: {}, lastOk: 0, map: null, line: null, marks: [], polling: false, t0: Date.now() };
+const S = { race: 0, trk: {}, results: {}, lastOk: 0, map: null, line: null, marks: [], polling: false, t0: Date.now(), next: {} };
 
 /* ── course geometry ── */
 function courseTail(pts, metres){
@@ -338,7 +338,30 @@ async function pollOne(ri){
     S.lastOk = Date.now();
   } catch (e) {}
 }
-function poll(){ RACES.forEach((r, ri) => pollOne(ri)); }
+/* POLL RATE. Every request is one Worker request (free plan: 100,000 a day
+   across ALL BoatRun Workers). The old fixed 2 s poll of all 6 races was
+   ~260,000 a day per open tab. Now:
+     race on screen, crews on the water   every 2 s
+     other race,     crews on the water   every 15 s (keeps its status badge live)
+     race on screen, nobody on the water  every 20 s
+     other race,     nobody on the water  every 60 s
+     tab hidden / phone locked            nothing
+   "On the water" = a boat heard from in the last 60 s. */
+const POLL_LIVE_MS = 2000, POLL_LIVE_OTHER_MS = 15000, POLL_IDLE_MS = 20000, POLL_IDLE_OTHER_MS = 60000;
+function raceActive(ri){
+  const now = Date.now();
+  return RACES[ri].crews.some((cr, ci) => { const t = S.trk[ri + '_' + ci]; return !!(t && t.seen && now - t.seen < 60000); });
+}
+function pollTick(){
+  if (document.hidden) return;
+  const now = Date.now();
+  RACES.forEach((r, ri) => {
+    const sel = ri === S.race, act = DEMO || raceActive(ri);
+    const iv = act ? (sel ? POLL_LIVE_MS : POLL_LIVE_OTHER_MS) : (sel ? POLL_IDLE_MS : POLL_IDLE_OTHER_MS);
+    if (now >= (S.next[ri] || 0)) { S.next[ri] = now + iv; pollOne(ri); }
+  });
+}
+function poll(){ S.next = {}; pollTick(); }
 async function pickStartRace(){
   if (DEMO) return;
   for (let i = 0; i < RACES.length; i++){
@@ -449,7 +472,7 @@ function mapRace(){
 function selectRace(i){
   S.race = i;
   document.querySelectorAll('.races button').forEach(b => b.setAttribute('aria-selected', +b.dataset.i === i ? 'true' : 'false'));
-  buildCrews(); mapRace(); poll(); render();
+  buildCrews(); mapRace(); S.next[i] = 0; pollTick(); render();
   if (S.map) setTimeout(() => { S.map.invalidateSize(); if (S.line) S.map.fitBounds(S.line.getBounds(), { padding: [20, 20] }); }, 50);
 }
 function raceRows(ri, now){
@@ -481,7 +504,8 @@ function render(){
     if (el){ el.textContent = stt.txt; el.classList.toggle('racing', stt.cls === 'racing'); }
   });
   document.getElementById('raceName').textContent = race.name + ', ' + fmtM(c.len) + ' m';
-  document.getElementById('sub').textContent = (!DEMO && S.lastOk && now - S.lastOk > 15000) ? 'Reconnecting' : (DEMO ? 'Demo, simulated crews' : EVENT_SUB);
+  const _okGap = raceActive(S.race) ? 15000 : 75000;
+  document.getElementById('sub').textContent = (!DEMO && S.lastOk && now - S.lastOk > _okGap) ? 'Reconnecting' : (DEMO ? 'Demo, simulated crews' : EVENT_SUB);
 
   rows.forEach(r => {
     const tg = document.getElementById('tg' + r.ci);
@@ -547,10 +571,10 @@ RACES.forEach(r => r.crews.forEach(cr => { if (cr.boat && !(cr.boat in BOAT_ASPE
 initMap();
 selectRace(0);
 pickStartRace();
-setInterval(poll, 2000);
+setInterval(pollTick, 1000);
 setInterval(render, 200);
 loadResults();
-setInterval(loadResults, 30000);
+setInterval(() => { if (!document.hidden) loadResults(); }, 30000);
 document.addEventListener('visibilitychange', () => { if (!document.hidden) poll(); });
 </script>
 </body>
