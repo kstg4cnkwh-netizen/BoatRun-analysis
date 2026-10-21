@@ -10233,7 +10233,15 @@ async function showStartup(){
     let modeFilter='';
     let sortBy='date';
     let sortDir='desc';
-    let _szShown=[],_szTagBusy=false,_szTagStop=false;
+    let _szShown=[],_szTagBusy=false,_szTagStop=false,_szTagMode=false,_szTagSel=new Set();
+    const _szTagOk=f=>{const p=parseFn(f.name);return !p.erg&&!p.squadCode&&!p.workout;};
+    const _szTagChips=()=>{
+      const ta=document.getElementById('sz-tag-all'),tp=document.getElementById('sz-tag-apply');
+      const ok=_szShown.filter(_szTagOk);
+      const nSel=fileList.filter(f=>_szTagSel.has(f.id)).length;
+      if(ta){ta.style.display=_szTagMode?'':'none';ta.textContent=(ok.length&&ok.every(f=>_szTagSel.has(f.id)))?'Clear all':'Select all';}
+      if(tp){tp.style.display=_szTagMode?'':'none';tp.textContent='Set boat for '+nSel+'\u2026';tp.style.opacity=nSel?'1':'.5';}
+    };
     const searchInput=document.getElementById('sz-search');
     if(searchInput) searchInput.oninput=()=>{searchQuery=searchInput.value.trim().toLowerCase();renderList();};
     const filterBar=document.getElementById('sz-filterbar');
@@ -10245,7 +10253,9 @@ async function showStartup(){
         +'<button id="sz-sort-dist" class="filt-chip">Distance</button>'
         +'<button id="sz-sort-time" class="filt-chip">Time</button>'
         +'<button id="sz-sort-boat" class="filt-chip">Boat</button>'
-        +'<button id="sz-tag-boats" class="filt-chip" style="text-transform:none;" title="Set the boat type on untagged sessions in this list">Tag boats\u2026</button>';
+        +'<button id="sz-tag-boats" class="filt-chip" style="text-transform:none;" title="Pick sessions to set their boat type">Tag boats\u2026</button>'
+        +'<button id="sz-tag-all" class="filt-chip" style="text-transform:none;display:none;">Select all</button>'
+        +'<button id="sz-tag-apply" class="filt-chip" style="text-transform:none;display:none;background:#27ae60;color:#fff;">Set boat\u2026</button>';
       document.getElementById('sz-fav-btn').onclick=()=>{favOnly=!favOnly;renderList();};
       document.getElementById('sz-mode-water').onclick=()=>{modeFilter=modeFilter==='water'?'':'water';renderList();};
       document.getElementById('sz-mode-erg').onclick=()=>{modeFilter=modeFilter==='erg'?'':'erg';renderList();};
@@ -10266,33 +10276,51 @@ async function showStartup(){
         else {sortBy='date';sortDir='desc';}
         renderList();
       };
-      /* Bulk tag: every untagged on-water session in the list as it stands
-         (search and filters narrow it first). Filename-only renames, so it is
-         quick even for hundreds; tap again to stop. */
-      document.getElementById('sz-tag-boats').onclick=async()=>{
+      /* Tag boats: shows a tick box on every session in the list. Tick the
+         ones to change, then Set boat. Squad and workout sessions keep their
+         boat. Tap Tag boats again to leave, or to stop a run. */
+      document.getElementById('sz-tag-boats').onclick=()=>{
         if(_szTagBusy){_szTagStop=true;return;}
-        const targets=_szShown.filter(f=>!/_ERG(?:_|\.)/.test(f.name)&&!boatFromFilename(f.name));
-        if(!targets.length){toast('No untagged on-water sessions in this list');return;}
-        const n=targets.length;
-        const r=await _boatPickModal('1x',false,'Tag boat type',
-          'Sets the boat for the '+n+' untagged on-water session'+(n===1?'':'s')+' in the list. Use search or the filters first to narrow it down. Sessions that already have a boat are left alone \u2013 change those one at a time from the session header.',
-          'Tag '+n+' session'+(n===1?'':'s'));
+        _szTagMode=!_szTagMode;_szTagSel.clear();
+        renderList();
+      };
+      document.getElementById('sz-tag-all').onclick=()=>{
+        if(_szTagBusy)return;
+        const ok=_szShown.filter(_szTagOk);
+        const all=ok.length&&ok.every(f=>_szTagSel.has(f.id));
+        if(all)ok.forEach(f=>_szTagSel.delete(f.id));else ok.forEach(f=>_szTagSel.add(f.id));
+        renderList();
+      };
+      document.getElementById('sz-tag-apply').onclick=async()=>{
+        if(_szTagBusy)return;
+        const targets=fileList.filter(f=>_szTagSel.has(f.id)&&_szTagOk(f));
+        if(!targets.length){toast('Tick the sessions to change first');return;}
+        const n=targets.length, f0=targets[0];
+        const r=await _boatPickModal(boatFromFilename(f0.name)||'1x',boatMixedFromFilename(f0.name),'Set boat type',
+          'Sets the boat for the '+n+' ticked session'+(n===1?'':'s')+'. Squad and workout sessions cannot be changed.',
+          'Set '+n+' session'+(n===1?'':'s'));
         if(!r)return;
         _szTagBusy=true;_szTagStop=false;
-        const btn=document.getElementById('sz-tag-boats');
         let done=0,fail=0;
         for(const f of targets){
           if(_szTagStop)break;
-          if(btn)btn.textContent='Tagging '+(done+1)+'/'+n+' \u00b7 tap to stop';
-          try{f.name=await AnalyserDrive.renameBoat(f.id,f.name,r.t,r.m);}
+          const btn=document.getElementById('sz-tag-boats');
+          if(btn)btn.textContent='Tagging '+(done+1)+'/'+n+' · tap to stop';
+          try{
+            /* Untagged: filename only (quick). Already tagged: file body too,
+               so the old boat inside the file never comes back. */
+            f.name=boatFromFilename(f.name)?await AnalyserDrive.patchBoat(f.id,r.t,r.m):await AnalyserDrive.renameBoat(f.id,f.name,r.t,r.m);
+            _szTagSel.delete(f.id);
+          }
           catch(e){if(driveAuthExpired(e))break;fail++;}
           done++;
           if(done%10===0)renderList();
         }
         _szTagBusy=false;
         try{AnalyserDrive._invalidateFolder();}catch(e){}
+        if(!fail&&!_szTagStop)_szTagMode=false;
         renderList();
-        toast('Tagged '+(done-fail)+' session'+(done-fail===1?'':'s')+' as '+boatLabel(r.t,r.m)+(fail?' \u00b7 '+fail+' failed':'')+(_szTagStop?' \u00b7 stopped':''),4000);
+        toast('Set '+(done-fail)+' session'+(done-fail===1?'':'s')+' to '+boatLabel(r.t,r.m)+(fail?' · '+fail+' failed':'')+(_szTagStop?' · stopped':''),4000);
       };
       /* Boat: 1x first, then 8+ first, then back to date. */
       document.getElementById('sz-sort-boat').onclick=()=>{
@@ -10426,7 +10454,7 @@ async function showStartup(){
         boatBtn.className='filt-chip'+(on?' on':'');
       }
       const tagBtn=document.getElementById('sz-tag-boats');
-      if(tagBtn&&!_szTagBusy)tagBtn.textContent='Tag boats\u2026';
+      if(tagBtn&&!_szTagBusy){tagBtn.textContent=_szTagMode?'\u2715 Done tagging':'Tag boats\u2026';tagBtn.className='filt-chip'+(_szTagMode?' on':'');}
       fileList.forEach(f=>{_fidNames[f.id]=f.name;});
 
       const q=searchQuery;
@@ -10460,9 +10488,10 @@ async function showStartup(){
         });
       }
       _szShown=shown;
+      _szTagChips();
       /* One builder for a session row, shared by this list and the calendar's
          daily session list so both look and behave the same. */
-      const makeRow=f=>{
+      const makeRow=(f,tagPick)=>{
         const p=parseFn(f.name);
         const dateStr=p.approxTs
           ?new Date(p.approxTs).toLocaleDateString('en-AU',{day:'numeric',month:'short',year:'numeric'})+' '+new Date(p.approxTs).toLocaleTimeString('en-AU',{hour:'2-digit',minute:'2-digit'})
@@ -10487,6 +10516,18 @@ async function showStartup(){
         const btn=document.createElement('div');btn.className='asc';
         if(p.erg)btn.classList.add('erg');
         btn.onclick=()=>openSessFile(f,p,btn);
+        if(tagPick&&_szTagMode){
+          const ok=_szTagOk(f);
+          const cb=document.createElement('input');cb.type='checkbox';
+          cb.style.cssText='width:22px;height:22px;flex-shrink:0;align-self:center;cursor:'+(ok?'pointer':'not-allowed')+';accent-color:#27ae60;';
+          cb.checked=ok&&_szTagSel.has(f.id);cb.disabled=!ok;
+          cb.title=ok?'Tick to change this boat':(p.erg?'Erg session':'Squad and workout sessions keep their boat');
+          const tog=()=>{if(!ok)return;if(_szTagSel.has(f.id))_szTagSel.delete(f.id);else _szTagSel.add(f.id);cb.checked=_szTagSel.has(f.id);_szTagChips();};
+          cb.onclick=ev=>{ev.stopPropagation();tog();};
+          btn.onclick=()=>{if(ok)tog();else toast(p.erg?'Erg sessions have no boat':'Squad and workout sessions cannot change boat');};
+          if(!ok)btn.style.opacity='.45';
+          row.appendChild(cb);
+        }
 
         const dateDiv=document.createElement('div');
         dateDiv.className='asc-date';
@@ -10521,7 +10562,7 @@ async function showStartup(){
         return row;
       };
       {const _first=!_calMakeRow;_calMakeRow=makeRow;if(_first&&!_wktCtx&&_calSel)renderStartupCalendar();}
-      shown.forEach(f=>container.appendChild(makeRow(f)));
+      shown.forEach(f=>container.appendChild(makeRow(f,true)));
       if(!shown.length){
         const empty=document.createElement('div');
         empty.style.cssText='color:var(--muted);font-size:.85rem;padding:8px 0;';
