@@ -14,9 +14,6 @@
   --bg:#E9EFF1; --panel:#FFFFFF; --ink:#12303E; --muted:#587482; --line:#C6D4DA; --water:#D2E1E7; --warn:#A8501A;
   --num:'Barlow Condensed','Arial Narrow',sans-serif; --body:'Barlow',system-ui,sans-serif;
 }
-@media (prefers-color-scheme:dark){
-  :root{ --bg:#0D1D25; --panel:#142A34; --ink:#E3EDF1; --muted:#8EA8B4; --line:#284450; --water:#1A3541; --warn:#E08A4F; }
-}
 *{box-sizing:border-box}
 html,body{margin:0;background:var(--bg);color:var(--ink);font-family:var(--body);font-size:16px;line-height:1.45}
 body{padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}
@@ -28,7 +25,6 @@ header.top{display:grid;grid-template-columns:1fr 1fr;grid-template-areas:"icoL 
 .ttl{grid-area:ttl;text-align:center;min-width:0}
 header h1{font-family:var(--num);font-weight:700;font-size:clamp(26px,5vw,44px);line-height:1;margin:0}
 .evlogo{display:block;margin:0 auto;width:min(92%,440px);height:auto}
-@media (prefers-color-scheme:dark){ .evlogo{background:#E9EFF1;border-radius:10px;padding:6px 10px} }
 #sub{margin:2px 0 0;color:var(--muted)}
 .ttl h2{font-family:var(--num);font-weight:600;font-size:clamp(20px,3.5vw,28px);margin:8px 0 0}
 .gap{font-family:var(--num);font-weight:700;font-size:clamp(26px,5vw,40px);line-height:1.1;margin:2px 0 0}
@@ -70,7 +66,7 @@ footer{display:flex;align-items:center;gap:10px;color:var(--muted);font-size:13p
 @media (max-width:600px){ footer{flex-wrap:wrap} .getapp{margin-left:0;width:100%;text-align:center} }
 @media (min-width:1200px){
   html,body{font-size:1vw}
-  .wrap{height:100vh;display:flex;flex-direction:column;padding:.8vw 1.2vw .5vw}
+  .wrap{min-height:100vh;display:flex;flex-direction:column;padding:.8vw 1.2vw .5vw}
   header.top{flex:none;grid-template-columns:auto 16vw 1fr 16vw auto;grid-template-areas:"icoL rl ttl rr icoR";gap:1.2vw}
   .corner{width:14vw;height:14vw}
   header h1{font-size:2.6vw}
@@ -82,13 +78,13 @@ footer{display:flex;align-items:center;gap:10px;color:var(--muted);font-size:13p
   .races button b{font-size:1.25vw}
   .races button .rs{font-size:1vw}
   .strip{flex:none;margin-top:.6vw;border-radius:.6vw}
-  .board{flex:1;min-height:0;margin-top:.6vw;gap:.8vw;grid-template-columns:1.4fr 1fr 1fr 1.4fr;grid-template-areas:"st0 st0 st1 st1" "ls0 map map ls1";grid-template-rows:auto minmax(0,1fr)}
+  .board{flex:1;margin-top:.6vw;gap:.8vw;grid-template-columns:1.4fr 1fr 1fr 1.4fr;grid-template-areas:"st0 st0 st1 st1" "ls0 map map ls1";grid-template-rows:auto 1fr}
   #st0,#st1{display:grid;grid-template-columns:1.25fr 1fr 1fr 1fr;align-items:center;overflow:hidden}
   #st0 .chead,#st1 .chead{margin:0}
   #st0 .stat,#st1 .stat{border-top:none;border-left:1px solid var(--line);padding:0 0 0 1vw}
   #st0 .note,#st1 .note{grid-column:2 / -1;margin:0;min-height:0}
-  #map{min-height:0;height:100%;border-radius:.6vw}
-  .card{padding:.9vw;overflow:auto;min-height:0;border-radius:.6vw;border-top-width:.45vw}
+  #map{min-height:22vw;height:100%;border-radius:.6vw}
+  .card{padding:.9vw;overflow:visible;min-height:0;border-radius:.6vw;border-top-width:.45vw}
   .emb.wide{height:4.6vw}
   .emb.ph{width:3.5vw;height:3.5vw;font-size:1.3vw}
   .chead .nm{font-size:1.6vw}
@@ -182,30 +178,30 @@ const COURSE_SHORT = [
 const RACES = [
   { name: "College Women", code: 'ABRCOLW', side: 'left', start: '9:30am', course: COURSE_SHORT, boatLen: 17.5,
     crews: [
-      { phone: 'STA CW', short: "St Andrew's", name: "St Andrew's College", logo: '', colour: '#EE5D31',
+      { phone: 'STA CW', short: "St Andrew's", name: "St Andrew's College", logo: 'emblems/standrews.png', colour: '#EE5D31',
         crew: [['Bow','',''],['2','',''],['3','',''],['4','',''],['5','',''],['6','',''],['7','',''],['Stroke','',''],['Cox','',''],['Coach','',''],['Coach','',''],['Coach','','']] },
-      { phone: 'TRIN CW', short: 'Trinity', name: 'Trinity College', logo: '', colour: '#173E80',
+      { phone: 'TRIN CW', short: 'Trinity', name: 'Trinity College', logo: 'emblems/trinity.png', colour: '#173E80',
         crew: [['Bow','Zahra Hoban','Bachelor of Arts'],['2','Adelaide Bankes','Bachelor of Commerce'],['3','Charlotte Newman','Bachelor of Science'],['4','Annabelle Moloney','Bachelor of Biomedicine'],['5','Sabrina Koczkar','Bachelor of Science'],['6','Sienna Bailieu','Bachelor of Arts'],['7','Lily Wallace','Bachelor of Arts'],['Stroke','Elizabeth Robson','Bachelor of Science'],['Cox','Molly Moore','Bachelor of Science'],['Coach','','']] }
     ] },
   { name: "College Men", code: 'ABRCOLM', side: 'left', start: '10:00am', course: COURSE_SHORT, boatLen: 17.5,
     crews: [
-      { phone: 'STJ CM', short: "St John's", name: "St John's College", logo: '', colour: '#EE5D31',
+      { phone: 'STJ CM', short: "St John's", name: "St John's College", logo: 'emblems/stjohns.png', colour: '#EE5D31',
         crew: [['Bow','',''],['2','',''],['3','',''],['4','',''],['5','',''],['6','',''],['7','',''],['Stroke','',''],['Cox','',''],['Coach','',''],['Coach','',''],['Coach','','']] },
-      { phone: 'TRIN CM', short: 'Trinity', name: 'Trinity College', logo: '', colour: '#173E80',
+      { phone: 'TRIN CM', short: 'Trinity', name: 'Trinity College', logo: 'emblems/trinity.png', colour: '#173E80',
         crew: [['Bow','William Ferrer','Bachelor of Arts'],['2','Barran Karakas','Bachelor of Commerce'],['3','Ted Coakley','Bachelor of Science (Agriculture)'],['4','Oliver Hamilton','Bachelor of Commerce'],['5','Ryan Fowler','Bachelor of Commerce'],['6','Harry Budd','Bachelor of Arts'],['7','Spencer Siebel','Bachelor of Commerce'],['Stroke','Henry Pitt','Bachelor of Commerce'],['Cox','Sam Leviny','Bachelor of Arts'],['Coach','','']] }
     ] },
   { name: "Schoolgirls", code: 'ABRSCHG', side: 'left', start: '10:30am', course: COURSE_LONG, boatLen: 17.5,
     crews: [
-      { phone: 'PLC SG', short: 'Pymble', name: 'Pymble Ladies College', logo: '', colour: '#EE5D31',
+      { phone: 'PLC SG', short: 'Pymble', name: 'Pymble Ladies College', logo: 'emblems/pymble.png', colour: '#EE5D31',
         crew: [['Bow','',''],['2','',''],['3','',''],['4','',''],['5','',''],['6','',''],['7','',''],['Stroke','',''],['Cox','',''],['Coach','',''],['Coach','',''],['Coach','','']] },
-      { phone: 'SCS SG', short: "St Catherine's", name: "St Catherine's School", logo: '', colour: '#173E80',
+      { phone: 'SCS SG', short: "St Catherine's", name: "St Catherine's School", logo: 'emblems/stcaths.png', colour: '#173E80',
         crew: [['Bow','',''],['2','',''],['3','',''],['4','',''],['5','',''],['6','',''],['7','',''],['Stroke','',''],['Cox','',''],['Coach','',''],['Coach','',''],['Coach','','']] }
     ] },
   { name: "Schoolboys", code: 'ABRSCHB', side: 'right', start: '11:00am', course: COURSE_LONG, boatLen: 17.5,
     crews: [
-      { phone: 'TKS SB', short: "King's", name: "The King's School", logo: '', colour: '#EE5D31',
+      { phone: 'TKS SB', short: "King's", name: "The King's School", logo: 'emblems/kings.png', colour: '#EE5D31',
         crew: [['Bow','',''],['2','',''],['3','',''],['4','',''],['5','',''],['6','',''],['7','',''],['Stroke','',''],['Cox','',''],['Coach','',''],['Coach','',''],['Coach','','']] },
-      { phone: 'SJC SB', short: "Joey's", name: "St Joseph's College", logo: '', colour: '#173E80',
+      { phone: 'SJC SB', short: "Joey's", name: "St Joseph's College", logo: 'emblems/joeys.png', colour: '#173E80',
         crew: [['Bow','',''],['2','',''],['3','',''],['4','',''],['5','',''],['6','',''],['7','',''],['Stroke','',''],['Cox','',''],['Coach','',''],['Coach','',''],['Coach','','']] }
     ] },
   { name: "Women's eights", code: 'ABRWOM8', side: 'right', start: '11:30am', course: COURSE_LONG, boatLen: 17.5,
