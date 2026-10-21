@@ -454,8 +454,8 @@ function initMap(){
   S.map = L.map('map', { zoomControl: true, attributionControl: true });
   const street = L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { maxZoom: 19, attribution: '&copy; OpenStreetMap' });
   const sat = L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', { maxZoom: 19, attribution: 'Imagery &copy; Esri' });
-  let pick = 'Map';
-  try { pick = localStorage.getItem('raceMapLayer') || 'Map'; } catch (e) {}
+  let pick = 'Satellite';
+  try { pick = localStorage.getItem('raceMapLayer') || 'Satellite'; } catch (e) {}
   (pick === 'Satellite' ? sat : street).addTo(S.map);
   L.control.layers({ 'Map': street, 'Satellite': sat }, null, { position: 'topright' }).addTo(S.map);
   S.map.on('baselayerchange', e => { try { localStorage.setItem('raceMapLayer', e.name); } catch (er) {} });
