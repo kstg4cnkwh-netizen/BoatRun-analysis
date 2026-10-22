@@ -66,7 +66,7 @@ footer{display:flex;align-items:center;gap:10px;color:var(--muted);font-size:13p
 @media (max-width:600px){ footer{flex-wrap:wrap} .getapp{margin-left:0;width:100%;text-align:center} }
 @media (min-width:1200px){
   html,body{font-size:1vw}
-  .wrap{min-height:100vh;display:flex;flex-direction:column;padding:.8vw 1.2vw .5vw}
+  .wrap{height:100vh;overflow:hidden;display:flex;flex-direction:column;padding:.8vw 1.2vw .5vw}
   header.top{flex:none;grid-template-columns:auto 16vw 1fr 16vw auto;grid-template-areas:"icoL rl ttl rr icoR";gap:1.2vw}
   .corner{width:14vw;height:14vw}
   header h1{font-size:2.6vw}
@@ -78,13 +78,13 @@ footer{display:flex;align-items:center;gap:10px;color:var(--muted);font-size:13p
   .races button b{font-size:1.25vw}
   .races button .rs{font-size:1vw}
   .strip{flex:none;margin-top:.6vw;border-radius:.6vw}
-  .board{flex:1;margin-top:.6vw;gap:.8vw;grid-template-columns:1.4fr 1fr 1fr 1.4fr;grid-template-areas:"st0 st0 st1 st1" "ls0 map map ls1";grid-template-rows:auto 1fr}
+  .board{flex:1;min-height:0;margin-top:.6vw;gap:.8vw;grid-template-columns:1.4fr 1fr 1fr 1.4fr;grid-template-areas:"st0 st0 st1 st1" "ls0 map map ls1";grid-template-rows:auto minmax(0,1fr)}
   #st0,#st1{display:grid;grid-template-columns:1.25fr 1fr 1fr 1fr;align-items:center;overflow:hidden}
   #st0 .chead,#st1 .chead{margin:0}
   #st0 .stat,#st1 .stat{border-top:none;border-left:1px solid var(--line);padding:0 0 0 1vw}
   #st0 .note,#st1 .note{grid-column:2 / -1;margin:0;min-height:0}
-  #map{min-height:22vw;height:100%;border-radius:.6vw}
-  .card{padding:.9vw;overflow:visible;min-height:0;border-radius:.6vw;border-top-width:.45vw}
+  #map{min-height:0;height:100%;border-radius:.6vw}
+  .card{padding:.9vw;overflow:hidden;min-height:0;border-radius:.6vw;border-top-width:.45vw}
   .emb.wide{height:4.6vw}
   .emb.ph{width:3.5vw;height:3.5vw;font-size:1.3vw}
   .chead .nm{font-size:1.6vw}
@@ -93,9 +93,9 @@ footer{display:flex;align-items:center;gap:10px;color:var(--muted);font-size:13p
   .stat span{font-size:1vw}
   .note{font-size:.9vw}
   .card h3{display:none}
-  .card td{font-size:.92vw;padding:.25vw 0;line-height:1.2}
+  .card td{font-size:calc(.92vw * var(--cs, 1));padding:calc(.25vw * var(--cs, 1)) 0;line-height:1.2}
   .card td:first-child{padding-right:.6vw}
-  .card td .deg{display:inline;font-size:.85vw;margin-left:.5vw}
+  .card td .deg{display:inline;font-size:calc(.85vw * var(--cs, 1));margin-left:.5vw}
   footer{flex:none;margin-top:.4vw;font-size:.8vw;gap:.5vw}
   .brlogo{width:1.4vw;height:1.4vw;border-radius:.3vw}
   .getapp{font-size:.9vw;padding:.35vw .9vw;border-radius:.4vw}
@@ -448,7 +448,20 @@ function buildCrews(){
     ls.innerHTML = `<h3>Crew</h3><table>${crewRows(cr.crew).map(p =>
       `<tr><td>${esc(p[0]).replace(/ /g, '<br>')}</td><td>${esc(p[1]) || '–'}${p[2] ? `<span class="deg">${esc(p[2])}</span>` : ''}</td></tr>`).join('')}</table>`;
   });
+  fitCrews();
 }
+/* TV fit: on wide screens the page is locked to one screen. Shrink both crew
+   lists together until the longer one fits its card - no scrolling. */
+function fitCrews(){
+  const els = ['ls0', 'ls1'].map(id => document.getElementById(id));
+  els.forEach(el => el.style.removeProperty('--cs'));
+  if (innerWidth < 1200) return;
+  let cs = 1;
+  const over = () => els.some(el => el.scrollHeight > el.clientHeight + 1);
+  while (over() && cs > 0.45){ cs = +(cs - 0.03).toFixed(2); els.forEach(el => el.style.setProperty('--cs', cs)); }
+}
+window.addEventListener('resize', () => { clearTimeout(S._fitT); S._fitT = setTimeout(fitCrews, 150); });
+if (document.fonts && document.fonts.ready) document.fonts.ready.then(fitCrews);
 function initMap(){
   if (typeof L === 'undefined') { document.getElementById('map').style.display = 'none'; return; }
   S.map = L.map('map', { zoomControl: true, attributionControl: true });
@@ -459,6 +472,29 @@ function initMap(){
   (pick === 'Satellite' ? sat : street).addTo(S.map);
   L.control.layers({ 'Map': street, 'Satellite': sat }, null, { position: 'topright' }).addTo(S.map);
   S.map.on('baselayerchange', e => { try { localStorage.setItem('raceMapLayer', e.name); } catch (er) {} });
+  S.map.on('dragstart', () => { S.followPause = Date.now() + 8000; });
+}
+/* MAP FOLLOW. Only when someone has zoomed the map in past the whole-course
+   view. Keeps the midpoint of the crews 2/3 of the way across the map (more
+   water showing ahead of them) and centred top to bottom. Once the finish
+   reaches the leading edge of the map, sideways scrolling stops and the crews
+   row on through to the line. Dragging the map pauses following for 8 s. */
+function followCrews(rows, c){
+  const m = S.map;
+  if (!m || !S.line || m._animatingZoom || Date.now() < (S.followPause || 0)) return;
+  const fitZ = m.getBoundsZoom(S.line.getBounds(), false, L.point(40, 40));
+  if (m.getZoom() <= fitZ + 0.01) return;
+  const pts = rows.filter(r => r.d != null).map(r => pointAt(c, Math.max(-50, Math.min(r.d, c.len + 50)), r.tr.off));
+  if (!pts.length) return;
+  const z = m.getZoom(), W = m.getSize().x, margin = W * 0.06;
+  const px = pts.map(p => m.project(p, z));
+  const midX = px.reduce((a, p) => a + p.x, 0) / px.length, midY = px.reduce((a, p) => a + p.y, 0) / px.length;
+  const fin = m.project(c.pts[c.pts.length - 1], z), west = fin.x < m.project(c.pts[0], z).x;
+  let cx = midX + (west ? -W / 6 : W / 6);
+  cx = west ? Math.max(cx, fin.x + W / 2 - margin) : Math.min(cx, fin.x - W / 2 + margin);
+  const cur = m.project(m.getCenter(), z);
+  if (Math.hypot(cx - cur.x, midY - cur.y) < 1) return;
+  m.panTo(m.unproject(L.point(cx, midY), z), { animate: true, duration: 0.2, easeLinearity: 1, noMoveStart: true });
 }
 function mapRace(){
   if (!S.map) return;
@@ -554,6 +590,7 @@ function render(){
     m.setLatLng(pointAt(c, Math.max(-50, Math.min(r.d, c.len + 50)), r.tr.off));
     m.setStyle({ opacity: 1, fillOpacity: r.stale ? .4 : 1 });
   });
+  if (S.map) followCrews(rows, c);
 }
 
 /* ── start ── */
