@@ -222,7 +222,7 @@ const RACES = [
 /* ═══════════════ END OF EDIT SECTION ═══════════════ */
 
 const DEMO = new URLSearchParams(location.search).has('demo');
-const S = { race: 0, trk: {}, results: {}, lastOk: 0, map: null, line: null, marks: [], polling: false, t0: Date.now(), next: {} };
+const S = { race: 0, trk: {}, results: {}, lastOk: 0, map: null, line: null, marks: [], polling: false, t0: Date.now(), next: {}, views: {} };
 
 /* ── course geometry ── */
 function courseTail(pts, metres){
@@ -503,13 +503,22 @@ function mapRace(){
   S.marks.forEach(m => m.remove());
   S.line = L.polyline(race.course, { color: '#4A9BC4', weight: 5, opacity: .8 }).addTo(S.map);
   S.marks = race.crews.map(cr => L.circleMarker(race.course[0], { radius: 9, color: '#fff', weight: 2, fillColor: cr.colour, fillOpacity: 1, opacity: 0 }).addTo(S.map).bindTooltip(cr.short));
-  S.map.fitBounds(S.line.getBounds(), { padding: [20, 20] });
+  showView(S.race);
+}
+// Each race keeps its own zoom and position while you switch between races.
+// A race you haven't zoomed yet shows the whole course.
+function showView(i){
+  if (!S.map) return;
+  const v = S.views[i];
+  if (v) S.map.setView(v.c, v.z, { animate: false });
+  else if (S.line) S.map.fitBounds(S.line.getBounds(), { padding: [20, 20] });
 }
 function selectRace(i){
+  if (S.map && S.line && S.race !== i) S.views[S.race] = { c: S.map.getCenter(), z: S.map.getZoom() };   // remember this race's zoom
   S.race = i;
   document.querySelectorAll('.races button').forEach(b => b.setAttribute('aria-selected', +b.dataset.i === i ? 'true' : 'false'));
   buildCrews(); mapRace(); S.next[i] = 0; pollTick(); render();
-  if (S.map) setTimeout(() => { S.map.invalidateSize(); if (S.line) S.map.fitBounds(S.line.getBounds(), { padding: [20, 20] }); }, 50);
+  if (S.map) setTimeout(() => { S.map.invalidateSize(); showView(i); }, 50);
 }
 function raceRows(ri, now){
   const race = RACES[ri];
