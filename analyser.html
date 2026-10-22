@@ -477,7 +477,7 @@ body.light .hdrname{color:#fff;}
   .filt-chip{padding:8px 14px;border:none;border-radius:16px;background:var(--pill);color:var(--muted);cursor:pointer;font-size:11px;font-weight:700;letter-spacing:.04em;text-transform:uppercase;font-family:-apple-system, BlinkMacSystemFont, Helvetica Neue, sans-serif;box-shadow:0 2px 5px rgba(0,0,0,.20),inset 0 1px 0 rgba(255,255,255,.18);transition:background .15s,color .15s;}
   .filt-chip.on{background:var(--acc);color:#fff;box-shadow:0 3px 9px rgba(10,132,255,.45);}
   .filt-chip:active{opacity:.65;}
-  #cal-today{background:#fc4c02!important;color:#fff!important;box-shadow:0 3px 9px rgba(252,76,2,.45)!important;}
+  #cal-today{background:#c73e02!important;color:#fff!important;box-shadow:0 3px 9px rgba(199,62,2,.45)!important;}
 
   .brsearch{display:block;width:100%;box-sizing:border-box;padding:12px 14px;margin-bottom:10px;background:var(--s2);border:none;border-radius:14px;color:var(--text);font-size:.9rem;font-family:-apple-system, BlinkMacSystemFont, Helvetica Neue, sans-serif;-webkit-appearance:none;appearance:none;box-shadow:inset 0 1px 3px rgba(0,0,0,.18);}
   .brsearch:focus{outline:none;box-shadow:inset 0 1px 3px rgba(0,0,0,.18),0 0 0 2px var(--acc);}
@@ -2237,6 +2237,9 @@ const CURVE_POINTS = 80;
    Linear-resample to the fixed grid the rest of the Analyser assumes. */
 function resampleForceCurve(fc){
   if(!Array.isArray(fc) || fc.length < 2) return null;
+  /* The PM5 curve starts at its first sample above threshold, not at the
+     catch. Start it from 0 N, the same as the Metrics erg curve. */
+  if(fc[0] > 0) fc = [0].concat(fc);
   const n=fc.length, out=new Array(CURVE_POINTS);
   for(let p=0;p<CURVE_POINTS;p++){
     const x=p/(CURVE_POINTS-1)*(n-1);
@@ -6351,6 +6354,99 @@ function coachParseFn(name){
     name: nm
   };
 }
+/* A session JSON recorded on someone else's phone (a crew mate, a coach) made
+   into one of your own. Keeps the row data; drops what belonged to the phone
+   that recorded it - its heart rate, favourite, video links, Strava and
+   Concept2 uploads, coach hand-off - so none of it is passed off as yours. */
+function importCleanSession(raw) {
+  const s = Array.isArray(raw) ? raw[0] : raw;
+  if (!s || typeof s !== 'object' || s.type === 'BoatRunCoachSession') throw new Error('not a BoatRun session file');
+  const st = +s.startTime;
+  if (!(st > 1e12) || !Array.isArray(s.strokes) || !s.strokes.length) throw new Error('not a BoatRun session file (use JSON EXPORT in the BoatRun app)');
+  const o = JSON.parse(JSON.stringify(s));
+  o.id = String(st);
+  ['fav', '_stub', 'hrTrace', 'hrZones', 'hasHr', 'vidSync', 'c2Id', 'c2Site', 'c2At', 'coachName'].forEach(k => { delete o[k]; });
+  o.coachSeen = false;
+  o.noStrava = true;
+  o.noC2 = true;
+  o.imported = { at: Date.now(), build: o.appBuild || null };
+  return o;
+}
+/* Same filename Metrics gives a session (formatSessionFilename), so the phone
+   and the Analyser read the import exactly like one recorded on this phone. */
+function impErgWork(s) {
+  const e = (s && s.erg) || {}, iv = e.intervals || [];
+  let t = 0, d = 0;
+  for (const r of iv) { t += (r.time || 0); d += (r.dist || 0); }
+  const rest = iv.some(r => (r.restTime || 0) > 0 || (r.restDist || 0) > 0);
+  let wt = e.workTime > 0 ? e.workTime : (s.duration || 0), wd = s.distance || e.workDistance || 0;
+  if (rest) { if (t > 0 && Math.abs(wt - t) > 5) wt = t; if (d > 0 && Math.abs(wd - d) > 30) wd = d; }
+  return { t: wt, d: wd };
+}
+function impSessionFilename(s) {
+  const d = new Date(+s.startTime), p = n => String(n).padStart(2, '0');
+  const base = 'RowSess_' + d.getFullYear() + '-' + p(d.getMonth() + 1) + '-' + p(d.getDate()) + '_' + p(d.getHours()) + p(d.getMinutes());
+  if (s.distance == null || s.duration == null) return base + '.json';
+  const ew = s.sessionMode === 'erg' ? impErgWork(s) : null;
+  const dur = Math.round(ew ? ew.t : s.duration);
+  let x = '';
+  if (s.strokeCount) x += '_' + s.strokeCount + 'str';
+  if (s.detectedAxis) x += '_AX' + String(s.detectedAxis).toUpperCase();
+  if (s.workoutName) { x += '_WKT' + String(s.workoutName).replace(/\s+/g, '-').replace(/[^a-zA-Z0-9\-]/g, '').slice(0, 24); const w = encSessName(s.workoutName); if (w) x += '_WN' + w; }
+  if (s.name) { const n = encSessName(s.name); if (n) x += '_NM' + n; }
+  if (s.squadCode) x += '_SQ' + String(s.squadCode).replace(/[^A-Z0-9]/g, '').slice(0, 8);
+  if (s.boatType && s.sessionMode !== 'erg') {
+    const bt = String(s.boatType).replace('x', 'X').replace('-', 'M').replace('+', 'P');
+    if (/^[1248][XMP]$/.test(bt)) { x += '_BT' + bt; if (s.boatMixed && s.boatType !== '1x') x += '_MIX'; if (s.boatCoastal) x += '_CST'; }
+  }
+  if (s.sessionMode === 'erg') x += '_ERG';
+  return base + '_' + Math.round(ew ? ew.d : s.distance) + 'm_' + p(Math.floor(dur / 3600)) + 'h' + p(Math.floor((dur % 3600) / 60)) + 'm' + p(dur % 60) + 's' + x + '.json';
+}
+/* Import to my sessions: session JSON files exported from a crew mate's
+   BoatRun app are uploaded to your own Drive, where Metrics picks them up on
+   its next sync. A session already in your sessions is skipped. */
+function importOwnSessionsPick() {
+  if (!AnalyserDrive.isSignedIn()) { toast('Link Google Drive first'); return; }
+  const inp = document.createElement('input');
+  inp.type = 'file'; inp.accept = '.json,application/json'; inp.multiple = true; inp.style.display = 'none';
+  document.body.appendChild(inp);
+  inp.onchange = async () => {
+    const files = [...(inp.files || [])]; inp.remove();
+    if (!files.length) return;
+    let have = [];
+    try { AnalyserDrive._invalidateFolder(); have = await AnalyserDrive._listFolder(); }
+    catch (e) { if (!driveAuthExpired(e)) toast('Could not read Drive: ' + e.message); return; }
+    const sids = new Set(have.filter(f => f.appProperties && f.appProperties.sid).map(f => String(f.appProperties.sid)));
+    let ok = 0, dup = 0, bad = 0, lastErr = '';
+    for (const f of files) {
+      let s;
+      try { s = importCleanSession(JSON.parse(await f.text())); }
+      catch (e) { bad++; lastErr = f.name + ': ' + e.message; continue; }
+      if (sids.has(s.id)) { dup++; continue; }
+      toast('Importing ' + (ok + dup + bad + 1) + '/' + files.length + '…', 8000);
+      try {
+        const meta = { name: impSessionFilename(s), description: (s.note && String(s.note).trim()) ? String(s.note).slice(0, 2000) : ' ', appProperties: { sid: s.id }, mimeType: 'application/json', parents: ['appDataFolder'] };
+        const form = new FormData();
+        form.append('metadata', new Blob([JSON.stringify(meta)], { type: 'application/json' }));
+        form.append('file', new Blob([JSON.stringify(s)], { type: 'application/json' }));
+        const r = await AnalyserDrive._api('https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart&fields=id', { method: 'POST', body: form }, 'Import', 60000);
+        AnalyserDrive._ok(r, 'Import');
+        const { id } = await r.json();
+        sids.add(s.id); ok++;
+        try {
+          const d = sessionToAnalyserFmt(JSON.parse(JSON.stringify(s)));
+          const lbl = s.name || meta.name.replace('RowSess_', '').replace('.json', '');
+          updateRecords(recordsTrace(d), lbl, d.sum && d.sum.start_time, id, s.sessionMode === 'erg' ? 'erg' : 'water');
+          updateSectorsFromData(d, lbl, id);
+        } catch (e) {}
+      } catch (e) { if (driveAuthExpired(e)) return; bad++; lastErr = f.name + ': ' + e.message; }
+    }
+    AnalyserDrive._invalidateFolder();
+    toast((ok ? 'Imported ' + ok + ' session' + (ok === 1 ? '' : 's') : 'Nothing imported') + (dup ? ' · ' + dup + ' already yours' : '') + (bad ? ' · ' + bad + ' failed' + (bad === 1 ? ' (' + lastErr + ')' : '') : ''), 6000);
+    if (ok) showStartup();
+  };
+  inp.click();
+}
 async function loadCoachSessions(){
   if(!AnalyserDrive.isSignedIn()){ toast('Connect Google Drive first'); return; }
   toast('Fetching coach sessions\u2026');
@@ -10225,6 +10321,7 @@ async function showStartup(){
       <button class="dzbtn dzbtn-sec" id="sz-coach"><img src="icons/Import.svg"><span>Coach Sessions</span></button>
       <button class="dzbtn dzbtn-sec" id="sz-squad"><img src="icons/Import.svg"><span>From Squad</span></button>
       <button class="dzbtn dzbtn-sec" id="sz-openfile"><img src="icons/Open.svg"><span>Open file</span></button>
+      <button class="dzbtn dzbtn-sec" id="sz-import" title="Add a session JSON someone else recorded for you to your own sessions"><img src="icons/Import.svg"><span>Import to my sessions</span></button>
       <button class="dzbtn dzbtn-sec" id="sz-demo"><span>Demo session</span></button>
       ${(localStorage.getItem('_ad_legacy_done') === '1' || localStorage.getItem('_ad_legacy_empty') === '1') ? '' : '<button class="dzbtn dzbtn-sec" id="sz-oldacct"><span>Import old sessions</span></button>'}
     </div>
@@ -10250,6 +10347,7 @@ async function showStartup(){
   document.getElementById('sz-trends').onclick=showTrendsModal;
   document.getElementById('sz-squad').onclick=loadFromSquad;
   document.getElementById('sz-openfile').onclick=()=>document.getElementById('fin').click();
+  document.getElementById('sz-import').onclick=importOwnSessionsPick;
   document.getElementById('sz-demo').onclick=()=>{ location.href = location.pathname + '?demo=demo1'; };
   const _backBtn=document.getElementById('sz-back'); if(_backBtn) _backBtn.onclick=()=>{el.style.display='none';el.innerHTML='';document.getElementById('app').style.display='block';document.getElementById('summarybtn').style.display='';};
   leaveSquadCalendar(true);
@@ -16286,12 +16384,12 @@ body{font-size:14px;}
   background:#fff;color:var(--bc,#007aff);border:2px solid var(--bc,#007aff);border-radius:14px;
   font-weight:800;letter-spacing:.03em;text-transform:uppercase;box-shadow:0 1px 3px rgba(0,0,0,.18);}
 .brpill-row .dzbtn-sec span,.sz-prompt .dzbtn-sec span{color:inherit;text-transform:uppercase;font-weight:800;}
-#sz-cal .filt-chip[data-pv="today"]{--bc:#fc4c02;}
+#sz-cal .filt-chip[data-pv="today"]{--bc:#c73e02;}
 .brpill-row .dzbtn-sec:hover,#sz-sectors .hbtn:hover,#sz-nav .hbtn:hover,.sec-hd .hbtn:hover,#sz-cal .filt-chip:hover,.sz-prompt .dzbtn-sec:hover{
   background:var(--bc,#007aff);color:#fff;border-color:var(--bc,#007aff);}
 .brpill-row .dzbtn-sec:hover img,.sz-prompt .dzbtn-sec:hover img{filter:brightness(0) invert(1);}
 .brpill-row .dzbtn-pri{background:var(--acc-g);color:#fff;border:2px solid var(--acc-g);font-weight:800;letter-spacing:.03em;text-transform:uppercase;}
-#sz-coach{--bc:#fc4c02;} #sz-squad{--bc:#27ae60;} #sz-openfile{--bc:#007aff;} #sz-demo{--bc:#8e44ad;} #sz-oldacct{--bc:#636366;}
+#sz-coach{--bc:#fc4c02;} #sz-squad{--bc:#27ae60;} #sz-import{--bc:#27ae60;} #sz-openfile{--bc:#007aff;} #sz-demo{--bc:#8e44ad;} #sz-oldacct{--bc:#636366;}
 #sz-sectors .hbtn{--bc:#c0392b;}
 #sz-nav .hbtn{--bc:#fc4c02;}
 #sz-cal .filt-chip{--bc:#007aff;}
@@ -16306,10 +16404,10 @@ body{font-size:14px;}
 #tplbtn:hover,#tplloadbtn:hover,#tplfocusclose:hover{background:#8e44ad;color:#fff;}
 .zoom-btn{background:#fff;color:#007aff;border:2px solid #007aff;font-weight:800;}
 .zoom-btn:hover{background:#007aff;color:#fff;border:2px solid #007aff;}
-.sz-del,#sz-calday .sz-del,#sz-cal .sz-del{background:#ff3b30;border:none;color:#fff;}
+.sz-del,#sz-calday .sz-del,#sz-cal .sz-del{background:#b3261e;border:none;color:#fff;}
 .sz-del img{filter:brightness(0) invert(1);}
 /* Favourite stars: plain star, no button edge; grey off, orange on. */
 .asc-fav,#sz-calday .asc-fav,#sz-cal .asc-fav{background:none!important;border:none!important;box-shadow:none!important;color:#c7c7cc!important;text-transform:none;}
 .asc-fav.on,#sz-calday .asc-fav.on,#sz-cal .asc-fav.on{color:#fc4c02!important;}
-.sz-signout{color:#ff3b30;font-weight:700;}
+.sz-signout{color:#b3261e;font-weight:700;}
 </style>
