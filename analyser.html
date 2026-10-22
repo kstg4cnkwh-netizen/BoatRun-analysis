@@ -856,7 +856,7 @@ body.light .hdrname{color:#fff;}
     <div class="ms-pill secpill" id="paneMap" data-pane="paneMap"><div class="pane-grip" title="Drag to move this pane"><span></span></div>
     <div class="map-col">
       <div id="mapsec" style="display:none;">
-        <div class="sec-hd" style="padding:0 0 4px;"><h2>Route Map</h2><span id="maplbl" style="font-size:10px;color:var(--muted);"></span><span style="margin-left:auto;display:flex;gap:6px;align-items:center;"><button class="hbtn" id="mapSecBtn" style="font-size:10px;display:none;" onclick="window.toggleSectorsHidden()" title="Show or hide sectors on the map">Sectors</button><button class="hbtn" id="mapHazBtn" style="font-size:10px;display:none;" onclick="window.toggleHazardsHidden()" title="Show or hide hazards on the map">Hazards</button><button class="hbtn" id="mapSizeBtn" style="font-size:10px;" onclick="window.toggleMapSize()">Larger ⤢</button></span></div>
+        <div class="sec-hd" style="padding:0 0 4px;"><h2>Route Map</h2><span id="maplbl" style="font-size:10px;color:var(--muted);"></span><span style="margin-left:auto;display:flex;gap:6px;align-items:center;"><button class="hbtn" id="mapSecBtn" style="font-size:10px;display:none;" onclick="window.toggleSectorsHidden()" title="Show or hide sectors on the map">Sectors</button><button class="hbtn" id="mapHazBtn" style="font-size:10px;display:none;" onclick="window.toggleHazardsHidden()" title="Show or hide hazards on the map">Hazards</button><button class="hbtn" id="mapLaneBtn" style="font-size:10px;display:none;" onclick="window.toggleLanesHidden()" title="Show or hide lanes and dividers on the map">Lanes</button><button class="hbtn" id="mapSizeBtn" style="font-size:10px;" onclick="window.toggleMapSize()">Larger ⤢</button></span></div>
         <div id="mapbox"></div>
       </div>
     </div>
@@ -3569,13 +3569,21 @@ function updateSectorsFromData(d,label,fileId,onlyId){
 }
 let _sectorsHidden=(()=>{try{return localStorage.getItem('br_map_hide_sec')==='1';}catch{return false;}})();
 let _hazardsHidden=(()=>{try{return localStorage.getItem('br_map_hide_haz')==='1';}catch{return false;}})();
+let _lanesHidden=(()=>{try{return localStorage.getItem('br_map_hide_lane')!=='0';}catch{return true;}})();
+window.toggleLanesHidden=function(){
+  _lanesHidden=!_lanesHidden;
+  try{localStorage.setItem('br_map_hide_lane',_lanesHidden?'1':'0');}catch{}
+  try{drawRouteHazards();}catch(e){}
+  mapLayerBtnsUpdate();
+};
 /* Route Map header: Sectors and Hazards toggles. Filled = shown on the map. */
 function mapLayerBtnsUpdate(){
-  const sb=document.getElementById('mapSecBtn'), hb=document.getElementById('mapHazBtn');
+  const sb=document.getElementById('mapSecBtn'), hb=document.getElementById('mapHazBtn'), lb=document.getElementById('mapLaneBtn');
   const pro=isPro();
-  const paint=(b,on,col)=>{if(!b)return;b.style.display=pro?'':'none';b.style.background=on?col:'';b.style.color=on?'#000':'';b.style.borderColor=on?col:'';b.style.fontWeight=on?'700':'';b.textContent=(on?'\u2713 ':'')+(b===sb?'Sectors':'Hazards');};
+  const paint=(b,on,col)=>{if(!b)return;b.style.display=pro?'':'none';b.style.background=on?col:'';b.style.color=on?'#000':'';b.style.borderColor=on?col:'';b.style.fontWeight=on?'700':'';b.textContent=(on?'\u2713 ':'')+(b===sb?'Sectors':b===lb?'Lanes':'Hazards');};
   paint(sb,!_sectorsHidden,'#ffb020');
   paint(hb,!_hazardsHidden,'#ff9500');
+  paint(lb,!_lanesHidden,'#ffd60a');
 }
 window.toggleHazardsHidden=function(){
   _hazardsHidden=!_hazardsHidden;
@@ -4463,10 +4471,30 @@ function drawRouteHazards(){
   if(_routeHazLayer&&leafletMap.hasLayer(_routeHazLayer))_routeHazLayer.clearLayers();
   else _routeHazLayer=L.layerGroup().addTo(leafletMap);
   try{mapLayerBtnsUpdate();}catch(e){}
-  if(_hazardsHidden)return;
   const box=mapBaseLine.getBounds().pad(0.5);
+  const allNav=navLive().concat(...navClubsLive().filter(c=>!c.gone).map(navClubLines));
+  /* Lanes (yellow, with direction arrows) and dividers (red), under the hazards. */
+  if(!_lanesHidden){
+    const seenL=new Set();
+    allNav.forEach(l=>{
+      const m=navMode(l);
+      if(m==='hazard'||seenL.has(l.id))return;
+      seenL.add(l.id);
+      if(!l.pts.some(p=>box.contains(p)))return;
+      const col=navColor(l), nm=(l.name||NAV_LBL[m])+' \u00b7 '+NAV_LBL[m];
+      L.polyline(l.pts,{color:'#000',weight:7,opacity:0.4,interactive:false}).addTo(_routeHazLayer);
+      L.polyline(l.pts,{color:col,weight:3.5,opacity:1}).bindTooltip(nm).addTo(_routeHazLayer);
+      if(m==='lane')for(let i=1;i<l.pts.length;i++){
+        const a=l.pts[i-1],b=l.pts[i],xy=sectorXY(b[0],b[1],{lat:a[0],lon:a[1]});
+        if(Math.hypot(xy[0],xy[1])<15)continue;
+        const r=(Math.atan2(xy[0],xy[1])*180/Math.PI+360)%360;
+        L.marker([(a[0]+b[0])/2,(a[1]+b[1])/2],{interactive:false,keyboard:false,icon:L.divIcon({html:'<div style="transform:rotate('+r+'deg);font:900 16px -apple-system,sans-serif;color:#000;text-shadow:0 0 3px '+col+',0 0 3px '+col+';line-height:16px;text-align:center;width:16px;">\u25B2</div>',iconSize:[16,16],iconAnchor:[8,8],className:''})}).addTo(_routeHazLayer);
+      }
+    });
+  }
+  if(_hazardsHidden)return;
   const seen=new Set();
-  navLive().concat(...navClubsLive().filter(c=>!c.gone).map(navClubLines)).forEach(l=>{
+  allNav.forEach(l=>{
     if(navMode(l)!=='hazard'||seen.has(l.id))return;
     seen.add(l.id);
     if(!l.pts.some(p=>box.contains(p)))return;
