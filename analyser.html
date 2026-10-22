@@ -1104,7 +1104,7 @@ function decSessName(t) {
     return new TextDecoder().decode(bytes);
   } catch { return ''; }
 }
-/* Boat type, from Metrics' filename marker _BT1X/2M/2X/4P/4M/4X/8P (+ _MIX). */
+/* Boat type, from Metrics' filename marker _BT1X/2M/2X/4P/4M/4X/8P (+ _MIX mixed crew, _CST coastal). */
 const BOAT_ORDER = ['1x', '2-', '2x', '4+', '4-', '4x', '8+'];
 function boatFromFilename(n) {
   const m = String(n || '').match(/_BT([1248])([XMP])(?=_|\.)/);
@@ -1113,13 +1113,23 @@ function boatFromFilename(n) {
   return BOAT_ORDER.includes(t) ? t : null;
 }
 function boatMixedFromFilename(n) { return /_MIX(?=_|\.)/.test(String(n || '')); }
-function boatLabel(t, mixed) { return t ? t + (mixed && t !== '1x' ? ' \u00b7 Mixed' : '') : ''; }
+function boatCoastalFromFilename(n) { return /_CST(?=_|\.)/.test(String(n || '')); }
+/* Boat dropdown for the session pickers: '' = all, 'none' = no boat set,
+   'mixed' / 'coastal' = any boat with that flag. */
+function boatFilterSelect(id, val) {
+  return '<select id="' + id + '" title="Show one boat type" style="font-size:11px;font-weight:800;">'
+    + [['', 'All boats']].concat(BOAT_ORDER.map(t => [t, t]), [['mixed', 'Mixed'], ['coastal', 'Coastal'], ['none', 'No boat']])
+      .map(o => '<option value="' + o[0] + '"' + (o[0] === (val || '') ? ' selected' : '') + '>' + o[1] + '</option>').join('')
+    + '</select>';
+}
+function boatFilterOk(bf, boat, mixed, coastal) { return !bf || (bf === 'none' ? !boat : bf === 'mixed' ? !!(boat && boat !== '1x' && mixed) : bf === 'coastal' ? !!(boat && coastal) : boat === bf); }
+function boatLabel(t, mixed, coastal) { return t ? t + (mixed && t !== '1x' ? ' \u00b7 Mixed' : '') + (coastal ? ' \u00b7 Coastal' : '') : ''; }
 /* Sort key: the order above, mixed straight after the same boat. No boat = null. */
 function boatRank(t, mixed) { const i = BOAT_ORDER.indexOf(t); return i < 0 ? null : i * 2 + (mixed ? 1 : 0); }
 /* The filename with its boat marker replaced (no bt = marker removed). */
-function boatNameWith(name, bt, mixed) {
-  let n = String(name || '').replace(/_BT[1248][XMP](?=_|\.)/g, '').replace(/_MIX(?=_|\.)/g, '');
-  if (bt && BOAT_ORDER.includes(bt)) n = n.replace(/\.json$/, '_BT' + bt.replace('x', 'X').replace('-', 'M').replace('+', 'P') + (mixed && bt !== '1x' ? '_MIX' : '') + '.json');
+function boatNameWith(name, bt, mixed, coastal) {
+  let n = String(name || '').replace(/_BT[1248][XMP](?=_|\.)/g, '').replace(/_MIX(?=_|\.)/g, '').replace(/_CST(?=_|\.)/g, '');
+  if (bt && BOAT_ORDER.includes(bt)) n = n.replace(/\.json$/, '_BT' + bt.replace('x', 'X').replace('-', 'M').replace('+', 'P') + (mixed && bt !== '1x' ? '_MIX' : '') + (coastal ? '_CST' : '') + '.json');
   return n;
 }
 /* Latest known Drive filename per file id, so the header can show a boat that
@@ -1128,7 +1138,7 @@ const _fidNames = {};
 function boatOfFid(fid) {
   let n = _fidNames[fid];
   if (!n) { try { const f = (AnalyserDrive.cachedList('RowSess_') || []).find(x => x.id === fid); if (f) n = f.name; } catch (e) {} }
-  return n ? { t: boatFromFilename(n), m: boatMixedFromFilename(n) } : null;
+  return n ? { t: boatFromFilename(n), m: boatMixedFromFilename(n), c: boatCoastalFromFilename(n) } : null;
 }
 function nameFromFilename(n) {
   const s = String(n || '');
@@ -1520,15 +1530,16 @@ const AnalyserDrive = {
     this._invalidateFolder();
   },
   /* Boat type: written to the body and to the filename marker together. */
-  async patchBoat(fileId, bt, mixed) {
+  async patchBoat(fileId, bt, mixed, coastal) {
     this._check();
     const mResp = await this._api(`https://www.googleapis.com/drive/v3/files/${fileId}?fields=name`, {}, 'Boat', null, fileId);
     this._ok(mResp, 'Boat');
     const { name } = await mResp.json();
-    const newName = boatNameWith(name, bt, mixed);
+    const newName = boatNameWith(name, bt, mixed, coastal);
     const content = await this.fetchSession(fileId);
     content.boatType = bt;
     if (mixed && bt !== '1x') content.boatMixed = true; else delete content.boatMixed;
+    if (coastal) content.boatCoastal = true; else delete content.boatCoastal;
     const form = new FormData();
     form.append('metadata', new Blob([JSON.stringify({ name: newName })], { type: 'application/json' }));
     form.append('file', new Blob([JSON.stringify(content)], { type: 'application/json' }));
@@ -1543,9 +1554,9 @@ const AnalyserDrive = {
   /* Filename only - one small request per session, for tagging many old
      sessions at once. Metrics and the Analyser both read the boat back from
      the filename, the same way a favourite works. */
-  async renameBoat(fileId, name, bt, mixed) {
+  async renameBoat(fileId, name, bt, mixed, coastal) {
     this._check();
-    const newName = boatNameWith(name, bt, mixed);
+    const newName = boatNameWith(name, bt, mixed, coastal);
     if (newName === name) return name;
     const r = await this._api(`https://www.googleapis.com/drive/v3/files/${fileId}?fields=id,name`, {
       method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ name: newName })
@@ -2596,6 +2607,7 @@ function sessionToAnalyserFmt(s) {
     session_mode: s.sessionMode || 'water', erg: s.erg || null,
     boat_type: (s.sessionMode !== 'erg' && BOAT_ORDER.includes(s.boatType)) ? s.boatType : null,
     boat_mixed: !!(s.sessionMode !== 'erg' && s.boatMixed && s.boatType && s.boatType !== '1x'),
+    boat_coastal: !!(s.sessionMode !== 'erg' && s.boatCoastal && s.boatType),
   };
   const num = v => (v!=null&&!isNaN(+v)) ? +v : NaN;
   const t0 = s.startTime;
@@ -6079,6 +6091,7 @@ async function showAddComparePicker() {
                     return {
                         boat: boatFromFilename(name),
                         mixed: boatMixedFromFilename(name),
+                        coastal: boatCoastalFromFilename(name),
                         distM: dist ? parseInt(dist[1]) : null,
                         durS: dur ? +dur[1]*3600 + +dur[2]*60 + +dur[3] : null,
                         name: nm,
@@ -6186,7 +6199,7 @@ async function showAddComparePicker() {
                         btn.style.marginBottom = '0';
                         if (name) { const nd=document.createElement('div');nd.style.cssText='font-weight:700;font-size:.85rem;color:var(--text);margin-bottom:2px;';nd.textContent=name;btn.appendChild(nd); }
                         const dd = document.createElement('div'); dd.className='asc-date';
-                        dd.innerHTML = '<span>' + dateStr + '</span>' + (p.boat ? '<span class="asc-badge">' + boatLabel(p.boat, p.mixed) + '</span>' : '');
+                        dd.innerHTML = '<span>' + dateStr + '</span>' + (p.boat ? '<span class="asc-badge">' + boatLabel(p.boat, p.mixed, p.coastal) + '</span>' : '');
                         btn.appendChild(dd);
                         const sd = document.createElement('div'); sd.className='asc-stats';
                         if(distM!=null)sd.innerHTML+='<div><span class="asc-v">'+(p.erg?Math.round(distM):(distM/1000).toFixed(2))+'</span><span class="asc-l">'+(p.erg?'m':'km')+'</span></div>';
@@ -6715,14 +6728,12 @@ function showDrivePicker(files, onSelect) {
   searchBox.autocomplete='off';
   searchBox.style.cssText='display:block;width:100%;box-sizing:border-box;padding:10px 12px;margin-bottom:12px;background:var(--s2);border:1px solid var(--border);border-radius:6px;color:var(--text);font-size:.9rem;font-family:-apple-system, BlinkMacSystemFont, Helvetica Neue, sans-serif;';
   panel.appendChild(searchBox);
-  /* Boat sort: 1x first, then 8+ first, then back to favourites-first. */
-  let pickBoatSort=null;
+  /* Boat dropdown: show one boat type only. */
+  let pickBoatF='';
   const pickBar=document.createElement('div');
   pickBar.style.cssText='display:flex;gap:6px;flex-wrap:wrap;margin:-4px 0 10px;';
-  const pickBoatBtn=document.createElement('button');
-  pickBoatBtn.className='filt-chip';pickBoatBtn.textContent='Boat';
-  pickBoatBtn.onclick=()=>{pickBoatSort=pickBoatSort===null?'asc':pickBoatSort==='asc'?'desc':null;renderList();};
-  pickBar.appendChild(pickBoatBtn);
+  pickBar.innerHTML=boatFilterSelect('pick-boat-f','');
+  pickBar.firstChild.onchange=e=>{pickBoatF=e.target.value;renderList();};
   panel.appendChild(pickBar);
 
   let fileList=[...files];
@@ -6743,6 +6754,7 @@ function showDrivePicker(files, onSelect) {
     return {
       boat: boatFromFilename(name),
       mixed: boatMixedFromFilename(name),
+      coastal: boatCoastalFromFilename(name),
       distM: dist?parseInt(dist[1]):null,
       durS: dur?+dur[1]*3600+ +dur[2]*60+ +dur[3]:null,
       strokes: str?parseInt(str[1]):null,
@@ -6759,15 +6771,7 @@ function showDrivePicker(files, onSelect) {
     [...panel.querySelectorAll('.drive-file-row')].forEach(el=>el.remove());
     const cancel=panel.querySelector('.drive-cancel-btn');
     const q=searchQuery;
-    pickBoatBtn.textContent='Boat'+(pickBoatSort?(pickBoatSort==='asc'?' ▲':' ▼'):'');
-    pickBoatBtn.className='filt-chip'+(pickBoatSort?' on':'');
-    const sorted=[...fileList].sort((a,b)=>{
-      if(pickBoatSort){
-        const pa=parseFn(a.name),pb=parseFn(b.name);
-        const ra=boatRank(pa.boat,pa.mixed),rb=boatRank(pb.boat,pb.mixed);
-        if(ra!==rb){if(ra==null)return 1;if(rb==null)return -1;return pickBoatSort==='asc'?ra-rb:rb-ra;}
-        return (pb.approxTs||0)-(pa.approxTs||0);
-      }
+    const sorted=[...fileList].filter(f=>{const p=parseFn(f.name);return boatFilterOk(pickBoatF,p.boat,p.mixed,p.coastal);}).sort((a,b)=>{
       const fa=parseFn(a.name).favourite?1:0, fb=parseFn(b.name).favourite?1:0;
       return fb-fa;
     });
@@ -6816,7 +6820,7 @@ function showDrivePicker(files, onSelect) {
       const dateDiv=document.createElement('div');
       dateDiv.className='asc-date';
       dateDiv.innerHTML='<span>'+dateStr+'</span>'
-        +(p.boat?'<span class="asc-badge">'+boatLabel(p.boat,p.mixed)+'</span>':'')
+        +(p.boat?'<span class="asc-badge">'+boatLabel(p.boat,p.mixed,p.coastal)+'</span>':'')
         +(p.squadCode?'<span class="asc-badge">'+p.squadCode+'</span>':'')
         
         +(p.workout?'<span class="asc-badge asc-wkt">'+_secEsc(p.workout)+'</span>':'')
@@ -6934,12 +6938,12 @@ function buildMeta(fname,sum) {
   const safe=fname.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
   const sq=SESSIONS[activeSessionIdx]?.squadCode;
   const sqBadge=sq?' <span style="font-size:8px;background:var(--s3);border:1px solid var(--border);border-radius:3px;padding:1px 5px;color:var(--b);letter-spacing:.07em;vertical-align:middle;">'+sq+'</span>':'';
-  let bt=sum&&sum.boat_type, bm=!!(sum&&sum.boat_mixed);
+  let bt=sum&&sum.boat_type, bm=!!(sum&&sum.boat_mixed), bc=!!(sum&&sum.boat_coastal);
   const _cs=SESSIONS[activeSessionIdx];
-  if(!bt&&_cs&&_cs.fileId){const o=boatOfFid(_cs.fileId);if(o&&o.t){bt=o.t;bm=o.m;}}
+  if(!bt&&_cs&&_cs.fileId){const o=boatOfFid(_cs.fileId);if(o&&o.t){bt=o.t;bm=o.m;bc=o.c;}}
   const _canBoat=!!(_cs&&_cs.fileId&&!_cs.squadCode&&!(sum&&sum.session_mode==='erg'));
   const btBadge=bt
-    ?' <span title="Boat type'+(_canBoat?' \u2013 tap to change':'')+'"'+(_canBoat?' onclick="editSessionBoat()"':'')+' style="'+(_canBoat?'cursor:pointer;':'')+'font-size:12px;font-weight:800;background:#fff;border-radius:4px;padding:1px 7px;color:#1a5276;letter-spacing:.04em;vertical-align:middle;">'+boatLabel(bt,bm)+'</span>'
+    ?' <span title="Boat type'+(_canBoat?' \u2013 tap to change':'')+'"'+(_canBoat?' onclick="editSessionBoat()"':'')+' style="'+(_canBoat?'cursor:pointer;':'')+'font-size:12px;font-weight:800;background:#fff;border-radius:4px;padding:1px 7px;color:#1a5276;letter-spacing:.04em;vertical-align:middle;">'+boatLabel(bt,bm,bc)+'</span>'
     :(_canBoat?' <span title="Set the boat type" onclick="editSessionBoat()" style="cursor:pointer;font-size:11px;font-weight:700;border:1px dashed rgba(255,255,255,.6);border-radius:4px;padding:1px 7px;color:rgba(255,255,255,.85);vertical-align:middle;">+ Boat</span>':'');
   document.getElementById('hdrmeta').innerHTML=
     '<span class="hdrname" style="cursor:pointer;border-bottom:1px dotted rgba(255,255,255,.5);font-size:19px;font-weight:700;" onclick="renameCurrentSession()" title="Tap to rename">'+safe+'</span>'
@@ -6947,8 +6951,8 @@ function buildMeta(fname,sum) {
     +'<div onclick="editSessionNote()" title="Tap to edit notes" style="cursor:pointer;margin-top:3px;font-size:12px;font-weight:400;line-height:1.35;white-space:pre-wrap;max-width:640px;color:'+(sum&&sum.note?'#ffe58a':'rgba(255,255,255,.55)')+';">'
     +(sum&&sum.note?'📝 '+String(sum.note).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'):'+ Add note')+'</div>';
 }
-/* Boat picker: resolves {t, m} or null. */
-function _boatPickModal(bt, mixed, title, note, okLabel) {
+/* Boat picker: resolves {t, m, c} (c = coastal) or null. */
+function _boatPickModal(bt, mixed, title, note, okLabel, coastal) {
   return new Promise(resolve => {
     document.getElementById('_boat_modal')?.remove();
     const ov = document.createElement('div'); ov.id = '_boat_modal';
@@ -6956,19 +6960,22 @@ function _boatPickModal(bt, mixed, title, note, okLabel) {
     const pn = document.createElement('div');
     pn.style.cssText = 'background:var(--s1);border:1px solid var(--border);border-radius:10px;padding:16px;width:min(92vw,440px);color:var(--text);font-family:-apple-system,BlinkMacSystemFont,Helvetica Neue,sans-serif;';
     ov.appendChild(pn); document.body.appendChild(ov);
-    let t = BOAT_ORDER.includes(bt) ? bt : '1x', m = !!mixed;
+    let t = BOAT_ORDER.includes(bt) ? bt : '1x', m = !!mixed, c = !!coastal;
     const done = v => { ov.remove(); resolve(v); };
     const draw = () => {
       pn.innerHTML = '<div style="font-size:1rem;font-weight:700;margin-bottom:6px;color:var(--b);">' + title + '</div>'
         + (note ? '<div style="font-size:12px;color:var(--muted);margin-bottom:10px;line-height:1.45;">' + note + '</div>' : '')
         + '<div style="display:flex;gap:6px;margin-bottom:10px;">' + BOAT_ORDER.map(x => '<button data-bt="' + x + '" class="filt-chip' + (x === t ? ' on' : '') + '" style="flex:1;min-width:0;padding:9px 0;text-transform:none;font-size:13px;">' + x + '</button>').join('') + '</div>'
-        + (t !== '1x' ? '<label style="display:flex;align-items:center;gap:8px;font-size:13px;margin-bottom:12px;cursor:pointer;"><input type="checkbox" id="_boat_mx"' + (m ? ' checked' : '') + '> Mixed crew</label>' : '')
+        + '<div style="display:flex;gap:18px;flex-wrap:wrap;margin-bottom:12px;">'
+        + (t !== '1x' ? '<label style="display:flex;align-items:center;gap:8px;font-size:13px;cursor:pointer;"><input type="checkbox" id="_boat_mx"' + (m ? ' checked' : '') + '> Mixed crew</label>' : '')
+        + '<label style="display:flex;align-items:center;gap:8px;font-size:13px;cursor:pointer;"><input type="checkbox" id="_boat_cs"' + (c ? ' checked' : '') + '> Coastal</label></div>'
         + '<div style="display:flex;gap:8px;"><button id="_boat_cancel" style="flex:1;padding:9px 0;background:var(--s2);border:1px solid var(--border);border-radius:6px;color:var(--text);cursor:pointer;font-family:inherit;">Cancel</button>'
         + '<button id="_boat_ok" style="flex:1;padding:9px 0;background:var(--b);border:1px solid var(--b);border-radius:6px;color:#000;font-weight:700;cursor:pointer;font-family:inherit;">' + (okLabel || 'Save') + '</button></div>';
       pn.querySelectorAll('[data-bt]').forEach(b => { b.onclick = () => { t = b.dataset.bt; draw(); }; });
       const mx = pn.querySelector('#_boat_mx'); if (mx) mx.onchange = () => { m = mx.checked; };
+      const cs = pn.querySelector('#_boat_cs'); if (cs) cs.onchange = () => { c = cs.checked; };
       pn.querySelector('#_boat_cancel').onclick = () => done(null);
-      pn.querySelector('#_boat_ok').onclick = () => done({ t, m: t !== '1x' && m });
+      pn.querySelector('#_boat_ok').onclick = () => done({ t, m: t !== '1x' && m, c });
     };
     ov.onclick = e => { if (e.target === ov) done(null); };
     draw();
@@ -6980,16 +6987,16 @@ function editSessionBoat(){
   const sess=SESSIONS[activeSessionIdx];
   if(!sess.fileId||sess.squadCode)return;
   const sum=(sess.d&&sess.d.sum)||_lastSum||{};
-  let bt=sum.boat_type,bm=!!sum.boat_mixed;
-  if(!bt){const o=boatOfFid(sess.fileId);if(o&&o.t){bt=o.t;bm=o.m;}}
-  _boatPickModal(bt||'1x',bm,'Boat type').then(r=>{
+  let bt=sum.boat_type,bm=!!sum.boat_mixed,bc=!!sum.boat_coastal;
+  if(!bt){const o=boatOfFid(sess.fileId);if(o&&o.t){bt=o.t;bm=o.m;bc=o.c;}}
+  _boatPickModal(bt||'1x',bm,'Boat type',null,null,bc).then(r=>{
     if(!r)return;
-    if(sess.d&&sess.d.sum){sess.d.sum.boat_type=r.t;sess.d.sum.boat_mixed=r.m;}
-    if(_lastSum){_lastSum.boat_type=r.t;_lastSum.boat_mixed=r.m;}
+    if(sess.d&&sess.d.sum){sess.d.sum.boat_type=r.t;sess.d.sum.boat_mixed=r.m;sess.d.sum.boat_coastal=r.c;}
+    if(_lastSum){_lastSum.boat_type=r.t;_lastSum.boat_mixed=r.m;_lastSum.boat_coastal=r.c;}
     buildMeta(sess.label,_lastSum);
     if(!AnalyserDrive.isSignedIn()){toast('Boat set here only \u2013 link Drive to save it');return;}
     toast('Saving boat type\u2026');
-    AnalyserDrive.patchBoat(sess.fileId,r.t,r.m)
+    AnalyserDrive.patchBoat(sess.fileId,r.t,r.m,r.c)
       .then(()=>toast('\u2714 Boat type saved to Drive'))
       .catch(e=>{if(!driveAuthExpired(e))toast('Drive save failed: '+e.message,3000);});
   });
@@ -10261,6 +10268,7 @@ async function showStartup(){
     let modeFilter='';
     let sortBy='date';
     let sortDir='desc';
+    let boatF='';
     let _szShown=[],_szTagBusy=false,_szTagStop=false,_szTagMode=false,_szTagSel=new Set();
     const _szTagOk=f=>{const p=parseFn(f.name);return !p.erg&&!p.squadCode&&!p.workout;};
     const _szTagChips=()=>{
@@ -10280,7 +10288,7 @@ async function showStartup(){
         +'<button id="sz-sort-date" class="filt-chip">Date</button>'
         +'<button id="sz-sort-dist" class="filt-chip">Distance</button>'
         +'<button id="sz-sort-time" class="filt-chip">Time</button>'
-        +'<button id="sz-sort-boat" class="filt-chip">Boat</button>'
+        +boatFilterSelect('sz-boat-f',boatF)
         +'<button id="sz-tag-boats" class="filt-chip" style="text-transform:none;" title="Pick sessions to set their boat type">Tag boats\u2026</button>'
         +'<button id="sz-tag-all" class="filt-chip" style="text-transform:none;display:none;">Select all</button>'
         +'<button id="sz-tag-apply" class="filt-chip" style="text-transform:none;display:none;background:#27ae60;color:#fff;">Set boat\u2026</button>';
@@ -10326,7 +10334,7 @@ async function showStartup(){
         const n=targets.length, f0=targets[0];
         const r=await _boatPickModal(boatFromFilename(f0.name)||'1x',boatMixedFromFilename(f0.name),'Set boat type',
           'Sets the boat for the '+n+' ticked session'+(n===1?'':'s')+'. Squad and workout sessions cannot be changed.',
-          'Set '+n+' session'+(n===1?'':'s'));
+          'Set '+n+' session'+(n===1?'':'s'),boatCoastalFromFilename(f0.name));
         if(!r)return;
         _szTagBusy=true;_szTagStop=false;
         let done=0,fail=0;
@@ -10337,7 +10345,7 @@ async function showStartup(){
           try{
             /* Untagged: filename only (quick). Already tagged: file body too,
                so the old boat inside the file never comes back. */
-            f.name=boatFromFilename(f.name)?await AnalyserDrive.patchBoat(f.id,r.t,r.m):await AnalyserDrive.renameBoat(f.id,f.name,r.t,r.m);
+            f.name=boatFromFilename(f.name)?await AnalyserDrive.patchBoat(f.id,r.t,r.m,r.c):await AnalyserDrive.renameBoat(f.id,f.name,r.t,r.m,r.c);
             _szTagSel.delete(f.id);
           }
           catch(e){if(driveAuthExpired(e))break;fail++;}
@@ -10348,15 +10356,10 @@ async function showStartup(){
         try{AnalyserDrive._invalidateFolder();}catch(e){}
         if(!fail&&!_szTagStop)_szTagMode=false;
         renderList();
-        toast('Set '+(done-fail)+' session'+(done-fail===1?'':'s')+' to '+boatLabel(r.t,r.m)+(fail?' · '+fail+' failed':'')+(_szTagStop?' · stopped':''),4000);
+        toast('Set '+(done-fail)+' session'+(done-fail===1?'':'s')+' to '+boatLabel(r.t,r.m,r.c)+(fail?' · '+fail+' failed':'')+(_szTagStop?' · stopped':''),4000);
       };
-      /* Boat: 1x first, then 8+ first, then back to date. */
-      document.getElementById('sz-sort-boat').onclick=()=>{
-        if(sortBy!=='boat'){sortBy='boat';sortDir='asc';}
-        else if(sortDir==='asc'){sortDir='desc';}
-        else {sortBy='date';sortDir='desc';}
-        renderList();
-      };
+      /* Boat dropdown: show one boat type only. */
+      document.getElementById('sz-boat-f').onchange=e=>{boatF=e.target.value;renderList();};
     }
     let sumMonthOff=0,sumWeekOff=0;
     function parseFn(name){
@@ -10373,6 +10376,7 @@ async function showStartup(){
       return {
         boat: boatFromFilename(name),
         mixed: boatMixedFromFilename(name),
+        coastal: boatCoastalFromFilename(name),
         distM: dist?parseInt(dist[1]):null,
         durS: dur?+dur[1]*3600+ +dur[2]*60+ +dur[3]:null,
         strokes: str?parseInt(str[1]):null,
@@ -10475,12 +10479,8 @@ async function showStartup(){
         timeBtn.textContent='Time'+(on?(sortDir==='desc'?' ▼':' ▲'):'');
         timeBtn.className='filt-chip'+(on?' on':'');
       }
-      const boatBtn=document.getElementById('sz-sort-boat');
-      if(boatBtn){
-        const on=sortBy==='boat';
-        boatBtn.textContent='Boat'+(on?(sortDir==='asc'?' ▲':' ▼'):'');
-        boatBtn.className='filt-chip'+(on?' on':'');
-      }
+      const boatSel=document.getElementById('sz-boat-f');
+      if(boatSel){boatSel.value=boatF;boatSel.style.background=boatF?'#007aff':'';boatSel.style.color=boatF?'#fff':'';}
       const tagBtn=document.getElementById('sz-tag-boats');
       if(tagBtn&&!_szTagBusy){tagBtn.textContent=_szTagMode?'\u2715 Done tagging':'Tag boats\u2026';tagBtn.className='filt-chip'+(_szTagMode?' on':'');}
       fileList.forEach(f=>{_fidNames[f.id]=f.name;});
@@ -10491,6 +10491,7 @@ async function showStartup(){
         if(favOnly&&!p.favourite) return false;
         if(modeFilter==='erg'&&!p.erg) return false;
         if(modeFilter==='water'&&p.erg) return false;
+        if(!boatFilterOk(boatF,p.boat,p.mixed,p.coastal)) return false;
         if(!q) return true;
         const hay=[p.name,f.name.replace(/_NM[A-Za-z0-9\-~]*/,''),p.squadCode,p.axis,p.workout].filter(Boolean).join(' ').toLowerCase();
         return hay.includes(q);
@@ -10560,7 +10561,7 @@ async function showStartup(){
         const dateDiv=document.createElement('div');
         dateDiv.className='asc-date';
         dateDiv.innerHTML='<span>'+dateStr+'</span>'
-          +(p.boat?'<span class="asc-badge">'+boatLabel(p.boat,p.mixed)+'</span>':'')
+          +(p.boat?'<span class="asc-badge">'+boatLabel(p.boat,p.mixed,p.coastal)+'</span>':'')
           +(p.squadCode?'<span class="asc-badge">'+p.squadCode+'</span>':'')
           
           +(p.workout?'<span class="asc-badge asc-wkt">'+_secEsc(p.workout)+'</span>':'')
@@ -10594,7 +10595,7 @@ async function showStartup(){
       if(!shown.length){
         const empty=document.createElement('div');
         empty.style.cssText='color:var(--muted);font-size:.85rem;padding:8px 0;';
-        empty.textContent=(q||favOnly||modeFilter)?'No sessions match your filters.':'No sessions on Drive.';
+        empty.textContent=(q||favOnly||modeFilter||boatF)?'No sessions match your filters.':'No sessions on Drive.';
         container.appendChild(empty);
       }
     }
@@ -11391,11 +11392,12 @@ async function showTrendsModal() {
   if (!alive()) return;
   const _ts = n => { const m = String(n).match(/RowSess_(\d{4})-(\d{2})-(\d{2})_(\d{2})(\d{2})/); return m ? new Date(+m[1], +m[2] - 1, +m[3], +m[4], +m[5]).getTime() : 0; };
   const water = files.filter(f => !/_ERG(?:_|\.)/.test(f.name)).map(f => {
-    const bt = boatFromFilename(f.name), mx = !!(bt && bt !== '1x' && boatMixedFromFilename(f.name));
-    return { f, ts: _ts(f.name), g: bt ? bt + (mx ? 'M' : '') : 'none' };
+    const bt = boatFromFilename(f.name), mx = !!(bt && bt !== '1x' && boatMixedFromFilename(f.name)), cs = !!(bt && boatCoastalFromFilename(f.name));
+    return { f, ts: _ts(f.name), g: bt ? bt + (mx ? 'M' : '') + (cs ? 'C' : '') : 'none' };
   });
-  const gLabel = g => g === 'none' ? 'Untagged' : boatLabel(g.replace(/M$/, ''), /M$/.test(g));
-  const gRank = g => { if (g === 'none') return 999; const m = /M$/.test(g); return boatRank(g.replace(/M$/, ''), m); };
+  const gBt = g => g.replace(/[MC]+$/, '');
+  const gLabel = g => g === 'none' ? 'Untagged' : boatLabel(gBt(g), /M/.test(g.slice(2)), /C$/.test(g));
+  const gRank = g => { if (g === 'none') return 999; return boatRank(gBt(g), /M/.test(g.slice(2))) + (/C$/.test(g) ? 100 : 0); };
   const gCount = {};
   water.forEach(w => { gCount[w.g] = (gCount[w.g] || 0) + 1; });
   const groups = Object.keys(gCount).sort((a, b) => gRank(a) - gRank(b));
