@@ -9461,6 +9461,86 @@ function groupBestPace(a){
   return arr.length?arrMin(arr):null;
 }
 
+/* ── CONSISTENCY ─────────────────────────────────────────────────────────────
+   How alike the recent stroke curves are. Each curve is resampled to the same
+   number of points and compared with the window's average curve; the RMS gap,
+   as a share of the average curve's height, is the stroke's error.
+   Score = 100 - mean error %. Breakdown, all stroke-to-stroke spread (SD):
+     effort    = curve peak, as % of the mean peak
+     character = where the peak lands, in % of the stroke (Stroke Char)
+     length    = erg stroke length, m                                      */
+const CONS_MIN_N = 6, CONS_PTS = 40;
+function consResample(a, n) {
+  if (!a || a.length < 5) return null;
+  const out = new Array(n);
+  for (let i = 0; i < n; i++) {
+    const t = i / (n - 1) * (a.length - 1), lo = Math.floor(t), hi = Math.min(lo + 1, a.length - 1), f = t - lo;
+    out[i] = (+a[lo]) * (1 - f) + (+a[hi]) * f;
+  }
+  return out.every(v => isFinite(v)) ? out : null;
+}
+function consSD(arr) {
+  const m = arr.reduce((a, b) => a + b, 0) / arr.length;
+  return Math.sqrt(arr.reduce((s, v) => s + (v - m) ** 2, 0) / arr.length);
+}
+/* items: [{c: curve array, ch: char % or null, len: stroke length m or null}] */
+function curveConsistency(items) {
+  const rows = [];
+  for (const o of items) {
+    const c = consResample(o.c, CONS_PTS);
+    if (!c) continue;
+    let pk = -Infinity; for (const v of o.c) if (+v > pk) pk = +v;
+    rows.push({ c, pk, ch: o.ch, len: o.len });
+  }
+  const n = rows.length;
+  if (n < CONS_MIN_N) return null;
+  const m = new Array(CONS_PTS).fill(0);
+  for (const o of rows) for (let i = 0; i < CONS_PTS; i++) m[i] += o.c[i] / n;
+  const range = Math.max(...m) - Math.min(...m);
+  if (!(range > 0)) return null;
+  let err = 0;
+  for (const o of rows) {
+    let s = 0; for (let i = 0; i < CONS_PTS; i++) s += (o.c[i] - m[i]) ** 2;
+    err += Math.sqrt(s / CONS_PTS) / range;
+  }
+  const score = Math.max(0, Math.min(100, 100 * (1 - err / n)));
+  const pks = rows.map(o => o.pk).filter(v => isFinite(v) && v > 0);
+  const pkM = pks.length ? pks.reduce((a, b) => a + b, 0) / pks.length : 0;
+  const effort = (pks.length >= CONS_MIN_N && pkM > 0) ? consSD(pks) / pkM * 100 : null;
+  const chs = rows.map(o => o.ch).filter(v => v != null && isFinite(v));
+  const character = chs.length >= CONS_MIN_N ? consSD(chs) : null;
+  const lens = rows.map(o => o.len).filter(v => v != null && isFinite(v) && v > 0);
+  const length = lens.length >= CONS_MIN_N ? consSD(lens) : null;
+  return { score, effort, character, length, n };
+}
+function consBand(score) { return score >= 92 ? 'g' : (score >= 85 ? 'w' : 'b'); }
+/* A curve group's consistency: the mean of rolling 10-stroke windows, so the
+   number matches what the Metrics tile showed while rowing. */
+const CONS_WIN = 10;
+function groupConsistency(g){
+  const a=g.strokes||[];
+  if(g._cons&&g._consN===a.length)return g._cons;
+  const items=[];
+  for(const s of a){
+    const fc=s.curveIsForce&&Array.isArray(s.forceCurve)&&s.forceCurve.length>=5;
+    const c=fc?[0].concat(s.forceCurve):s.curve;
+    if(!c||c.length<5)continue;
+    items.push({c,ch:isNaN(s.schar)?null:s.schar,len:(s.drivelength>0)?s.drivelength:null});
+  }
+  let out=null;
+  if(items.length>=CONS_MIN_N){
+    const W=Math.min(CONS_WIN,items.length),acc={score:[],effort:[],character:[],length:[]};
+    for(let i=0;i+W<=items.length;i++){
+      const r=curveConsistency(items.slice(i,i+W));
+      if(!r)continue;
+      for(const k in acc)if(r[k]!=null)acc[k].push(r[k]);
+    }
+    const mean=v=>v.length?v.reduce((x,y)=>x+y,0)/v.length:null;
+    if(acc.score.length)out={score:mean(acc.score),effort:mean(acc.effort),character:mean(acc.character),length:mean(acc.length)};
+  }
+  g._cons=out;g._consN=a.length;
+  return out;
+}
 function buildCurveStats(){
   // Build rows from canonical METRIC_DEFS order
   const rows=[
@@ -9513,6 +9593,13 @@ function buildCurveStats(){
       return Math.round(Math.min(100,pk/c.avgPeakF*100))+'%';
     }};
     if(_ix>=0)rows.splice(_ix+1,0,row);else rows.push(row);
+  }
+  {
+    const cc='var(--mc-impulse)';
+    rows.push({l:'Consistency',c:cc,fn:g=>{const c=groupConsistency(g);return c?Math.round(c.score)+'%':EM;}});
+    rows.push({l:' Effort ±',c:cc,fn:g=>{const c=groupConsistency(g);return c&&c.effort!=null?Math.round(c.effort)+'%':EM;}});
+    rows.push({l:' Character ±',c:cc,fn:g=>{const c=groupConsistency(g);return c&&c.character!=null?Math.round(c.character)+'%':EM;}});
+    if(curvesAreForce())rows.push({l:' Length ±',c:cc,fn:g=>{const c=groupConsistency(g);return c&&c.length!=null?c.length.toFixed(2)+' m':EM;}});
   }
   const thead=document.getElementById('curvethead');
   const tbody=document.getElementById('curvebody');
