@@ -2187,15 +2187,20 @@ function applySessionUnits(rawSession) {
   }
 }
 function isErgSession() { return !!(_lastSum && _lastSum.session_mode === 'erg'); }
-function fmtPaceU(s500) {
+/* Pace to one decimal of a second (1:52.3), the way the PM5 shows it. */
+function fmtPace1(s){if(!s||isNaN(s)||s<50||s>1200)return EM;const r=Math.round(s*10)/10;const m=Math.floor(r/60),sec=r-m*60;return m+':'+(sec<10?'0':'')+sec.toFixed(1);}
+/* Erg sessions show pace to 1 dp everywhere except chart axis labels
+   (whole=true), which stay on whole seconds. */
+function fmtPaceU(s500, whole) {
   if (!s500 || isNaN(s500) || s500 < 50 || s500 > 700) return EM;
+  const P = (!whole && isErgSession()) ? fmtPace1 : fmtPace;
   switch (unitSettings.paceUnit) {
-    case 'pace500':  return fmtPace(s500);
-    case 'pace1000': return fmtPace(s500 * 2);
-    case 'pacemile': return fmtPace(s500 * 3.21868);
+    case 'pace500':  return P(s500);
+    case 'pace1000': return P(s500 * 2);
+    case 'pacemile': return P(s500 * 3.21868);
     case 'kph':      return (1800 / s500).toFixed(1);
     case 'mph':      return (1118.47 / s500).toFixed(1);
-    default:         return fmtPace(s500);
+    default:         return P(s500);
   }
 }
 function paceULabel() {
@@ -6611,7 +6616,7 @@ function coachIntervalTable(sn){
       '<td style="padding:6px 8px;border-bottom:1px solid var(--border);">'+(r.n!=null?r.n:'\u2014')+'</td>'+
       '<td style="padding:6px 8px;border-bottom:1px solid var(--border);">'+(r.time!=null?fmtTime(r.time):'\u2014')+'</td>'+
       '<td style="padding:6px 8px;border-bottom:1px solid var(--border);">'+(r.dist!=null?Math.round(r.dist):'\u2014')+'</td>'+
-      '<td style="padding:6px 8px;border-bottom:1px solid var(--border);">'+(r.pace>0?fmtPace(r.pace):'\u2014')+'</td>'+
+      '<td style="padding:6px 8px;border-bottom:1px solid var(--border);">'+(r.pace>0?(erg?fmtPace1(r.pace):fmtPace(r.pace)):'\u2014')+'</td>'+
       '<td style="padding:6px 8px;border-bottom:1px solid var(--border);">'+(r.rate||'\u2014')+'</td>'+
       '<td style="padding:6px 8px;border-bottom:1px solid var(--border);">'+(r.power||'\u2014')+'</td>'+
       '<td style="padding:6px 8px;border-bottom:1px solid var(--border);">'+(r.hr||'\u2014')+'</td>'+
@@ -6622,7 +6627,7 @@ function coachIntervalTable(sn){
   const tot='<tr style="font-weight:800;"><td style="padding:6px 8px;border-top:2px solid var(--b);">'+(anyRest?'WORK':'TOTAL')+'</td><td style="border-top:2px solid var(--b);"></td>'+
     '<td style="padding:6px 8px;border-top:2px solid var(--b);">'+fmtTime(wT)+'</td>'+
     '<td style="padding:6px 8px;border-top:2px solid var(--b);">'+Math.round(wD)+'</td>'+
-    '<td style="padding:6px 8px;border-top:2px solid var(--b);">'+(wPace>0?fmtPace(wPace):'\u2014')+'</td>'+
+    '<td style="padding:6px 8px;border-top:2px solid var(--b);">'+(wPace>0?(erg?fmtPace1(wPace):fmtPace(wPace)):'\u2014')+'</td>'+
     '<td colspan="3" style="border-top:2px solid var(--b);"></td></tr>'+
     (anyRest?('<tr style="color:var(--muted);"><td style="padding:6px 8px;">REST</td><td></td><td style="padding:6px 8px;">'+fmtTime(rT)+'</td><td style="padding:6px 8px;">'+Math.round(rD)+'</td><td colspan="4"></td></tr>'):'');
   const th='padding:6px 8px;font-size:10px;letter-spacing:.06em;color:var(--muted);text-align:left;border-bottom:1px solid var(--border);';
@@ -7587,7 +7592,7 @@ function drawMain(){
   ctx.font='9px -apple-system, BlinkMacSystemFont, Helvetica Neue, sans-serif';
 
   // Grid
-  for(let g=yPMax;g>=yPMin-0.01;g-=30){const y=toYP(g);ctx.beginPath();ctx.moveTo(PL,y);ctx.lineTo(PL+pw,y);ctx.strokeStyle=C.gridLn;ctx.lineWidth=1;ctx.stroke();ctx.fillStyle=C.gridLb;ctx.textAlign='right';ctx.fillText(fmtPaceU(g),PL-4,y+3);}
+  for(let g=yPMax;g>=yPMin-0.01;g-=30){const y=toYP(g);ctx.beginPath();ctx.moveTo(PL,y);ctx.lineTo(PL+pw,y);ctx.strokeStyle=C.gridLn;ctx.lineWidth=1;ctx.stroke();ctx.fillStyle=C.gridLb;ctx.textAlign='right';ctx.fillText(fmtPaceU(g,true),PL-4,y+3);}
   niceSteps(xMin,xMax,6).forEach(g=>{const x=toX(g);ctx.beginPath();ctx.moveTo(x,PT);ctx.lineTo(x,PT+ph);ctx.strokeStyle=C.gridLn;ctx.lineWidth=1;ctx.stroke();ctx.fillStyle=C.gridLb;ctx.textAlign='center';ctx.fillText(g.toFixed(0),x,PT+ph+13);});
   if(vis.rate||vis.slope||vis.slopeneg){niceSteps(yRMin,yRMax,5).forEach(g=>{ctx.fillStyle=C.gridLb;ctx.textAlign='left';ctx.fillText(g.toFixed(0),PL+pw+4,toYR(g)+3);});}
 
