@@ -2123,13 +2123,21 @@ function pal() {
   };
 }
 
-function toggleTheme() {
-  document.body.classList.toggle('light');
-  const isLight = document.body.classList.contains('light');
+/* Light / dark is remembered in this browser, so it survives opening and
+   closing sessions (Close all sessions reloads the page) and the next visit. */
+function applyTheme(isLight) {
+  document.body.classList.toggle('light', !!isLight);
   document.getElementById('hdrThemeIcon').src = isLight ? 'icons/Dark.svg' : 'icons/Light.svg';
   document.getElementById('hdrThemeLabel').textContent = isLight ? 'Dark Mode' : 'Light Mode';
-  if (ST.length) schedRender();
 }
+function toggleTheme() {
+  const isLight = !document.body.classList.contains('light');
+  applyTheme(isLight);
+  try { localStorage.setItem('br_theme', isLight ? 'light' : 'dark'); } catch {}
+  if (ST.length) schedRender();
+  try { if (curveGroups.length) drawCurvePanel(); } catch {}
+}
+try { if (localStorage.getItem('br_theme') === 'dark') applyTheme(false); } catch {}
 document.getElementById('hdrThemeBtn').addEventListener('click', toggleTheme);
 
 // ── Utilities ──────────────────────────────────────────────────────────────
