@@ -2327,7 +2327,7 @@ const METRIC_DEFS = [
 ];
 // Tiles/rows the PM5 can actually feed — used to restrict the Tiles picker,
 // hover tooltip, and stroke table to erg-relevant metrics on erg sessions.
-const ERG_TILE_KEYS=['pace','rate','dps','peakforce','drivelength','drivetime','hr'];
+const ERG_TILE_KEYS=['pace','rate','dps','peakforce','schar','drivelength','drivetime','hr'];
 // Metrics the PM5 alone can feed — meaningless (and always empty) on an on-water session.
 const ERG_ONLY_KEYS=['watts','peakforce','drivelength'];
 // True when metric key k belongs on the current session: erg sessions restrict to what a PM5
@@ -2600,6 +2600,19 @@ function _fixOldPpPace(s) {
     s._ppv4 = 1;
   } catch (e) {}
 }
+/* Erg stroke characteristic: where peak force falls along the drive, % of
+   handle travel. Same maths as the Metrics app (ergCurveChar): smoothed
+   PM5 curve, started from 0 N, peak interpolated between samples. */
+function ergCharOf(c){
+  if(!Array.isArray(c)||c.length<5)return NaN;
+  let a=c.slice();
+  for(let p=0;p<3;p++){const q=a.slice();for(let i=1;i<a.length-1;i++)a[i]=(q[i-1]+2*q[i]+q[i+1])/4;}
+  a=[0].concat(a);
+  let i=0;for(let k=1;k<a.length;k++)if(a[k]>a[i])i=k;
+  let x=i;
+  if(i>0&&i<a.length-1){const d=a[i-1]-2*a[i]+a[i+1];if(d<0)x=i+0.5*(a[i-1]-a[i+1])/d;}
+  return Math.round(Math.max(0,Math.min(100,x/(a.length-1)*100)));
+}
 function sessionToAnalyserFmt(s) {
   _fixOldPpPace(s);
   const sum = {
@@ -2625,7 +2638,7 @@ function sessionToAnalyserFmt(s) {
   const fcFix = restitchForceCurves(s);
   const strokes = (s.strokes||[]).map((r,i) => ({
     n:i+1, ms:r.t, elapsed:(r.t-t0)/1000,
-    slope:num(r.catchPeak), schar:num(r.char), consistency:num(r.catchConsistency),
+    slope:num(r.catchPeak), schar:(!isNaN(num(r.char))?num(r.char):(fcFix[i]&&!r.curve?ergCharOf(fcFix[i]):NaN)), consistency:num(r.catchConsistency),
     rate:num(r.rate), pace:num(r.pace), dist:num(r.dist), dps:num(r.dps),
     rloss:!isNaN(num(r.runLossPct))?num(r.runLossPct):(num(r.runLossM)>=0&&num(r.dps)>0?num(r.runLossM)/num(r.dps)*100:NaN), runeff:num(r.runEfficiency), impulse:num(r.driveImpulse)*100,
     ratio:num(r.strokeRatio), oarAngle:num(r.oarAngle), checkDelta:num(r.velEff),
@@ -8198,7 +8211,7 @@ function computeGroupCurve(strokes){
   if(!valid.length)return null;
   const FORCE=curvesAreForce();
   let avg=new Array(CURVE_POINTS).fill(0);
-  let dfSum=0,rateSum=0,rateN=0,dpsSum=0,dpsN=0,paceSum=0,paceN=0,drvSum=0,drvN=0,cdSum=0,cdN=0,lenSum=0,lenN=0;
+  let dfSum=0,rateSum=0,rateN=0,dpsSum=0,dpsN=0,paceSum=0,paceN=0,drvSum=0,drvN=0,cdSum=0,cdN=0,lenSum=0,lenN=0,pfSum=0,pfN=0,chSum=0,chN=0;
   for(const s of valid){
     for(let i=0;i<CURVE_POINTS;i++)avg[i]+=s.curve[i];
     dfSum+=(s.curveDriveFrac||0.5);
@@ -8211,6 +8224,8 @@ function computeGroupCurve(strokes){
     if(_row&&s.driveTimeMs>50&&s.driveTimeMs<3000){drvSum+=s.driveTimeMs;drvN++;}
     if(_row&&s.catchDuration>0&&s.catchDuration<1500){cdSum+=s.catchDuration;cdN++;}
     if(s.drivelength>0.3&&s.drivelength<3){lenSum+=s.drivelength;lenN++;}
+    if(_row&&s.peakforceN>0&&s.peakforceN<3000){pfSum+=s.peakforceN;pfN++;}
+    if(_row&&s.schar>0&&s.schar<=100){chSum+=s.schar;chN++;}
   }
   for(let i=0;i<CURVE_POINTS;i++)avg[i]/=valid.length;
   let df=dfSum/valid.length;
@@ -8233,7 +8248,7 @@ function computeGroupCurve(strokes){
   }
   return{data:avg,driveFrac:df,n:valid.length,total:strokes.length,
     avgRate:avgRate,avgDPS:dpsN?dpsSum/dpsN:null,avgPace:paceN?paceSum/paceN:null,
-    avgDriveMs:drvN?drvSum/drvN:null,avgCatchMs:avgCatchMs,avgLen:lenN?lenSum/lenN:null};
+    avgDriveMs:drvN?drvSum/drvN:null,avgCatchMs:avgCatchMs,avgLen:lenN?lenSum/lenN:null,avgPeakF:pfN?pfSum/pfN:null,avgChar:chN?chSum/chN:null};
 }
 
 
@@ -8917,7 +8932,7 @@ function drawCurvePanel(){
     if(f.length)curves=f; else tplFocusIdx=-1;
   }
   if(!curves.length){
-    ctx.fillStyle=C.muted;ctx.font='11px -apple-system, BlinkMacSystemFont, Helvetica Neue, sans-serif';ctx.textAlign='center';
+    ctx.fillStyle=C.muted;ctx.font='13px -apple-system, BlinkMacSystemFont, Helvetica Neue, sans-serif';ctx.textAlign='center';
     ctx.fillText('No curve data available',W/2,H/2);return;
   }
 
@@ -8965,9 +8980,9 @@ function drawCurvePanel(){
     ctx.fillText('No stroke rate data available',W/2,H/2);return;
   }
 
-  const PL=38,PR=34,PT=12,PB=34,GAP=16;
+  const PL=58,PR=40,PT=16,PB=60,GAP=26;
   const pw=W-PL-PR;
-  const ph1=FORCE?(H-PT-PB-26):Math.round((H-PT-PB-GAP)*0.547),ph2=FORCE?0:(H-PT-ph1-GAP-PB);
+  const ph1=FORCE?(H-PT-PB-GAP):Math.round((H-PT-PB-GAP)*0.547),ph2=FORCE?0:(H-PT-ph1-GAP-PB);
   const accelTop=PT,speedTop=PT+ph1+GAP;
   const toPx=t=>PL+(t/maxT)*pw;
 
@@ -9006,15 +9021,15 @@ function drawCurvePanel(){
   {const _gs=FORCE?(()=>{const st=yMax<=400?100:yMax<=1000?200:yMax<=1600?250:500,o=[];for(let g=0;g<=yMax+0.1;g+=st)o.push(g);return o;})():niceSteps(yMin,yMax,4);
   _gs.forEach((g,gi)=>{
     const y=toY(g);ctx.beginPath();ctx.moveTo(PL,y);ctx.lineTo(PL+pw,y);ctx.stroke();
-    ctx.fillStyle=C.gridLb;ctx.font='8px -apple-system, BlinkMacSystemFont, Helvetica Neue, sans-serif';ctx.textAlign='right';
-    ctx.fillText(FORCE?(Math.round(g)+(gi===_gs.length-1?' N':'')):g.toFixed(1),PL-3,y+3);
+    ctx.fillStyle=C.gridLb;ctx.font='12px -apple-system, BlinkMacSystemFont, Helvetica Neue, sans-serif';ctx.textAlign='right';
+    ctx.fillText(FORCE?(Math.round(g)+(gi===_gs.length-1?' N':'')):g.toFixed(1),PL-5,y+4);
   });}
   if(yMin<0&&yMax>0){
     ctx.strokeStyle=C.frameLn;ctx.lineWidth=1.5;
     ctx.beginPath();ctx.moveTo(PL,toY(0));ctx.lineTo(PL+pw,toY(0));ctx.stroke();
   }
-  ctx.save();ctx.translate(9,accelTop+ph1/2);ctx.rotate(-Math.PI/2);
-  ctx.fillStyle=C.muted;ctx.font='7px -apple-system, BlinkMacSystemFont, Helvetica Neue, sans-serif';ctx.textAlign='center';
+  ctx.save();ctx.translate(11,accelTop+ph1/2);ctx.rotate(-Math.PI/2);
+  ctx.fillStyle=C.muted;ctx.font='11px -apple-system, BlinkMacSystemFont, Helvetica Neue, sans-serif';ctx.textAlign='center';
   ctx.fillText(curveAxisLabel(),0,0);ctx.restore();
 
   // Speed grid
@@ -9022,11 +9037,11 @@ function drawCurvePanel(){
     ctx.strokeStyle=C.gridLn;ctx.lineWidth=1;
     niceSteps(sMin,sMax,4).forEach(g=>{
       const y=toSY(g);ctx.beginPath();ctx.moveTo(PL,y);ctx.lineTo(PL+pw,y);ctx.stroke();
-      ctx.fillStyle=C.gridLb;ctx.font='8px -apple-system, BlinkMacSystemFont, Helvetica Neue, sans-serif';ctx.textAlign='right';
-      ctx.fillText(g.toFixed(2),PL-3,y+3);
+      ctx.fillStyle=C.gridLb;ctx.font='12px -apple-system, BlinkMacSystemFont, Helvetica Neue, sans-serif';ctx.textAlign='right';
+      ctx.fillText(g.toFixed(2),PL-5,y+4);
     });
-    ctx.save();ctx.translate(9,speedTop+ph2/2);ctx.rotate(-Math.PI/2);
-    ctx.fillStyle=C.muted;ctx.font='7px -apple-system, BlinkMacSystemFont, Helvetica Neue, sans-serif';ctx.textAlign='center';
+    ctx.save();ctx.translate(11,speedTop+ph2/2);ctx.rotate(-Math.PI/2);
+    ctx.fillStyle=C.muted;ctx.font='11px -apple-system, BlinkMacSystemFont, Helvetica Neue, sans-serif';ctx.textAlign='center';
     ctx.fillText('speed (m/s)',0,0);ctx.restore();
   }
 
@@ -9061,6 +9076,17 @@ function drawCurvePanel(){
       let pi=0;for(let i=1;i<CURVE_POINTS;i++)if(c.accelRot[i]>c.accelRot[pi])pi=i;
       c.peakN=c.accelRot[pi];c.peakPct=Math.round(pi/(CURVE_POINTS-1)*100);
       ctx.beginPath();ctx.arc(toPx(pi*step),toY(c.peakN),4,0,Math.PI*2);ctx.fillStyle=c.color;ctx.fill();
+      /* Ring: the average of each stroke's own peak (PM5 peak force, at the
+         average stroke char). Averaging curves flattens the top, so the ring
+         sits above the dot; the bigger the gap, the less repeatable the strokes. */
+      if(c.avgPeakF>0&&c.avgChar!=null){
+        const rx=toPx(c.avgChar/100*c.T), ry=toY(c.avgPeakF), dx=toPx(pi*step), dy=toY(c.peakN);
+        ctx.setLineDash([2,3]);ctx.strokeStyle=c.color;ctx.lineWidth=1.2;ctx.globalAlpha=.8;
+        ctx.beginPath();ctx.moveTo(dx,dy);ctx.lineTo(rx,ry);ctx.stroke();
+        ctx.setLineDash([]);ctx.globalAlpha=1;
+        ctx.beginPath();ctx.arc(rx,ry,6,0,Math.PI*2);ctx.fillStyle=pal().s1||'#fff';ctx.fill();
+        ctx.lineWidth=2.5;ctx.strokeStyle=c.color;ctx.stroke();
+      }
     }
     ctx.restore();
 
@@ -9110,27 +9136,27 @@ function drawCurvePanel(){
     ctx.strokeStyle=C.gridLb;ctx.lineWidth=1;
     ctx.beginPath();ctx.moveTo(x,speedTop+ph2);ctx.lineTo(x,speedTop+ph2+4);ctx.stroke();
     if(XM&&k%2)continue;
-    ctx.fillStyle=C.gridLb;ctx.font='8px -apple-system, BlinkMacSystemFont, Helvetica Neue, sans-serif';ctx.textAlign='center';
-    ctx.fillText(t.toFixed(1)+(XM?' m':'s'),x,speedTop+ph2+13);
+    ctx.fillStyle=C.gridLb;ctx.font='12px -apple-system, BlinkMacSystemFont, Helvetica Neue, sans-serif';ctx.textAlign='center';
+    ctx.fillText(t.toFixed(1)+(XM?' m':'s'),x,speedTop+ph2+18);
   }
-  ctx.fillStyle=C.muted;ctx.font='7px -apple-system, BlinkMacSystemFont, Helvetica Neue, sans-serif';ctx.textAlign='left';
-  ctx.fillText(XM?'x: handle travel from the catch  \u2502  each curve ends at its stroke length  \u2502  dot: peak force':(FORCE?'x=0: catch  \u2502  full width = drive':'x=0: catch (start of check)  \u2502  dashed: finish'),PL,speedTop+ph2+26);
+  ctx.fillStyle=C.muted;ctx.font='11px -apple-system, BlinkMacSystemFont, Helvetica Neue, sans-serif';ctx.textAlign='left';
+  ctx.fillText(XM?'dot: top of the average curve  \u2502  ring: average peak per stroke  \u2502  bigger gap = less consistent strokes':(FORCE?'x=0: catch  \u2502  full width = drive':'x=0: catch (start of check)  \u2502  dashed: finish'),PL,speedTop+ph2+36);
 
   // Legend in gap between panels
   let lx=PL;
-  const ly=accelTop+ph1+GAP/2+3;
+  const ly=accelTop+ph1+GAP/2+5;
   enriched.forEach(c=>{
-    ctx.fillStyle=c.color;ctx.fillRect(lx,ly-4,10,3);
-    const txt=`${c.label}${c.avgRate?' '+f1(c.avgRate)+'spm':''}${FORCE&&c.peakN?' \u00b7 peak '+Math.round(c.peakN)+' N @ '+c.peakPct+'%':''}${XM?' \u00b7 '+c.avgLen.toFixed(2)+' m':''} (${c.n}/${c.total})`;
-    ctx.fillStyle=C.text;ctx.font='8px -apple-system, BlinkMacSystemFont, Helvetica Neue, sans-serif';ctx.textAlign='left';
-    ctx.fillText(txt,lx+13,ly);
-    lx+=ctx.measureText(txt).width+22;
+    ctx.fillStyle=c.color;ctx.fillRect(lx,ly-6,14,4);
+    const txt=`${c.label}${c.avgRate?' '+f1(c.avgRate)+'spm':''}${FORCE&&(c.avgPeakF||c.peakN)?' \u00b7 peak '+Math.round(c.avgPeakF||c.peakN)+' N @ '+Math.round(c.avgChar!=null?c.avgChar:c.peakPct)+'%':''}${XM?' \u00b7 '+c.avgLen.toFixed(2)+' m':''} (${c.n}/${c.total})`;
+    ctx.fillStyle=C.text;ctx.font='12px -apple-system, BlinkMacSystemFont, Helvetica Neue, sans-serif';ctx.textAlign='left';
+    ctx.fillText(txt,lx+18,ly);
+    lx+=ctx.measureText(txt).width+28;
   });
   if(tplOv){
-    ctx.fillStyle=TPL_COLOR;ctx.fillRect(lx,ly-4,10,3);
+    ctx.fillStyle=TPL_COLOR;ctx.fillRect(lx,ly-6,14,4);
     const txt2='TEMPLATE '+((_atpl&&_atpl.name)||'')+' @ '+f1(tplOv.rate)+'spm';
-    ctx.fillStyle=C.text;ctx.font='8px -apple-system, BlinkMacSystemFont, Helvetica Neue, sans-serif';ctx.textAlign='left';
-    ctx.fillText(txt2,lx+13,ly);
+    ctx.fillStyle=C.text;ctx.font='12px -apple-system, BlinkMacSystemFont, Helvetica Neue, sans-serif';ctx.textAlign='left';
+    ctx.fillText(txt2,lx+18,ly);
   }
 
   // Panel borders
@@ -9150,8 +9176,8 @@ function drawCurvePanel(){
     const ky=yOf(curveYZoom);
     ctx.beginPath();ctx.arc(sx,ky,7,0,Math.PI*2);ctx.fillStyle=curveYZoom===1?C.gridLb:'#0a84ff';ctx.fill();
     ctx.strokeStyle='#fff';ctx.lineWidth=1.5;ctx.stroke();
-    ctx.fillStyle=C.muted;ctx.font='7px -apple-system, BlinkMacSystemFont, Helvetica Neue, sans-serif';ctx.textAlign='center';
-    ctx.fillText(curveYZoom===1?'Y auto':'Y ×'+curveYZoom.toFixed(1),sx,accelTop-3);
+    ctx.fillStyle=C.muted;ctx.font='11px -apple-system, BlinkMacSystemFont, Helvetica Neue, sans-serif';ctx.textAlign='center';
+    ctx.fillText(curveYZoom===1?'Y auto':'Y ×'+curveYZoom.toFixed(1),sx,accelTop-4);
     ctx.restore();
   }
   // Bottom grip: drag down / up to make the panel taller / shorter
@@ -9439,6 +9465,19 @@ function buildCurveStats(){
       const arr=g.strokes.filter(m.filter).map(m.val);
       return arr.length?m.fmtAvg(m.bestIsMin?arrMin(arr):arrMax(arr)):EM;
     }});
+  }
+  /* Peak consistency: how much of the strokes' own peak force survives in
+     their average curve. 100% = every stroke peaks at the same force in the
+     same place; lower = peaks vary in size or timing (the dot / ring gap). */
+  if(curvesAreForce()){
+    const _ix=rows.findIndex(r=>/Peak Force/.test(r.l));
+    const row={l:'Peak consistency',c:'var(--mc-impulse)',fn:g=>{
+      const c=computeGroupCurve(g.strokes);
+      if(!c||!(c.avgPeakF>0))return EM;
+      const pk=Math.max(...c.data);
+      return Math.round(Math.min(100,pk/c.avgPeakF*100))+'%';
+    }};
+    if(_ix>=0)rows.splice(_ix+1,0,row);else rows.push(row);
   }
   const thead=document.getElementById('curvethead');
   const tbody=document.getElementById('curvebody');
@@ -16633,4 +16672,6 @@ body:not(.light) #startup .sz-signout{color:#FF7A6E!important;}
 #startup .sumsec-all .sumsec-hd{color:var(--ov-text);} #startup .sumsec-ico.all{background:var(--ov-line2);color:var(--ov-text);}
 #startup{--ov-wsec:#EAF2FE;--ov-esec:#FDEDEB;}
 body:not(.light) #startup{--ov-wsec:#0F223C;--ov-esec:#2A1517;}
+
+#curvehint{font-size:12px!important;opacity:1!important;color:var(--text)!important;}
 </style>
