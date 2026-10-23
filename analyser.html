@@ -8980,7 +8980,7 @@ function drawCurvePanel(){
     ctx.fillText('No stroke rate data available',W/2,H/2);return;
   }
 
-  const PL=58,PR=40,PT=16,PB=60,GAP=26;
+  const PL=58,PR=40,PT=16,PB=60,GAP=FORCE?4:26;
   const pw=W-PL-PR;
   const ph1=FORCE?(H-PT-PB-GAP):Math.round((H-PT-PB-GAP)*0.547),ph2=FORCE?0:(H-PT-ph1-GAP-PB);
   const accelTop=PT,speedTop=PT+ph1+GAP;
@@ -9142,21 +9142,34 @@ function drawCurvePanel(){
   ctx.fillStyle=C.muted;ctx.font='11px -apple-system, BlinkMacSystemFont, Helvetica Neue, sans-serif';ctx.textAlign='left';
   ctx.fillText(XM?'dot: top of the average curve  \u2502  ring: average peak per stroke  \u2502  bigger gap = less consistent strokes':(FORCE?'x=0: catch  \u2502  full width = drive':'x=0: catch (start of check)  \u2502  dashed: finish'),PL,speedTop+ph2+36);
 
-  // Legend in gap between panels
-  let lx=PL;
-  const ly=accelTop+ph1+GAP/2+5;
-  enriched.forEach(c=>{
-    ctx.fillStyle=c.color;ctx.fillRect(lx,ly-6,14,4);
-    const txt=`${c.label}${c.avgRate?' '+f1(c.avgRate)+'spm':''}${FORCE&&(c.avgPeakF||c.peakN)?' \u00b7 peak '+Math.round(c.avgPeakF||c.peakN)+' N @ '+Math.round(c.avgChar!=null?c.avgChar:c.peakPct)+'%':''}${XM?' \u00b7 '+c.avgLen.toFixed(2)+' m':''} (${c.n}/${c.total})`;
-    ctx.fillStyle=C.text;ctx.font='12px -apple-system, BlinkMacSystemFont, Helvetica Neue, sans-serif';ctx.textAlign='left';
-    ctx.fillText(txt,lx+18,ly);
-    lx+=ctx.measureText(txt).width+28;
-  });
-  if(tplOv){
-    ctx.fillStyle=TPL_COLOR;ctx.fillRect(lx,ly-6,14,4);
-    const txt2='TEMPLATE '+((_atpl&&_atpl.name)||'')+' @ '+f1(tplOv.rate)+'spm';
-    ctx.fillStyle=C.text;ctx.font='12px -apple-system, BlinkMacSystemFont, Helvetica Neue, sans-serif';ctx.textAlign='left';
-    ctx.fillText(txt2,lx+18,ly);
+  // Per-curve stats, stacked in a narrow box in the top-right corner of the
+  // plot, where the curves have already dropped away at the finish.
+  {
+    const F='-apple-system, BlinkMacSystemFont, Helvetica Neue, sans-serif';
+    const blocks=enriched.map(c=>{
+      const L=[c.label+(c.avgRate?' \u00b7 '+f1(c.avgRate)+' spm':'')+(XM?' \u00b7 '+c.avgLen.toFixed(2)+' m':'')];
+      if(FORCE&&(c.avgPeakF||c.peakN))L.push('peak '+Math.round(c.avgPeakF||c.peakN)+' N @ '+Math.round(c.avgChar!=null?c.avgChar:c.peakPct)+'%');
+      return {col:c.color,L};
+    });
+    if(tplOv)blocks.push({col:TPL_COLOR,L:['Template '+((_atpl&&_atpl.name)||''),'@ '+f1(tplOv.rate)+' spm']});
+    const lh=16,padX=10,padY=8,sw=12,bgap=8;
+    ctx.font='700 12px '+F;
+    let tw=0;blocks.forEach(b=>b.L.forEach((t,k)=>{ctx.font=(k?'12px ':'700 12px ')+F;tw=Math.max(tw,ctx.measureText(t).width);}));
+    const bw=Math.min(pw-16,tw+sw+8+padX*2);
+    const bh=padY*2+blocks.reduce((a,b)=>a+b.L.length*lh,0)+bgap*(blocks.length-1)-2;
+    const bx=PL+pw-bw-8, by=accelTop+8;
+    ctx.save();
+    ctx.globalAlpha=.92;ctx.fillStyle=C.s1||'#fff';
+    ctx.beginPath();if(ctx.roundRect)ctx.roundRect(bx,by,bw,bh,8);else ctx.rect(bx,by,bw,bh);ctx.fill();
+    ctx.globalAlpha=1;ctx.strokeStyle=C.frameLn;ctx.lineWidth=1;ctx.stroke();
+    ctx.beginPath();ctx.rect(bx,by,bw,bh);ctx.clip();
+    let y=by+padY+11;
+    blocks.forEach(b=>{
+      ctx.fillStyle=b.col;ctx.fillRect(bx+padX,y-7,sw,b.L.length*lh-6);
+      b.L.forEach((t,k)=>{ctx.fillStyle=k?C.muted:C.text;ctx.font=(k?'12px ':'700 12px ')+F;ctx.textAlign='left';ctx.fillText(t,bx+padX+sw+8,y);y+=lh;});
+      y+=bgap;
+    });
+    ctx.restore();
   }
 
   // Panel borders
@@ -9432,7 +9445,6 @@ function buildCurveStats(){
   // Build rows from canonical METRIC_DEFS order
   const rows=[
     {l:'Strokes',fn:g=>String(g.strokes.length)},
-    {l:'w/ curves',fn:g=>String(g.strokes.filter(s=>s.curve&&s.curve.length).length)},
     {l:'Time',fn:g=>{const a=g.strokes;return a.length?fmtTime(a[a.length-1].elapsed-a[0].elapsed):EM;}},
     {l:'Distance',fn:g=>{const a=g.strokes;if(!a.length)return EM;const d=(a[a.length-1].dist||0)-(a[0].dist||0);return isNaN(d)?EM:fmtDistU(d)+distULabelU();}},
   ];
