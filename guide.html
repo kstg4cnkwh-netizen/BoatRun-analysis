@@ -110,14 +110,14 @@ img.inline{display:inline;margin:0 3px;vertical-align:-.32em;height:1.45em;width
 <div class="box">
 <p><strong>Changed in this version</strong></p>
 <ul>
-<li>Stroke templates, workouts, sectors, lanes and hazards now <strong>sync through Google Drive</strong> - no more exporting and importing files. See <a href="#sync">what syncs</a>.</li>
-<li>The <strong>LAYOUTS</strong> tab is now <strong>DISPLAY</strong>: one on-water layout, one erg layout, plus Stroke templates, Hazards &amp; Lanes, Map Display and Screen Settings. See <a href="#display">Display: layouts and tiles</a>.</li>
-<li><strong>Calibration is automatic.</strong> There is no 8-second hold and no CAL pill. See <a href="#calibration">Calibration</a>.</li>
-<li><strong>Stroke templates</strong> are built in the Analyser by selecting strokes straight off the chart, and arrive on the phone by themselves. See <a href="#templates">Stroke templates</a>.</li>
-<li><strong>Hazards</strong> have a choice of warning distance, a red warning zone on the map, a full-screen warning card and per-hazard WARN switches. See <a href="#lines">Lanes, dividers and hazards</a>.</li>
-<li><strong>The Analyser</strong> now draws lanes, dividers, hazards and sectors on a big satellite map, and is where clubs create and manage their club lines. See <a href="#an-lines">Analyser: lanes and hazards</a>.</li>
-<li><strong>Coach</strong> FREE ROW and RACE are now the COACH and SQUAD tabs. See <a href="#coach">Coach mode</a>.</li>
-<li><strong>Calendar</strong> squad plan and phone calendar sync have moved to the ⚙ button on the Log calendar. See <a href="#calendar">Calendar and planning</a>.</li>
+<li>New <strong>Consistency</strong> tile: how alike your recent stroke curves are, with effort and character underneath. <strong>Vel Efficiency</strong> is no longer a tile. See <a href="#m-consistency">Consistency</a>.</li>
+<li>The <strong>INTERVALS</strong> tab is now <strong>WORKOUT</strong>. On the erg it shows a big workout board. See <a href="#erg-board">Erg mode</a>.</li>
+<li>The <strong>erg curve</strong> keeps a steady force scale, and shows <strong>PEAK AT</strong> and <strong>STROKE LENGTH</strong> as large figures. See <a href="#erg-curve">The CURVE tab on the erg</a>.</li>
+<li>Walk away from the erg and the session no longer gets stuck: <strong>Finish Session</strong> appears, and it saves itself after a few minutes. See <a href="#erg-finish">Finishing an erg session</a>.</li>
+<li><strong>Boat type</strong>, including <strong>Mixed</strong> and <strong>Coastal</strong>, is picked when you save, and can be changed later. See <a href="#record">Stopping and finishing</a>.</li>
+<li><strong>IMPORT</strong> on the Log adds a session a crew mate recorded for you. See <a href="#log">Session log</a>.</li>
+<li><strong>Maps work offline</strong> for water you've already viewed. See <a href="#live">MAP</a>.</li>
+<li><strong>The Analyser</strong>: a lap added to curves now shows the lap's own figures, curve groups show Consistency, and the start page has a clearer session list with boat tagging and a dark mode that sticks. See <a href="#analyser">Analyser</a>.</li>
 </ul>
 </div>
 
@@ -195,7 +195,7 @@ img.inline{display:inline;margin:0 3px;vertical-align:-.32em;height:1.45em;width
 <tr><td>LIVE</td><td>Your tile grid while you row (reads ERG in Erg role)</td><td><a href="#live">The live screen</a></td></tr>
 <tr><td>CURVE</td><td>Live stroke curve and template pills (Pro)</td><td><a href="#record">Recording</a>, <a href="#templates">Templates</a></td></tr>
 <tr><td>MAP</td><td>Your boat, squad, sectors, lanes and hazards, with tiles</td><td><a href="#record">Recording</a>, <a href="#lines">Lanes and hazards</a></td></tr>
-<tr><td>INTERVALS</td><td>Workout steps and per-interval results</td><td><a href="#workouts">Workouts</a></td></tr>
+<tr><td>WORKOUT</td><td>Workout steps and per-interval results (a big workout board on the erg)</td><td><a href="#workouts">Workouts</a>, <a href="#erg-board">Erg mode</a></td></tr>
 <tr><td>SQUAD</td><td>Erg race track (Erg role, once you've joined a squad)</td><td><a href="#erg">Erg mode</a></td></tr>
 <tr><td>HOME → LOG</td><td>CALENDAR and SESSIONS</td><td><a href="#calendar">Calendar</a>, <a href="#log">Session log</a></td></tr>
 <tr><td>HOME → WORKOUTS</td><td>Build, edit and load workouts</td><td><a href="#workouts">Workouts</a></td></tr>
@@ -204,7 +204,7 @@ img.inline{display:inline;margin:0 3px;vertical-align:-.32em;height:1.45em;width
 <tr><td>HOME → SETTINGS</td><td>Role, squad, HR zones, units, account and plan, Strava, your data, metric definitions</td><td><a href="#settings">Settings reference</a></td></tr>
 </table>
 </div>
-<p>Coach role has its own tabs - COACH, SQUAD, INTERVALS and HOME - see <a href="#coach">Coach mode</a>. Simple mode hides DISPLAY, WORKOUTS, MAP and INTERVALS - see <a href="#roles">Simple and Advanced</a>.</p>
+<p>Coach role has its own tabs - COACH, SQUAD, INTERVALS and HOME - see <a href="#coach">Coach mode</a>. Simple mode hides DISPLAY, WORKOUTS, MAP and WORKOUT - see <a href="#roles">Simple and Advanced</a>.</p>
 
 <hr/>
 
@@ -306,7 +306,7 @@ img.inline{display:inline;margin:0 3px;vertical-align:-.32em;height:1.45em;width
 <tr><td>Price</td><td>Free</td><td>Subscription</td><td>Subscription</td></tr>
 <tr><td>Recording length</td><td>20 min</td><td>Unlimited</td><td>Unlimited</td></tr>
 <tr><td>Pace, Rate, DPS, HR, time and distance tiles</td><td>✓</td><td>✓</td><td>✓</td></tr>
-<tr><td>Stroke metrics (catch, impulse, accel, ratio, Char, efficiency)</td><td>-</td><td>✓</td><td>✓</td></tr>
+<tr><td>Stroke metrics (catch, impulse, accel, ratio, Char, consistency)</td><td>-</td><td>✓</td><td>✓</td></tr>
 <tr><td>Live stroke curve, water and erg</td><td>-</td><td>✓</td><td>✓</td></tr>
 <tr><td>Stroke templates - use on the phone</td><td>-</td><td>✓</td><td>✓</td></tr>
 <tr><td>Stroke templates - build in the Analyser</td><td>-</td><td>✓</td><td>✓</td></tr>
@@ -350,9 +350,9 @@ img.inline{display:inline;margin:0 3px;vertical-align:-.32em;height:1.45em;width
 <div class="tblwrap">
 <table class="lead">
 <tr><th>Role</th><th>Tab bar</th><th>What it does</th></tr>
-<tr><td>ROW</td><td>LIVE · CURVE · MAP · INTERVALS · HOME</td><td>Full recording, all metrics, stroke curve</td></tr>
-<tr><td>COX</td><td>LIVE · CURVE · MAP · INTERVALS · HOME</td><td>Same as Row, with the accelerometer flipped for a bow-facing cox</td></tr>
-<tr><td>ERG</td><td>ERG · CURVE · SQUAD · INTERVALS · HOME</td><td>Reads a Concept2 PM5 over Bluetooth. SQUAD only appears once you've joined a squad. See <a href="#erg">Erg mode</a>.</td></tr>
+<tr><td>ROW</td><td>LIVE · CURVE · MAP · WORKOUT · HOME</td><td>Full recording, all metrics, stroke curve</td></tr>
+<tr><td>COX</td><td>LIVE · CURVE · MAP · WORKOUT · HOME</td><td>Same as Row, with the accelerometer flipped for a bow-facing cox</td></tr>
+<tr><td>ERG</td><td>ERG · CURVE · SQUAD · WORKOUT · HOME</td><td>Reads a Concept2 PM5 over Bluetooth. SQUAD only appears once you've joined a squad. See <a href="#erg">Erg mode</a>.</td></tr>
 <tr><td>COACH</td><td>COACH · SQUAD · INTERVALS · HOME</td><td>Live squad map and rower tiles. No recording of your own. See <a href="#coach">Coach mode</a>.</td></tr>
 </table>
 </div>
@@ -363,7 +363,7 @@ img.inline{display:inline;margin:0 3px;vertical-align:-.32em;height:1.45em;width
 <ul>
 <li>Pace, Rate, DPS and HR tiles. In portrait two more tiles sit underneath - time of day and average pace to start with. Every tile can still be changed on the live screen.</li>
 <li>No stroke-analysis tiles, stroke templates, workouts or Navigation tile.</li>
-<li>No DISPLAY or WORKOUTS tab on HOME, and no MAP, INTERVALS or SQUAD tab.</li>
+<li>No DISPLAY or WORKOUTS tab on HOME, and no MAP, WORKOUT or SQUAD tab.</li>
 <li>Only the ♥ HR chip and Start before you row. On the erg, Simple adds Load Workout and Connect Erg.</li>
 </ul>
 <p>Switch in <strong>HOME → DISPLAY → Screen Settings → DISPLAY MODE</strong>. While you're in Simple the DISPLAY tab is hidden, so the switch also sits at the top of <strong>HOME → SETTINGS</strong>. Coach role always uses Advanced. Your recorded data is identical in both.</p>
@@ -471,10 +471,11 @@ img.inline{display:inline;margin:0 3px;vertical-align:-.32em;height:1.45em;width
 
 <h3>MAP</h3>
 <p>Where you are. The map turns to match your heading, shows your squad if you're connected, and draws your sectors, lanes, dividers and hazards. Tiles sit underneath in portrait, and beside it in landscape - tap any one to change it. Choose the landscape arrangement in <a href="#map-display">DISPLAY → Map Display</a>. <strong>SAT / MAP</strong> switches between satellite and street.</p>
+<p><strong>Offline maps.</strong> Every map tile you look at is kept on the phone, so water you have viewed before still has a map with no signal. Tiles older than 30 days refresh by themselves when you have signal. To get a new stretch of water ready, open the map over it once with signal. There is no bulk download - the map providers don't allow it.</p>
 <p>Near a lane or divider a readout box shows the distance and an arrow to it - top right in Row, bottom right in Cox. See <a href="#on-water">Lanes on the water</a>.</p>
 
-<h3>INTERVALS</h3>
-<p>The workout's steps and per-interval results as you complete them. <strong>WORK ONLY</strong> hides warmup, rest and cooldown rows.</p>
+<h3>WORKOUT</h3>
+<p>The workout's steps and per-interval results as you complete them. (This tab used to be called INTERVALS.) On the erg it becomes a workout board - see <a href="#erg-board">Erg mode</a>. <strong>WORK ONLY</strong> hides warmup, rest and cooldown rows.</p>
 <img class="w-lg" src="screenshots/intervals-tab.png" alt="INTERVALS tab with the interval table" loading="lazy"/>
 
 <hr/>
@@ -520,7 +521,9 @@ img.inline{display:inline;margin:0 3px;vertical-align:-.32em;height:1.45em;width
 <p>Use the <strong>LOCK</strong> button to stop water changing screens. You'll need to unlock to press LAP, change tabs or finish. For more protection, use Guided Access on iPhone (triple-click the side button) or Screen Pinning on Android.</p>
 
 <h2>Stopping and finishing</h2>
-<p><strong>STOP</strong> pauses, <strong>RESUME</strong> continues, <strong>FINISH</strong> ends and saves. Name the session, or tap NO NAME. The app autosaves regularly; if it closes mid-session (battery, crash, anything) the recording is recovered next time you open it.</p>
+<p><strong>STOP</strong> pauses, <strong>RESUME</strong> continues, <strong>FINISH</strong> ends and saves. Name the session, or tap NO NAME.</p>
+<p><strong>Boat type</strong> - the save prompt also asks which boat: <strong>1x, 2-, 2x, 4+, 4-, 4x</strong> or <strong>8+</strong>, plus <strong>MIXED</strong> for a mixed crew and <strong>COASTAL BOAT</strong> for a coastal shell. Your last choice is kept for next time, including for sessions that finish themselves. Change it later from the session detail, or in the Analyser. The Log and the Analyser can filter by boat, so you can find, say, every coastal 2x or mixed 8+. Erg sessions have no boat type.</p>
+<p>The app autosaves regularly; if it closes mid-session (battery, crash, anything) the recording is recovered next time you open it.</p>
 <div class="shots">
   <img class="w-md" src="screenshots/qs-finish.png" alt="Finish session confirmation dialog" loading="lazy"/>
   <img class="w-sm" src="screenshots/qs-name-session.png" alt="Name this session dialog" loading="lazy"/>
@@ -574,7 +577,7 @@ img.inline{display:inline;margin:0 3px;vertical-align:-.32em;height:1.45em;width
 <tr><td>Rate</td><td>Stroke rate, lap rate, last lap rate (erg: recovery time)</td><td>Basic</td></tr>
 <tr><td>Distance</td><td>Total, lap and last lap distance, DPS (erg: stroke length, projected and last split distance)</td><td>Basic</td></tr>
 <tr><td>Time</td><td>Time of day, total, lap and last lap time (erg: projected and last split time)</td><td>Basic</td></tr>
-<tr><td>Stroke</td><td>Catch Dur, Drive Time, Stroke Ratio, Stroke Char, Positive and Negative Catch Slope, Catch Accel, Impulse, Recovery Loss, Vel Efficiency, Drive Accel, Recovery Accel</td><td>Pro</td></tr>
+<tr><td>Stroke</td><td><strong>Consistency</strong> (water and erg), Catch Dur, Drive Time, Stroke Ratio, Stroke Char, Positive and Negative Catch Slope, Catch Accel, Impulse, Recovery Loss, Drive Accel, Recovery Accel</td><td>Pro</td></tr>
 <tr><td>Power (erg)</td><td>Watts, average power, peak and average force, drag factor, calories, cal/hr, work per stroke</td><td>Basic</td></tr>
 <tr><td>Other</td><td>Heart rate (Basic), <strong>Workout / Sector</strong> (Pro), <strong>Navigation</strong> (Pro), empty</td><td></td></tr>
 </table>
@@ -801,7 +804,7 @@ img.inline{display:inline;margin:0 3px;vertical-align:-.32em;height:1.45em;width
 </ul>
 
 <h2>Planning for a squad <span class="light">(Coach)</span></h2>
-<p>In the Analyser, switch the calendar from <strong>Mine</strong> to <strong>Squad</strong>, enter the squad code, and plan the squad's days with your workouts. Every rower following that squad gets the update. For a longer block, <strong>🗓 Planning ↗</strong> opens a bigger planning window. See <a href="#an-calendar">Analyser: calendar and planning</a>.</p>
+<p>In the Analyser, switch the calendar from <strong>Mine</strong> to <strong>Squad</strong>, enter the squad code, and plan the squad's days with your workouts. Every rower following that squad gets the update. For a longer block, <strong>🗓 Planning</strong> opens a bigger planning window. See <a href="#an-calendar">Analyser: calendar and planning</a>.</p>
 
 <hr/>
 
@@ -984,13 +987,30 @@ img.inline{display:inline;margin:0 3px;vertical-align:-.32em;height:1.45em;width
 <p>Distance follows your km/mi setting, with erg km shown to three decimals so every metre counts. Erg tiles are instantaneous values; cumulative and averaged figures (average pace, splits, projections) are in the time and distance groups of the tile list. Set the grid in <a href="#layouts">DISPLAY → Ergometer Layout</a>.</p>
 <img class="w-lg" src="screenshots/erg-tiles.png" alt="Erg tile grid" loading="lazy"/>
 
-<h2>The CURVE tab on the erg</h2>
-<p>The PM5's own <strong>drive force curve</strong>, drive phase only, with the stroke characteristic (where peak force falls within the stroke). Erg templates draw over it - see <a href="#templates">Stroke templates</a>. Force data is only requested while the CURVE tab is open, so it doesn't slow everything else.</p>
+<h2 id="erg-curve">The CURVE tab on the erg</h2>
+<p>The PM5's own <strong>drive force curve</strong>, drive phase only, in newtons, drawn along the handle travel in metres. It starts from 0 N at the catch.</p>
+<ul>
+<li><strong>Steady scale.</strong> The force scale only moves in whole steps and holds for about 10 strokes, so you can see your power rise and fall from stroke to stroke. It comes back down after about 10 lighter strokes, for example after a very hard start.</li>
+<li><strong>Three big figures</strong> - <strong>PEAK FORCE</strong> (N), <strong>PEAK AT</strong> (where peak force lands, as % of the stroke - the Stroke Char) and <strong>STROKE LENGTH</strong> (m) along the bottom.</li>
+</ul>
+<p>Erg templates draw over it - see <a href="#templates">Stroke templates</a>. Force curves are read from the PM5 every stroke while the CURVE tab is open, and at least every couple of seconds in the background so they're saved with the session.</p>
 <img class="w-lg" src="screenshots/erg-curve.png" alt="Erg force curve with a template drawn behind it" loading="lazy"/>
 
 <h2>Workouts</h2>
 <p>Load a workout with the <strong>WORKOUT</strong> chip and it is <strong>pushed onto the monitor</strong>. From then on the PM5 owns the timing. Workouts programmed on the erg itself are read back and tracked in INTERVALS.</p>
 <p class="note"><strong>Limitation:</strong> a new workout programmed on the erg is only picked up once the monitor is back at its ready state.</p>
+
+<h2 id="erg-board">The WORKOUT tab - workout board</h2>
+<p>The PM5 already shows your numbers, so on the erg the WORKOUT tab is a board you can read from the seat. It shows which rep you're on and how much is <strong>TO GO</strong>, your <strong>REP SPLIT</strong> against the target, your <strong>RATE</strong>, and a list of the reps you've done with their splits. During a rest it shows the <strong>REST</strong> countdown and your <strong>LAST REP</strong>. With no workout loaded it shows the piece you're rowing.</p>
+
+<h2 id="erg-finish">Finishing an erg session</h2>
+<p>The PM5 runs the session: it starts when you row and ends when you finish the workout or press the erg's menu key. There's no Start or Finish button to press.</p>
+<p>If you walk away without finishing on the erg (in Just Row, for example), the PM5 never says the workout is over. So:</p>
+<ul>
+<li><strong>Finish Session</strong> appears once you've taken no strokes for 15 seconds, the erg stops sending data, or it disconnects.</li>
+<li>The session <strong>saves itself</strong> after 3 minutes with no strokes (10 minutes if you're in an interval rest), or 2 minutes after the PM5 disconnects. The idle time at the end is included.</li>
+<li>After a finish, only a real stroke starts the next session - an idle erg won't start one by itself.</li>
+</ul>
 
 <h2>The SQUAD tab - racing</h2>
 <p>Join a squad with the <strong>SQUAD</strong> chip. A <strong>SQUAD</strong> tab then appears. Joining a squad race needs <strong>Pro</strong>; setting one up needs <strong>Coach</strong>.</p>
@@ -1157,6 +1177,9 @@ img.inline{display:inline;margin:0 3px;vertical-align:-.32em;height:1.45em;width
 <h2>Session detail</h2>
 <p>Summary cards, colour-coded by what affects them - green independent, blue boat-dependent, red condition-dependent. Then lap tables, workout intervals, the sectors you rowed through, and charts for every metric.</p>
 <p><strong>RENAME</strong> names the session (the Drive copy updates too). <strong>Analyser ↗</strong> opens it in the Analyser.</p>
+
+<h2>Importing a session someone recorded for you</h2>
+<p>If someone else in the boat recorded the session, ask them to send you the <strong>JSON</strong> export. Tap <strong>IMPORT</strong> on the Log and pick the file (or several). It goes into your log and your Drive like a session you rowed yourself. Imported sessions aren't sent to Strava or Concept2 automatically. A session already in your log is skipped. The Analyser can import into your sessions too.</p>
 <div class="shots three">
   <img class="w-sm" src="screenshots/log-list.png" alt="Session log list" loading="lazy"/>
   <img class="w-sm" src="screenshots/log-detail.png" alt="Session detail summary cards" loading="lazy"/>
@@ -1251,7 +1274,7 @@ img.inline{display:inline;margin:0 3px;vertical-align:-.32em;height:1.45em;width
 <tr><td>Lanes &amp; hazards <span class="light">(Pro)</span></td><td>Your lines and your clubs' lines. See <a href="#an-lines">Lanes, dividers and hazards</a>.</td></tr>
 <tr><td>Summary and Personal Bests</td><td>See below.</td></tr>
 <tr><td>Calendar</td><td>Every session and planned workout by day. See <a href="#an-calendar">Calendar and planning</a>.</td></tr>
-<tr><td>Sessions</td><td>Every session, newest first. <strong>Search sessions…</strong>, and filter by <strong>★ Favourites</strong>, <strong>Water</strong> or <strong>Erg</strong>, or sort by <strong>Date</strong>, <strong>Distance</strong> or <strong>Time</strong>. <strong>Sign out</strong> is at the top of this pane.</td></tr>
+<tr><td>Sessions</td><td>Every session as a card, newest first - a blue edge and wave icon for on-water, a red edge and erg icon for erg, with the boat type beside the date. Search from the box in the header. Filter by <strong>All / On water / Erg</strong>, <strong>★</strong> favourites, <strong>Boat</strong> (pick one boat type), <strong>Mixed</strong> and <strong>Coastal</strong>, and sort with <strong>Sort</strong>. <strong>Tag boats…</strong> puts a tick box on every session so you can set the boat type for several at once (sessions from a squad or with a workout can't be changed). <strong>Sign out</strong> is at the top of this pane.</td></tr>
 </table>
 </div>
 
@@ -1262,14 +1285,14 @@ img.inline{display:inline;margin:0 3px;vertical-align:-.32em;height:1.45em;width
 <li><strong>Mine / Squad</strong> - your own calendar, or a squad's (enter the code).</li>
 <li><strong>↻ From squad</strong> - copies a squad's plan into your own calendar, the same as following it in the app.</li>
 <li><strong>↻ Sync with app</strong> - fetches new sessions, workouts and calendar items from Drive now.</li>
-<li><strong>🗓 Planning ↗</strong> - opens a bigger planning calendar in its own window (see below).</li>
+<li><strong>🗓 Planning</strong> - opens a bigger planning calendar in its own window (see below).</li>
 <li><strong>Today</strong> and ‹ › move around the months. On a wide screen the months scroll as one long strip instead.</li>
 </ul>
 <h3>Planning a day</h3>
 <p>Open a day, then <strong>+ ON-WATER WORKOUT</strong>, <strong>+ ERG WORKOUT</strong> or <strong>+ OTHER WORKOUT</strong>, <strong>+ EVENT</strong> or <strong>+ NOTE</strong>. Drag planned workouts to change their order. The app offers each planned workout as that day's <strong>SUGGESTED WORKOUT</strong> - see <a href="#calendar">Calendar and planning</a>.</p>
 <p>In <strong>Squad</strong> view the bar under the calendar says what you can do: <strong>Coach - you can plan workouts</strong>, or <strong>View only - import workouts to your calendar</strong>. In view-only, each workout has an <strong>IMPORT</strong> button that copies it to your own calendar.</p>
 <h3>The planning window</h3>
-<p><strong>🗓 Planning ↗</strong> opens a full-size calendar for laying out a block of training. Along the top:</p>
+<p><strong>🗓 Planning</strong> opens a full-size calendar for laying out a block of training. Along the top:</p>
 <ul>
 <li><strong>⧉ Combined</strong> - your plan plus the squads you tick, on one calendar. Changes go to your own plan.</li>
 <li><strong>Mine</strong>, or a squad's name - one calendar on its own.</li>
@@ -1286,7 +1309,8 @@ img.inline{display:inline;margin:0 3px;vertical-align:-.32em;height:1.45em;width
 <p><strong>Personal Bests</strong> - your fastest <strong>500m, 1km, 2km, 5km, 10km, 30min and 1hour</strong> on the water and on the erg. True rolling best efforts, found anywhere in any session. Tap a PB to open the session. <strong>Scan All for Records</strong> rebuilds the table; <strong>Reset Records</strong> clears it.</p>
 
 <h2 class="clear">Loading a session</h2>
-<p>Click any session. To load another alongside it, use <strong>Add for comparison</strong> in the menu (Pro); each session gets a tab across the top.</p>
+<p>Click any session. <strong>Open</strong> in the header goes back to the session list to open a different one; <strong>Compare</strong> loads another alongside it (Pro), and each session gets a tab across the top.</p>
+<p><strong>Dark Mode / Light Mode</strong> in the header switches the theme for the whole Analyser, start page included, and is remembered.</p>
 
 <h2>Units bar</h2>
 <p>Pace unit, distance and DPS sub-unit. In erg files: Pace, Watts or Calories. Synced with the app.</p>
@@ -1308,6 +1332,11 @@ img.inline{display:inline;margin:0 3px;vertical-align:-.32em;height:1.45em;width
 <h2>Curve comparison</h2>
 <img src="screenshots/analyser-curve-comparison.png" alt="Curve comparison with overlaid averaged stroke curves" loading="lazy"/>
 <p>Pin up to 8 groups of strokes (from several sessions on Pro) and their averaged curves overlay on one canvas, with the integrated speed profile underneath. Pin a group by dragging a selection then <strong>＋ Add to curves</strong>, or from a lap or sector row. Each group is a coloured pill; its <strong>×</strong> removes it. The stats table gives one column per group. <strong>Remove all curves</strong> clears them.</p>
+<ul>
+<li><strong>From the lap table</strong> - <strong>＋ Add to curves</strong> on a selected lap, or <strong>＋ Add all work intervals to curves</strong>. For these groups the stats table shows the <strong>lap's own</strong> time, distance, pace, rate, HR and DPS, so it matches the lap table exactly.</li>
+<li><strong>Consistency</strong> rows - Consistency, Effort ±, Character ± (and Length ± on the erg) for each group. See <a href="#m-consistency">Consistency</a>.</li>
+<li><strong>Erg curves</strong> are drawn in newtons along the handle travel in metres, on a fixed force scale. Each curve has a dot at the top of its average curve and a ring at its average peak; a big gap between them means the peaks vary. A small box in the top right gives each curve's stroke length and its peak force and where it falls. <strong>Peak consistency</strong> in the table puts a number on the dot-to-ring gap.</li>
+</ul>
 <p>The curve shape comes from the accelerometer and is <strong>not affected by wind, tide or current</strong>, so comparing two different days is always valid.</p>
 
 <h2>Stroke templates <span class="light">(Pro)</span></h2>
@@ -1528,7 +1557,22 @@ img.inline{display:inline;margin:0 3px;vertical-align:-.32em;height:1.45em;width
 <h3>🔵 Recovery Accel</h3>
 <p>Peak forward acceleration in the recovery, after the small dip following the finish. Top right of the curve. Should rise at high ratings.</p>
 <h3>🔵 Vel Efficiency (%)</h3>
-<p>How steady the hull's speed is through the stroke. 100% = perfectly steady; 93–97% typical sculling. Higher is better.</p>
+<p>How steady the hull's speed is through the stroke. 100% = perfectly steady; 93–97% typical sculling. Higher is better. It moves only a percent or two and follows rate and boat class more than technique, so it is no longer a live tile. It's still in the session detail, the Analyser and the CSV, where it's useful for comparing pieces at the same rate over weeks.</p>
+<h3 id="m-consistency">🟢 Consistency (%) <span class="new">NEW</span></h3>
+<p>How alike your recent stroke curves are - the boat's acceleration curve on the water, the PM5 force curve on the erg. Each stroke is compared with the average curve of the strokes around it; <strong>100% = every stroke the same shape</strong>.</p>
+<ul>
+<li><strong>On the water</strong> it uses your last 20 strokes within ±1 spm of your current rate, because the curve's shape changes with rate.</li>
+<li><strong>On the erg</strong> it uses your last 10 work strokes. It shows REST during interval rests.</li>
+<li>It shows <strong>--</strong> until it has 6 strokes - on the water usually 8–10 strokes into a piece, once the rate settles.</li>
+<li>The tile label reads <strong>GOOD</strong> (92% and over, green), <strong>FAIR</strong> (85–92%, amber) or <strong>LOW</strong> (under 85%, red).</li>
+</ul>
+<p>Underneath, what's varying, as the spread from stroke to stroke:</p>
+<ul>
+<li><strong>Effort ±%</strong> - how much the height of the curve's peak changes, as % of the average peak.</li>
+<li><strong>Character ±%</strong> - how much the point of peak moves, in % of the stroke. It's the spread of Stroke Char.</li>
+<li><strong>Length ±m</strong> - erg only, how much your stroke length changes.</li>
+</ul>
+<p>On the water, chop and wash also move the curve, so expect lower numbers than on the erg. Compare water with water and erg with erg. In the Analyser the same figures appear in the Curve Comparison table for each group.</p>
 <h3>🟢 Heart Rate</h3>
 <p>From a connected strap, with zone colouring.</p>
 <h3>Navigation</h3>
@@ -1600,6 +1644,9 @@ img.inline{display:inline;margin:0 3px;vertical-align:-.32em;height:1.45em;width
 <p class="qa"><b>Can't change a tile.</b> Unlock the tile lock (top right) and tap it, or hold it while recording.</p>
 <p class="qa"><b>Map tiles don't match what I set.</b> The map shares its first four tiles with the CURVE tab; tiles 5 and 6 only show on the landscape side-by-side layouts. <a href="#map-display">Map Display</a></p>
 <p class="qa"><b>Water splashes change screens.</b> Use LOCK. <a href="#record">Recording</a></p>
+<p class="qa"><b>Where has Vel Efficiency gone?</b> It's no longer a tile; a tile that showed it now shows Consistency. It's still in the session detail and the Analyser. <a href="#m-consistency">Consistency</a></p>
+<p class="qa"><b>Consistency shows --.</b> It needs 6 strokes with curves - on the water, at your current rate. Keep rowing at a steady rate. On the erg it also shows REST during interval rests.</p>
+<p class="qa"><b>Can't find INTERVALS.</b> It's now the <strong>WORKOUT</strong> tab (Coach role still has INTERVALS).</p>
 
 <h2>Stroke templates</h2>
 <p class="qa"><b>Template not on the phone.</b> Did you tap <strong>Save</strong> in the Analyser (it reads Saved ✓)? Same account, Drive linked on both. Then reopen the app. <a href="#tpl-build">Build</a></p>
@@ -1620,6 +1667,7 @@ img.inline{display:inline;margin:0 3px;vertical-align:-.32em;height:1.45em;width
 <p class="qa"><b>No sector pop-up.</b> Approach the start heading the right way, with no workout running, and <strong>Show live sectors</strong> ticked. Pre-arm it to skip the pop-up. <a href="#sectors">Sectors</a></p>
 <p class="qa"><b>DOWNLOAD or delete doesn't work.</b> Both need you signed in with Drive linked, and signal.</p>
 <p class="qa"><b>Edited a sector in the Analyser and its times have gone.</b> Changing a sector's course clears its results and PB. Accept the rescan when offered, or tap <strong>Scan all</strong> in a session's Sectors pane. <a href="#an-sectors">Analyser: sectors</a></p>
+<p class="qa"><b>No map with no signal.</b> Only water you have already viewed is kept on the phone. Open the map over it once with signal before you go. <a href="#live">MAP</a></p>
 <p class="qa"><b>Courses list empty or old.</b> It's read from boatrun.au and needs signal; the last list downloaded is shown meanwhile.</p>
 
 <h2>Lanes, dividers and hazards</h2>
@@ -1646,6 +1694,7 @@ img.inline{display:inline;margin:0 3px;vertical-align:-.32em;height:1.45em;width
 <p class="qa"><b>HR strap won't connect.</b> Wet the contacts, put it on before connecting, and make sure no watch has already claimed it. Connect it with the ♥ HR chip. <a href="#hr">Heart rate</a></p>
 <p class="qa"><b>PM5 not found.</b> Wake it first - press a key or take a stroke. <a href="#erg">Erg mode</a></p>
 <p class="qa"><b>Squad erg workout didn't arrive.</b> The erg must be on its main menu.</p>
+<p class="qa"><b>Erg session still recording after I walked away.</b> Tap <strong>Finish Session</strong> - it appears after 15 seconds without a stroke. Left alone, the session saves itself after 3 minutes. <a href="#erg-finish">Finishing an erg session</a></p>
 
 <h2>Battery and screen</h2>
 <p class="qa"><b>Screen went black but numbers still show.</b> That's SAVER or the overheating guard. Tap the power button for ⚡ FULL. <a href="#power">Power</a></p>
