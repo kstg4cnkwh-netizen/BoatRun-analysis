@@ -8198,7 +8198,7 @@ function computeGroupCurve(strokes){
   if(!valid.length)return null;
   const FORCE=curvesAreForce();
   let avg=new Array(CURVE_POINTS).fill(0);
-  let dfSum=0,rateSum=0,rateN=0,dpsSum=0,dpsN=0,paceSum=0,paceN=0,drvSum=0,drvN=0,cdSum=0,cdN=0;
+  let dfSum=0,rateSum=0,rateN=0,dpsSum=0,dpsN=0,paceSum=0,paceN=0,drvSum=0,drvN=0,cdSum=0,cdN=0,lenSum=0,lenN=0;
   for(const s of valid){
     for(let i=0;i<CURVE_POINTS;i++)avg[i]+=s.curve[i];
     dfSum+=(s.curveDriveFrac||0.5);
@@ -8210,6 +8210,7 @@ function computeGroupCurve(strokes){
     if(_row&&s.pace>50&&s.pace<500){paceSum+=s.pace;paceN++;}
     if(_row&&s.driveTimeMs>50&&s.driveTimeMs<3000){drvSum+=s.driveTimeMs;drvN++;}
     if(_row&&s.catchDuration>0&&s.catchDuration<1500){cdSum+=s.catchDuration;cdN++;}
+    if(s.drivelength>0.3&&s.drivelength<3){lenSum+=s.drivelength;lenN++;}
   }
   for(let i=0;i<CURVE_POINTS;i++)avg[i]/=valid.length;
   let df=dfSum/valid.length;
@@ -8232,7 +8233,7 @@ function computeGroupCurve(strokes){
   }
   return{data:avg,driveFrac:df,n:valid.length,total:strokes.length,
     avgRate:avgRate,avgDPS:dpsN?dpsSum/dpsN:null,avgPace:paceN?paceSum/paceN:null,
-    avgDriveMs:drvN?drvSum/drvN:null,avgCatchMs:avgCatchMs};
+    avgDriveMs:drvN?drvSum/drvN:null,avgCatchMs:avgCatchMs,avgLen:lenN?lenSum/lenN:null};
 }
 
 
@@ -8890,7 +8891,7 @@ function buildCurveSection(){
   }
   document.getElementById('curvehint').textContent=hasCurves
     ?(curvesAreForce()
-      ?'Average PM5 drive force curve (N) \u00b7 x axis = drive time, catch at left'
+      ?(curveGroups.every(g=>g.strokes.some(x=>x.drivelength>0.3))?'Average PM5 drive force curve (N), drawn across handle travel (m) like the BoatRun app \u00b7 each curve ends at its average stroke length':'Average PM5 drive force curve (N) \u00b7 x axis = drive time, catch at left')
       :'Average of normalized catch-to-catch IMU curves \u00b7 dashed line = drive/recovery boundary')
     :'No curve data in selected strokes \u2014 record with latest Metrics app';
   if(hasCurves&&tplHasEntries(tplActive()))
@@ -8935,12 +8936,16 @@ function drawCurvePanel(){
 
   // x=0 is blade entry (catch) — no rotation needed, curve is already catch-to-catch
   const FORCE=curvesAreForce();
+  /* Erg force curves are drawn like the BoatRun app: across handle travel in
+     metres (each curve ends at its own stroke length) on a force scale that
+     starts at 0 N. Older sessions without stroke length keep the time base. */
+  const XM=FORCE&&curves.every(c=>c.avgLen>0);
   const enriched=curves.map(c=>{
     const sp=integrateSpeed(c.data,c.avgRate,c.avgDPS);
     /* A PM5 force curve has no integrable speed, so its time base comes from
        the PM5 drive time - the curve spans the drive only. Without this T was
        null and the whole panel bailed out with "No stroke rate data available". */
-    const T=sp?sp.T:(FORCE?(c.avgDriveMs?c.avgDriveMs/1000:(c.avgRate?(60/c.avgRate)*0.4:null)):(c.avgRate?60/c.avgRate:null));
+    const T=XM?c.avgLen:(sp?sp.T:(FORCE?(c.avgDriveMs?c.avgDriveMs/1000:(c.avgRate?(60/c.avgRate)*0.4:null)):(c.avgRate?60/c.avgRate:null)));
     return{...c,accelRot:c.data,catchFrac:0,finishFrac:c.driveFrac,speed:sp?sp.v:null,T:T,avgSpeedMS:(!FORCE&&c.avgPace)?500/c.avgPace:null};
   });
 
@@ -8953,7 +8958,8 @@ function drawCurvePanel(){
     if(((_atpl.kind==='force')===FORCE) && c0.T && c0.avgRate) tplOv=tplResolve(_atpl,c0.avgRate);
   }
 
-  const maxT=Math.max(...enriched.map(c=>c.T||0));
+  let maxT=Math.max(...enriched.map(c=>c.T||0));
+  if(XM&&maxT>0)maxT=Math.max(1.0,Math.ceil((maxT+0.04)/0.2)*0.2);
   if(!maxT){
     ctx.fillStyle=C.muted;ctx.font='11px -apple-system, BlinkMacSystemFont, Helvetica Neue, sans-serif';ctx.textAlign='center';
     ctx.fillText('No stroke rate data available',W/2,H/2);return;
@@ -8969,11 +8975,15 @@ function drawCurvePanel(){
   let yMin=Infinity,yMax=-Infinity;
   enriched.forEach(c=>{c.accelRot.forEach(v=>{if(v<yMin)yMin=v;if(v>yMax)yMax=v;});});
   if(tplOv)tplOv.data.forEach(v=>{if(v<yMin)yMin=v;if(v>yMax)yMax=v;});
-  const yPad=(yMax-yMin)*0.12;yMin-=yPad;yMax+=yPad;
+  if(FORCE){
+    /* Same round newton scale as the app: 0 N at the bottom. */
+    const need=Math.max(yMax*1.08,200), st=need<=400?100:need<=1000?200:need<=1600?250:500;
+    yMin=0;yMax=Math.ceil(need/st)*st;
+  }else{const yPad=(yMax-yMin)*0.12;yMin-=yPad;yMax+=yPad;}
   /* Y zoom from the slider on the right: about zero when the curve crosses it
      (so the zero line stays put), otherwise about the middle. */
   if(curveYZoom!==1){
-    const zc=(yMin<0&&yMax>0)?0:(yMin+yMax)/2;
+    const zc=FORCE?0:(yMin<0&&yMax>0)?0:(yMin+yMax)/2;
     yMin=zc+(yMin-zc)/curveYZoom;yMax=zc+(yMax-zc)/curveYZoom;
   }
   const yRng=yMax-yMin||1;
@@ -8993,11 +9003,12 @@ function drawCurvePanel(){
 
   // Accel grid
   ctx.strokeStyle=C.gridLn;ctx.lineWidth=1;
-  niceSteps(yMin,yMax,4).forEach(g=>{
+  {const _gs=FORCE?(()=>{const st=yMax<=400?100:yMax<=1000?200:yMax<=1600?250:500,o=[];for(let g=0;g<=yMax+0.1;g+=st)o.push(g);return o;})():niceSteps(yMin,yMax,4);
+  _gs.forEach((g,gi)=>{
     const y=toY(g);ctx.beginPath();ctx.moveTo(PL,y);ctx.lineTo(PL+pw,y);ctx.stroke();
     ctx.fillStyle=C.gridLb;ctx.font='8px -apple-system, BlinkMacSystemFont, Helvetica Neue, sans-serif';ctx.textAlign='right';
-    ctx.fillText(g.toFixed(1),PL-3,y+3);
-  });
+    ctx.fillText(FORCE?(Math.round(g)+(gi===_gs.length-1?' N':'')):g.toFixed(1),PL-3,y+3);
+  });}
   if(yMin<0&&yMax>0){
     ctx.strokeStyle=C.frameLn;ctx.lineWidth=1.5;
     ctx.beginPath();ctx.moveTo(PL,toY(0));ctx.lineTo(PL+pw,toY(0));ctx.stroke();
@@ -9046,6 +9057,11 @@ function drawCurvePanel(){
     ctx.beginPath();
     for(let i=0;i<CURVE_POINTS;i++){const x=toPx(i*step);i===0?ctx.moveTo(x,toY(c.accelRot[i])):ctx.lineTo(x,toY(c.accelRot[i]));}
     ctx.strokeStyle=c.color;ctx.lineWidth=2.5;ctx.setLineDash([]);ctx.globalAlpha=1;ctx.stroke();
+    if(FORCE){
+      let pi=0;for(let i=1;i<CURVE_POINTS;i++)if(c.accelRot[i]>c.accelRot[pi])pi=i;
+      c.peakN=c.accelRot[pi];c.peakPct=Math.round(pi/(CURVE_POINTS-1)*100);
+      ctx.beginPath();ctx.arc(toPx(pi*step),toY(c.peakN),4,0,Math.PI*2);ctx.fillStyle=c.color;ctx.fill();
+    }
     ctx.restore();
 
     // Speed line
@@ -9088,23 +9104,24 @@ function drawCurvePanel(){
   }
 
   // X axis ticks + labels
-  const tickStep=maxT>2.5?0.5:maxT>1.2?0.25:0.1;
-  for(let t=0;t<=maxT+0.001;t+=tickStep){
+  const tickStep=XM?0.2:(maxT>2.5?0.5:maxT>1.2?0.25:0.1);
+  for(let k=0,t=0;t<=maxT+0.001;k++,t=k*tickStep){
     const x=toPx(t);
     ctx.strokeStyle=C.gridLb;ctx.lineWidth=1;
     ctx.beginPath();ctx.moveTo(x,speedTop+ph2);ctx.lineTo(x,speedTop+ph2+4);ctx.stroke();
+    if(XM&&k%2)continue;
     ctx.fillStyle=C.gridLb;ctx.font='8px -apple-system, BlinkMacSystemFont, Helvetica Neue, sans-serif';ctx.textAlign='center';
-    ctx.fillText(t.toFixed(1)+'s',x,speedTop+ph2+13);
+    ctx.fillText(t.toFixed(1)+(XM?' m':'s'),x,speedTop+ph2+13);
   }
   ctx.fillStyle=C.muted;ctx.font='7px -apple-system, BlinkMacSystemFont, Helvetica Neue, sans-serif';ctx.textAlign='left';
-  ctx.fillText(FORCE?'x=0: catch  \u2502  full width = drive':'x=0: catch (start of check)  \u2502  dashed: finish',PL,speedTop+ph2+26);
+  ctx.fillText(XM?'x: handle travel from the catch  \u2502  each curve ends at its stroke length  \u2502  dot: peak force':(FORCE?'x=0: catch  \u2502  full width = drive':'x=0: catch (start of check)  \u2502  dashed: finish'),PL,speedTop+ph2+26);
 
   // Legend in gap between panels
   let lx=PL;
   const ly=accelTop+ph1+GAP/2+3;
   enriched.forEach(c=>{
     ctx.fillStyle=c.color;ctx.fillRect(lx,ly-4,10,3);
-    const txt=`${c.label}${c.avgRate?' '+f1(c.avgRate)+'spm':''} (${c.n}/${c.total})`;
+    const txt=`${c.label}${c.avgRate?' '+f1(c.avgRate)+'spm':''}${FORCE&&c.peakN?' \u00b7 peak '+Math.round(c.peakN)+' N @ '+c.peakPct+'%':''}${XM?' \u00b7 '+c.avgLen.toFixed(2)+' m':''} (${c.n}/${c.total})`;
     ctx.fillStyle=C.text;ctx.font='8px -apple-system, BlinkMacSystemFont, Helvetica Neue, sans-serif';ctx.textAlign='left';
     ctx.fillText(txt,lx+13,ly);
     lx+=ctx.measureText(txt).width+22;
@@ -9145,7 +9162,7 @@ function drawCurvePanel(){
     ctx.beginPath();ctx.moveTo(gx-12,H-2);ctx.lineTo(gx+12,H-2);ctx.stroke();
     ctx.restore();
   }
-  canvas._g={H,PL,pw,maxT,accelTop,ph1,speedTop,ph2,enriched,yMin,yMax,tplOv,tplT:(tplOv&&enriched[0])?enriched[0].T:null,tplName:(_atpl&&_atpl.name)||'Template'};
+  canvas._g={H,PL,pw,maxT,XM,accelTop,ph1,speedTop,ph2,enriched,yMin,yMax,tplOv,tplT:(tplOv&&enriched[0])?enriched[0].T:null,tplName:(_atpl&&_atpl.name)||'Template'};
 }
 function curveDeriv(arr,i,step){
   const n=arr.length;
@@ -9199,7 +9216,7 @@ function showCurveTooltip(clientX,clientY){
   const tplS=sampleTplOverlay(g,t);
   if(!samples.some(s=>s)&&!tplS)return hideTooltip();
 
-  let html=`<div class="tt-hd">t = ${f2(t)}s since catch</div><table class="tt-ctable"><tr><td></td>`;
+  let html=g.XM?`<div class="tt-hd">${f2(t)} m from the catch</div><table class="tt-ctable"><tr><td></td>`:`<div class="tt-hd">t = ${f2(t)}s since catch</div><table class="tt-ctable"><tr><td></td>`;
   enriched.forEach(c=>{html+=`<td class="tt-dot"><span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:${c.color};"></span></td>`;});
   if(g.tplOv)html+=`<td class="tt-dot" title="${g.tplName}"><span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:${TPL_COLOR};"></span></td>`;
   html+='</tr><tr><td class="tt-lbl">Speed (m/s)</td>';
@@ -9208,7 +9225,7 @@ function showCurveTooltip(clientX,clientY){
   html+='</tr><tr><td class="tt-lbl">'+(curvesAreForce()?'Force (N)':'Accel (m/s\u00B2)')+'</td>';
   samples.forEach(s=>{html+=`<td class="tt-val">${s?f2(s.accel):EM}</td>`;});
   if(g.tplOv)html+=`<td class="tt-val">${tplS?f2(tplS.accel):EM}</td>`;
-  html+='</tr><tr><td class="tt-lbl">'+(curvesAreForce()?'Rate of force (N/s)':'Rate of accel (m/s\u00B3)')+'</td>';
+  html+='</tr><tr><td class="tt-lbl">'+(curvesAreForce()?(g.XM?'Rate of force (N/m)':'Rate of force (N/s)'):'Rate of accel (m/s\u00B3)')+'</td>';
   samples.forEach(s=>{html+=`<td class="tt-val">${s?f1(s.rate):EM}</td>`;});
   if(g.tplOv)html+=`<td class="tt-val">${tplS?f1(tplS.rate):EM}</td>`;
   html+='</tr></table>';
