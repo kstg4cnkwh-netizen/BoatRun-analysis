@@ -10605,6 +10605,7 @@ async function showStartup(){
         +'<label class="sz-sel">Boat '+boatFilterSelect('sz-boat-f',boatF)+'</label>'
         +'<button id="sz-mx" class="filt-chip" title="Mixed crews only">Mixed</button>'
         +'<button id="sz-cs" class="filt-chip" title="Coastal boats only">Coastal</button>'
+        +'<button id="sz-clear" class="filt-chip" title="Clear every filter and the search">\u2715 Clear filters</button>'
         +'<label class="sz-sel">Sort <select id="sz-sort"><option value="date|desc">Newest</option><option value="date|asc">Oldest</option><option value="distance|desc">Longest distance</option><option value="distance|asc">Shortest distance</option><option value="time|desc">Longest time</option><option value="time|asc">Shortest time</option></select></label>'
         +'<span class="sz-gap"></span>'
         +'<button id="sz-tag-boats" class="filt-chip" style="text-transform:none;" title="Pick sessions to set their boat type">Tag boats\u2026</button>'
@@ -10665,6 +10666,12 @@ async function showStartup(){
       document.getElementById('sz-boat-f').onchange=e=>{boatF=e.target.value;renderList();};
       document.getElementById('sz-mx').onclick=()=>{boatMx=!boatMx;renderList();};
       document.getElementById('sz-cs').onclick=()=>{boatCs=!boatCs;renderList();};
+      document.getElementById('sz-clear').onclick=()=>{
+        modeFilter='';favOnly=false;boatF='';boatMx=false;boatCs=false;searchQuery='';
+        const _si=document.getElementById('sz-search'),_hs=document.getElementById('hdrsearch');
+        if(_si)_si.value='';if(_hs)_hs.value='';
+        renderList();
+      };
     }
     let sumMonthOff=0,sumWeekOff=0;
     function parseFn(name){
@@ -10791,6 +10798,7 @@ async function showStartup(){
       const boatSel=document.getElementById('sz-boat-f');
       if(boatSel){boatSel.value=boatF;}
       {const m=document.getElementById('sz-mx'),c=document.getElementById('sz-cs');if(m)m.className='filt-chip'+(boatMx?' on':'');if(c)c.className='filt-chip'+(boatCs?' on':'');}
+      {const cl=document.getElementById('sz-clear');if(cl){const any=!!(modeFilter||favOnly||boatF||boatMx||boatCs||searchQuery);cl.disabled=!any;cl.className='filt-chip'+(any?' live':'');}}
       const tagBtn=document.getElementById('sz-tag-boats');
       if(tagBtn&&!_szTagBusy){tagBtn.textContent=_szTagMode?'\u2715 Done tagging':'Tag boats\u2026';tagBtn.className='filt-chip'+(_szTagMode?' on':'');}
       fileList.forEach(f=>{_fidNames[f.id]=f.name;});
@@ -11419,6 +11427,8 @@ function showInfoModal(){
     makeRow('Distance','Total distance travelled (GPS), in km or mi based on units setting.','cond'),
     makeRow('Duration','Total elapsed time of the session.','indep'),
     ...METRIC_DEFS.map(m=>makeRow(m.l,m.tip,m.cat||null)),
+    makeRow('Consistency','Curve Comparison. How alike the stroke curves in a group are: each stroke is compared with the average curve of its 10-stroke window, and 100% means every stroke has the same shape. The figure is the mean over every run of 10 strokes in the group, so it matches the Consistency tile in the app. Underneath: Effort \u00b1 = how much the peak varies, as % of the average peak; Character \u00b1 = how much the point of peak moves, in % of the stroke (the spread of Stroke Char); Length \u00b1 = erg stroke length variation. On water, chop and wash pull it down, so compare water with water and erg with erg.','indep'),
+    makeRow('Peak consistency','Curve Comparison, erg only. How much of the strokes\u2019 own peak force survives in their average curve. 100% = every stroke peaks at the same force in the same place; lower = peaks vary in size or timing (the gap between the dot and the ring on the curve).','indep'),
     makeRow('Avg HR','Average heart rate during the session, in beats per minute.',null)
   ].join('');
   const overlay=document.createElement('div');
@@ -16700,6 +16710,9 @@ body:has(#startup .sz-list) #sz-search{display:none!important;}
 #startup .sz-seg{display:inline-flex;padding:3px;border-radius:9px;background:var(--ov-line2);gap:2px;}
 #startup .sz-seg .filt-chip{height:30px!important;border:none!important;border-radius:7px!important;background:transparent!important;color:var(--ov-muted)!important;font-weight:500!important;}
 #startup .sz-seg .filt-chip.on{background:var(--ov-card)!important;color:var(--ov-text)!important;font-weight:600!important;box-shadow:0 1px 2px rgba(14,20,32,.14)!important;}
+#startup #sz-clear{text-transform:none;color:var(--ov-bin)!important;border-color:var(--ov-bin)!important;background:var(--ov-card)!important;}
+#startup #sz-clear:disabled{color:var(--ov-muted)!important;border-color:var(--ov-line)!important;opacity:.6;cursor:default;}
+#startup #sz-clear.live:hover{background:var(--ov-bin)!important;color:#fff!important;}
 #startup #sz-fav-btn{width:36px;padding:0;font-size:16px;color:var(--ov-muted);}
 #startup #sz-fav-btn.on{background:var(--ov-card);color:#C2381F;border-color:#C2381F!important;}
 #startup .sz-sel{display:inline-flex;align-items:center;gap:6px;height:36px;padding:0 4px 0 12px;border:1px solid var(--ov-line);border-radius:8px;background:var(--ov-card);font:500 13px Inter,sans-serif;color:var(--ov-muted);box-sizing:border-box;}
