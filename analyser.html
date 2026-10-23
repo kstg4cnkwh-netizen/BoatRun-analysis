@@ -10771,8 +10771,7 @@ async function showStartup(){
         const dateDiv=document.createElement('div');
         dateDiv.className='asc-date';
         dateDiv.innerHTML='<span>'+dateStr+'</span>'
-          +(p.erg?'<span class="asc-badge asc-erg">Erg</span>':'<span class="asc-badge asc-water">On water</span>')
-          +(p.boat?'<span class="asc-badge">'+boatLabel(p.boat,p.mixed,p.coastal)+'</span>':'')
+          +(p.boat?'<span class="asc-badge asc-boat">'+boatLabel(p.boat,p.mixed,p.coastal)+'</span>':'')
           +(p.squadCode?'<span class="asc-badge">'+p.squadCode+'</span>':'')
           
           +(p.workout?'<span class="asc-badge asc-wkt">'+_secEsc(p.workout)+'</span>':'')
@@ -10788,9 +10787,13 @@ async function showStartup(){
 
         if(p.name){const nameDiv=document.createElement('div');nameDiv.className='asc-name';nameDiv.style.cssText='font-weight:700;font-size:.85rem;color:var(--text);margin-bottom:2px;';nameDiv.textContent=p.name;btn.appendChild(nameDiv);}
         btn.insertBefore(star,btn.firstChild);
-        {const ven=document.createElement('div');ven.className='asc-venue '+(p.erg?'erg':'water');ven.title=p.erg?'Erg session':'On-water session';
-         ven.innerHTML=p.erg?VEN_SVG.erg:VEN_SVG.water;
-         star.after(ven);}
+        /* Venue icon; in the calendar day list the boat type sits under it
+           (it is hidden from the date line there) to keep each row short. */
+        {const vc=document.createElement('div');vc.className='asc-vcol';
+         const ven=document.createElement('div');ven.className='asc-venue '+(p.erg?'erg':'water');ven.title=p.erg?'Erg session':'On-water session';
+         ven.innerHTML=p.erg?VEN_SVG.erg:VEN_SVG.water;vc.appendChild(ven);
+         if(p.boat){const vb=document.createElement('div');vb.className='asc-vboat';vb.textContent=boatLabel(p.boat,p.mixed,p.coastal).replace(/ \u00b7 Mixed/,' Mix').replace(/ \u00b7 Coastal/,' C');vb.title=boatLabel(p.boat,p.mixed,p.coastal);vc.appendChild(vb);}
+         star.after(vc);}
         btn.appendChild(dateDiv);btn.appendChild(statsDiv);
         if(typeof f.description==='string'&&f.description.trim()){const nd=document.createElement('div');nd.className='asc-note';nd.style.cssText='font-size:12px;color:var(--text);opacity:.85;white-space:pre-wrap;margin-top:4px;';nd.textContent='📝 '+f.description.trim();btn.appendChild(nd);}
 
@@ -13134,7 +13137,7 @@ function renderStartupCalendar(){
     const back=isFinite(firstTs)?Math.min(36,Math.max(1,(now.getFullYear()-new Date(firstTs).getFullYear())*12+now.getMonth()-new Date(firstTs).getMonth())):6;
     h='<div class="sz-lhd" style="display:flex;align-items:center;gap:6px;flex-wrap:wrap;">Calendar'+'<span style="display:flex;gap:4px;margin-left:8px;"><button id="cal-mine" class="filt-chip'+(!_wktCtx?' on':'')+'" style="'+CH+'">Mine</button><button id="cal-squad" class="filt-chip'+(_wktCtx?' on':'')+'" style="'+CH+'">'+'<span style="display:inline-block;flex-shrink:0;width:8px;height:8px;border-radius:50%;background:'+CAL_COACH_COL+';box-shadow:0 0 0 1px rgba(0,0,0,.35);margin-right:5px;vertical-align:middle;"></span>'+'Squad'+(_wktCtx?' '+_wktCtx:'')+'</button></span>'
       +'<span style="margin-left:auto;display:flex;align-items:center;gap:6px;">'+((!_wktCtx&&WKT_ENABLED)?'<button id="cal-sqsync" class="filt-chip" style="'+CH+'" title="Copy the squad plan into your calendar">&#x21BB; From squad</button>':'')
-      +'<button id="sz-phonesync" class="filt-chip" style="'+CH+'" title="Fetch new sessions, workouts and calendar items from the app"><span>&#x21BB; Sync with app</span></button>'+'<button id="cal-plan" class="filt-chip" style="'+CH+'" title="Opens the planning calendar in its own window">&#x1F5D3; Planning &#x2197;</button>'+'<button id="cal-today" class="filt-chip" style="'+CH+'">Today</button></span></div>'+sqBar
+      +'<button id="sz-phonesync" class="filt-chip" style="'+CH+'" title="Fetch new sessions, workouts and calendar items from the app"><span>&#x21BB; Sync with app</span></button>'+'<button id="cal-plan" class="filt-chip" style="'+CH+'" title="Opens the planning calendar in its own window">&#x1F5D3; Planning;</button>'+'<button id="cal-today" class="filt-chip" style="'+CH+'">Today</button></span></div>'+sqBar
       +'<div id="cal-scroll" style="height:min(440px,62vh);overflow-y:auto;padding-right:4px;position:relative;">';
     for(let o=-back;o<=3;o++){
       const b=new Date(now.getFullYear(),now.getMonth()+o,1);
@@ -13179,7 +13182,7 @@ function renderStartupCalendar(){
     const _othRows=calItemsOf(_calSel).filter(x=>x.type==='other'&&!(x.done&&!_wktCtx)).map(x=>ciOtherRow(x,_ciEd,'',null)).join('');let _seqShown=false;
     if((WKT_ENABLED||_wktCtx)&&_calSel>=todayK){
     const shownIds=ids.filter(id=>!wById[id]||planShown(_calSel,wById[id]));
-    h+='<div style="font-size:11px;color:var(--muted);margin:8px 0 4px;">'+(_wktCtx?'Squad plan':'Planned workouts <span style="font-size:10px;">(suggested in Metrics on the day)</span>')+'</div>';
+    h+='<div style="font-size:11px;color:var(--muted);margin:8px 0 4px;">'+(_wktCtx?'Squad plan':'Planned workouts <span style="font-size:10px;">(suggested in App on the day)</span>')+'</div>';
     if(!shownIds.length&&!_othRows)h+='<div style="font-size:12px;color:var(--muted);margin-bottom:6px;">None planned.</div>';
     const _sq=daySeq(_calSel);
     const _grip=((!_wktCtx||sqCanEdit())&&_sq.length>1)?DRAG_GRIP:'';
@@ -16646,13 +16649,18 @@ body:has(#startup .sz-list) #sz-search{display:none!important;}
 
 /* venue: icon tile + badge on every row */
 #startup .asc,#startup .asc:hover,#startup .asc.erg,#startup .asc.erg:hover{grid-template-columns:24px 36px minmax(0,1fr) auto!important;grid-template-areas:"star ven name stats" "star ven date stats" "star ven note note"!important;}
-#startup .asc>.asc-venue{grid-area:ven;width:36px;height:36px;border-radius:9px;display:flex;align-items:center;justify-content:center;align-self:center;}
-#startup .asc>.asc-venue.water{background:var(--ov-wbg);color:var(--ov-wfg);}
-#startup .asc>.asc-venue.erg{background:var(--ov-ebg);color:var(--ov-efg);}
+#startup .asc>.asc-vcol{grid-area:ven;display:flex;flex-direction:column;align-items:center;gap:3px;align-self:center;}
+#startup .asc-vcol>.asc-venue{width:36px;height:36px;border-radius:9px;display:flex;align-items:center;justify-content:center;}
+#startup .asc-vboat{display:none;font:700 10px Inter,sans-serif;color:var(--ov-text);white-space:nowrap;}
+#startup #sz-calday .asc-vboat{display:block;}
+#startup #sz-calday .asc-date .asc-boat{display:none;}
+#startup .asc-venue.water{background:var(--ov-wbg);color:var(--ov-wfg);}
+#startup .asc-venue.erg{background:var(--ov-ebg);color:var(--ov-efg);}
 #startup .asc-date .asc-badge.asc-water{background:var(--ov-wbg);border-color:var(--ov-wbg);color:var(--ov-wfg)!important;}
 @container sess (max-width:600px){
   #startup .asc,#startup .asc:hover,#startup .asc.erg,#startup .asc.erg:hover{grid-template-columns:22px 32px minmax(0,1fr)!important;grid-template-areas:"star ven name" "star ven date" "star ven stats" "star ven note"!important;}
-  #startup .asc>.asc-venue{width:32px;height:32px;align-self:start;}
+  #startup .asc>.asc-vcol{align-self:start;}
+  #startup .asc-vcol>.asc-venue{width:32px;height:32px;}
 }
 
 #startup{--ov-bg:#F6F7F9;--ov-card:#fff;--ov-soft:#F6F7F9;--ov-line:#E3E6EB;--ov-line2:#EEF0F3;--ov-line3:#B9C0CB;--ov-hover:#FAFBFC;--ov-text:#0E1420;--ov-muted:#5B6474;--ov-sel:#081226;--ov-sel-t:#fff;--ov-wbg:#E3EEFC;--ov-wfg:#1556A6;--ov-ebg:#FBE4E2;--ov-efg:#A3241B;--ov-kbg:#F1EEFB;--ov-kfg:#5B3FB0;--ov-bin:#b3261e;}
