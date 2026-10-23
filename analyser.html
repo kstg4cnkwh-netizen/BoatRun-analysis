@@ -720,6 +720,7 @@ body.light .hdrname{color:#fff;}
   <h1><a href="https://boatrun.au" title="BoatRun home">⊳ BoatRun</a></h1>
   <div class="meta" id="hdrmeta"></div>
   <div class="sp"></div>
+  <label class="hdr-search" id="hdrsearchwrap"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><circle cx="11" cy="11" r="7"></circle><path d="M20 20l-4-4"></path></svg><input type="text" id="hdrsearch" placeholder="Search sessions" aria-label="Search sessions" autocomplete="off"></label>
   <div class="hdr-tabs">
   <div class="hmenu-wrap">
     <button class="hbtn hicon-btn" id="filemenubtn" style="display:none;"><img class="hicon-img" src="icons/Files.svg"><span class="hicon-txt">Files ▾</span></button>
@@ -9624,10 +9625,33 @@ function updateMapGroups(){
   });
 }
 
+/* Route map is drawn the same height as the stroke data table beside it (never
+   below 320px). Off when the map is Larger, or when the two are stacked. */
+function syncMapHeight(){
+  const mb=document.getElementById('mapbox'),col=document.querySelector('.map-col'),tw=document.querySelector('#tblwrap .twrap'),tb=document.getElementById('tbsec');
+  if(!mb||!col)return;
+  const old=mb.style.height;
+  let h='';
+  if(!col.classList.contains('big')&&tw&&tb&&tw.offsetParent&&mb.offsetParent){
+    const cr=col.getBoundingClientRect(),tr=tb.getBoundingClientRect();
+    if(Math.abs(cr.top-tr.top)<60){
+      const t=Math.round(tw.getBoundingClientRect().bottom-mb.getBoundingClientRect().top);
+      if(t>320)h=t+'px';
+    }
+  }
+  if(h!==old){mb.style.height=h;if(leafletMap)setTimeout(()=>{try{leafletMap.invalidateSize();}catch(e){}},30);}
+}
+(function(){
+  let q=0;const later=()=>{cancelAnimationFrame(q);q=requestAnimationFrame(syncMapHeight);};
+  window.addEventListener('resize',later);
+  const go=()=>{const w=document.getElementById('tblwrap'),m=document.getElementById('mapsec');if(!w)return;if(window.ResizeObserver){const ro=new ResizeObserver(later);ro.observe(w);if(m)ro.observe(m);}later();};
+  if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',go);else go();
+})();
 window.toggleMapSize=function(){
   const col=document.querySelector('.map-col');if(!col)return;
   const big=col.classList.toggle('big');
   const b=document.getElementById('mapSizeBtn');if(b)b.textContent=big?'Smaller ⤡':'Larger ⤢';
+  syncMapHeight();
   setTimeout(()=>{if(leafletMap){leafletMap.invalidateSize();if(mapBaseLine)leafletMap.fitBounds(mapBaseLine.getBounds(),{padding:[20,20]});}},80);
 };
 function buildMap(){
@@ -10120,6 +10144,7 @@ window.toggleTable=function(){
   const shown=wrap.style.display!=='none';
   wrap.style.display=shown?'none':'block';
   btn.textContent=shown?'Show ▾':'Hide ▴';
+  syncMapHeight();
 };
 function updatePinHighlight(){
   document.querySelectorAll('#stb tr').forEach(r=>{
@@ -10317,7 +10342,7 @@ async function showStartup(){
   el.innerHTML=`<div class="sz-list">
     <div class="brpill-row">
       ${SESSIONS.length ? '<button class="dzbtn" id="sz-back" style="background:#fc4c02;border-color:#fc4c02;color:#fff;font-weight:800;box-shadow:0 3px 9px rgba(252,76,2,.45);"><span style="color:#fff;">&#10005; Back to session</span></button>' : ''}
-      <button class="dzbtn dzbtn-sec" id="sz-trends"><span>\u{1F4C8} Trends</span></button>
+      <button class="dzbtn dzbtn-sec" id="sz-trends"><span>Trends</span></button>
       <button class="dzbtn dzbtn-sec" id="sz-coach"><img src="icons/Import.svg"><span>Coach Sessions</span></button>
       <button class="dzbtn dzbtn-sec" id="sz-squad"><img src="icons/Import.svg"><span>From Squad</span></button>
       <button class="dzbtn dzbtn-sec" id="sz-openfile"><img src="icons/Open.svg"><span>Open file</span></button>
@@ -10328,14 +10353,16 @@ async function showStartup(){
     <div class="sz-grid">
     <div class="sz-sumwrap"><div class="brpill" id="sz-sectors" style="display:none;"></div><div class="brpill" id="sz-nav" style="display:none;"></div><div class="brpill sz-sumcol"><div class="sz-lhd" style="margin-bottom:8px;">Summary</div><div id="sz-sumbody"></div></div></div>
     <div class="sz-calcol"><div class="brpill" id="sz-cal"></div><div class="brpill" id="sz-calday" style="display:none;"></div></div>
-    <div class="brpill">
-      <div class="sz-lhd">Sessions<span class="sz-signout" id="sz-signout">Sign out</span></div>
+    <div class="brpill" id="sz-sesspill">
+      <div class="sz-lhd">Sessions<span class="sz-count" id="sz-count"></span><span class="sz-signout" id="sz-signout">Sign out</span></div>
       <input type="text" id="sz-search" class="brsearch" placeholder="Search sessions…" autocomplete="off">
       <div id="sz-filterbar" style="display:flex;gap:6px;margin-bottom:10px;flex-wrap:wrap;"></div>
       <div id="sz-files" class="sz-loading">Loading…</div>
     </div>
     </div>
   </div>`;
+  {const hs=document.getElementById('hdrsearch'),ss=document.getElementById('sz-search');
+   if(hs&&ss){hs.value='';hs.oninput=()=>{ss.value=hs.value;ss.dispatchEvent(new Event('input'));};}}
   szWideSummary();
   renderStartSectors();
   try{renderStartNav();}catch(e){}
@@ -10380,36 +10407,21 @@ async function showStartup(){
     if(searchInput) searchInput.oninput=()=>{searchQuery=searchInput.value.trim().toLowerCase();renderList();};
     const filterBar=document.getElementById('sz-filterbar');
     if(filterBar){
-      filterBar.innerHTML='<button id="sz-fav-btn" class="filt-chip">★ Favourites</button>'
-        +'<button id="sz-mode-water" class="filt-chip">Water</button>'
-        +'<button id="sz-mode-erg" class="filt-chip">Erg</button>'
-        +'<button id="sz-sort-date" class="filt-chip">Date</button>'
-        +'<button id="sz-sort-dist" class="filt-chip">Distance</button>'
-        +'<button id="sz-sort-time" class="filt-chip">Time</button>'
-        +boatFilterSelect('sz-boat-f',boatF)
+      filterBar.innerHTML='<div class="sz-seg" role="group" aria-label="Venue"><button id="sz-mode-all" class="filt-chip">All</button>'
+        +'<button id="sz-mode-water" class="filt-chip">On water</button>'
+        +'<button id="sz-mode-erg" class="filt-chip">Erg</button></div>'
+        +'<button id="sz-fav-btn" class="filt-chip" aria-label="Favourites only" title="Favourites only">\u2605</button>'
+        +'<label class="sz-sel">Boat '+boatFilterSelect('sz-boat-f',boatF)+'</label>'
+        +'<label class="sz-sel">Sort <select id="sz-sort"><option value="date|desc">Newest</option><option value="date|asc">Oldest</option><option value="distance|desc">Longest distance</option><option value="distance|asc">Shortest distance</option><option value="time|desc">Longest time</option><option value="time|asc">Shortest time</option></select></label>'
+        +'<span class="sz-gap"></span>'
         +'<button id="sz-tag-boats" class="filt-chip" style="text-transform:none;" title="Pick sessions to set their boat type">Tag boats\u2026</button>'
         +'<button id="sz-tag-all" class="filt-chip" style="text-transform:none;display:none;">Select all</button>'
         +'<button id="sz-tag-apply" class="filt-chip" style="text-transform:none;display:none;background:#27ae60;color:#fff;">Set boat\u2026</button>';
       document.getElementById('sz-fav-btn').onclick=()=>{favOnly=!favOnly;renderList();};
-      document.getElementById('sz-mode-water').onclick=()=>{modeFilter=modeFilter==='water'?'':'water';renderList();};
-      document.getElementById('sz-mode-erg').onclick=()=>{modeFilter=modeFilter==='erg'?'':'erg';renderList();};
-      document.getElementById('sz-sort-date').onclick=()=>{
-        if(sortBy!=='date'){sortBy='date';sortDir='desc';}
-        else {sortDir=sortDir==='desc'?'asc':'desc';}
-        renderList();
-      };
-      document.getElementById('sz-sort-dist').onclick=()=>{
-        if(sortBy!=='distance'){sortBy='distance';sortDir='desc';}
-        else if(sortDir==='desc'){sortDir='asc';}
-        else {sortBy='date';sortDir='desc';}
-        renderList();
-      };
-      document.getElementById('sz-sort-time').onclick=()=>{
-        if(sortBy!=='time'){sortBy='time';sortDir='desc';}
-        else if(sortDir==='desc'){sortDir='asc';}
-        else {sortBy='date';sortDir='desc';}
-        renderList();
-      };
+      document.getElementById('sz-mode-all').onclick=()=>{modeFilter='';renderList();};
+      document.getElementById('sz-mode-water').onclick=()=>{modeFilter='water';renderList();};
+      document.getElementById('sz-mode-erg').onclick=()=>{modeFilter='erg';renderList();};
+      document.getElementById('sz-sort').onchange=e=>{const v=String(e.target.value).split('|');sortBy=v[0]||'date';sortDir=v[1]||'desc';renderList();};
       /* Tag boats: shows a tick box on every session in the list. Tick the
          ones to change, then Set boat. Squad and workout sessions keep their
          boat. Tap Tag boats again to leave, or to stop a run. */
@@ -10555,6 +10567,10 @@ async function showStartup(){
       if(favBtn){
         favBtn.className='filt-chip'+(favOnly?' on':'');
       }
+      const allBtn=document.getElementById('sz-mode-all');
+      if(allBtn) allBtn.className='filt-chip'+(!modeFilter?' on':'');
+      const sortSel=document.getElementById('sz-sort');
+      if(sortSel) sortSel.value=sortBy+'|'+sortDir;
       const waterBtn=document.getElementById('sz-mode-water');
       if(waterBtn) waterBtn.className='filt-chip'+(modeFilter==='water'?' on':'');
       const ergBtn=document.getElementById('sz-mode-erg');
@@ -10616,6 +10632,7 @@ async function showStartup(){
       }
       _szShown=shown;
       _szTagChips();
+      {const c=document.getElementById('sz-count');if(c)c.textContent=shown.length+(shown.length!==fileList.length?' of '+fileList.length:'');}
       /* One builder for a session row, shared by this list and the calendar's
          daily session list so both look and behave the same. */
       const makeRow=(f,tagPick)=>{
@@ -10662,6 +10679,7 @@ async function showStartup(){
           +(p.boat?'<span class="asc-badge">'+boatLabel(p.boat,p.mixed,p.coastal)+'</span>':'')
           +(p.squadCode?'<span class="asc-badge">'+p.squadCode+'</span>':'')
           
+          +(p.erg?'<span class="asc-badge asc-erg">Erg</span>':'')
           +(p.workout?'<span class="asc-badge asc-wkt">'+_secEsc(p.workout)+'</span>':'')
           +(sessHasVideo(f)?VID_BADGE:'');
 
@@ -10673,10 +10691,10 @@ async function showStartup(){
         if(p.strokes!=null) statsDiv.innerHTML+='<div><span class="asc-v">'+p.strokes+'</span><span class="asc-l">strokes</span></div>';
         if(!p.distM&&!p.durS) statsDiv.innerHTML='<span style="color:var(--muted);font-size:.8rem;">'+f.name.replace('RowSess_','').replace('.json','').replace('_FAV1','').replace('_VID1','').replace(/_NM[A-Za-z0-9\-~]*/,'')+'</span>';
 
-        if(p.name){const nameDiv=document.createElement('div');nameDiv.style.cssText='font-weight:700;font-size:.85rem;color:var(--text);margin-bottom:2px;';nameDiv.textContent=p.name;btn.appendChild(nameDiv);}
+        if(p.name){const nameDiv=document.createElement('div');nameDiv.className='asc-name';nameDiv.style.cssText='font-weight:700;font-size:.85rem;color:var(--text);margin-bottom:2px;';nameDiv.textContent=p.name;btn.appendChild(nameDiv);}
         btn.insertBefore(star,btn.firstChild);
         btn.appendChild(dateDiv);btn.appendChild(statsDiv);
-        if(typeof f.description==='string'&&f.description.trim()){const nd=document.createElement('div');nd.style.cssText='font-size:12px;color:var(--text);opacity:.85;white-space:pre-wrap;margin-top:4px;';nd.textContent='📝 '+f.description.trim();btn.appendChild(nd);}
+        if(typeof f.description==='string'&&f.description.trim()){const nd=document.createElement('div');nd.className='asc-note';nd.style.cssText='font-size:12px;color:var(--text);opacity:.85;white-space:pre-wrap;margin-top:4px;';nd.textContent='📝 '+f.description.trim();btn.appendChild(nd);}
 
         const del=document.createElement('button');del.className='sz-del';del.innerHTML='<img src="icons/Delete.svg">';del.title='Delete from Drive';
         del.onclick=async()=>{
@@ -16410,4 +16428,119 @@ body{font-size:14px;}
 .asc-fav,#sz-calday .asc-fav,#sz-cal .asc-fav{background:none!important;border:none!important;box-shadow:none!important;color:#c7c7cc!important;text-transform:none;}
 .asc-fav.on,#sz-calday .asc-fav.on,#sz-cal .asc-fav.on{color:#fc4c02!important;}
 .sz-signout{color:#b3261e;font-weight:700;}
+
+/* ══ Overview restyle: navy app bar (scheme C) + clean light overview (scheme A) ══ */
+#hdr{background:#081226!important;border-bottom:none!important;box-shadow:none!important;padding:0 24px!important;min-height:56px;gap:18px!important;}
+#hdr h1{font-family:'Space Grotesk',-apple-system,sans-serif!important;font-size:18px!important;letter-spacing:-.2px;}
+#hdr h1 a{color:#fff!important;}
+#hdr .meta{font-size:13px!important;}
+body .hdr-tabs,body.light .hdr-tabs{background:transparent!important;box-shadow:none!important;padding:0!important;gap:2px!important;border-radius:0!important;}
+#hdr .hbtn.hicon-btn,body.light #hdr .hdr-tabs .hbtn.hicon-btn{flex-direction:row;gap:6px;background:transparent!important;box-shadow:none!important;border:none!important;border-radius:6px!important;color:#C5CEDD!important;padding:7px 10px!important;font:500 13px Inter,-apple-system,sans-serif!important;letter-spacing:0!important;text-transform:none!important;}
+#hdr .hbtn.hicon-btn .hicon-txt{color:inherit!important;font:inherit!important;text-transform:none!important;}
+#hdr .hbtn.hicon-btn:hover,body.light #hdr .hdr-tabs .hbtn.hicon-btn:hover{background:rgba(255,255,255,.12)!important;color:#fff!important;}
+#hdr .hicon-img{display:none!important;}
+#hdr #closeallbtn{background:#C2381F!important;color:#fff!important;font-weight:600!important;}
+body .hdr-tabs .hmenu,body.light .hdr-tabs .hmenu{background:#fff!important;border:1px solid #E3E6EB!important;border-radius:10px!important;box-shadow:0 10px 30px rgba(8,18,38,.18)!important;padding:6px!important;}
+.hdr-tabs .hmenu .hbtn{border:none!important;border-radius:6px!important;background:transparent!important;color:#0E1420!important;box-shadow:none!important;font:500 13px Inter,sans-serif!important;text-transform:none!important;letter-spacing:0!important;padding:9px 10px!important;}
+.hdr-tabs .hmenu .hbtn:hover{background:#F2F4F7!important;color:#0E1420!important;}
+.hdr-search{display:none;align-items:center;gap:8px;width:280px;height:34px;padding:0 12px;border-radius:8px;background:rgba(255,255,255,.10);color:#C5CEDD;box-sizing:border-box;}
+.hdr-search input{flex:1;min-width:0;border:none;outline:none;background:transparent;color:#fff;font:400 13px Inter,-apple-system,sans-serif;}
+.hdr-search input::placeholder{color:#AEB8CA;}
+.hdr-search:focus-within{background:rgba(255,255,255,.16);box-shadow:0 0 0 2px rgba(255,255,255,.25);}
+body:has(#startup .sz-list) .hdr-search{display:flex;}
+body:has(#startup .sz-list) #sz-search{display:none!important;}
+@media (max-width:900px){.hdr-search{width:100%;order:9;}}
+
+#startup{background:#F6F7F9;color:#0E1420;font-family:Inter,-apple-system,sans-serif;padding:24px 28px 40px;}
+#startup .sz-list{max-width:1640px;}
+@media (min-width:1200px){
+  #startup .sz-grid{grid-template-columns:320px minmax(0,1fr);gap:20px;align-items:start;}
+  #startup .sz-sumwrap{grid-column:1;grid-row:1 / span 2;}
+  #startup .sz-calcol{grid-column:2;grid-row:1;}
+  #startup #sz-sesspill{grid-column:2;grid-row:2;}
+}
+@media (min-width:1560px){
+  #startup .sz-grid{grid-template-columns:320px minmax(0,1fr) 400px;}
+  #startup .sz-sumwrap{grid-row:1;}
+  #startup #sz-sesspill{grid-column:2;grid-row:1;}
+  #startup .sz-calcol{grid-column:3;grid-row:1;}
+}
+#startup .brpill,#startup .sz-grid>.brpill,#startup .sz-calcol>.brpill,#startup .sz-sumwrap>.brpill{background:#fff!important;border:1px solid #E3E6EB;border-radius:12px;box-shadow:none;padding:18px;}
+#startup .brpill .brpill{background:transparent!important;border:none;border-radius:0;padding:0;margin:0 0 4px;}
+#startup .sz-lhd{font:600 12px Inter,sans-serif;letter-spacing:.06em;text-transform:uppercase;color:#5B6474;margin-bottom:12px;}
+#startup #sz-sesspill>.sz-lhd{font:600 20px 'Space Grotesk',-apple-system,sans-serif;letter-spacing:-.2px;text-transform:none;color:#0E1420;justify-content:flex-start;gap:10px;}
+#startup .sz-count{font:400 13px Inter,sans-serif;color:#5B6474;letter-spacing:0;}
+#startup .sz-signout{margin-left:auto;font:600 13px Inter,sans-serif!important;color:#b3261e!important;}
+#startup .sumgrp-hd{font:600 11px Inter,sans-serif;letter-spacing:.06em;color:#5B6474;}
+#startup .card{background:#F6F7F9!important;border:none!important;border-radius:10px!important;box-shadow:none!important;padding:10px 8px!important;}
+#startup .card .val{color:#0E1420!important;font:600 18px 'Space Grotesk',-apple-system,sans-serif!important;}
+#startup .card .lbl{color:#5B6474!important;font-size:9px!important;letter-spacing:.06em!important;}
+#startup .card .sub{color:#5B6474!important;}
+
+/* top actions: plain outline buttons */
+#startup .brpill-row{background:transparent!important;box-shadow:none!important;padding:0!important;margin:0 0 20px!important;gap:8px!important;}
+#startup .brpill-row .dzbtn{flex:0 0 auto!important;min-width:0!important;height:36px;padding:0 14px!important;border-radius:8px!important;border:1px solid #E3E6EB!important;background:#fff!important;color:#0E1420!important;box-shadow:none!important;font:600 13px Inter,sans-serif!important;letter-spacing:0!important;text-transform:none!important;}
+#startup .brpill-row .dzbtn span{color:inherit!important;text-transform:none!important;font:inherit!important;}
+#startup .brpill-row .dzbtn img{width:16px!important;height:16px!important;filter:none!important;}
+#startup .brpill-row .dzbtn:hover{border-color:#B9C0CB!important;background:#FAFBFC!important;color:#0E1420!important;}
+#startup .brpill-row .dzbtn:hover img{filter:none!important;}
+#startup .brpill-row #sz-back{background:#081226!important;border-color:#081226!important;color:#fff!important;}
+#startup .brpill-row #sz-back span{color:#fff!important;}
+
+/* sessions toolbar */
+#startup #sz-filterbar{align-items:center;gap:10px!important;margin-bottom:6px!important;}
+#startup #sz-filterbar .filt-chip{height:36px;padding:0 12px;border-radius:8px;border:1px solid #E3E6EB!important;background:#fff;color:#0E1420;box-shadow:none;font:600 13px Inter,sans-serif;letter-spacing:0;text-transform:none!important;}
+#startup #sz-filterbar .filt-chip:hover{border-color:#B9C0CB!important;}
+#startup #sz-filterbar .filt-chip.on{background:#081226;color:#fff;border-color:#081226!important;box-shadow:none;}
+#startup .sz-seg{display:inline-flex;padding:3px;border-radius:9px;background:#EEF0F3;gap:2px;}
+#startup .sz-seg .filt-chip{height:30px!important;border:none!important;border-radius:7px!important;background:transparent!important;color:#5B6474!important;font-weight:500!important;}
+#startup .sz-seg .filt-chip.on{background:#fff!important;color:#0E1420!important;font-weight:600!important;box-shadow:0 1px 2px rgba(14,20,32,.14)!important;}
+#startup #sz-fav-btn{width:36px;padding:0;font-size:16px;color:#9AA3B1;}
+#startup #sz-fav-btn.on{background:#fff;color:#C2381F;border-color:#C2381F!important;}
+#startup .sz-sel{display:inline-flex;align-items:center;gap:6px;height:36px;padding:0 4px 0 12px;border:1px solid #E3E6EB;border-radius:8px;background:#fff;font:500 13px Inter,sans-serif;color:#5B6474;box-sizing:border-box;}
+#startup .sz-sel select{border:none!important;box-shadow:none!important;background-color:transparent!important;color:#0E1420!important;font:600 13px Inter,sans-serif!important;padding:6px 24px 6px 2px!important;height:32px;}
+#startup .sz-sel select:focus{box-shadow:none!important;}
+#startup .sz-sel:focus-within{border-color:#081226;}
+#startup .sz-gap{flex:1;}
+#startup #sz-tag-apply{background:#081226!important;color:#fff!important;border-color:#081226!important;}
+
+/* session rows: one clean line per session */
+#startup #sz-files,#startup #sz-calday{container-type:inline-size;container-name:sess;}
+#startup .sz-file-row{gap:10px;margin:0;padding:0;border-bottom:1px solid #EEF0F3;align-items:center;}
+#startup .sz-file-row:hover{background:#FAFBFC;}
+#startup .asc,#startup .asc:hover,#startup .asc.erg,#startup .asc.erg:hover{display:grid;grid-template-columns:28px minmax(0,1fr) auto;grid-template-areas:"star name stats" "star date stats" "star note note";column-gap:14px;row-gap:3px;align-items:center;background:transparent!important;border:none!important;border-radius:0;box-shadow:none!important;padding:12px 4px;}
+#startup .asc>.asc-fav{grid-area:star;float:none;padding:0;font-size:18px;justify-self:center;}
+#startup .asc>.asc-name{grid-area:name;margin:0!important;font:600 14px Inter,sans-serif!important;color:#0E1420!important;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+#startup .asc>.asc-date{grid-area:date;margin:0;font-size:12px;color:#5B6474;letter-spacing:0;gap:6px;flex-wrap:nowrap;overflow:hidden;white-space:nowrap;}
+#hdr a.hbtn{text-decoration:none!important;}
+#startup .asc:not(:has(.asc-name))>.asc-date{grid-row:1 / span 2;}
+#startup .asc>.asc-date>span:first-child{color:#0E1420;font-weight:500;}
+#startup .asc>.asc-stats{grid-area:stats;display:grid;grid-template-columns:repeat(4,76px);gap:8px;text-align:right;}
+#startup .asc>.asc-note{grid-area:note;font-size:12px!important;color:#5B6474;margin:2px 0 0!important;}
+#startup .asc-v{font:600 15px 'Space Grotesk',-apple-system,sans-serif;color:#0E1420;letter-spacing:0;}
+#startup .asc-l{font-size:10px;color:#5B6474;letter-spacing:.04em;}
+#startup .asc-date .asc-badge{font:600 11px Inter,sans-serif;padding:1px 7px;border-radius:5px;border:1px solid #D5DAE1;color:#0E1420!important;background:#fff;}
+#startup .asc-date .asc-badge.asc-wkt{background:#F1EEFB;border-color:#F1EEFB;color:#5B3FB0!important;}
+#startup .asc-date .asc-badge.asc-erg{background:#FCEBEA;border-color:#FCEBEA;color:#A3241B!important;}
+#startup .sz-del,#startup #sz-calday .sz-del,#startup #sz-cal .sz-del{width:34px;height:34px;padding:0;border-radius:8px;background:transparent;border:1px solid transparent;box-shadow:none;flex:none;margin-right:4px;}
+#startup .sz-del img{width:16px;height:16px;filter:invert(18%) sepia(73%) saturate(4142%) hue-rotate(352deg) brightness(84%) contrast(96%);}
+#startup .sz-del:hover{background:#b3261e;border-color:#b3261e;}
+#startup .sz-del:hover img{filter:brightness(0) invert(1);}
+@container sess (max-width:600px){
+  #startup .asc,#startup .asc:hover,#startup .asc.erg,#startup .asc.erg:hover{grid-template-columns:24px minmax(0,1fr);grid-template-areas:"star name" "star date" "star stats" "star note";}
+  #startup .asc:not(:has(.asc-name))>.asc-date{grid-row:auto;}
+  #startup .asc>.asc-stats{grid-template-columns:repeat(4,minmax(0,1fr));text-align:left;margin-top:4px;}
+}
+
+/* calendar controls */
+#startup #sz-cal .filt-chip{border-width:1px!important;border-radius:8px!important;text-transform:none!important;font:600 12px Inter,sans-serif!important;letter-spacing:0!important;box-shadow:none!important;}
+
+/* sectors / lanes & hazards panels: same buttons as the rest of the overview */
+#startup #sz-sectors .hbtn,#startup #sz-nav .hbtn{height:30px;padding:0 10px!important;border-radius:8px!important;border:1px solid #E3E6EB!important;background:#fff!important;color:#0E1420!important;box-shadow:none!important;font:600 12px Inter,sans-serif!important;letter-spacing:0!important;text-transform:none!important;}
+#startup #sz-sectors .hbtn:hover,#startup #sz-nav .hbtn:hover{border-color:#B9C0CB!important;background:#FAFBFC!important;color:#0E1420!important;}
+#startup #sz-nav #sz-nav-lane{border-color:#E0B800!important;box-shadow:inset 3px 0 0 #FFD60A!important;}
+#startup #sz-nav #sz-nav-div{border-color:#ff3b30!important;box-shadow:inset 3px 0 0 #ff3b30!important;}
+#startup #sz-nav #sz-nav-haz{border-color:#ff9500!important;box-shadow:inset 3px 0 0 #ff9500!important;}
+#startup #sz-sectors .sz-lhd,#startup #sz-nav .sz-lhd{flex-wrap:wrap;gap:8px;}
+#startup #sz-sectors .sz-lhd>span,#startup #sz-nav .sz-lhd>span{flex-wrap:wrap;gap:6px!important;}
 </style>
