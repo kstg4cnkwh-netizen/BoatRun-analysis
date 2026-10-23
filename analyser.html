@@ -8124,10 +8124,22 @@ function addLapToCurves(){
   if(curveGroups.length>=MAX_GROUPS){toast(MAX_GROUPS+' curve groups max');return;}
   const _lapN=_selLapN, _n0=curveGroups.length;
   pinSelection();
-  if(curveGroups.length>_n0&&_lapN!=null){curveGroups[curveGroups.length-1].lapN=_lapN;applyGroupHighlights();}
+  if(curveGroups.length>_n0&&_lapN!=null){const _g=curveGroups[curveGroups.length-1];_g.lapN=_lapN;_g.lap=lapSnapForGroup(_lapN);buildCurveSection();applyGroupHighlights();}
 }
 window.addLapToCurves=addLapToCurves;
 
+/* Lap-table figures for a lap added to curves, so the curve's metric table
+   shows the lap's own distance / time / pace / rate / HR, not a re-sum of strokes. */
+function lapSnapForGroup(n){
+  const l=_showLaps[n-1];if(!l)return null;
+  const dist=+l.distance_m>0?+l.distance_m:null, time=+l.time_s>0?+l.time_s:null;
+  let pace=+l.pace_s_per_500m>0?+l.pace_s_per_500m:null;
+  if(pace==null&&dist&&time)pace=time*500/dist;
+  const rv=ST.filter(s=>s.lapNum===n&&s.rate>5&&s.rate<50).map(s=>s.rate);
+  const rate=rv.length?rv.reduce((a,b)=>a+b,0)/rv.length:(+l.avg_spm||+l.stroke_rate_spm||null);
+  const nStr=ST.filter(s=>s.lapNum===n).length;
+  return {dist,time,pace,rate,hr:+l.avg_hr_bpm||null,hrMax:+l.max_hr_bpm||null,dps:(dist&&nStr)?dist/nStr:null};
+}
 function lapStrokeRange(lapN){
   const idxs=ST.map((s,i)=>s.lapNum===lapN?i:-1).filter(i=>i>=0);
   return idxs.length?[idxs[0],idxs[idxs.length-1]]:null;
@@ -8141,7 +8153,7 @@ function addWorkLapsToCurves(){
     if(curveGroups.length>=MAX_GROUPS){skipped++;continue;}
     const rng=lapStrokeRange(+r.dataset.lap);
     if(!rng)continue;
-    if(pinAbsRange(rng[0],rng[1])){added++;curveGroups[curveGroups.length-1].lapN=+r.dataset.lap;}
+    if(pinAbsRange(rng[0],rng[1])){added++;const _g=curveGroups[curveGroups.length-1];_g.lapN=+r.dataset.lap;_g.lap=lapSnapForGroup(_g.lapN);}
   }
   selS=-1;selE=-1;
   tplFocusIdx=-1;
@@ -9155,7 +9167,7 @@ function drawCurvePanel(){
   {
     const F='-apple-system, BlinkMacSystemFont, Helvetica Neue, sans-serif';
     const blocks=enriched.map(c=>{
-      const L=[c.label+(c.avgRate?' \u00b7 '+f1(c.avgRate)+' spm':'')+(XM?' \u00b7 '+c.avgLen.toFixed(2)+' m':'')];
+      const L=[c.label+(XM?' \u00b7 '+c.avgLen.toFixed(2)+' m':'')];
       if(FORCE&&(c.avgPeakF||c.peakN))L.push('peak '+Math.round(c.avgPeakF||c.peakN)+' N @ '+Math.round(c.avgChar!=null?c.avgChar:c.peakPct)+'%');
       return {col:c.color,L};
     });
@@ -9453,13 +9465,14 @@ function buildCurveStats(){
   // Build rows from canonical METRIC_DEFS order
   const rows=[
     {l:'Strokes',fn:g=>String(g.strokes.length)},
-    {l:'Time',fn:g=>{const a=g.strokes;return a.length?fmtTime(a[a.length-1].elapsed-a[0].elapsed):EM;}},
-    {l:'Distance',fn:g=>{const a=g.strokes;if(!a.length)return EM;const d=(a[a.length-1].dist||0)-(a[0].dist||0);return isNaN(d)?EM:fmtDistU(d)+distULabelU();}},
+    {l:'Time',fn:g=>{if(g.lap&&g.lap.time)return fmtTime(g.lap.time);const a=g.strokes;return a.length?fmtTime(a[a.length-1].elapsed-a[0].elapsed):EM;}},
+    {l:'Distance',fn:g=>{if(g.lap&&g.lap.dist)return fmtDistU(g.lap.dist)+distULabelU();const a=g.strokes;if(!a.length)return EM;const d=(a[a.length-1].dist||0)-(a[0].dist||0);return isNaN(d)?EM:fmtDistU(d)+distULabelU();}},
   ];
   for(const m of METRIC_DEFS){
     if(hid[m.k]||!metricFitsSession(m.k))continue;
     if(m.k==='hr'){
       rows.push({l:'Avg '+m.l, c:m.c, fn:g=>{
+        if(g.lap&&g.lap.hr)return m.fmtAvg(g.lap.hr);
         const arr=g.strokes.map(s=>nearestHRIn(g.hrT,g.hrBpm,s.ms)).filter(b=>b!=null&&b>40&&b<220);
         return arr.length?m.fmtAvg(arrMean(arr)):EM;
       }});
@@ -9467,7 +9480,8 @@ function buildCurveStats(){
     }
     if(m.k==='pace'||m.k==='dps'){
       rows.push({l:'Avg '+m.l, c:m.c, fn:g=>{
-        const gv=(m.k==='pace')?groupAvgPace(g.strokes):groupAvgDPS(g.strokes);
+        const _lv=g.lap?(m.k==='pace'?g.lap.pace:g.lap.dps):null;
+        const gv=_lv!=null?_lv:((m.k==='pace')?groupAvgPace(g.strokes):groupAvgDPS(g.strokes));
         return gv!=null?m.fmtAvg(gv):EM;
       }});
       if(m.showBest) rows.push({l:'Best '+m.l, c:m.c, fn:g=>{
@@ -9478,6 +9492,7 @@ function buildCurveStats(){
       continue;
     }
     rows.push({l:'Avg '+m.l, c:m.c, fn:g=>{
+      if(m.k==='rate'&&g.lap&&g.lap.rate)return m.fmtAvg(g.lap.rate);
       const arr=rowOnly(g.strokes).filter(m.filter).map(m.val);
       return arr.length?m.fmtAvg(arrMean(arr)):EM;
     }});
@@ -13152,7 +13167,7 @@ function renderStartupCalendar(){
       +'<span style="font-size:.8rem;font-weight:600;min-width:110px;text-align:center;">'+mLabel(base.getFullYear(),base.getMonth())+'</span>'
       +'<button id="cal-next" class="filt-chip" style="'+CH+'">›</button>'
       +((!_wktCtx&&WKT_ENABLED)?'<button id="cal-sqsync" class="filt-chip" style="'+CH+'" title="Copy the squad plan into your calendar">&#x21BB; From squad</button>':'')
-      +'<button id="sz-phonesync" class="filt-chip" style="'+CH+'" title="Fetch new sessions, workouts and calendar items from the app"><span>&#x21BB; Sync with app</span></button>'+'<button id="cal-plan" class="filt-chip" style="'+CH+'" title="Opens the planning calendar in its own window">&#x1F5D3; Planning &#x2197;</button>'+'<button id="cal-today" class="filt-chip" style="'+CH+'">Today</button></span></div>'+sqBar
+      +'<button id="sz-phonesync" class="filt-chip" style="'+CH+'" title="Fetch new sessions, workouts and calendar items from the app"><span>&#x21BB; Sync with app</span></button>'+'<button id="cal-plan" class="filt-chip" style="'+CH+'" title="Opens the planning calendar in its own window">&#x1F5D3; Planning</button>'+'<button id="cal-today" class="filt-chip" style="'+CH+'">Today</button></span></div>'+sqBar
       +monthGrid(base.getFullYear(),base.getMonth());
   }
   const hCal=h;h='';
@@ -13182,7 +13197,7 @@ function renderStartupCalendar(){
     const _othRows=calItemsOf(_calSel).filter(x=>x.type==='other'&&!(x.done&&!_wktCtx)).map(x=>ciOtherRow(x,_ciEd,'',null)).join('');let _seqShown=false;
     if((WKT_ENABLED||_wktCtx)&&_calSel>=todayK){
     const shownIds=ids.filter(id=>!wById[id]||planShown(_calSel,wById[id]));
-    h+='<div style="font-size:11px;color:var(--muted);margin:8px 0 4px;">'+(_wktCtx?'Squad plan':'Planned workouts <span style="font-size:10px;">(suggested in App on the day)</span>')+'</div>';
+    h+='<div style="font-size:11px;color:var(--muted);margin:8px 0 4px;">'+(_wktCtx?'Squad plan':'Planned workouts <span style="font-size:10px;">(suggested in app on the day)</span>')+'</div>';
     if(!shownIds.length&&!_othRows)h+='<div style="font-size:12px;color:var(--muted);margin-bottom:6px;">None planned.</div>';
     const _sq=daySeq(_calSel);
     const _grip=((!_wktCtx||sqCanEdit())&&_sq.length>1)?DRAG_GRIP:'';
@@ -16680,6 +16695,15 @@ body:not(.light) #startup .sz-signout{color:#FF7A6E!important;}
 #startup .sz-file-row>.asc:hover{border-color:var(--ov-line3)!important;}
 #startup .sz-file-row>.asc.erg:hover{border-left-color:var(--ov-efg)!important;}
 #startup .sz-file-row>.asc:not(.erg):hover{border-left-color:var(--ov-wfg)!important;}
+#startup{--ov-rowhov:#EAF2FF;--ov-rowhov-b:#2F7BEA;--ov-chip:#fff;--ov-chip-t:#0a63d6;--ov-chip-b:#9CC2F5;--ov-chip-h:#E6F0FE;}
+body:not(.light) #startup{--ov-rowhov:#1E2D4D;--ov-rowhov-b:#6FA8FF;--ov-chip:#18233A;--ov-chip-t:#9CC8FF;--ov-chip-b:#3C4A68;--ov-chip-h:#22335A;}
+#startup .sz-file-row>.asc{transition:background .12s,box-shadow .12s,border-color .12s;}
+#startup .sz-file-row>.asc:hover,#startup .sz-file-row>.asc.erg:hover{background:var(--ov-rowhov)!important;border-top-color:var(--ov-rowhov-b)!important;border-right-color:var(--ov-rowhov-b)!important;border-bottom-color:var(--ov-rowhov-b)!important;box-shadow:0 0 0 1px var(--ov-rowhov-b),0 4px 14px rgba(0,0,0,.18)!important;}
+#startup #sz-cal .filt-chip{background:var(--ov-chip)!important;color:var(--ov-chip-t)!important;border:1px solid var(--ov-chip-b)!important;}
+#startup #sz-cal .filt-chip:hover{background:var(--ov-chip-h)!important;border-color:var(--ov-rowhov-b)!important;}
+#startup #sz-cal .filt-chip.on,#startup #sz-cal .filt-chip.on:hover{background:var(--ov-sel)!important;color:var(--ov-sel-t)!important;border-color:var(--ov-sel)!important;}
+#startup #sz-cal .filt-chip[data-pv="today"]{color:#c73e02!important;}
+body:not(.light) #startup #sz-cal .filt-chip[data-pv="today"]{color:#FF8A5C!important;}
 
 @container sess (max-width:600px){ #startup .asc>.asc-date{flex-wrap:wrap;white-space:normal;} }
 
