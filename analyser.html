@@ -722,11 +722,11 @@ body.light .hdrname{color:#fff;}
   <div class="sp"></div>
   <label class="hdr-search" id="hdrsearchwrap"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><circle cx="11" cy="11" r="7"></circle><path d="M20 20l-4-4"></path></svg><input type="text" id="hdrsearch" placeholder="Search sessions" aria-label="Search sessions" autocomplete="off"></label>
   <div class="hdr-tabs">
+  <button class="hbtn hdr-act" id="resetbtn" style="display:none;" title="Open a different session"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"></path></svg><span>Open</span></button>
+  <button class="hbtn hdr-act hdr-act-pri" id="addcompbtn" style="display:none;" title="Add another session to compare with this one"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" aria-hidden="true"><path d="M12 5v14M5 12h14"></path></svg><span>Compare</span></button>
   <div class="hmenu-wrap">
     <button class="hbtn hicon-btn" id="filemenubtn" style="display:none;"><img class="hicon-img" src="icons/Files.svg"><span class="hicon-txt">Files ▾</span></button>
     <div class="hmenu" id="filemenu">
-      <button class="hbtn" id="resetbtn" style="display:none;"><img class="hmenu-icon" src="icons/Open.svg"><span>Open New File</span></button>
-      <button class="hbtn" id="addcompbtn" style="display:none;"><img class="hmenu-icon" src="icons/Add.svg"><span>Add for comparison</span></button>
       <button class="hbtn" id="sharelinkbtn" style="display:none;"><img class="hmenu-icon" src="icons/Export.svg"><span>Share link</span></button>
       <button class="hbtn" id="jsonbtn" style="display:none;"><img class="hmenu-icon" src="icons/Export.svg"><span>Share JSON</span></button>
       <button class="hbtn" id="tcxbtn" style="display:none;"><img class="hmenu-icon" src="icons/Export.svg"><span>Export TCX</span></button>
@@ -16694,4 +16694,11 @@ body:not(.light) #startup .sz-signout{color:#FF7A6E!important;}
 body:not(.light) #startup{--ov-wsec:#0F223C;--ov-esec:#2A1517;}
 
 #curvehint{font-size:12px!important;opacity:1!important;color:var(--text)!important;}
+
+/* Open session / Add for comparison: out of the Files menu, as clear buttons in the bar */
+#hdr .hdr-act{display:inline-flex;align-items:center;gap:6px;height:34px;padding:0 12px!important;margin-right:4px;border-radius:8px!important;border:1px solid rgba(255,255,255,.45)!important;background:transparent!important;color:#fff!important;font:600 13px Inter,-apple-system,sans-serif!important;letter-spacing:0!important;text-transform:none!important;box-shadow:none!important;}
+#hdr .hdr-act:hover{background:rgba(255,255,255,.12)!important;border-color:#fff!important;}
+#hdr .hdr-act-pri{background:#2FD3C6!important;border-color:#2FD3C6!important;color:#062B28!important;}
+#hdr .hdr-act-pri:hover{background:#5FE0D6!important;border-color:#5FE0D6!important;color:#062B28!important;}
+#hdr .hdr-act span{color:inherit!important;}
 </style>
