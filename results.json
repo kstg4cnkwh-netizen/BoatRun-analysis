@@ -39,7 +39,7 @@
     ]
   },
   "ABRCOLW": { "course": "college", "sydney": "south", "winner": "Trinity", "margin": "", "time": "" },
-  "ABRCOLM": { "course": "college", "sydney": "south", "winner": "", "margin": "", "time": "" },
+  "ABRCOLM": { "course": "college", "sydney": "south", "winner": "St John's", "margin": "", "time": "" },
   "ABRSCHG": { "course": "eights", "sydney": "south", "winner": "", "margin": "", "time": "" },
   "ABRSCHB": { "course": "eights", "sydney": "south", "winner": "", "margin": "", "time": "" },
   "ABRWOM8": { "course": "eights", "sydney": "south", "winner": "", "margin": "", "time": "" },
