@@ -38,7 +38,7 @@
       [-33.8298207, 151.1464671]
     ]
   },
-  "ABRCOLW": { "course": "college", "sydney": "south", "winner": "", "margin": "", "time": "" },
+  "ABRCOLW": { "course": "college", "sydney": "south", "winner": "Trinity", "margin": "", "time": "" },
   "ABRCOLM": { "course": "college", "sydney": "south", "winner": "", "margin": "", "time": "" },
   "ABRSCHG": { "course": "eights", "sydney": "south", "winner": "", "margin": "", "time": "" },
   "ABRSCHB": { "course": "eights", "sydney": "south", "winner": "", "margin": "", "time": "" },
