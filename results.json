@@ -43,5 +43,5 @@
   "ABRSCHG": { "course": "eights", "sydney": "south", "winner": "St Catherine's", "margin": "", "time": "" },
   "ABRSCHB": { "course": "eights", "sydney": "south", "winner": "St Joseph's", "margin": "", "time": "" },
   "ABRWOM8": { "course": "eights", "sydney": "north", "winner": "Sydney", "margin": "", "time": "" },
-  "ABRMEN8": { "course": "eights", "sydney": "south", "winner": "", "margin": "", "time": "" }
+  "ABRMEN8": { "course": "eights", "sydney": "south", "winner": "Sydney", "margin": "", "time": "" }
 }
