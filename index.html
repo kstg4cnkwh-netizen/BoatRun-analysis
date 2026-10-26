@@ -119,24 +119,6 @@ h1.hero-h em{font-style:normal;color:var(--coral);}
 .hstat b{display:block;font-family:'Space Grotesk',sans-serif;font-size:22px;font-weight:700;}
 .hstat span{font-size:12px;color:var(--ink-faint);letter-spacing:.03em;}
 
-/* Australian Boat Race button */
-.race-cta-row{position:relative;z-index:2;display:flex;justify-content:flex-end;margin:-48px auto 28px;}
-.race-cta{display:inline-flex;align-items:center;gap:16px;text-decoration:none;color:#fff;background:linear-gradient(135deg,#FF5A3C,#E0412A);border-radius:14px;padding:16px 24px 16px 18px;box-shadow:0 14px 36px -12px rgba(255,90,60,.75);transition:transform .1s ease,filter .15s;}
-.race-cta:hover{filter:brightness(1.07);}
-.race-cta:active{transform:scale(.98);}
-.race-cta .live{display:inline-flex;align-items:center;gap:6px;flex:0 0 auto;font-family:'Roboto Mono',monospace;font-size:11px;font-weight:600;letter-spacing:.14em;background:rgba(0,0,0,.22);padding:5px 10px;border-radius:100px;}
-.race-cta .live:before{content:"";width:8px;height:8px;border-radius:50%;background:#fff;animation:pulse 1.6s infinite;}
-.race-cta .txt{display:flex;flex-direction:column;line-height:1.15;}
-.race-cta .txt b{font-family:'Space Grotesk',sans-serif;font-size:21px;font-weight:700;letter-spacing:-.01em;}
-.race-cta .txt span{font-size:14px;font-weight:600;opacity:.92;margin-top:3px;}
-.race-cta .arr{font-size:28px;font-weight:700;line-height:1;}
-@media(max-width:700px){
-  .race-cta-row{margin:-44px auto 24px;}
-  .race-cta{width:100%;gap:12px;padding:14px 16px;}
-  .race-cta .txt{flex:1;}
-  .race-cta .txt b{font-size:17px;}
-}
-
 /* device mockup — built live, not an image */
 .device{
   background:linear-gradient(180deg,#0C1730,#081020);
@@ -356,7 +338,6 @@ footer{background:var(--navy);color:var(--ink-faint);border-top:1px solid rgba(2
     <a href="#coaches">Coaches</a>
     <a href="#analysis">Analysis</a>
     <a href="#spectator">Spectator</a>
-    <a href="./race.html">Australian Boat Race Live</a>
     <a href="#pricing">Plans</a>
     <a href="./clubs.html">Clubs</a>
     <a href="./quickstart.html">Quick Start</a>
@@ -368,9 +349,6 @@ footer{background:var(--navy);color:var(--ink-faint);border-top:1px solid rgba(2
 
 <!-- HERO -->
 <section class="hero">
-  <div class="wrap race-cta-row">
-    <a class="race-cta" href="./race.html"><span class="live">LIVE</span><span class="txt"><b>Watch the Australian Boat Race live</b><span>25 Oct 26</span></span><span class="arr">›</span></a>
-  </div>
   <div class="wrap hero-grid">
     <div>
       <span class="eyebrow hero-eyebrow">Premium Rowing Telemetry</span>
@@ -643,7 +621,6 @@ footer{background:var(--navy);color:var(--ink-faint);border-top:1px solid rgba(2
       <h2 class="section-h">Put the Race on Screen</h2>
       <p class="section-p">Share live positions and pacing with parents, supporters and coaches on the bank. No install, no account — just a link and a squad code.</p>
       <a class="btn btn-coral" style="margin-top:8px;" href="https://viewer.boatrun.au/">Open Viewer</a>
-      <br><a class="btn" style="margin-top:8px;background:transparent;color:var(--coral);border:2px solid var(--coral);" href="./race.html">Watch the Australian Boat Race Live</a>
     </div>
     <div class="fr-media">
       <div class="shot"><img src="screenshot-viewer.png" alt="BoatRun Viewer — live race map"></div>
@@ -827,7 +804,6 @@ footer{background:var(--navy);color:var(--ink-faint);border-top:1px solid rgba(2
           <a href="#get-app">The App</a>
           <a href="https://boatrun.au/analyser.html">Analyser</a>
           <a href="https://viewer.boatrun.au/">Viewer</a>
-          <a href="./race.html">Boat Race Live</a>
           <a href="./courses.html">Courses</a>
           <a href="#lanes">Lanes &amp; Hazards</a>
           <a href="#planning">Training Calendar</a>
