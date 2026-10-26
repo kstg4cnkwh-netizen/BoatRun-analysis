@@ -332,6 +332,7 @@ function adClearPendingOpen(){try{sessionStorage.removeItem('_ad_open');}catch(e
 #sz-sectors .hbtn,#sz-nav .hbtn{background:#fff;color:#1a5276;border:none;border-radius:14px;padding:7px 12px;font-size:11px;font-weight:700;letter-spacing:.03em;text-transform:uppercase;box-shadow:0 2px 5px rgba(0,0,0,.18);}
 .leaflet-control-layers{font-size:14px;font-weight:700;color:#000;}
 .leaflet-control-layers label{padding:3px 0;}
+.leaflet-control-layers-expanded .leaflet-control-layers-list{max-height:min(60vh,420px);overflow-y:auto;padding-right:6px;}
 #_navdraw_modal .hbtn{background:#fff;color:#1a5276;border:2px solid #1a5276;border-radius:12px;padding:10px 16px;font-size:14px!important;font-weight:800;letter-spacing:.03em;text-transform:uppercase;box-shadow:0 3px 8px rgba(0,0,0,.35);}
 #_navdraw_modal .hbtn:hover{background:#1a5276;color:#fff;}
 #_navdraw_modal #_navdraw_close{background:#3a3a3c;color:#fff;border-color:#3a3a3c;}
@@ -4974,24 +4975,51 @@ window.navClub=function(){
   render();
   navClubPullAll(true);
 };
-/* Satellite base maps. NSW aerial (NSW Spatial Services, ~7-10 cm photos)
-   is far sharper than Esri and shows buoys and posts, but only covers NSW.
-   Buoys & seamarks (OpenSeaMap) overlays charted buoys and beacons.
-   The choices are remembered. */
-const SAT_PREF_KEY='br_sat_base', SEAMARK_PREF_KEY='br_seamarks';
+/* Base maps and overlays, all keyless. Folded under the map-tile button at
+   the top right; tap it to pick. Base map and each overlay are remembered. */
+const SAT_PREF_KEY='br_sat_base', SEAMARK_PREF_KEY='br_seamarks', MAP_OVL_PREF_KEY='br_map_ovl';
 function addSatLayers(map){
-  const esri=L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}',{maxZoom:22,maxNativeZoom:19,attribution:'Esri'});
-  const nsw=L.tileLayer('https://maps.six.nsw.gov.au/arcgis/rest/services/public/NSW_Imagery/MapServer/tile/{z}/{y}/{x}',{maxZoom:22,maxNativeZoom:21,attribution:'\u00a9 NSW Spatial Services'});
-  const sea=L.tileLayer('https://tiles.openseamap.org/seamark/{z}/{x}/{y}.png',{maxZoom:22,maxNativeZoom:18,attribution:'\u00a9 OpenSeaMap'});
+  const AGO='https://server.arcgisonline.com/ArcGIS/rest/services/', SIX='https://maps.six.nsw.gov.au/arcgis/rest/services/public/';
+  const ago=(p,nz,att)=>L.tileLayer(AGO+p+'/MapServer/tile/{z}/{y}/{x}',{maxZoom:22,maxNativeZoom:nz,attribution:att||'Esri'});
+  const six=(p,nz)=>L.tileLayer(SIX+p+'/MapServer/tile/{z}/{y}/{x}',{maxZoom:22,maxNativeZoom:nz,attribution:'© NSW Spatial Services'});
+  const bases=[
+    ['esri','Satellite (world)',ago('World_Imagery',19)],
+    ['clarity','Satellite Clarity (world)',L.tileLayer('https://clarity.maptiles.arcgis.com/arcgis/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}',{maxZoom:22,maxNativeZoom:19,attribution:'Esri Clarity'})],
+    ['nsw','NSW aerial (sharpest)',six('NSW_Imagery',21)],
+    ['nswbase','NSW street map',six('NSW_Base_Map',19)],
+    ['nswtopo','NSW topo map',six('NSW_Topo_Map',16)],
+    ['osm','Street map (OSM)',L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png',{maxZoom:22,maxNativeZoom:19,attribution:'© OpenStreetMap'})],
+    ['estreet','Street map (Esri)',ago('World_Street_Map',19)],
+    ['etopo','Topographic (Esri)',ago('World_Topo_Map',19)],
+    ['otopo','Topographic (OpenTopoMap)',L.tileLayer('https://{s}.tile.opentopomap.org/{z}/{x}/{y}.png',{maxZoom:22,maxNativeZoom:17,subdomains:'abc',attribution:'© OpenTopoMap © OpenStreetMap'})],
+    ['natgeo','National Geographic',ago('NatGeo_World_Map',16)],
+    ['ocean','Ocean',ago('Ocean/World_Ocean_Base',16)],
+    ['light','Light grey',ago('Canvas/World_Light_Gray_Base',16)],
+    ['dark','Dark grey',ago('Canvas/World_Dark_Gray_Base',16)]
+  ];
+  const ovls=[
+    ['sea','Buoys & seamarks',L.tileLayer('https://tiles.openseamap.org/seamark/{z}/{x}/{y}.png',{maxZoom:22,maxNativeZoom:18,attribution:'© OpenSeaMap'}),true],
+    ['labels','Place names',ago('Reference/World_Boundaries_and_Places',19),false],
+    ['roads','Roads',ago('Reference/World_Transportation',19),false]
+  ];
   let pref='esri';try{pref=localStorage.getItem(SAT_PREF_KEY)||'esri';}catch{}
-  (pref==='nsw'?nsw:esri).addTo(map);
-  let seaOn=true;try{seaOn=localStorage.getItem(SEAMARK_PREF_KEY)!=='0';}catch{}
-  if(seaOn)sea.addTo(map);
+  const pick=bases.find(b=>b[0]===pref)||bases[0];
+  pick[2].addTo(map);
+  let on={};try{on=JSON.parse(localStorage.getItem(MAP_OVL_PREF_KEY)||'{}')||{};}catch{}
+  try{const s=localStorage.getItem(SEAMARK_PREF_KEY);if(s!==null&&on.sea==null)on.sea=s!=='0';}catch{}
+  ovls.forEach(o=>{if(on[o[0]]==null?o[3]:on[o[0]])o[2].addTo(map);});
   try{map.setMaxZoom(22);}catch{}
-  L.control.layers({'Satellite (world)':esri,'NSW aerial (sharper)':nsw},{'Buoys & seamarks':sea},{collapsed:false,position:'topright'}).addTo(map);
-  map.on('baselayerchange',e=>{try{localStorage.setItem(SAT_PREF_KEY,e.layer===nsw?'nsw':'esri');}catch{}});
-  map.on('overlayadd overlayremove',e=>{if(e.layer===sea)try{localStorage.setItem(SEAMARK_PREF_KEY,e.type==='overlayadd'?'1':'0');}catch{}});
-  return esri;
+  const bObj={},oObj={};
+  bases.forEach(b=>{bObj[b[1]]=b[2];});
+  ovls.forEach(o=>{oObj[o[1]]=o[2];});
+  L.control.layers(bObj,oObj,{collapsed:true,position:'topright'}).addTo(map);
+  map.on('baselayerchange',e=>{const b=bases.find(x=>x[2]===e.layer);if(b)try{localStorage.setItem(SAT_PREF_KEY,b[0]);}catch{}});
+  map.on('overlayadd overlayremove',e=>{
+    const o=ovls.find(x=>x[2]===e.layer);if(!o)return;
+    on[o[0]]=e.type==='overlayadd';
+    try{localStorage.setItem(MAP_OVL_PREF_KEY,JSON.stringify(on));if(o[0]==='sea')localStorage.setItem(SEAMARK_PREF_KEY,on.sea?'1':'0');}catch{}
+  });
+  return pick[2];
 }
 /* Last on-water session location [lat,lon,ts]: noted whenever an on-water
    session is opened, and looked up on Drive when nothing newer is known. */
