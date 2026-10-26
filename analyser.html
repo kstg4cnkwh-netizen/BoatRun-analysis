@@ -4983,19 +4983,11 @@ function addSatLayers(map){
   const ago=(p,nz,att)=>L.tileLayer(AGO+p+'/MapServer/tile/{z}/{y}/{x}',{maxZoom:22,maxNativeZoom:nz,attribution:att||'Esri'});
   const six=(p,nz)=>L.tileLayer(SIX+p+'/MapServer/tile/{z}/{y}/{x}',{maxZoom:22,maxNativeZoom:nz,attribution:'© NSW Spatial Services'});
   const bases=[
-    ['esri','Satellite (world)',ago('World_Imagery',19)],
-    ['clarity','Satellite Clarity (world)',L.tileLayer('https://clarity.maptiles.arcgis.com/arcgis/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}',{maxZoom:22,maxNativeZoom:19,attribution:'Esri Clarity'})],
-    ['nsw','NSW aerial (sharpest)',six('NSW_Imagery',21)],
-    ['nswbase','NSW street map',six('NSW_Base_Map',19)],
-    ['nswtopo','NSW topo map',six('NSW_Topo_Map',16)],
-    ['osm','Street map (OSM)',L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png',{maxZoom:22,maxNativeZoom:19,attribution:'© OpenStreetMap'})],
-    ['estreet','Street map (Esri)',ago('World_Street_Map',19)],
-    ['etopo','Topographic (Esri)',ago('World_Topo_Map',19)],
-    ['otopo','Topographic (OpenTopoMap)',L.tileLayer('https://{s}.tile.opentopomap.org/{z}/{x}/{y}.png',{maxZoom:22,maxNativeZoom:17,subdomains:'abc',attribution:'© OpenTopoMap © OpenStreetMap'})],
-    ['natgeo','National Geographic',ago('NatGeo_World_Map',16)],
-    ['ocean','Ocean',ago('Ocean/World_Ocean_Base',16)],
-    ['light','Light grey',ago('Canvas/World_Light_Gray_Base',16)],
-    ['dark','Dark grey',ago('Canvas/World_Dark_Gray_Base',16)]
+    ['esri','Satellite (Esri)',ago('World_Imagery',19)],
+    ['clarity','Satellite Clarity (Esri)',L.tileLayer('https://clarity.maptiles.arcgis.com/arcgis/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}',{maxZoom:22,maxNativeZoom:19,attribution:'Esri Clarity'})],
+    ['firefly','Satellite muted (Esri Firefly)',L.tileLayer('https://fly.maptiles.arcgis.com/arcgis/rest/services/World_Imagery_Firefly/MapServer/tile/{z}/{y}/{x}',{maxZoom:22,maxNativeZoom:19,attribution:'Esri'})],
+    ['nsw','NSW aerial (sharpest, NSW only)',six('NSW_Imagery',21)],
+    ['osm','Map (OpenStreetMap)',L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png',{maxZoom:22,maxNativeZoom:19,attribution:'\u00a9 OpenStreetMap'})]
   ];
   const ovls=[
     ['sea','Buoys & seamarks',L.tileLayer('https://tiles.openseamap.org/seamark/{z}/{x}/{y}.png',{maxZoom:22,maxNativeZoom:18,attribution:'© OpenSeaMap'}),true],
