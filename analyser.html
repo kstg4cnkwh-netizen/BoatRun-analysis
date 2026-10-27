@@ -4453,7 +4453,10 @@ function navLive(){return NAV_LINES.filter(navOk);}
 function navNewId(){return 'nav_'+Date.now().toString(36)+Math.random().toString(36).slice(2,7);}
 function navColor(l){const m=navMode(l);return m==='hazard'?'#ff9500':m==='divider'?'#ff3b30':'#ffd60a';}
 function navCleanPts(l){return (l&&Array.isArray(l.pts)?l.pts:[]).filter(p=>Array.isArray(p)&&isFinite(+p[0])&&isFinite(+p[1])&&Math.abs(+p[0])<=90&&Math.abs(+p[1])<=180).map(p=>[+(+p[0]).toFixed(7),+(+p[1]).toFixed(7)]);}
-function navClean(l){return {id:String(l.id),name:String(l.name||'Line').slice(0,60),mode:navMode(l),pts:navCleanPts(l),upd:l.upd||Date.now()};}
+function navClean(l){const o={id:String(l.id),name:String(l.name||'Line').slice(0,60),mode:navMode(l),pts:navCleanPts(l),upd:l.upd||Date.now()};
+  /* Hazards carry their default warning (on unless set off); rowers can still change it on their phone. */
+  if(o.mode==='hazard')o.warn=l.warn!==false;
+  return o;}
 function navLenM(pts){return _secDrawLen(pts||[]);}
 function navSaveLocal(){try{localStorage.setItem(NAV_LS_KEY,JSON.stringify(NAV_LINES));}catch(e){}}
 function navClubsSave(){try{localStorage.setItem(NAVCLUB_LS_KEY,JSON.stringify(NAV_CLUBS));}catch(e){}}
@@ -5050,6 +5053,7 @@ window.navDraw=function(editId,newMode,clubCode,keep){
   const edit=typeof editId==='string'?(club0?club0.lines:NAV_LINES).find(l=>l.id===editId&&!l.deleted):null;
   const clubs=navClubsLive().filter(c=>!c.gone);
   let mode=edit?navMode(edit):(newMode==='divider'||newMode==='hazard'?newMode:'lane');
+  let hzWarn=edit?edit.warn!==false:(keep&&keep.warn===false?false:true);
   document.getElementById('_navdraw_modal')?.remove();
   const overlay=document.createElement('div');
   overlay.id='_navdraw_modal';
@@ -5062,6 +5066,7 @@ window.navDraw=function(editId,newMode,clubCode,keep){
     +'<div id="_navdraw_map" style="flex:1;min-height:300px;border-radius:10px;overflow:hidden;background:#030d1e;margin-bottom:8px;"></div>'
     +'<div style="display:flex;gap:6px;align-items:center;flex-wrap:wrap;"><button class="hbtn" id="_navdraw_undo" style="font-size:11px;">↶ Undo</button><button class="hbtn" id="_navdraw_clear" style="font-size:11px;">Clear</button>'
     +'<button class="hbtn" id="_navdraw_rev" style="font-size:11px;">⇄ Reverse</button>'
+    +'<button class="hbtn" id="_navdraw_warn" style="font-size:11px;" title="Whether rowers are warned about this hazard by default. Each rower can still change it on their phone."></button>'
     +((typeof leafletMap!=='undefined'&&leafletMap&&typeof mapBaseLine!=='undefined'&&mapBaseLine)?'<button class="hbtn" id="_navdraw_trk" style="font-size:11px;">From session track</button>':'')
     +'<input type="text" id="_navdraw_name" class="brsearch" placeholder="Name" style="flex:1;min-width:140px;box-sizing:border-box;" value="'+(edit?_secEsc(edit.name):'')+'">'
     +(clubs.length?'<select id="_navdraw_to" class="brsearch" style="font-size:11px;max-width:200px;"'+(club0?' disabled':'')+'><option value="">Save to: my lines</option>'+clubs.map(c=>'<option value="'+c.code+'"'+((club0?club0.code:(keep&&keep.to))===c.code?' selected':'')+'>Save to club: '+_secEsc(c.name||c.code)+'</option>').join('')+'</select>':'')
@@ -5101,6 +5106,8 @@ window.navDraw=function(editId,newMode,clubCode,keep){
     document.getElementById('_navdraw_help').textContent=help[mode]+' Drag a point to move it, tap a point to delete it, long-press the line to add one.';
     panel.querySelectorAll('[data-nd-mode]').forEach(b=>{const on=b.dataset.ndMode===mode,c=navColor({mode:b.dataset.ndMode});b.style.background=on?c:'#000';b.style.color=on?'#000':c;b.style.borderColor=c;});
     const rv=document.getElementById('_navdraw_rev');if(rv)rv.style.display=mode==='lane'?'':'none';
+    const wv=document.getElementById('_navdraw_warn');
+    if(wv){wv.style.display=mode==='hazard'?'':'none';wv.textContent=hzWarn?'\u26a0 Warn ON by default':'Warn OFF by default';wv.style.background=hzWarn?'#ff9500':'';wv.style.color=hzWarn?'#000':'';wv.style.borderColor=hzWarn?'#ff9500':'';}
   };
   const updLen=()=>{
     const el=document.getElementById('_navdraw_len');if(!el)return;
@@ -5186,6 +5193,7 @@ window.navDraw=function(editId,newMode,clubCode,keep){
   panel.querySelectorAll('[data-nd-mode]').forEach(b=>b.onclick=()=>{mode=b.dataset.ndMode;updHead();redraw();});
   document.getElementById('_navdraw_undo').onclick=()=>{if(!hist.length)return;const h=hist.pop();pts.length=0;h.forEach(p=>pts.push(p));redraw();};
   document.getElementById('_navdraw_clear').onclick=()=>{snap();pts.length=0;redraw();};
+  document.getElementById('_navdraw_warn').onclick=()=>{hzWarn=!hzWarn;updHead();};
   document.getElementById('_navdraw_rev').onclick=()=>{if(pts.length<2)return;snap();pts.reverse();redraw();};
   const trk=document.getElementById('_navdraw_trk');
   if(trk)trk.onclick=()=>{
@@ -5207,7 +5215,7 @@ window.navDraw=function(editId,newMode,clubCode,keep){
     const name=((inp&&inp.value)||'').trim();
     if(!name){toast('Enter a name');if(inp)inp.focus();return;}
     if(pts.length<navMinPts({mode})){toast(mode==='hazard'?'Tap the hazard on the map':'Tap at least two points');return;}
-    const rec=navClean({id:edit?edit.id:navNewId(),name,mode,pts,upd:Date.now()});
+    const rec=navClean({id:edit?edit.id:navNewId(),name,mode,pts,warn:hzWarn,upd:Date.now()});
     const to=club0||navClubByCode((document.getElementById('_navdraw_to')||{}).value||'');
     if(to){
       saving=true;const sb=document.getElementById('_navdraw_save');if(sb)sb.textContent='Saving\u2026';
@@ -5215,7 +5223,7 @@ window.navDraw=function(editId,newMode,clubCode,keep){
       saving=false;if(sb)sb.textContent='Save';
       if(!ok)return;
       if(edit&&!club0){const ix=NAV_LINES.findIndex(l=>l.id===edit.id);if(ix>=0){NAV_LINES[ix]={id:edit.id,name:edit.name,deleted:true,upd:Date.now()};navChanged();}}
-      const kv={view:[map.getCenter().lat,map.getCenter().lng,map.getZoom()],to:to.code};
+      const kv={view:[map.getCenter().lat,map.getCenter().lng,map.getZoom()],to:to.code,warn:hzWarn};
       navRefreshViews();close();
       if(again===true)setTimeout(()=>window.navDraw(null,mode,null,kv),0);
       toast(NAV_LBL[mode]+' saved to '+(to.name||to.code));
@@ -5223,7 +5231,7 @@ window.navDraw=function(editId,newMode,clubCode,keep){
     }
     if(edit){const ix=NAV_LINES.findIndex(l=>l.id===edit.id);if(ix>=0)NAV_LINES[ix]={...NAV_LINES[ix],...rec};else NAV_LINES.push(rec);}
     else NAV_LINES.push(rec);
-    const kv={view:[map.getCenter().lat,map.getCenter().lng,map.getZoom()],to:''};
+    const kv={view:[map.getCenter().lat,map.getCenter().lng,map.getZoom()],to:'',warn:hzWarn};
     navChanged();close();
     if(again===true)setTimeout(()=>window.navDraw(null,mode,null,kv),0);
     toast(NAV_LBL[mode]+' saved');
