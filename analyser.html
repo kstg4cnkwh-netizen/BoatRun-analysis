@@ -16626,6 +16626,16 @@ function rvLL2px(lat,lon,z){const s=256*Math.pow(2,z);const sl=Math.sin(lat*Math
 function rvImg(url){return new Promise(res=>{const im=new Image();im.crossOrigin='anonymous';im.onload=()=>res(im);im.onerror=()=>res(null);im.src=url;});}
 function rvRR(c,x,y,w,h,r){c.beginPath();c.moveTo(x+r,y);c.arcTo(x+w,y,x+w,y+h,r);c.arcTo(x+w,y+h,x,y+h,r);c.arcTo(x,y+h,x,y,r);c.arcTo(x,y,x+w,y,r);c.closePath();}
 function rvBis(arr,v){let lo=0,hi=arr.length-1;if(v<=arr[0])return 0;if(v>=arr[hi])return hi;while(hi-lo>1){const m=(lo+hi)>>1;if(arr[m]<=v)lo=m;else hi=m;}return lo;}
+/* Y range: data range plus padding, never narrower than minSpan (pace 30 s, rate 12 spm),
+   centred on the data, so small changes stay small. */
+function rvBounds(arr,minSpan){
+  const v=arr.filter(x=>x!=null&&!isNaN(x));
+  if(!v.length)return [0,1];
+  const b=pctBounds(v,0.02,0.98,0.15);
+  let lo=b[0],hi=b[1];
+  if(hi-lo<minSpan){const c=(lo+hi)/2;lo=c-minSpan/2;hi=c+minSpan/2;}
+  return [lo,hi];
+}
 function rvLayout(W,H){
   const mn=Math.min(W,H), m=Math.round(mn*0.03), hdrH=Math.round(mn*0.17), chartH=Math.round(H*0.30);
   const chart={x:m,y:H-chartH-m,w:W-2*m,h:chartH};
@@ -16662,12 +16672,17 @@ async function rvBuildMap(lls,W,H,lay,onProg){
   return {bg,xy,ok,total};
 }
 function rvSeries(strokes,tA){
-  const t=[],pace=[],rate=[],dist=[];let ep=null,er=null;const al=0.35;
-  strokes.forEach(s=>{
-    if(s.pace>50&&s.pace<500)ep=ep==null?s.pace:ep+al*(s.pace-ep);
-    if(s.rate>5&&s.rate<50)er=er==null?s.rate:er+al*(s.rate-er);
-    t.push(s.ms-tA);pace.push(ep);rate.push(er);dist.push(isNaN(s.dist)?null:s.dist);
-  });
+  /* 3 s centred moving average of the valid stroke values. */
+  const W=1500,t=strokes.map(s=>s.ms-tA),n=strokes.length;
+  const avg=(ok,val)=>{const out=new Array(n).fill(null);let a=0,b=0,sum=0,cnt=0;
+    for(let i=0;i<n;i++){
+      while(b<n&&t[b]<=t[i]+W){if(ok(strokes[b])){sum+=val(strokes[b]);cnt++;}b++;}
+      while(a<n&&t[a]<t[i]-W){if(ok(strokes[a])){sum-=val(strokes[a]);cnt--;}a++;}
+      if(cnt>0)out[i]=sum/cnt;
+    }return out;};
+  const pace=avg(s=>s.pace>50&&s.pace<500,s=>s.pace);
+  const rate=avg(s=>s.rate>5&&s.rate<50,s=>s.rate);
+  const dist=strokes.map(s=>isNaN(s.dist)?null:s.dist);
   const fill=arr=>{let f=arr.find(v=>v!=null);for(let i=0;i<arr.length;i++){if(arr[i]==null)arr[i]=f;else f=arr[i];}};
   fill(pace);fill(rate);fill(dist);
   return {t,pace,rate,dist,hasP:pace.some(v=>v!=null),hasR:rate.some(v=>v!=null)};
@@ -16745,14 +16760,14 @@ function rvFrame(ctx,W,H,lay,mp,D,p,dur){
   ctx.strokeStyle='rgba(255,255,255,.10)';ctx.lineWidth=1;
   for(let k=0;k<=4;k++){const y=py+k*ph/4;ctx.beginPath();ctx.moveTo(px,y);ctx.lineTo(px+pw,y);ctx.stroke();}
   if(S.hasP){
-    const b=pctBounds(S.pace.filter(v=>v!=null),0.02,0.98,0.1);
+    const b=rvBounds(S.pace,30);
     const Y=line(S.pace,b[0],b[1],true,RV_PACE);
     ctx.textAlign='right';ctx.font='600 '+fA+'px '+RV_FONT;ctx.fillStyle=RV_PACE;
     ctx.fillText(fmtPaceU(b[0],true),px-6,py+fA*0.8);ctx.fillText(fmtPaceU(b[1],true),px-6,py+ph);
     if(pace!=null){ctx.fillStyle=RV_PACE;ctx.beginPath();ctx.arc(X(t),Y(Math.max(b[0],Math.min(b[1],pace))),mn*0.009,0,Math.PI*2);ctx.fill();}
   }
   if(S.hasR){
-    const b=pctBounds(S.rate.filter(v=>v!=null),0.02,0.98,0.1);
+    const b=rvBounds(S.rate,12);
     const Y=line(S.rate,b[0],b[1],false,RV_RATE);
     ctx.textAlign='left';ctx.font='600 '+fA+'px '+RV_FONT;ctx.fillStyle=RV_RATE;
     ctx.fillText(b[1].toFixed(0),px+pw+6,py+fA*0.8);ctx.fillText(b[0].toFixed(0),px+pw+6,py+ph);
@@ -16777,7 +16792,7 @@ window.rvOpenExport=function(){
   pn.innerHTML='<div style="display:flex;align-items:center;gap:8px;margin-bottom:10px;"><b style="font-size:14px;">Replay video</b><span id="_rv_info" style="font-size:11px;color:var(--muted);"></span><button class="hbtn" id="_rv_close" style="margin-left:auto;font-size:11px;">Close</button></div>'
     +'<div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:10px;align-items:center;">'
     +'<select id="_rv_fmt" style="'+sel+'"><option value="portrait">Portrait 9:16</option><option value="landscape">Landscape 16:9</option><option value="square">Square 1:1</option></select>'
-    +'<select id="_rv_len" style="'+sel+'"><option value="15">15 s</option><option value="30" selected>30 s</option><option value="60">60 s</option></select>'
+    +'<select id="_rv_len" style="'+sel+'"><option value="10" selected>10 s</option><option value="15">15 s</option><option value="20">20 s</option><option value="30">30 s</option></select>'
     +'<button class="dzbtn dzbtn-pri" id="_rv_go">Make video</button></div>'
     +'<div id="_rv_msg" style="font-size:11px;color:var(--muted);margin-bottom:8px;">Loading map…</div>'
     +'<div style="text-align:center;"><canvas id="_rv_cv" style="max-width:100%;max-height:60vh;border-radius:10px;background:#000;"></canvas><video id="_rv_vid" controls playsinline style="display:none;max-width:100%;max-height:60vh;border-radius:10px;background:#000;"></video></div>'
