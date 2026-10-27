@@ -16735,7 +16735,7 @@ function rvFrame(ctx,W,H,lay,mp,D,p,dur){
   let ttl=D.label+(D.date?'  ·  '+D.date:'');
   while(ttl.length>4&&ctx.measureText(ttl).width>W-2*lay.m-bw)ttl=ttl.slice(0,-2);
   ctx.fillText(ttl,lay.m+bw,lay.m+fT);
-  const cols=[['PACE '+paceULabel(),pace!=null?fmtPaceU(pace):'—',RV_PACE],['RATE',rate!=null?rate.toFixed(1):'—',RV_RATE],['DISTANCE',(dNow!=null&&d0!=null)?Math.max(0,Math.round(dNow-d0))+' m':'—','#fff'],['TIME',fmtTime(Math.floor(t/1000)),'#fff']];
+  const cols=[['PACE '+paceULabel(),pace!=null?fmtPaceU(pace):'—',RV_PACE],['RATE',rate!=null?Math.round(rate).toString():'—',RV_RATE],['DISTANCE',(dNow!=null&&d0!=null)?Math.max(0,Math.round(dNow-d0))+' m':'—','#fff'],['TIME',fmtTime(Math.floor(t/1000)),'#fff']];
   const cw=(W-2*lay.m)/4, fL=Math.round(mn*0.021), fV=Math.round(mn*0.062), vy=lay.m+fT+fL+lay.m*0.6;
   cols.forEach((c,i)=>{const x=lay.m+i*cw;ctx.font='700 '+fL+'px '+RV_FONT;ctx.fillStyle='rgba(255,255,255,.7)';ctx.fillText(c[0],x,vy);ctx.font='700 '+fV+'px '+RV_FONT;ctx.fillStyle=c[2];ctx.fillText(c[1],x,vy+fV*1.02);});
   /* chart panel */
@@ -16760,14 +16760,14 @@ function rvFrame(ctx,W,H,lay,mp,D,p,dur){
   ctx.strokeStyle='rgba(255,255,255,.10)';ctx.lineWidth=1;
   for(let k=0;k<=4;k++){const y=py+k*ph/4;ctx.beginPath();ctx.moveTo(px,y);ctx.lineTo(px+pw,y);ctx.stroke();}
   if(S.hasP){
-    const b=rvBounds(S.pace,30);
+    const b=rvBounds(S.pace,60);
     const Y=line(S.pace,b[0],b[1],true,RV_PACE);
     ctx.textAlign='right';ctx.font='600 '+fA+'px '+RV_FONT;ctx.fillStyle=RV_PACE;
     ctx.fillText(fmtPaceU(b[0],true),px-6,py+fA*0.8);ctx.fillText(fmtPaceU(b[1],true),px-6,py+ph);
     if(pace!=null){ctx.fillStyle=RV_PACE;ctx.beginPath();ctx.arc(X(t),Y(Math.max(b[0],Math.min(b[1],pace))),mn*0.009,0,Math.PI*2);ctx.fill();}
   }
   if(S.hasR){
-    const b=rvBounds(S.rate,12);
+    const b=[0,50];
     const Y=line(S.rate,b[0],b[1],false,RV_RATE);
     ctx.textAlign='left';ctx.font='600 '+fA+'px '+RV_FONT;ctx.fillStyle=RV_RATE;
     ctx.fillText(b[1].toFixed(0),px+pw+6,py+fA*0.8);ctx.fillText(b[0].toFixed(0),px+pw+6,py+ph);
