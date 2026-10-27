@@ -8062,6 +8062,9 @@ function updateStatsStrip(){
   if(strokes.length>1){
     html+='<button id="zoomselbtn" onclick="zoomToSelection()">⤢ Zoom to selection</button>';
   }
+  if(strokes.length>2&&GPSTRACE.length>1&&!isErgSession()){
+    html+='<button id="rvexpbtn" onclick="window.rvOpenExport()" style="background:var(--acc);color:#fff;border:none;border-radius:14px;padding:7px 15px;font-size:10px;font-weight:700;cursor:pointer;margin-left:6px;box-shadow:0 2px 5px rgba(0,0,0,.22);">&#127916; Replay video</button>';
+  }
     if(strokes.length){
     const dur=strokes[strokes.length-1].elapsed-strokes[0].elapsed;
     html+=sp('Time',fmtTime(dur));
@@ -16606,6 +16609,240 @@ loadAnVidDir();
   }
   // Open straight onto the calendar and session list.
   try{ const su=document.getElementById('startup'); if(su&&!su.innerHTML) showStartup(); }catch(e){}
+})();
+</script>
+<script>
+/* ══ Replay video export: fast run over the selected section, satellite map + pace/rate chart ══ */
+(function(){
+const RV_SIZES={portrait:[1080,1920],landscape:[1920,1080],square:[1080,1080]};
+const RV_FONT="'Space Grotesk',Inter,-apple-system,BlinkMacSystemFont,sans-serif";
+const RV_ACC='#FF5A3C', RV_PACE='#2F9BFF', RV_RATE='#FFA726';
+function rvMime(){
+  const c=['video/mp4;codecs=avc1.42E01F','video/mp4','video/webm;codecs=vp9','video/webm;codecs=vp8','video/webm'];
+  for(const m of c){try{if(window.MediaRecorder&&MediaRecorder.isTypeSupported(m))return m;}catch(e){}}
+  return '';
+}
+function rvLL2px(lat,lon,z){const s=256*Math.pow(2,z);const sl=Math.sin(lat*Math.PI/180);return [(lon+180)/360*s,(0.5-Math.log((1+sl)/(1-sl))/(4*Math.PI))*s];}
+function rvImg(url){return new Promise(res=>{const im=new Image();im.crossOrigin='anonymous';im.onload=()=>res(im);im.onerror=()=>res(null);im.src=url;});}
+function rvRR(c,x,y,w,h,r){c.beginPath();c.moveTo(x+r,y);c.arcTo(x+w,y,x+w,y+h,r);c.arcTo(x+w,y+h,x,y+h,r);c.arcTo(x,y+h,x,y,r);c.arcTo(x,y,x+w,y,r);c.closePath();}
+function rvBis(arr,v){let lo=0,hi=arr.length-1;if(v<=arr[0])return 0;if(v>=arr[hi])return hi;while(hi-lo>1){const m=(lo+hi)>>1;if(arr[m]<=v)lo=m;else hi=m;}return lo;}
+function rvLayout(W,H){
+  const mn=Math.min(W,H), m=Math.round(mn*0.03), hdrH=Math.round(mn*0.17), chartH=Math.round(H*0.30);
+  const chart={x:m,y:H-chartH-m,w:W-2*m,h:chartH};
+  const map={x:m,y:hdrH,w:W-2*m,h:chart.y-hdrH-m};
+  return {mn,m,hdrH,chart,map};
+}
+async function rvBuildMap(lls,W,H,lay,onProg){
+  let a0=90,a1=-90,o0=180,o1=-180;
+  lls.forEach(p=>{if(p[0]<a0)a0=p[0];if(p[0]>a1)a1=p[0];if(p[1]<o0)o0=p[1];if(p[1]>o1)o1=p[1];});
+  const fw=lay.map.w*0.88, fh=lay.map.h*0.88;
+  let z=19;
+  for(;z>3;z--){const a=rvLL2px(a1,o0,z),b=rvLL2px(a0,o1,z);if(b[0]-a[0]<=fw&&b[1]-a[1]<=fh)break;}
+  const a=rvLL2px(a1,o0,z),b=rvLL2px(a0,o1,z);
+  const sc=Math.max(1,Math.min(3,Math.min(fw/Math.max(1,b[0]-a[0]),fh/Math.max(1,b[1]-a[1]))));
+  const ox=(a[0]+b[0])/2-(lay.map.x+lay.map.w/2)/sc, oy=(a[1]+b[1])/2-(lay.map.y+lay.map.h/2)/sc;
+  const proj=(lat,lon)=>{const p=rvLL2px(lat,lon,z);return [(p[0]-ox)*sc,(p[1]-oy)*sc];};
+  const bg=document.createElement('canvas');bg.width=W;bg.height=H;
+  const g=bg.getContext('2d');g.fillStyle='#0b1a2e';g.fillRect(0,0,W,H);
+  const n=Math.pow(2,z),jobs=[];
+  for(let ty=Math.floor(oy/256);ty<=Math.floor((oy+H/sc)/256);ty++)for(let tx=Math.floor(ox/256);tx<=Math.floor((ox+W/sc)/256);tx++){if(ty>=0&&ty<n)jobs.push([tx,ty]);}
+  const total=jobs.length;let done=0,ok=0;
+  const run=async()=>{while(jobs.length){const j=jobs.shift();const xw=((j[0]%n)+n)%n;
+    const im=await rvImg('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/'+z+'/'+j[1]+'/'+xw);
+    if(im){g.drawImage(im,Math.floor((j[0]*256-ox)*sc),Math.floor((j[1]*256-oy)*sc),Math.ceil(256*sc)+1,Math.ceil(256*sc)+1);ok++;}
+    done++;if(onProg)onProg(done,total);}};
+  await Promise.all([0,1,2,3,4,5].map(run));
+  g.fillStyle='rgba(0,0,0,.15)';g.fillRect(0,0,W,H);
+  const xy=lls.map(p=>proj(p[0],p[1]));
+  g.lineJoin='round';g.lineCap='round';
+  g.strokeStyle='rgba(0,0,0,.55)';g.lineWidth=Math.max(5,W/180)+3;
+  g.beginPath();xy.forEach((p,i)=>i?g.lineTo(p[0],p[1]):g.moveTo(p[0],p[1]));g.stroke();
+  g.strokeStyle='rgba(255,255,255,.75)';g.lineWidth=Math.max(5,W/180);
+  g.stroke();
+  return {bg,xy,ok,total};
+}
+function rvSeries(strokes,tA){
+  const t=[],pace=[],rate=[],dist=[];let ep=null,er=null;const al=0.35;
+  strokes.forEach(s=>{
+    if(s.pace>50&&s.pace<500)ep=ep==null?s.pace:ep+al*(s.pace-ep);
+    if(s.rate>5&&s.rate<50)er=er==null?s.rate:er+al*(s.rate-er);
+    t.push(s.ms-tA);pace.push(ep);rate.push(er);dist.push(isNaN(s.dist)?null:s.dist);
+  });
+  const fill=arr=>{let f=arr.find(v=>v!=null);for(let i=0;i<arr.length;i++){if(arr[i]==null)arr[i]=f;else f=arr[i];}};
+  fill(pace);fill(rate);fill(dist);
+  return {t,pace,rate,dist,hasP:pace.some(v=>v!=null),hasR:rate.some(v=>v!=null)};
+}
+function rvPrep(){
+  const r=(typeof _selAbsRange==='function')?_selAbsRange():null;
+  if(!r){toast('Select a section on the stroke chart first');return null;}
+  if(isErgSession()){toast('Replay video needs a GPS track - not available for erg sessions');return null;}
+  const strokes=ST.slice(r[0],r[1]+1).filter(s=>s&&s.ms!=null&&!isNaN(s.ms));
+  if(strokes.length<3){toast('Select a longer section');return null;}
+  const tA=strokes[0].ms,tB=strokes[strokes.length-1].ms;
+  const gps=GPSTRACE.filter(p=>p.lat!=null&&p.lon!=null&&p.t>=tA-2000&&p.t<=tB+2000).sort((a,b)=>a.t-b.t);
+  if(gps.length<2||tB<=tA){toast('No GPS track for this section');return null;}
+  const ses=SESSIONS[activeSessionIdx]||{};
+  const st=_lastSum&&_lastSum.start_time?new Date(_lastSum.start_time):null;
+  const date=st&&!isNaN(st)?st.toLocaleDateString('en-AU',{day:'numeric',month:'short',year:'numeric'}):'';
+  return {strokes,tA,tB,gps,gT:gps.map(p=>p.t-tA),lls:gps.map(p=>[p.lat,p.lon]),ser:rvSeries(strokes,tA),label:ses.label||'Session',date};
+}
+function rvFrame(ctx,W,H,lay,mp,D,p,dur){
+  const span=D.tB-D.tA, t=p*span, mn=lay.mn;
+  ctx.drawImage(mp.bg,0,0);
+  /* trail + boat */
+  const gi=rvBis(D.gT,t), gj=Math.min(D.gT.length-1,gi+1);
+  const f=D.gT[gj]>D.gT[gi]?Math.max(0,Math.min(1,(t-D.gT[gi])/(D.gT[gj]-D.gT[gi]))):0;
+  const bx=mp.xy[gi][0]+f*(mp.xy[gj][0]-mp.xy[gi][0]), by=mp.xy[gi][1]+f*(mp.xy[gj][1]-mp.xy[gi][1]);
+  ctx.lineJoin='round';ctx.lineCap='round';ctx.strokeStyle=RV_ACC;ctx.lineWidth=Math.max(6,W/150);
+  ctx.beginPath();ctx.moveTo(mp.xy[0][0],mp.xy[0][1]);for(let i=1;i<=gi;i++)ctx.lineTo(mp.xy[i][0],mp.xy[i][1]);ctx.lineTo(bx,by);ctx.stroke();
+  const ka=rvBis(D.gT,t-2000), kb=Math.min(D.gT.length-1,rvBis(D.gT,t+2000)+1);
+  let hd=Math.atan2(mp.xy[kb][1]-mp.xy[ka][1],mp.xy[kb][0]-mp.xy[ka][0]);
+  const R=mn*0.022;
+  ctx.save();ctx.translate(bx,by);ctx.rotate(hd);
+  ctx.fillStyle='rgba(0,0,0,.45)';ctx.beginPath();ctx.arc(0,0,R*1.6,0,Math.PI*2);ctx.fill();
+  ctx.fillStyle='#fff';ctx.beginPath();ctx.moveTo(R*1.5,0);ctx.lineTo(-R*0.9,R*0.85);ctx.lineTo(-R*0.45,0);ctx.lineTo(-R*0.9,-R*0.85);ctx.closePath();ctx.fill();
+  ctx.strokeStyle=RV_ACC;ctx.lineWidth=R*0.22;ctx.stroke();
+  ctx.restore();
+  /* values now */
+  const S=D.ser, si=rvBis(S.t,t), sj=Math.min(S.t.length-1,si+1);
+  const sf=S.t[sj]>S.t[si]?Math.max(0,Math.min(1,(t-S.t[si])/(S.t[sj]-S.t[si]))):0;
+  const pace=S.pace[si], rate=S.rate[si];
+  const d0=S.dist[0], dNow=(S.dist[si]!=null&&S.dist[sj]!=null)?S.dist[si]+sf*(S.dist[sj]-S.dist[si]):null;
+  /* header */
+  const hg=ctx.createLinearGradient(0,0,0,lay.hdrH+lay.m);
+  hg.addColorStop(0,'rgba(4,10,22,.88)');hg.addColorStop(0.75,'rgba(4,10,22,.6)');hg.addColorStop(1,'rgba(4,10,22,0)');
+  ctx.fillStyle=hg;ctx.fillRect(0,0,W,lay.hdrH+lay.m);
+  ctx.textBaseline='alphabetic';ctx.textAlign='left';
+  const fT=Math.round(mn*0.03);
+  ctx.font='700 '+fT+'px '+RV_FONT;ctx.fillStyle=RV_ACC;ctx.fillText('BoatRun',lay.m,lay.m+fT);
+  const bw=ctx.measureText('BoatRun  ').width;
+  ctx.font='600 '+fT+'px '+RV_FONT;ctx.fillStyle='#fff';
+  let ttl=D.label+(D.date?'  ·  '+D.date:'');
+  while(ttl.length>4&&ctx.measureText(ttl).width>W-2*lay.m-bw)ttl=ttl.slice(0,-2);
+  ctx.fillText(ttl,lay.m+bw,lay.m+fT);
+  const cols=[['PACE '+paceULabel(),pace!=null?fmtPaceU(pace):'—',RV_PACE],['RATE',rate!=null?rate.toFixed(1):'—',RV_RATE],['DISTANCE',(dNow!=null&&d0!=null)?Math.max(0,Math.round(dNow-d0))+' m':'—','#fff'],['TIME',fmtTime(Math.floor(t/1000)),'#fff']];
+  const cw=(W-2*lay.m)/4, fL=Math.round(mn*0.021), fV=Math.round(mn*0.062), vy=lay.m+fT+fL+lay.m*0.6;
+  cols.forEach((c,i)=>{const x=lay.m+i*cw;ctx.font='700 '+fL+'px '+RV_FONT;ctx.fillStyle='rgba(255,255,255,.7)';ctx.fillText(c[0],x,vy);ctx.font='700 '+fV+'px '+RV_FONT;ctx.fillStyle=c[2];ctx.fillText(c[1],x,vy+fV*1.02);});
+  /* chart panel */
+  const C=lay.chart;
+  ctx.fillStyle='rgba(4,10,22,.80)';rvRR(ctx,C.x,C.y,C.w,C.h,mn*0.03);ctx.fill();
+  const pad=Math.round(mn*0.028), fA=Math.round(mn*0.02), axW=fA*3.4;
+  const px=C.x+pad+axW, py=C.y+pad+fA*1.8, pw=C.w-2*pad-2*axW, ph=C.h-2*pad-fA*3.6;
+  ctx.font='700 '+fA+'px '+RV_FONT;ctx.textAlign='left';
+  ctx.fillStyle=RV_PACE;ctx.fillText('● Pace '+paceULabel(),C.x+pad,C.y+pad+fA);
+  ctx.fillStyle=RV_RATE;ctx.fillText('● Rate spm',C.x+pad+ctx.measureText('● Pace '+paceULabel()+'    ').width,C.y+pad+fA);
+  ctx.textAlign='right';ctx.fillStyle='rgba(255,255,255,.8)';
+  ctx.fillText('×'+Math.max(1,Math.round(span/1000/dur))+' speed',C.x+C.w-pad,C.y+pad+fA);
+  const X=tt=>px+tt/span*pw;
+  const line=(arr,lo,hi,inv,col)=>{
+    const Y=v=>{const k=(v-lo)/((hi-lo)||1);return inv?py+k*ph:py+ph-k*ph;};
+    const path=()=>{ctx.beginPath();arr.forEach((v,i)=>{const x=X(S.t[i]),y=Y(Math.max(lo,Math.min(hi,v)));i?ctx.lineTo(x,y):ctx.moveTo(x,y);});};
+    ctx.lineWidth=Math.max(3,mn/300);ctx.strokeStyle=col;
+    ctx.globalAlpha=0.28;path();ctx.stroke();
+    ctx.save();ctx.beginPath();ctx.rect(px-4,py-10,X(t)-px+4,ph+20);ctx.clip();ctx.globalAlpha=1;path();ctx.stroke();ctx.restore();
+    ctx.globalAlpha=1;return Y;
+  };
+  ctx.strokeStyle='rgba(255,255,255,.10)';ctx.lineWidth=1;
+  for(let k=0;k<=4;k++){const y=py+k*ph/4;ctx.beginPath();ctx.moveTo(px,y);ctx.lineTo(px+pw,y);ctx.stroke();}
+  if(S.hasP){
+    const b=pctBounds(S.pace.filter(v=>v!=null),0.02,0.98,0.1);
+    const Y=line(S.pace,b[0],b[1],true,RV_PACE);
+    ctx.textAlign='right';ctx.font='600 '+fA+'px '+RV_FONT;ctx.fillStyle=RV_PACE;
+    ctx.fillText(fmtPaceU(b[0],true),px-6,py+fA*0.8);ctx.fillText(fmtPaceU(b[1],true),px-6,py+ph);
+    if(pace!=null){ctx.fillStyle=RV_PACE;ctx.beginPath();ctx.arc(X(t),Y(Math.max(b[0],Math.min(b[1],pace))),mn*0.009,0,Math.PI*2);ctx.fill();}
+  }
+  if(S.hasR){
+    const b=pctBounds(S.rate.filter(v=>v!=null),0.02,0.98,0.1);
+    const Y=line(S.rate,b[0],b[1],false,RV_RATE);
+    ctx.textAlign='left';ctx.font='600 '+fA+'px '+RV_FONT;ctx.fillStyle=RV_RATE;
+    ctx.fillText(b[1].toFixed(0),px+pw+6,py+fA*0.8);ctx.fillText(b[0].toFixed(0),px+pw+6,py+ph);
+    if(rate!=null){ctx.fillStyle=RV_RATE;ctx.beginPath();ctx.arc(X(t),Y(Math.max(b[0],Math.min(b[1],rate))),mn*0.009,0,Math.PI*2);ctx.fill();}
+  }
+  ctx.strokeStyle='rgba(255,255,255,.9)';ctx.lineWidth=2;ctx.beginPath();ctx.moveTo(X(t),py-6);ctx.lineTo(X(t),py+ph+6);ctx.stroke();
+  ctx.textAlign='left';ctx.font='600 '+fA+'px '+RV_FONT;ctx.fillStyle='rgba(255,255,255,.6)';
+  ctx.fillText('0:00',px,C.y+C.h-pad);
+  ctx.textAlign='right';ctx.fillText(fmtTime(Math.round(span/1000)),px+pw,C.y+C.h-pad);
+  ctx.textAlign='center';ctx.fillStyle='rgba(255,255,255,.5)';ctx.fillText('boatrun.au',px+pw/2,C.y+C.h-pad);
+}
+window.rvOpenExport=function(){
+  const D=rvPrep();if(!D)return;
+  const mime=rvMime();
+  if(!mime||!HTMLCanvasElement.prototype.captureStream){toast('This browser cannot record video - try Chrome or Safari');return;}
+  document.getElementById('_rv_modal')?.remove();
+  const ov=document.createElement('div');ov.id='_rv_modal';
+  ov.style.cssText='position:fixed;inset:0;background:rgba(0,0,0,.75);display:flex;align-items:center;justify-content:center;z-index:9999;padding:12px;';
+  const pn=document.createElement('div');
+  pn.style.cssText='background:var(--s1);color:var(--text);border-radius:14px;max-width:560px;width:100%;max-height:94vh;overflow:auto;padding:14px 16px;box-sizing:border-box;';
+  const sel='font-size:12px;';
+  pn.innerHTML='<div style="display:flex;align-items:center;gap:8px;margin-bottom:10px;"><b style="font-size:14px;">Replay video</b><span id="_rv_info" style="font-size:11px;color:var(--muted);"></span><button class="hbtn" id="_rv_close" style="margin-left:auto;font-size:11px;">Close</button></div>'
+    +'<div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:10px;align-items:center;">'
+    +'<select id="_rv_fmt" style="'+sel+'"><option value="portrait">Portrait 9:16</option><option value="landscape">Landscape 16:9</option><option value="square">Square 1:1</option></select>'
+    +'<select id="_rv_len" style="'+sel+'"><option value="15">15 s</option><option value="30" selected>30 s</option><option value="60">60 s</option></select>'
+    +'<button class="dzbtn dzbtn-pri" id="_rv_go">Make video</button></div>'
+    +'<div id="_rv_msg" style="font-size:11px;color:var(--muted);margin-bottom:8px;">Loading map…</div>'
+    +'<div style="text-align:center;"><canvas id="_rv_cv" style="max-width:100%;max-height:60vh;border-radius:10px;background:#000;"></canvas><video id="_rv_vid" controls playsinline style="display:none;max-width:100%;max-height:60vh;border-radius:10px;background:#000;"></video></div>'
+    +'<div id="_rv_save" style="display:none;gap:8px;margin-top:10px;"><button class="dzbtn dzbtn-pri" id="_rv_dl">Save video</button><button class="dzbtn dzbtn-sec" id="_rv_sh" style="display:none;"><span>Share</span></button></div>';
+  ov.appendChild(pn);document.body.appendChild(ov);
+  const $=id=>document.getElementById(id);
+  const cv=$('_rv_cv'), ctx=cv.getContext('2d'), msg=$('_rv_msg');
+  $('_rv_info').textContent=D.strokes.length+' strokes · '+fmtTime(Math.round((D.tB-D.tA)/1000));
+  let W=0,H=0,lay=null,mp=null,busy=false,rec=null,blob=null,url=null,gen=0;
+  const close=()=>{gen++;try{if(rec&&rec.state!=='inactive')rec.stop();}catch(e){}if(url)URL.revokeObjectURL(url);ov.remove();};
+  $('_rv_close').onclick=close;
+  const resetOut=()=>{$('_rv_save').style.display='none';$('_rv_vid').style.display='none';cv.style.display='';if(url){URL.revokeObjectURL(url);url=null;}blob=null;};
+  const build=async()=>{
+    const my=++gen;busy=true;$('_rv_go').disabled=true;resetOut();
+    const sz=RV_SIZES[$('_rv_fmt').value];W=sz[0];H=sz[1];cv.width=W;cv.height=H;lay=rvLayout(W,H);
+    ctx.fillStyle='#0b1a2e';ctx.fillRect(0,0,W,H);
+    msg.textContent='Loading map…';
+    const m=await rvBuildMap(D.lls,W,H,lay,(d,n)=>{if(my===gen)msg.textContent='Loading map '+d+'/'+n+'…';});
+    if(my!==gen)return;
+    mp=m;
+    try{if(document.fonts&&document.fonts.ready)await document.fonts.ready;}catch(e){}
+    rvFrame(ctx,W,H,lay,mp,D,0,+$('_rv_len').value);
+    msg.textContent=(m.ok<m.total*0.5?'Satellite map could not load - the track is drawn on a plain background. ':'')+'Ready. Keep this tab open and on screen while it records.';
+    busy=false;$('_rv_go').disabled=false;
+  };
+  $('_rv_fmt').onchange=build;
+  $('_rv_len').onchange=()=>{if(mp&&!busy){resetOut();rvFrame(ctx,W,H,lay,mp,D,0,+$('_rv_len').value);}};
+  $('_rv_go').onclick=()=>{
+    if(busy||!mp)return;
+    busy=true;$('_rv_go').disabled=true;$('_rv_fmt').disabled=true;$('_rv_len').disabled=true;resetOut();
+    const dur=+$('_rv_len').value, my=gen, chunks=[];
+    let stream;
+    try{stream=cv.captureStream(30);rec=new MediaRecorder(stream,{mimeType:mime,videoBitsPerSecond:10000000});}
+    catch(e){toast('Recording failed: '+(e&&e.message||e));busy=false;$('_rv_go').disabled=false;$('_rv_fmt').disabled=false;$('_rv_len').disabled=false;return;}
+    rec.ondataavailable=e=>{if(e.data&&e.data.size)chunks.push(e.data);};
+    rec.onstop=()=>{
+      try{stream.getTracks().forEach(t=>t.stop());}catch(e){}
+      $('_rv_fmt').disabled=false;$('_rv_len').disabled=false;$('_rv_go').disabled=false;busy=false;
+      if(my!==gen||!chunks.length)return;
+      blob=new Blob(chunks,{type:mime.split(';')[0]});url=URL.createObjectURL(blob);
+      const v=$('_rv_vid');v.src=url;v.style.display='';cv.style.display='none';
+      $('_rv_save').style.display='flex';
+      const ext=mime.indexOf('mp4')>=0?'mp4':'webm';
+      const fname='BoatRun_'+String(D.label).replace(/[^A-Za-z0-9_-]+/g,'_').slice(0,40)+'_replay.'+ext;
+      const file=new File([blob],fname,{type:blob.type});
+      let canSh=false;try{canSh=!!(navigator.canShare&&navigator.canShare({files:[file]}));}catch(e){}
+      $('_rv_sh').style.display=canSh?'':'none';
+      $('_rv_sh').onclick=()=>{navigator.share({files:[file],title:'BoatRun replay'}).catch(()=>{});};
+      $('_rv_dl').onclick=()=>{const a=document.createElement('a');a.href=url;a.download=fname;document.body.appendChild(a);a.click();a.remove();};
+      msg.textContent='Done · '+(blob.size/1048576).toFixed(1)+' MB '+ext.toUpperCase();
+    };
+    rvFrame(ctx,W,H,lay,mp,D,0,dur);
+    rec.start(250);
+    const HOLD0=0.6, HOLD1=1.4, t0=performance.now();
+    const tick=()=>{
+      if(my!==gen)return;
+      const el=(performance.now()-t0)/1000, p=Math.max(0,Math.min(1,(el-HOLD0)/dur));
+      rvFrame(ctx,W,H,lay,mp,D,p,dur);
+      msg.textContent='Recording '+Math.round(Math.min(1,el/(dur+HOLD0+HOLD1))*100)+'% — keep this tab on screen';
+      if(el<dur+HOLD0+HOLD1)requestAnimationFrame(tick);else{try{rec.stop();}catch(e){}}
+    };
+    requestAnimationFrame(tick);
+  };
+  build();
+};
 })();
 </script>
 </body>
