@@ -16742,38 +16742,34 @@ function rvFrame(ctx,W,H,lay,mp,D,p,dur){
   const C=lay.chart;
   ctx.fillStyle='rgba(4,10,22,.80)';rvRR(ctx,C.x,C.y,C.w,C.h,mn*0.03);ctx.fill();
   const pad=Math.round(mn*0.028), fA=Math.round(mn*0.02), axW=fA*3.4;
-  const px=C.x+pad+axW, py=C.y+pad+fA*1.8, pw=C.w-2*pad-2*axW, ph=C.h-2*pad-fA*3.6;
+  const px=C.x+pad+axW, pw=C.w-2*pad-axW;
+  const top=C.y+pad+fA*1.8, gap=fA*3, bot=C.y+C.h-pad-fA*1.8;
+  const ph=(bot-top-gap)/2;
+  const pyP=top, pyR=top+ph+gap;
   ctx.font='700 '+fA+'px '+RV_FONT;ctx.textAlign='left';
-  ctx.fillStyle=RV_PACE;ctx.fillText('● Pace '+paceULabel(),C.x+pad,C.y+pad+fA);
-  ctx.fillStyle=RV_RATE;ctx.fillText('● Rate spm',C.x+pad+ctx.measureText('● Pace '+paceULabel()+'    ').width,C.y+pad+fA);
+  ctx.fillStyle=RV_PACE;ctx.fillText('\u25CF Pace '+paceULabel(),C.x+pad,C.y+pad+fA);
+  ctx.fillStyle=RV_RATE;ctx.fillText('\u25CF Rate spm',C.x+pad+ctx.measureText('\u25CF Pace '+paceULabel()+'    ').width,C.y+pad+fA);
   ctx.textAlign='right';ctx.fillStyle='rgba(255,255,255,.8)';
-  ctx.fillText('×'+Math.max(1,Math.round(span/1000/dur))+' speed',C.x+C.w-pad,C.y+pad+fA);
+  ctx.fillText('\u00D7'+Math.max(1,Math.round(span/1000/dur))+' speed',C.x+C.w-pad,C.y+pad+fA);
   const X=tt=>px+tt/span*pw;
-  const line=(arr,lo,hi,inv,col)=>{
-    const Y=v=>{const k=(v-lo)/((hi-lo)||1);return inv?py+k*ph:py+ph-k*ph;};
-    const path=()=>{ctx.beginPath();arr.forEach((v,i)=>{const x=X(S.t[i]),y=Y(Math.max(lo,Math.min(hi,v)));i?ctx.lineTo(x,y):ctx.moveTo(x,y);});};
+  /* One strip per metric. lo/hi = value at the bottom/top of the strip. */
+  const strip=(arr,py,lo,hi,ticks,fmt,col,now)=>{
+    const Y=v=>py+ph-((Math.max(Math.min(lo,hi),Math.min(Math.max(lo,hi),v))-lo)/((hi-lo)||1))*ph;
+    ctx.strokeStyle='rgba(255,255,255,.10)';ctx.lineWidth=1;
+    ctx.textAlign='right';ctx.font='600 '+fA+'px '+RV_FONT;ctx.fillStyle=col;
+    ticks.forEach(v=>{const y=Y(v);ctx.beginPath();ctx.moveTo(px,y);ctx.lineTo(px+pw,y);ctx.stroke();ctx.fillText(fmt(v),px-6,y+fA*0.35);});
+    const path=()=>{ctx.beginPath();arr.forEach((v,i)=>{const x=X(S.t[i]),y=Y(v);i?ctx.lineTo(x,y):ctx.moveTo(x,y);});};
     ctx.lineWidth=Math.max(3,mn/300);ctx.strokeStyle=col;
     ctx.globalAlpha=0.28;path();ctx.stroke();
     ctx.save();ctx.beginPath();ctx.rect(px-4,py-10,X(t)-px+4,ph+20);ctx.clip();ctx.globalAlpha=1;path();ctx.stroke();ctx.restore();
-    ctx.globalAlpha=1;return Y;
+    ctx.globalAlpha=1;
+    if(now!=null){ctx.fillStyle=col;ctx.beginPath();ctx.arc(X(t),Y(now),mn*0.009,0,Math.PI*2);ctx.fill();}
   };
-  ctx.strokeStyle='rgba(255,255,255,.10)';ctx.lineWidth=1;
-  for(let k=0;k<=4;k++){const y=py+k*ph/4;ctx.beginPath();ctx.moveTo(px,y);ctx.lineTo(px+pw,y);ctx.stroke();}
-  if(S.hasP){
-    const b=rvBounds(S.pace,60);
-    const Y=line(S.pace,b[0],b[1],true,RV_PACE);
-    ctx.textAlign='right';ctx.font='600 '+fA+'px '+RV_FONT;ctx.fillStyle=RV_PACE;
-    ctx.fillText(fmtPaceU(b[0],true),px-6,py+fA*0.8);ctx.fillText(fmtPaceU(b[1],true),px-6,py+ph);
-    if(pace!=null){ctx.fillStyle=RV_PACE;ctx.beginPath();ctx.arc(X(t),Y(Math.max(b[0],Math.min(b[1],pace))),mn*0.009,0,Math.PI*2);ctx.fill();}
-  }
-  if(S.hasR){
-    const b=[0,50];
-    const Y=line(S.rate,b[0],b[1],false,RV_RATE);
-    ctx.textAlign='left';ctx.font='600 '+fA+'px '+RV_FONT;ctx.fillStyle=RV_RATE;
-    ctx.fillText(b[1].toFixed(0),px+pw+6,py+fA*0.8);ctx.fillText(b[0].toFixed(0),px+pw+6,py+ph);
-    if(rate!=null){ctx.fillStyle=RV_RATE;ctx.beginPath();ctx.arc(X(t),Y(Math.max(b[0],Math.min(b[1],rate))),mn*0.009,0,Math.PI*2);ctx.fill();}
-  }
-  ctx.strokeStyle='rgba(255,255,255,.9)';ctx.lineWidth=2;ctx.beginPath();ctx.moveTo(X(t),py-6);ctx.lineTo(X(t),py+ph+6);ctx.stroke();
+  /* Pace fixed 5:00 (bottom) to 1:00 (top) per 500 m. */
+  if(S.hasP)strip(S.pace,pyP,300,60,[300,240,180,120,60],v=>fmtPaceU(v,true),RV_PACE,pace);
+  /* Rate fixed 0-50 spm. */
+  if(S.hasR)strip(S.rate,pyR,0,50,[0,10,20,30,40,50],v=>String(v),RV_RATE,rate);
+  ctx.strokeStyle='rgba(255,255,255,.9)';ctx.lineWidth=2;ctx.beginPath();ctx.moveTo(X(t),top-6);ctx.lineTo(X(t),bot+6);ctx.stroke();
   ctx.textAlign='left';ctx.font='600 '+fA+'px '+RV_FONT;ctx.fillStyle='rgba(255,255,255,.6)';
   ctx.fillText('0:00',px,C.y+C.h-pad);
   ctx.textAlign='right';ctx.fillText(fmtTime(Math.round(span/1000)),px+pw,C.y+C.h-pad);
