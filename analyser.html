@@ -2627,6 +2627,34 @@ function ergCharOf(c){
   if(i>0&&i<a.length-1){const d=a[i-1]-2*a[i]+a[i+1];if(d<0)x=i+0.5*(a[i-1]-a[i+1])/d;}
   return Math.round(Math.max(0,Math.min(100,x/(a.length-1)*100)));
 }
+/* STROKE RATE FROM STROKE TIMES (on-water sessions before Metrics_261029_1).
+   The saved per-stroke rate came from catch-to-catch time, and the detected
+   catch moved +/-60-80 ms stroke to stroke, so a steady rate see-sawed (e.g.
+   r29.3 / r31.8 at a steady r30). Each stroke's saved time is taken at the end
+   of the drive, which is detected more steadily, so the gap between stroke
+   times gives a smoother rate. Tested on 27, 28 and 29 Oct: average
+   stroke-to-stroke swing 0.42->0.32, 0.59->0.43, 0.23->0.11 spm.
+   Only replaces a rate that exists, and only when the gap agrees with it
+   within 15% (so a gap across a missed stroke or a rest is never used).
+   Metrics_261029_1 and later already save the steadier rate. */
+function _retimeStrokeRates(s, strokes){
+  try{
+    if(!s || s.sessionMode==='erg' || !Array.isArray(s.strokes)) return;
+    const m=/Metrics_(\d{6})_(\d+)/.exec(String(s.appBuild||''));
+    if(m && (+m[1]>261029 || (+m[1]===261029 && +m[2]>=1))) return;
+    let n=0;
+    for(let i=1;i<strokes.length;i++){
+      const st=strokes[i], r=st.rate;
+      if(!(r>0)) continue;
+      const t1=s.strokes[i]&&s.strokes[i].t, t0=s.strokes[i-1]&&s.strokes[i-1].t;
+      if(!(t1>0&&t0>0)) continue;
+      const dt=t1-t0, ref=60000/r;
+      if(!(dt>=900&&dt<=6000) || Math.abs(dt-ref)>ref*0.15) continue;
+      st.rate=+(60000/dt).toFixed(1); n++;
+    }
+    s._rateRetimed=n;
+  }catch(e){}
+}
 function sessionToAnalyserFmt(s) {
   _fixOldPpPace(s);
   const sum = {
@@ -2669,6 +2697,7 @@ function sessionToAnalyserFmt(s) {
     curveIsForce: !!(fcFix[i] && !r.curve),
     watts:num(r.powerW), drivelength:num(r.driveLength), peakforceN:num(r.peakForceN),
   }));
+  _retimeStrokeRates(s, strokes);
   const hr = (s.hrTrace||[]).map(h=>({ ts:new Date(h.t).toISOString(), bpm:h.hr }));
   const wlm=(s.sessionMode==='erg'&&_ergLapsFromIntervals(s.erg&&s.erg.intervals,s.hrTrace,s.startTime))||s.workoutLapMetrics||[];
   const lapSrc=wlm.length?wlm:(s.laps||[]);
