@@ -76,17 +76,17 @@ header{position:sticky;top:0;z-index:40;background:rgba(8,18,38,.86);backdrop-fi
 .step span{font-size:14px;color:var(--ink-dim);}
 
 /* ===== LIST ===== */
-.list{padding:40px 0 80px;}
+.list{padding:40px 0 80px;}.list .wrap{max-width:1480px;}
 .tools{display:flex;gap:10px;flex-wrap:wrap;align-items:center;margin-bottom:22px;}
 .search{flex:1 1 260px;min-width:0;padding:12px 14px;border-radius:10px;border:1px solid rgba(14,20,32,.14);background:#fff;font-size:15px;font-family:inherit;color:var(--paper-ink);-webkit-appearance:none;appearance:none;}
 .search:focus{outline:none;border-color:var(--coral);box-shadow:0 0 0 3px var(--coral-dim);}
 .chips{display:flex;gap:8px;flex-wrap:wrap;}
 .chip{padding:8px 14px;border-radius:100px;border:1px solid rgba(14,20,32,.14);background:#fff;font-size:13px;font-weight:600;cursor:pointer;font-family:inherit;color:rgba(14,20,32,.7);}
 .chip.on{background:var(--navy);border-color:var(--navy);color:#fff;}
-.area-h{font-family:'Space Grotesk',sans-serif;font-size:20px;font-weight:700;letter-spacing:-.01em;margin:26px 0 12px;display:flex;align-items:center;gap:10px;}
-.area-h:first-child{margin-top:0;}
+.area-h{font-family:'Space Grotesk',sans-serif;font-size:20px;font-weight:700;letter-spacing:-.01em;margin:0 0 12px;display:flex;align-items:center;gap:10px;}
+#secList{display:flex;flex-wrap:wrap;align-items:flex-start;gap:30px 24px;}#secList>.msg{flex:1 1 100%;}@media(max-width:640px){.area{flex-basis:100%;}}
 .area-h .n{font-family:'Roboto Mono',monospace;font-size:11px;font-weight:600;color:rgba(14,20,32,.45);letter-spacing:.06em;}
-.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:16px;}
+.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:16px;}.area{flex:0 1 calc(var(--n,1)*296px - 16px);max-width:100%;min-width:0;}
 .card{background:#fff;border:1px solid rgba(14,20,32,.08);border-radius:16px;overflow:hidden;display:flex;flex-direction:column;}
 .thumb{height:190px;background:#0E3346;cursor:pointer;position:relative;z-index:0;isolation:isolate;}
 .thumb .leaflet-container{background:#0E3346;}
@@ -340,7 +340,7 @@ function render(){
   Object.keys(groups).sort((a,b)=>a.localeCompare(b)).forEach(area=>{
     const g=groups[area].sort((a,b)=>a.it.name.localeCompare(b.it.name));
     const nc=g.filter(x=>!x.it.linesOnly).length;
-    h+='<h3 class="area-h">'+esc(area)+'<span class="n">'+nc+' COURSE'+(nc===1?'':'S')+'</span></h3><div class="grid">';
+    h+='<div class="area" style="--n:'+g.length+'"><h3 class="area-h">'+esc(area)+'<span class="n">'+nc+' COURSE'+(nc===1?'':'S')+'</span></h3><div class="grid">';
     g.forEach(({it,i})=>{
       if(it.bad){
         h+='<div class="card bad"><div class="thumb">File could not be loaded</div><div class="card-body"><h4>'+esc(it.name)+'</h4><div class="meta">Check the file name in courses.json</div></div></div>';
@@ -353,7 +353,7 @@ function render(){
         +'<div class="actions"><button type="button" class="sbtn sbtn-ghost" data-map="'+i+'">Map</button><a class="sbtn sbtn-coral" href="'+esc(it.file)+'" download>Download</a></div>'
         +'</div></div>';
     });
-    h+='</div>';
+    h+='</div></div>';
   });
   box.innerHTML=h;
   box.querySelectorAll('[data-map]').forEach(b=>{b.onclick=()=>openMap(+b.dataset.map);});
