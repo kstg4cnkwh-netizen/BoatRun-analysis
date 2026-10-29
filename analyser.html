@@ -9709,6 +9709,14 @@ function buildCurveStats(){
         const gv=_lv!=null?_lv:((m.k==='pace')?groupAvgPace(g.strokes):groupAvgDPS(g.strokes));
         return gv!=null?m.fmtAvg(gv):EM;
       }});
+      /* Tide/current Corrected on: the same average, through the water. */
+      if(m.k==='pace'&&_curCorrOn) rows.push({l:' Corrected pace', c:m.c, fn:g=>{
+        let vg=0,vw=0,n=0;
+        for(const s of g.strokes){if(isNaN(s.curAlong)||!(s._pace0>50&&s._pace0<500))continue;const a=500/s._pace0,w=a-s.curAlong;if(!(w>0.5))continue;vg+=a;vw+=w;n++;}
+        if(!n||!(vg>0))return EM;
+        const gp=(g.lap&&g.lap.pace!=null)?g.lap.pace:groupAvgPace(g.strokes);
+        return gp!=null?m.fmtAvg(gp*vg/vw)+(n<g.strokes.length*0.8?' ~':''):EM;
+      }});
       if(m.showBest) rows.push({l:'Best '+m.l, c:m.c, fn:g=>{
         if(m.k==='pace'){const bp=groupBestPace(g.strokes);return bp!=null?m.fmtAvg(bp):EM;}
         const arr=g.strokes.filter(m.filter).map(m.val);
@@ -10538,7 +10546,7 @@ function buildUnitsBar() {
     `<span class="seglbl">Dist</span>${seg('distUnit',[['km','km'],['mi','mi']])}` +
     `<span class="seglbl">Sub</span>${seg('dpsUnit',[['m','m'],['ft','ft'],['in','in']])}` +
     (()=>{ const sess=SESSIONS[activeSessionIdx], own=sess&&sess.d&&sess.d.crewKg;
-      return `<span class="seglbl" title="Rower weight for Eff Power">Rower kg</span><span class="segwrap"><input class="hrzin" type="number" min="30" max="200" value="${crewKgDefault()}" title="Default rower weight, all sessions (kg)" onchange="setCrewKg('default',this.value)"><input class="hrzin" type="number" min="30" max="200" value="${own||''}" placeholder="this" title="This session only (kg) - blank uses the default" onchange="setCrewKg('session',this.value)"></span>`; })() +
+      return `<span class="seglbl" title="Rower weight for Eff Power">Rower kg</span><span class="segwrap" style="align-items:center;"><span style="font-size:10px;color:var(--muted);padding:0 3px 0 4px;">All</span><input class="hrzin" type="number" min="30" max="200" value="${crewKgDefault()}" title="Default rower weight for all sessions (kg)" onchange="setCrewKg('default',this.value)"><span style="font-size:10px;color:var(--muted);padding:0 3px 0 6px;">This session</span><input class="hrzin" type="number" min="30" max="200" value="${own||''}" placeholder="${crewKgDefault()}" title="This session only (kg). Leave blank to use the All value." onchange="setCrewKg('session',this.value)"></span>`; })() +
     (()=>{ const s=SESSIONS[activeSessionIdx], c=s&&s.d&&s.d._cur, ok=!!(c&&c.ok);
       return `<span class="seglbl" title="${(c&&c.msg)||''}">Tide/current${ok?'':' (none)'}</span><span class="segwrap"><button class="segbtn${_curMapOn?' on':''}" onclick="toggleCurMap()" title="Show the estimated current on the map">Map</button><button class="segbtn${_curCorrOn&&ok?' on':''}" onclick="toggleCurCorr()" title="Pace, DPS and Eff Power through the water instead of over the ground">Corrected</button><button class="segbtn" id="_cur_crawl_btn" onclick="riverCrawl()" title="Scan every on-water session on Drive into the river model (and the clubs you share with). Click again to stop.">${_riverCrawlBusy?'Scanning\u2026':'Scan'}</button><button class="segbtn" onclick="riverForget()" title="River model: ${_riverSessions()} session${_riverSessions()===1?'':'s'} (${_riverClubSessions()} from clubs), ${Object.keys(riverView().cells).length} cells. Click to forget your own.">\u21ba</button></span>`; })() +
     (HR.length>10?`<span class="seglbl">HR zones</span><span class="segwrap">`+hrZones.map((v,i)=>`<input class="hrzin" type="number" value="${v}" min="40" max="230" title="Z${i+1} upper limit (bpm)" onchange="setHRZone(${i},this.value)" style="border-color:${HR_ZONE_COLORS[i]};color:${HR_ZONE_COLORS[i]};">`).join('')+`</span>`:'');
@@ -11042,7 +11050,7 @@ function toggleCurCorr(){
   if(!_curCorrOn&&!(cur&&cur.ok)){toast('No current to correct for: '+((cur&&cur.msg)||'not estimated'),4000);return;}
   _curCorrOn=!_curCorrOn; try{localStorage.setItem('br_cur_corr',_curCorrOn?'1':'0');}catch{}
   applyCurCorr(sess.d);
-  try{buildCards(sess.d.sum);}catch{} try{buildStrokeTable();}catch{} try{buildUnitsBar();}catch{} try{schedRender();}catch{}
+  try{buildCards(sess.d.sum);}catch{} try{buildStrokeTable();}catch{} try{buildUnitsBar();}catch{} try{schedRender();}catch{} try{buildCurveStats();}catch{}
   toast(_curCorrOn?'Showing pace, DPS and Eff Power through the water':'Showing GPS (over ground) values',2500);
 }
 window.toggleCurMap=toggleCurMap; window.toggleCurCorr=toggleCurCorr;
