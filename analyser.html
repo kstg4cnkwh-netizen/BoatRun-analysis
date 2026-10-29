@@ -768,6 +768,7 @@ body.light .hdrname{color:#fff;}
     <div class="sec-hd">
       <h2>Stroke Chart</h2>
       <div style="display:flex;align-items:center;gap:6px;margin-left:auto;flex-wrap:wrap;">
+        <button class="segbtn" id="curCorrHdBtn" onclick="toggleCurCorr()" title="Pace, DPS and Eff Power through the water instead of over the ground">Tide/current corrected</button>
         <button class="zoom-btn" onclick="window.zoomChart(1)">＋</button>
         <input type="range" id="zoomSlider" min="0" max="100" value="100" style="width:70px;cursor:pointer;accent-color:var(--acc);" oninput="window.zoomSlide(this.value)">
         <button class="zoom-btn" onclick="window.zoomChart(-1)">－</button>
@@ -10533,6 +10534,7 @@ function updateMapPin(){
 // UNITS BAR
 // ══════════════════════════════════════════════════════════════════════════
 function buildUnitsBar() {
+  try{const b=document.getElementById('curCorrHdBtn'),s=SESSIONS[activeSessionIdx],c=s&&s.d&&s.d._cur;if(b)b.classList.toggle('on',!!(_curCorrOn&&c&&c.ok));}catch{}
   const bar = document.getElementById('unitsbar');
   if (!bar) return;
   function seg(key, options) {
@@ -10555,7 +10557,7 @@ function buildUnitsBar() {
     (()=>{ const sess=SESSIONS[activeSessionIdx], own=sess&&sess.d&&sess.d.crewKg;
       return `<span class="seglbl" title="Rower weight for Eff Power">Rower kg</span><span class="segwrap" style="align-items:center;"><span style="font-size:10px;color:var(--muted);padding:0 3px 0 4px;">All</span><input class="hrzin" type="number" min="30" max="200" value="${crewKgDefault()}" title="Default rower weight for all sessions (kg)" onchange="setCrewKg('default',this.value)"><span style="font-size:10px;color:var(--muted);padding:0 3px 0 6px;">This session</span><input class="hrzin" type="number" min="30" max="200" value="${own||''}" placeholder="${crewKgDefault()}" title="This session only (kg). Leave blank to use the All value." onchange="setCrewKg('session',this.value)"></span>`; })() +
     (()=>{ const s=SESSIONS[activeSessionIdx], c=s&&s.d&&s.d._cur, ok=!!(c&&c.ok);
-      return `<span class="seglbl" title="${(c&&c.msg)||''}">Tide/current${ok?'':' (none)'}</span><span class="segwrap"><button class="segbtn${_curMapOn?' on':''}" onclick="toggleCurMap()" title="Show the estimated current on the map">Map</button><button class="segbtn${_curCorrOn&&ok?' on':''}" onclick="toggleCurCorr()" title="Pace, DPS and Eff Power through the water instead of over the ground">Corrected</button><button class="segbtn" id="_cur_crawl_btn" onclick="riverCrawl()" title="Scan every on-water session on Drive into the river model (and the clubs you share with). Click again to stop.">${_riverCrawlBusy?'Scanning\u2026':'Scan'}</button><button class="segbtn" onclick="riverForget()" title="River model: ${_riverSessions()} session${_riverSessions()===1?'':'s'} (${_riverClubSessions()} from clubs), ${Object.keys(riverView().cells).length} cells. Click to forget your own.">\u21ba</button></span>`; })() +
+      return `<span class="seglbl" title="${(c&&c.msg)||''}">Tide/current${ok?'':' (none)'}</span><span class="segwrap"><button class="segbtn${_curMapOn?' on':''}" onclick="toggleCurMap()" title="Show the estimated current on the map">Show on map</button><button class="segbtn" id="_cur_crawl_btn" onclick="riverCrawl()" title="Scan every on-water session on Drive into the river model (and the clubs you share with). Click again to stop.">${_riverCrawlBusy?'Scanning\u2026':'Scan all sessions'}</button><button class="segbtn" onclick="riverForget()" title="River model: ${_riverSessions()} session${_riverSessions()===1?'':'s'} (${_riverClubSessions()} from clubs), ${Object.keys(riverView().cells).length} cells. Click to forget your own.">\u21ba</button></span>`; })() +
     (HR.length>10?`<span class="seglbl">HR zones</span><span class="segwrap">`+hrZones.map((v,i)=>`<input class="hrzin" type="number" value="${v}" min="40" max="230" title="Z${i+1} upper limit (bpm)" onchange="setHRZone(${i},this.value)" style="border-color:${HR_ZONE_COLORS[i]};color:${HR_ZONE_COLORS[i]};">`).join('')+`</span>`:'');
 }
 window.setUnitsAndRebuild = setUnitsAndRebuild;
@@ -10851,7 +10853,7 @@ async function riverCrawl(){
   try{await riverPull();}catch{} try{await riverPullClubs(true);}catch{}
   let files=[];
   try{files=(await AnalyserDrive.list()).filter(f=>!_sumParseFn(f.name).erg);}
-  catch(err){_riverCrawlBusy=false;setP('Scan');if(!driveAuthExpired(err))toast('Could not list sessions');return;}
+  catch(err){_riverCrawlBusy=false;setP('Scan all sessions');if(!driveAuthExpired(err))toast('Could not list sessions');return;}
   files=files.slice().reverse();
   const todo=files.filter(f=>done[f.id]!==(f.modifiedTime||f.name));
   let n=0,withCur=0,added=0,errs=0;
@@ -10875,7 +10877,7 @@ async function riverCrawl(){
   try{localStorage.setItem(RIVER_CRAWL_LS,JSON.stringify(done));localStorage.setItem(RIVER_LS,JSON.stringify(RIVER));}catch{}
   try{await AnalyserDrive.pushRiver(RIVER);}catch{}
   unitSettings=keepUnits; if(keepZones)hrZones=keepZones;
-  _riverCrawlBusy=false;setP('Scan');
+  _riverCrawlBusy=false;setP('Scan all sessions');
   const sess=SESSIONS[activeSessionIdx];
   if(sess&&sess.d){sess.d._cur=null;try{prepCurrent(sess.d);}catch{} try{buildCards(sess.d.sum);}catch{} try{buildStrokeTable();}catch{} try{schedRender();}catch{} try{drawCurrentLayer();}catch{}}
   try{buildUnitsBar();}catch{}
