@@ -2370,7 +2370,7 @@ const METRIC_DEFS = [
   {k:'cdur',   l:'Catch Dur',   c:'var(--mc-cdur)',  cat:'boat',  filter:s=>!isNaN(s.catchDuration)&&s.catchDuration>0&&s.catchDuration<1500, val:s=>s.catchDuration, fmtAvg:v=>f0(v)+' ms', fmtBest:null, tip:'Time from the point deceleration at the catch reaches 30% of its peak depth, until acceleration crosses back through zero. Measures the width of the check, not time-to-peak-force. Accelerometer-derived. Not comparable across boat classes \u2014 hull inertia differs, same as the catch slopes.'},
   {k:'drivetime', l:'Drive Time', c:'var(--mc-oar)',  cat:'boat',  filter:s=>!isNaN(s.driveTimeMs)&&s.driveTimeMs>50&&s.driveTimeMs<1500, val:s=>s.driveTimeMs, fmtAvg:v=>f0(v)+' ms', fmtBest:null, tip:'Time from peak drive acceleration to blade exit — the back half of the drive. Accelerometer-derived, so it covers every stroke regardless of GPS. Catch Dur and Drive Time overlap around the peak, so the true total drive time is less than their sum but more than Drive Time alone.'},
   {k:'impulse',l:'Impulse',     c:'var(--mc-impulse)', cat:'boat',  filter:s=>s.impulse>0&&s.impulse<1000,  val:s=>s.impulse,     fmtAvg:v=>Math.round(v).toString(),fmtBest:null, tip:'Total positive acceleration during the drive, integrated as a change in velocity (Δv). Higher means more drive power applied to the hull — not a peak value. IMU-derived — scale varies with boat class and mass.'},
-  {k:'epower', l:'Eff Power', c:'var(--mc-epower)', cat:'cond', filter:s=>!isNaN(s.epower)&&s.epower>0&&s.epower<6000, val:s=>s.epower, fmtAvg:v=>f0(v)+' W', fmtBest:null, tip:'Estimated effective power: power that went into moving the boat, in watts. Mean speed x speed gained on the drive x strokes per second gives W/kg; x total mass (boat minimum weight for the boat type + crew at the rower weight set in the units bar + 55 kg cox in coxed boats). Needs the boat type set. On-water only.'},
+  {k:'epower', l:'Eff Power', c:'var(--mc-epower)', cat:'cond', filter:s=>!isNaN(s.epower)&&s.epower>0&&s.epower<6000, val:s=>s.epower, fmtAvg:v=>f0(v)+' W', fmtBest:null, tip:'Estimated effective power per rower, in watts: the power that went into moving the boat, shared equally across the rowers. Mean speed x speed gained on the drive x strokes per second gives W/kg; x total mass (boat minimum weight for the boat type + crew at the rower weight set in the units bar + 55 kg cox in coxed boats), divided by the number of rowers. Needs the boat type set. On-water only.'},
   {k:'driveaccel', l:'Drive Accel', c:'var(--mc-driveaccel)', cat:'boat', filter:s=>!isNaN(s.driveAccel)&&s.driveAccel>0&&s.driveAccel<20, val:s=>s.driveAccel, fmtAvg:v=>f1(v)+' m/s²', fmtBest:null, tip:'Peak forward acceleration during the drive, catch to finish. IMU-derived — scale varies with boat class and mass.'},
   {k:'recoveryaccel', l:'Recovery Accel', c:'var(--mc-recoveryaccel)', cat:'boat', filter:s=>!isNaN(s.recoveryAccel)&&s.recoveryAccel>0&&s.recoveryAccel<20, val:s=>s.recoveryAccel, fmtAvg:v=>f1(v)+' m/s²', fmtBest:null, tip:'Peak forward acceleration during the recovery, taken after the small drag-dip that follows the finish. IMU-derived — scale varies with boat class and mass.'},
   {k:'rloss',  l:'Recovery Loss', c:'var(--mc-rloss)', cat:'indep', filter:s=>!isNaN(s.rloss)&&s.rloss>0&&s.rloss<100, val:s=>s.rloss, fmtAvg:v=>fmtRunLossU(v), fmtBest:null, tip:'Percentage of drive speed lost to deceleration during recovery. Accelerometer-derived, condition-independent. Lower is better.'},
@@ -7355,10 +7355,10 @@ function buildCards(sum) {
       return vals.pace?card('c-pace',(_curCorrOn&&_curOk())?'Pace (water)':'Pace',fmtPaceU(avgPace>0?avgPace/_curSpeedRatio():vals.pace.mean),workPace>0?'work '+fmtPaceU(workPace):(movPace>0?'mov '+fmtPaceU(movPace):paceULabel()),'pace',tipOf('pace')):'';
     },
     rate:()=>vals.rate?card('c-rate','Rate',f1(vals.rate.mean),'spm · max '+f0(vals.rate.max),'rate',tipOf('rate')):'',
-    dps:()=>vals.dps?card('c-dps','DPS',fmtDPSU(vals.dps.mean),dpsULabelU()+'/stroke','dps',tipOf('dps')):'',
+    dps:()=>vals.dps?card('c-dps','DPS'+_cwS(),fmtDPSU(vals.dps.mean),dpsULabelU()+'/stroke','dps',tipOf('dps')):'',
     cdelta:()=>vals.cdelta?`<div class="card clickable${!vis.cdelta?' dim':''}" id="card-cdelta" data-vis="cdelta" style="border-top:2px solid var(--mc-cdelta)" title="${tipOf('cdelta')}"><div class="lbl">Vel Efficiency</div><div class="val" style="color:var(--mc-cdelta)">${f1(vals.cdelta.mean)}%</div><div class="sub">vs steady hull</div></div>`:'',
     rloss:()=>vals.rloss?card('c-rloss','Recovery Loss',fmtRunLossU(vals.rloss.mean),'avg/stroke','rloss',tipOf('rloss')):'',
-    epower:()=>vals.epower?`<div class="card clickable${!vis.epower?' dim':''}" id="card-epower" data-vis="epower" style="border-top:2px solid var(--mc-epower)" title="${tipOf('epower')}"><div class="lbl">Eff Power</div><div class="val" style="color:var(--mc-epower)">${f0(vals.epower.mean)} W</div><div class="sub">peak ${f0(vals.epower.max)} W</div></div>`:'',
+    epower:()=>vals.epower?`<div class="card clickable${!vis.epower?' dim':''}" id="card-epower" data-vis="epower" style="border-top:2px solid var(--mc-epower)" title="${tipOf('epower')}"><div class="lbl">Eff Power${_cwS()}</div><div class="val" style="color:var(--mc-epower)">${f0(vals.epower.mean)} W</div><div class="sub">per rower · peak ${f0(vals.epower.max)} W</div></div>`:'',
     impulse:()=>vals.impulse?card('c-impulse','Impulse',Math.round(vals.impulse.mean),'peak '+Math.round(vals.impulse.max),'impulse',tipOf('impulse')):'',
     slope:()=>vals.slope?card('c-slope','Pos Slope',f0(vals.slope.mean),'peak '+f1(vals.slope.max),'slope',tipOf('slope')):'',
     slopeneg:()=>vals.slopeneg?card('c-slopeneg','Neg Slope',f0(vals.slopeneg.mean),'peak '+f1(vals.slopeneg.max),'slopeneg',tipOf('slopeneg')):'',
@@ -7892,9 +7892,9 @@ function showTooltipAt(clientX, clientY, force, above){
   if(idx<0||idx>=currentView.length)return;
   const s=currentView[idx];const C=pal();
   const TT_BUILDERS={
-    pace:()=>(isErgSession()&&unitSettings.ergUnit==='watts')?ttRow('Power',isNaN(s.watts)||s.watts<=0?EM:f0(s.watts)+' W',C.mc_pace):ttRow('Pace',fmtPaceU(s.pace),C.mc_pace),
+    pace:()=>(isErgSession()&&unitSettings.ergUnit==='watts')?ttRow('Power',isNaN(s.watts)||s.watts<=0?EM:f0(s.watts)+' W',C.mc_pace):ttRow('Pace'+_cwS(),fmtPaceU(s.pace),C.mc_pace),
     rate:()=>ttRow('Rate',isNaN(s.rate)||s.rate<1?EM:f1(s.rate)+' spm',C.mc_rate),
-    dps:()=>ttRow('DPS',isNaN(s.dps)||s.dps<1?EM:fmtDPSU(s.dps)+dpsULabelU(),C.mc_dps),
+    dps:()=>ttRow('DPS'+_cwS(),isNaN(s.dps)||s.dps<1?EM:fmtDPSU(s.dps)+dpsULabelU(),C.mc_dps),
     cdelta:()=>ttRow('Vel Efficiency',(!isNaN(s.checkDelta)&&s.checkDelta>=50)?f1(s.checkDelta)+'%':EM,C.mc_cdelta),
     driveaccel:()=>ttRow('Drive Accel',isNaN(s.driveAccel)||s.driveAccel<=0?EM:f1(s.driveAccel)+' m/s²',C.mc_driveaccel),
     caccel:()=>ttRow('Catch Accel',isNaN(s.catchAccel)||s.catchAccel>=0?EM:f1(s.catchAccel)+' m/s²',C.mc_catchaccel),
@@ -7902,7 +7902,7 @@ function showTooltipAt(clientX, clientY, force, above){
     recoveryaccel:()=>ttRow('Recovery Accel',isNaN(s.recoveryAccel)||s.recoveryAccel<=0?EM:f1(s.recoveryAccel)+' m/s²',C.mc_recoveryaccel),
     rloss:()=>ttRow('Recovery Loss',isNaN(s.rloss)||s.rloss<0?EM:fmtRunLossU(s.rloss),C.mc_rloss),
     impulse:()=>ttRow('Impulse',isNaN(s.impulse)||s.impulse<=0?EM:Math.round(s.impulse).toString(),C.mc_impulse),
-    epower:()=>ttRow('Eff Power',isNaN(s.epower)||s.epower<=0?EM:f0(s.epower)+' W',C.mc_epower),
+    epower:()=>ttRow('Eff Power/rower'+_cwS(),isNaN(s.epower)||s.epower<=0?EM:f0(s.epower)+' W',C.mc_epower),
     slope:()=>ttRow('Pos catch slope',isNaN(s.slope)||s.slope<=0?EM:f0(s.slope),C.mc_slope),
     ratio:()=>ttRow('Stroke Ratio',(s.ratio==null||isNaN(s.ratio)||s.ratio<0.5||s.ratio>5)?EM:s.ratio.toFixed(2),C.mc_ratio),
     schar:()=>ttRow('Stroke Char',isNaN(s.schar)?EM:f0(s.schar)+'%',C.mc_schar),
@@ -8188,7 +8188,7 @@ function updateStatsStrip(){
       continue;
     }
     if(!arr.length)continue;
-    html+=sp('Avg '+m.l,m.fmtAvg(arrMean(arr)),m.c);
+    html+=sp('Avg '+m.l+(m.k==='epower'?_cwS():''),m.fmtAvg(arrMean(arr)),m.c);
     if(m.showBest) html+=sp('Best '+m.l,m.fmtAvg(m.bestIsMin?arrMin(arr):arrMax(arr)),m.c);
   }
   html+='<button id="selclear" onclick="clearSelection()">✕ Clear</button>';
@@ -9724,7 +9724,7 @@ function buildCurveStats(){
       }});
       continue;
     }
-    rows.push({l:'Avg '+m.l, c:m.c, fn:g=>{
+    rows.push({l:'Avg '+m.l+(m.k==='epower'?_cwS():''), c:m.c, fn:g=>{
       if(m.k==='rate'&&g.lap&&g.lap.rate)return m.fmtAvg(g.lap.rate);
       const arr=rowOnly(g.strokes).filter(m.filter).map(m.val);
       return arr.length?m.fmtAvg(arrMean(arr)):EM;
@@ -10394,13 +10394,13 @@ window.showAllLaps=showAllLaps;
 // STROKE TABLE
 // ══════════════════════════════════════════════════════════════════════════
 const TBL_COLS={
-  pace:{h:()=>(isErgSession()&&unitSettings.ergUnit==='watts')?'Power W':'Pace '+paceULabel(), cell:s=>(isErgSession()&&unitSettings.ergUnit==='watts')?`<td style="color:var(--mc-pace)">${isNaN(s.watts)||s.watts<=0?EM:f0(s.watts)}</td>`:`<td style="color:var(--mc-pace)">${fmtPaceU(s.pace)}</td>`},
+  pace:{h:()=>(isErgSession()&&unitSettings.ergUnit==='watts')?'Power W':'Pace '+paceULabel()+_cwS(), cell:s=>(isErgSession()&&unitSettings.ergUnit==='watts')?`<td style="color:var(--mc-pace)">${isNaN(s.watts)||s.watts<=0?EM:f0(s.watts)}</td>`:`<td style="color:var(--mc-pace)">${fmtPaceU(s.pace)}</td>`},
   rate:{h:()=>'Rate', cell:s=>`<td style="color:var(--mc-rate)">${isNaN(s.rate)||s.rate<1?EM:f0(s.rate)}</td>`},
-  dps:{h:()=>'DPS '+dpsULabelU(), cell:s=>`<td style="color:var(--mc-dps)">${isNaN(s.dps)||s.dps<1?EM:fmtDPSU(s.dps)}</td>`},
+  dps:{h:()=>'DPS '+dpsULabelU()+_cwS(), cell:s=>`<td style="color:var(--mc-dps)">${isNaN(s.dps)||s.dps<1?EM:fmtDPSU(s.dps)}</td>`},
   cdelta:{h:()=>'Vel Eff %', cell:s=>`<td style="color:var(--mc-cdelta)">${(!isNaN(s.checkDelta)&&s.checkDelta>=50)?f1(s.checkDelta):EM}</td>`},
   rloss:{h:()=>'Recovery Loss %', cell:s=>`<td style="color:var(--mc-rloss)">${isNaN(s.rloss)||s.rloss<0?EM:fmtRunLossU(s.rloss)}</td>`},
   impulse:{h:()=>'Impulse', cell:s=>`<td style="color:var(--mc-impulse)">${isNaN(s.impulse)||s.impulse<=0?EM:Math.round(s.impulse)}</td>`},
-  epower:{h:()=>'Eff Power W', cell:s=>`<td style="color:var(--mc-epower)">${isNaN(s.epower)||s.epower<=0?EM:f0(s.epower)}</td>`},
+  epower:{h:()=>'Eff Power W/rower'+_cwS(), cell:s=>`<td style="color:var(--mc-epower)">${isNaN(s.epower)||s.epower<=0?EM:f0(s.epower)}</td>`},
   slope:{h:()=>'Pos slope', cell:s=>`<td style="color:var(--mc-slope)">${isNaN(s.slope)||s.slope<=0?EM:f1(s.slope)}</td>`},
   slopeneg:{h:()=>'Neg slope', cell:s=>`<td style="color:var(--mc-catchslopeneg)">${isNaN(s.catchSlopeNeg)||s.catchSlopeNeg<=0?EM:f1(s.catchSlopeNeg)}</td>`},
   caccel:{h:()=>'Catch Accel', cell:s=>`<td style="color:var(--mc-catchaccel)">${isNaN(s.catchAccel)||s.catchAccel>=0?EM:f1(s.catchAccel)}</td>`},
@@ -10580,6 +10580,8 @@ function effTotalKg(d){
 function applyEffPower(d){
   const st=(d&&d.strokes)||[];
   const erg=!!(d&&d.sum&&d.sum.session_mode==='erg');
+  /* Per rower: whole boat + crew (+ cox) mass shared across the rowers. */
+  const _b=_effBoat(d), _n=_b?(parseInt(_b.t,10)||1):1;
   const tot=(!erg&&isPro())?effTotalKg(d):null;
   for(const s of st){
     s.epower=NaN;
@@ -10587,7 +10589,7 @@ function applyEffPower(d){
     const v=(s.pace>50&&s.pace<500)?500/s.pace:NaN, dv=s.impulse/100, r=s.rate;
     const pk=(v>=1&&dv>0&&r>5&&r<50)?v*dv*r/60:NaN;
     s.powerKg=(pk>0&&pk<20)?pk:NaN;
-    if(tot&&!isNaN(s.powerKg)) s.epower=s.powerKg*tot;
+    if(tot&&!isNaN(s.powerKg)) s.epower=s.powerKg*tot/_n;
   }
 }
 function effPowerRefresh(){
@@ -10998,6 +11000,8 @@ function _curSpeedRatio(){
   let g=0,w=0;for(const s of ST){if(s._pace0>50&&s._pace0<500&&s.pace>50&&s.pace<500){g+=500/s._pace0;w+=500/s.pace;}}
   return (g>0&&w>0)?w/g:1;
 }
+/* ' (water)' after any figure that the tide/current correction has changed. */
+function _cwS(){return (_curCorrOn&&_curOk())?' (water)':'';}
 function _curOk(){const s=SESSIONS[activeSessionIdx];return !!(s&&s.d&&s.d._cur&&s.d._cur.ok);}
 function prepCurrent(d){
   if(!d||!d.strokes)return;
@@ -11050,7 +11054,7 @@ function toggleCurCorr(){
   if(!_curCorrOn&&!(cur&&cur.ok)){toast('No current to correct for: '+((cur&&cur.msg)||'not estimated'),4000);return;}
   _curCorrOn=!_curCorrOn; try{localStorage.setItem('br_cur_corr',_curCorrOn?'1':'0');}catch{}
   applyCurCorr(sess.d);
-  try{buildCards(sess.d.sum);}catch{} try{buildStrokeTable();}catch{} try{buildUnitsBar();}catch{} try{schedRender();}catch{} try{buildCurveStats();}catch{}
+  try{buildCards(sess.d.sum);}catch{} try{buildStrokeTable();}catch{} try{buildUnitsBar();}catch{} try{schedRender();}catch{} try{buildCurveStats();}catch{} try{updateStatsStrip();}catch{}
   toast(_curCorrOn?'Showing pace, DPS and Eff Power through the water':'Showing GPS (over ground) values',2500);
 }
 window.toggleCurMap=toggleCurMap; window.toggleCurCorr=toggleCurCorr;
@@ -14958,8 +14962,8 @@ const VID = {
 
 const VID_METRICS = {
   rate:         {l:'Rate',       fmt:s=>({v:f1(s.rate),u:'spm'})},
-  pace:         {l:'Pace',       fmt:s=>({v:fmtPaceU(s.pace),u:paceULabel()})},
-  dps:          {l:'DPS',        fmt:s=>({v:fmtDPSU(s.dps),u:dpsULabelU()})},
+  pace:         {l:'Pace',       fmt:s=>({v:fmtPaceU(s.pace),u:paceULabel()+_cwS()})},
+  dps:          {l:'DPS',        fmt:s=>({v:fmtDPSU(s.dps),u:dpsULabelU()+_cwS()})},
   slope:        {l:'Pos Slope',fmt:s=>({v:f0(s.slope),u:''})},
   slopeneg:     {l:'Neg Slope',fmt:s=>({v:f0(s.catchSlopeNeg),u:''})},
   caccel:       {l:'Catch Accel', fmt:s=>({v:f1(s.catchAccel),u:'m/s²'})},
@@ -17354,7 +17358,7 @@ function rvFrame(ctx,W,H,lay,mp,D,p,dur){
   let ttl=D.label+(D.date?'  ·  '+D.date:'');
   while(ttl.length>4&&ctx.measureText(ttl).width>W-2*lay.m-bw)ttl=ttl.slice(0,-2);
   ctx.fillText(ttl,lay.m+bw,lay.m+fT);
-  const cols=[['PACE '+paceULabel(),pace!=null?fmtPaceU(pace):'—',RV_PACE],['RATE',rate!=null?Math.round(rate).toString():'—',RV_RATE],['DISTANCE',(dNow!=null&&d0!=null)?Math.max(0,Math.round(dNow-d0))+' m':'—','#fff'],['TIME',fmtTime(Math.floor(t/1000)),'#fff']];
+  const cols=[['PACE '+paceULabel()+(_cwS()?' (WATER)':''),pace!=null?fmtPaceU(pace):'—',RV_PACE],['RATE',rate!=null?Math.round(rate).toString():'—',RV_RATE],['DISTANCE',(dNow!=null&&d0!=null)?Math.max(0,Math.round(dNow-d0))+' m':'—','#fff'],['TIME',fmtTime(Math.floor(t/1000)),'#fff']];
   const cw=(W-2*lay.m)/4, fL=Math.round(mn*0.021), fV=Math.round(mn*0.062), vy=lay.m+fT+fL+lay.m*0.6;
   cols.forEach((c,i)=>{const x=lay.m+i*cw;ctx.font='700 '+fL+'px '+RV_FONT;ctx.fillStyle='rgba(255,255,255,.7)';ctx.fillText(c[0],x,vy);ctx.font='700 '+fV+'px '+RV_FONT;ctx.fillStyle=c[2];ctx.fillText(c[1],x,vy+fV*1.02);});
   /* chart panel */
