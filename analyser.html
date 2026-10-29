@@ -5809,6 +5809,11 @@ function removeSession(idx) {
 }
 window.removeSession=removeSession;
 
+/* Session date for the compare-mode pills, e.g. "(29 Oct 2026)". */
+function _sessDate(sess){
+  try{const t=sess&&sess.d&&sess.d.sum&&sess.d.sum.start_time;if(!t)return '';const d=new Date(t);if(isNaN(d))return '';
+    return '('+d.toLocaleDateString('en-AU',{day:'numeric',month:'short',year:'numeric'})+')';}catch{return '';}
+}
 function renderSessionTabs() {
   const wrap=document.getElementById('sesstabs');
   if (!wrap) return;
@@ -5817,7 +5822,8 @@ function renderSessionTabs() {
   wrap.innerHTML=SESSIONS.map((s,i)=>{
     const safe=s.label.replace(/"/g,'');
     const short=s.label.length>22?s.label.slice(0,19)+'…':s.label;
-    return `<button class="sess-tab${i===activeSessionIdx?' on':''}" onclick="switchSession(${i})" title="${safe}">${short}<span class="sess-x" onclick="event.stopPropagation();removeSession(${i})">×</span></button>`;
+    const dt=_sessDate(s);
+    return `<button class="sess-tab${i===activeSessionIdx?' on':''}" onclick="switchSession(${i})" title="${safe}${dt?' '+dt:''}"><span style="display:inline-flex;flex-direction:column;align-items:flex-start;line-height:1.2;vertical-align:middle;">${short}${dt?`<span style="font-size:.78em;font-weight:500;opacity:.75;">${dt}</span>`:''}</span><span class="sess-x" onclick="event.stopPropagation();removeSession(${i})">×</span></button>`;
   }).join('');
 }
 
@@ -9032,7 +9038,7 @@ function buildCurveSection(){
   // Curve group pills — body focuses, right-edge cap removes
   const _chipHost=document.getElementById('groupchips');
   _chipHost.innerHTML=curveGroups.map((g,i)=>
-    `<span class="grp-chip${tplFocusIdx===i?' focused':''}" data-tplfocus="${i}" title="Tap to show this curve on its own with the active stroke template over it" style="background:${g.color};color:${grpText(g.color)};${tplFocusIdx>=0&&tplFocusIdx!==i?'opacity:.32;':''}">${g.label}${g.sessionLabel?' \u00b7 '+shortName(g.sessionLabel):''} (${g.strokes.length})<span class="grp-chip-x" data-grpdel="${i}" title="Remove this curve group">\u00d7</span></span>`
+    `<span class="grp-chip${tplFocusIdx===i?' focused':''}" data-tplfocus="${i}" title="Tap to show this curve on its own with the active stroke template over it" style="background:${g.color};color:${grpText(g.color)};${tplFocusIdx>=0&&tplFocusIdx!==i?'opacity:.32;':''}"><span style="display:inline-flex;flex-direction:column;align-items:flex-start;line-height:1.2;vertical-align:middle;"><span>${g.label}${g.sessionLabel?' \u00b7 '+shortName(g.sessionLabel):''} (${g.strokes.length})</span>${(()=>{const dt=SESSIONS.length>1?_sessDate(SESSIONS[g.sessionIdx]):'';return dt?`<span style="font-size:.8em;font-weight:500;opacity:.8;">${dt}</span>`:'';})()}</span><span class="grp-chip-x" data-grpdel="${i}" title="Remove this curve group">\u00d7</span></span>`
   ).join('');
   _chipHost.querySelectorAll('[data-grpdel]').forEach(x=>{
     x.onclick=e=>{e.stopPropagation();removeCurveGroup(+x.dataset.grpdel);};
