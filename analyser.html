@@ -1589,6 +1589,35 @@ const AnalyserDrive = {
     }, 'Weight', 45000, fileId);
     this._ok(r, 'Weight');
   },
+  /* River current model (BoatRunCurrents.json in appDataFolder). */
+  async _appFileId(name) {
+    const q = encodeURIComponent(`name='${name}' and trashed=false`);
+    const r = await this._api(`https://www.googleapis.com/drive/v3/files?spaces=appDataFolder&q=${q}&orderBy=${encodeURIComponent('modifiedTime desc')}&fields=files(id)`, {}, 'River', 15000);
+    if (!r.ok) return undefined;
+    const d = await r.json();
+    return (d.files && d.files[0]) ? d.files[0].id : null;
+  },
+  async pullRiver() {
+    if (!(await this.ensureToken())) return null;
+    const id = await this._appFileId(RIVER_FILE);
+    if (!id) return null;
+    const r = await this._api(`https://www.googleapis.com/drive/v3/files/${id}?alt=media`, {}, 'River', 20000);
+    if (!r.ok) return null;
+    try { return await r.json(); } catch { return null; }
+  },
+  async pushRiver(m) {
+    if (!(await this.ensureToken())) return false;
+    const id = await this._appFileId(RIVER_FILE);
+    if (id === undefined) return false;
+    const meta = { name: RIVER_FILE, mimeType: 'application/json', ...(id ? {} : { parents: ['appDataFolder'] }) };
+    const form = new FormData();
+    form.append('metadata', new Blob([JSON.stringify(meta)], { type: 'application/json' }));
+    form.append('file', new Blob([JSON.stringify(m)], { type: 'application/json' }));
+    const url = id ? `https://www.googleapis.com/upload/drive/v3/files/${id}?uploadType=multipart&fields=id`
+                   : 'https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart&fields=id';
+    const r = await this._api(url, { method: id ? 'PATCH' : 'POST', body: form }, 'River', 20000);
+    return r.ok;
+  },
   async patchNote(fileId, note) {
     this._check();
     const content = await this.fetchSession(fileId);
@@ -4517,12 +4546,12 @@ function navClubsMerge(list){
   (list||[]).forEach(r=>{
     if(!r||!r.code)return;
     const c=NAV_CLUBS.find(x=>x.code===r.code);
-    if(!c){NAV_CLUBS.push({code:r.code,name:r.name||'',owner:!!r.owner,upd:r.upd||0,deleted:!!r.deleted,lines:[]});changed=true;}
-    else if((r.upd||0)>(c.upd||0)){c.name=r.name||c.name;c.owner=!!r.owner;c.upd=r.upd||0;c.deleted=!!r.deleted;changed=true;}
+    if(!c){NAV_CLUBS.push({code:r.code,name:r.name||'',owner:!!r.owner,upd:r.upd||0,deleted:!!r.deleted,noCur:!!r.noCur,lines:[]});changed=true;}
+    else if((r.upd||0)>(c.upd||0)){c.name=r.name||c.name;c.owner=!!r.owner;c.upd=r.upd||0;c.deleted=!!r.deleted;c.noCur=!!r.noCur;changed=true;}
   });
   return changed;
 }
-function navClubsForPrefs(){return NAV_CLUBS.map(c=>({code:c.code,name:c.name,owner:!!c.owner,upd:c.upd||0,deleted:!!c.deleted}));}
+function navClubsForPrefs(){return NAV_CLUBS.map(c=>({code:c.code,name:c.name,owner:!!c.owner,upd:c.upd||0,deleted:!!c.deleted,noCur:!!c.noCur}));}
 function navPush(){
   try{if(!AnalyserDrive.isSignedIn())return;}catch(e){return;}
   clearTimeout(_navPushT);
@@ -4749,6 +4778,7 @@ async function navClubNewRecovery(c){
 async function navClubDelete(c){
   const r1=await navFb('navSets/'+c.code,'DELETE');
   if(!r1.ok){toast(navFbMsg(r1,'Not allowed'));return false;}
+  try{await navFb('navCur/'+c.code,'DELETE');}catch(e){}
   await navFb('navKeys/'+c.code,'DELETE');
   c.deleted=true;c.lines=[];navClubTouch(c);navRefreshViews();
   return true;
@@ -4957,7 +4987,9 @@ window.navClub=function(){
       h+='<div style="background:var(--s1);border:1px solid var(--border);border-radius:12px;padding:10px 12px;margin-bottom:10px;">'
         +'<div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;"><div style="font-size:22px;font-weight:800;letter-spacing:.12em;color:var(--text);">'+c.code+'</div>'
         +'<div style="flex:1;min-width:120px;"><div style="font-size:13px;font-weight:700;color:var(--text);">'+_secEsc(c.name||'…')+'</div><div style="font-size:11px;color:var(--muted);">'+(c.gone?'Deleted':n+' line'+(n===1?'':'s'))+(c.owner?' · you created it':'')+'</div></div>'
-        +'<button class="hbtn" data-cl-copy="'+c.code+'" style="font-size:11px;">Copy code</button></div>';
+        +'<button class="hbtn" data-cl-copy="'+c.code+'" style="font-size:11px;">Copy code</button></div>'
+        +'<label style="display:flex;align-items:center;gap:8px;margin-top:8px;font-size:12px;color:var(--text);cursor:pointer;" title="Your sessions\u2019 measured tide/current (when and where you rowed, and the current found) are added to this club\u2019s current map, which only the club\u2019s editors can see."><input type="checkbox" data-cl-cur="'+c.code+'"'+(c.noCur?'':' checked')+'> Share my tide/current measurements with this club</label>'
+        +(c.noCur?'<div style="font-size:11px;color:var(--muted);margin:2px 0 0 24px;">Not sharing new sessions. <a href="#" data-cl-curdel="'+c.code+'" style="color:#1a5276;">Remove my past data</a></div>':'');
       if(c.stale)h+='<div style="margin-top:8px;font-size:11px;color:#f54040;">The edit password has changed. Enter the new one:</div><div style="display:flex;gap:6px;margin-top:4px;">'+inp('_cl_rejoin_'+c.code,'New edit password','password')+'<button class="hbtn" data-cl-rejoin="'+c.code+'" style="font-size:11px;">Continue</button></div>';
       h+='<div style="display:flex;gap:6px;flex-wrap:wrap;margin-top:8px;">'
         +(pro&&mine.length?'<button class="hbtn" data-cl-move="'+c.code+'" style="font-size:11px;">Move my lines in…</button>':'')
@@ -4983,6 +5015,25 @@ window.navClub=function(){
     $('_cl_forgot').onclick=e=>{e.preventDefault();$('_cl_recbox').style.display='';};
     const busy=async(btn,fn)=>{if(btn){btn.disabled=true;}try{await fn();}finally{if(btn)btn.disabled=false;}};
     panel.querySelectorAll('[data-cl-copy]').forEach(b=>b.onclick=()=>{try{navigator.clipboard.writeText(b.dataset.clCopy);toast('Code copied');}catch(e){}});
+    panel.querySelectorAll('[data-cl-cur]').forEach(b=>b.onchange=()=>busy(null,async()=>{
+      const c=navClubByCode(b.dataset.clCur);if(!c)return;
+      if(b.checked){c.noCur=false;navClubTouch(c);toast('Sharing with '+c.name+' \u2014 sessions are added as you open them',3500);render();return;}
+      const ch=await _curUnshareChoice(c);
+      if(!ch){render();return;}
+      c.noCur=true;navClubTouch(c);
+      if(ch==='remove'){
+        const n=await riverUnshareClub(c);
+        toast(n?'Stopped sharing \u2014 '+n+' of your session'+(n===1?'':'s')+' removed from '+c.name:'Stopped sharing with '+c.name,3500);
+      }else toast('Stopped sharing new sessions with '+c.name+' \u2014 past data kept',3500);
+      render();
+    }));
+    panel.querySelectorAll('[data-cl-curdel]').forEach(b=>b.onclick=e=>{e.preventDefault();busy(null,async()=>{
+      const c=navClubByCode(b.dataset.clCurdel);if(!c)return;
+      if(!confirm('Remove all your past tide/current data from '+c.name+'?'))return;
+      const n=await riverUnshareClub(c);
+      toast(n?n+' of your session'+(n===1?'':'s')+' removed from '+c.name:'Nothing of yours to remove from '+c.name,3500);
+      render();
+    });});
     panel.querySelectorAll('[data-cl-rejoin]').forEach(b=>b.onclick=()=>busy(b,async()=>{const c=await navClubJoin(b.dataset.clRejoin,val('_cl_rejoin_'+b.dataset.clRejoin));if(c)toast('Editing '+c.name);render();}));
     panel.querySelectorAll('[data-cl-move]').forEach(b=>b.onclick=()=>{moveFor=moveFor===b.dataset.clMove?null:b.dataset.clMove;render();});
     panel.querySelectorAll('[data-cl-mvgo]').forEach(b=>b.onclick=()=>busy(b,async()=>{
@@ -10489,7 +10540,7 @@ function buildUnitsBar() {
     (()=>{ const sess=SESSIONS[activeSessionIdx], own=sess&&sess.d&&sess.d.crewKg;
       return `<span class="seglbl" title="Rower weight for Eff Power">Rower kg</span><span class="segwrap"><input class="hrzin" type="number" min="30" max="200" value="${crewKgDefault()}" title="Default rower weight, all sessions (kg)" onchange="setCrewKg('default',this.value)"><input class="hrzin" type="number" min="30" max="200" value="${own||''}" placeholder="this" title="This session only (kg) - blank uses the default" onchange="setCrewKg('session',this.value)"></span>`; })() +
     (()=>{ const s=SESSIONS[activeSessionIdx], c=s&&s.d&&s.d._cur, ok=!!(c&&c.ok);
-      return `<span class="seglbl" title="${(c&&c.msg)||''}">Tide/current${ok?'':' (none)'}</span><span class="segwrap"><button class="segbtn${_curMapOn?' on':''}" onclick="toggleCurMap()" title="Show the estimated current on the map">Map</button><button class="segbtn${_curCorrOn&&ok?' on':''}" onclick="toggleCurCorr()" title="Pace, DPS and Eff Power through the water instead of over the ground">Corrected</button></span>`; })() +
+      return `<span class="seglbl" title="${(c&&c.msg)||''}">Tide/current${ok?'':' (none)'}</span><span class="segwrap"><button class="segbtn${_curMapOn?' on':''}" onclick="toggleCurMap()" title="Show the estimated current on the map">Map</button><button class="segbtn${_curCorrOn&&ok?' on':''}" onclick="toggleCurCorr()" title="Pace, DPS and Eff Power through the water instead of over the ground">Corrected</button><button class="segbtn" id="_cur_crawl_btn" onclick="riverCrawl()" title="Scan every on-water session on Drive into the river model (and the clubs you share with). Click again to stop.">${_riverCrawlBusy?'Scanning\u2026':'Scan'}</button><button class="segbtn" onclick="riverForget()" title="River model: ${_riverSessions()} session${_riverSessions()===1?'':'s'} (${_riverClubSessions()} from clubs), ${Object.keys(riverView().cells).length} cells. Click to forget your own.">\u21ba</button></span>`; })() +
     (HR.length>10?`<span class="seglbl">HR zones</span><span class="segwrap">`+hrZones.map((v,i)=>`<input class="hrzin" type="number" value="${v}" min="40" max="230" title="Z${i+1} upper limit (bpm)" onchange="setHRZone(${i},this.value)" style="border-color:${HR_ZONE_COLORS[i]};color:${HR_ZONE_COLORS[i]};">`).join('')+`</span>`:'');
 }
 window.setUnitsAndRebuild = setUnitsAndRebuild;
@@ -10556,23 +10607,71 @@ function setCrewKg(which, val){
   }
 }
 window.setCrewKg=setCrewKg;
-/* ── TIDE / CURRENT ESTIMATE (on water) ───────────────────────────────────
+/* ── TIDE / CURRENT ESTIMATE + RIVER MODEL (on water) ─────────────────────
    Speed through the water ~ a x sqrt(impulse x rate): both come from the
    accelerometer, so they measure effort and are unaffected by current. GPS
    speed = a x sqrt(impulse x rate) + current along the river. Fitted per area
    (~400 m of river) and 15 min block, only where the boat went both ways, so
-   rowing harder one way is not read as current. The river direction comes
-   from the session's own track (40 m cells, sign-free axis, made consistent
-   cell to cell), so bends are followed. A block is only used when its areas
-   agree on direction and at least one is clearly above its uncertainty; one-way
-   stretches then take a value interpolated along the river from measured areas. */
-const CUR_CELL=40, CUR_AREA=400, CUR_BLOCK=900000, CUR_MIN_EACH=15;
+   rowing harder one way is not read as current.
+   RIVER MODEL (BoatRunCurrents.json on Drive, cached locally): a fixed 40 m
+   lat/lon grid shared by every session, holding the river's + direction in
+   each cell, and every measured area/block current. From those it learns the
+   river SHAPE - how strong the current is in each cell relative to the rest
+   (narrows faster, pools slower). A block with some measured areas then fills
+   the rest of the river as level x shape. A block with none (one-way) borrows
+   the level of another measurement on the same river within CUR_CARRY_MS.
+   Tide timing (step 2) is not modelled yet. */
+const CUR_CELL=40, CUR_AREA=400, CUR_BLOCK=900000, CUR_MIN_EACH=15, CUR_CARRY_MS=2*3600000;
+const CUR_DLAT=CUR_CELL/111320, RIVER_FILE='BoatRunCurrents.json', RIVER_LS='br_river_model';
 let _curMapOn=false, _curCorrOn=false, _curLayer=null;
 try{_curMapOn=localStorage.getItem('br_cur_map')==='1';_curCorrOn=localStorage.getItem('br_cur_corr')==='1';}catch{}
+let RIVER={v:1,cells:{},obs:[],upd:0}, _riverShape=null;
+try{const m=JSON.parse(localStorage.getItem(RIVER_LS)||'null');if(m&&m.cells&&Array.isArray(m.obs))RIVER=m;}catch{}
+/* CLUB RIVER DATA. Clubs you have joined for lanes and hazards also pool
+   their tide/current measurements: Firebase /navCur/{CODE} =
+   {cells:{key:{or}}, obs:{uid_sid:{uid,sid,upd,blocks:[{t,blk,q,items}]}}},
+   readable and writable only by the club's editors (same password as the
+   club lines). Your own sessions are added to every joined club whose lines
+   or current map are on the river you rowed. The model used for estimates is
+   your own plus every club's; where they overlap, the club's river direction
+   wins and your own model is turned round to match it if needed. */
+let CLUB_RIVER={}, _riverViewC=null;
+try{const v=JSON.parse(localStorage.getItem('br_river_club')||'{}');if(v&&typeof v==='object')CLUB_RIVER=v;}catch{}
+function _riverDirty(){_riverShape=null;_riverViewC=null;}
+function _myUid(){try{return (typeof fbAuth!=='undefined'&&fbAuth.currentUser)?fbAuth.currentUser.uid:null;}catch{return null;}}
+function riverView(){
+  if(_riverViewC)return _riverViewC;
+  const cells={...RIVER.cells}, obs=RIVER.obs.slice(), mine=new Set(RIVER.obs.map(o=>o.sid)), me=_myUid(), seen=new Set();
+  Object.values(CLUB_RIVER).forEach(cr=>{
+    Object.assign(cells,cr.cells||{});
+    (cr.obs||[]).forEach(o=>{if(me&&o.uid===me&&mine.has(o.sid))return;const k=o.uid+'|'+o.sid+'|'+o.blk;if(seen.has(k))return;seen.add(k);obs.push(o);});
+  });
+  return (_riverViewC={cells,obs});
+}
+function _riverKey(lat,lon){const r=Math.floor(lat/CUR_DLAT),dl=CUR_DLAT/Math.cos((r+0.5)*CUR_DLAT*Math.PI/180);return r+'_'+Math.floor(lon/dl);}
+function _riverRC(k){const p=k.split('_');return [+p[0],+p[1]];}
+/* Shape: each measured area's current divided by its block's level (mean
+   |current| of the block's areas), averaged per cell. Default 1. */
+function riverShape(){
+  if(_riverShape)return _riverShape;
+  const acc={};
+  riverView().obs.forEach(o=>{
+    if(!o.items||o.items.length<2)return;
+    let num=0,den=0;o.items.forEach(it=>{const w=1/Math.max(1e-4,it.se*it.se);num+=Math.abs(it.c)*w;den+=w;});
+    const lvl=den>0?num/den:0; if(!(lvl>0.02))return;
+    const sg=Math.sign(o.q||0)||1;
+    o.items.forEach(it=>{const r=(it.c*sg)/lvl,w=1/Math.max(1e-4,it.se*it.se);(it.cells||[]).forEach(k=>{const a=acc[k]||(acc[k]={s:0,w:0});a.s+=clamp(r,-1,4)*w;a.w+=w;});});
+  });
+  const sh={};Object.keys(acc).forEach(k=>{const a=acc[k];if(a.w>0)sh[k]=clamp(a.s/a.w,0.2,4);});
+  return (_riverShape=sh);
+}
+function _riverSessions(){return new Set(riverView().obs.map(o=>(o.uid||'me')+'|'+o.sid)).size;}
+function _riverClubSessions(){const s=new Set();Object.values(CLUB_RIVER).forEach(cr=>(cr.obs||[]).forEach(o=>s.add(o.uid+'|'+o.sid)));return s.size;}
 function _curSolve(A,b){const n=b.length;for(let i=0;i<n;i++){let p=i;for(let r=i+1;r<n;r++)if(Math.abs(A[r][i])>Math.abs(A[p][i]))p=r;[A[i],A[p]]=[A[p],A[i]];[b[i],b[p]]=[b[p],b[i]];const d=A[i][i];if(Math.abs(d)<1e-12)return null;for(let r=i+1;r<n;r++){const f=A[r][i]/d;if(!f)continue;for(let c=i;c<n;c++)A[r][c]-=f*A[i][c];b[r]-=f*b[i];}}const x=new Array(n).fill(0);for(let i=n-1;i>=0;i--){let s=b[i];for(let c=i+1;c<n;c++)s-=A[i][c]*x[c];x[i]=s/A[i][i];}return x;}
+function _curSid(d){const s=d&&d.sum;return (s&&s.start_time)?String(Date.parse(s.start_time)):null;}
 function estimateCurrent(d){
   const st=(d&&d.strokes)||[], gt=(d&&d.gpsTrace)||[];
-  const out={ok:false,areas:[],blocks:{},msg:''};
+  const out={ok:false,areas:[],blocks:{},msg:'',save:null};
   if(d&&d.sum&&d.sum.session_mode==='erg'){out.msg='erg';return out;}
   const G=gt.filter(p=>p.lat!=null&&p.lon!=null&&p.t!=null).sort((a,b)=>a.t-b.t);
   if(G.length<20||st.length<40){out.msg='Not enough GPS or strokes';return out;}
@@ -10586,78 +10685,303 @@ function estimateCurrent(d){
     if(b<=a||T[b]-T[a]<3000)return;
     const dt=(T[b]-T[a])/1000,vx=(PX[b]-PX[a])/dt,vy=(PY[b]-PY[a])/dt,gs=Math.hypot(vx,vy);
     const p0=s._pace0!=null?s._pace0:s.pace, vg=(p0>50&&p0<500)?500/p0:NaN;
-    const imp=s.impulse/100,r=s.rate;
-    if(!(gs>1.5&&vg>2&&imp>0.3&&r>14&&r<45))return;
-    S.push({i,t:s.ms,x:(PX[a]+PX[b])/2,y:(PY[a]+PY[b])/2,ux:vx/gs,uy:vy/gs,v:vg,X:Math.sqrt(imp*r)});
+    if(!(gs>1.5&&vg>2))return;
+    const imp=s.impulse/100,r=s.rate, eff=(imp>0.3&&r>14&&r<45);
+    S.push({i,t:s.ms,x:(PX[a]+PX[b])/2,y:(PY[a]+PY[b])/2,lat:(G[a].lat+G[b].lat)/2,lon:(G[a].lon+G[b].lon)/2,ux:vx/gs,uy:vy/gs,v:vg,X:eff?Math.sqrt(imp*r):NaN});
   });
   if(S.length<40){out.msg='Not enough steady strokes';return out;}
-  /* river axis per cell */
-  const ck=(x,y)=>Math.floor(x/CUR_CELL)+','+Math.floor(y/CUR_CELL);
+  /* river axis per global cell */
   const cells=new Map();
-  S.forEach(q=>{const k=ck(q.x,q.y);let c=cells.get(k);if(!c){c={k,gx:Math.floor(q.x/CUR_CELL),gy:Math.floor(q.y/CUR_CELL),c2:0,s2:0,n:0};cells.set(k,c);}const th=Math.atan2(q.ux,q.uy);c.c2+=Math.cos(2*th);c.s2+=Math.sin(2*th);c.n++;q.cell=c;});
-  cells.forEach(c=>{c.ax=0.5*Math.atan2(c.s2,c.c2);});
-  const nb=c=>{const r=[];for(let dx=-1;dx<=1;dx++)for(let dy=-1;dy<=1;dy++){if(!dx&&!dy)continue;const o=cells.get((c.gx+dx)+','+(c.gy+dy));if(o)r.push(o);}return r;};
+  S.forEach(q=>{const k=_riverKey(q.lat,q.lon);let c=cells.get(k);if(!c){const rc=_riverRC(k);c={k,gx:rc[1],gy:rc[0],c2:0,s2:0,n:0,x:0,y:0};cells.set(k,c);}const th=Math.atan2(q.ux,q.uy);c.c2+=Math.cos(2*th);c.s2+=Math.sin(2*th);c.n++;c.x+=q.x;c.y+=q.y;q.cell=c;});
+  cells.forEach(c=>{c.ax=0.5*Math.atan2(c.s2,c.c2);c.x/=c.n;c.y/=c.n;});
+  const nb=c=>{const r=[];for(let dy=-1;dy<=1;dy++)for(let dx=-1;dx<=1;dx++){if(!dx&&!dy)continue;const o=cells.get((c.gy+dy)+'_'+(c.gx+dx));if(o)r.push(o);}return r;};
+  const flood=(starts)=>{const seen=new Set(starts.map(c=>c.k)),q=starts.slice();starts.forEach(c=>c._h=0);while(q.length){const c=q.shift();for(const o of nb(c)){if(seen.has(o.k))continue;seen.add(o.k);o._h=c._h+1;q.push(o);}}return seen;};
   let comp=0;
-  const bfs=(start,fn)=>{const seen=new Set([start.k]),q=[start];start._h=0;while(q.length){const c=q.shift();for(const o of nb(c)){if(seen.has(o.k))continue;seen.add(o.k);o._h=c._h+1;if(fn)fn(c,o);q.push(o);}}return seen;};
   cells.forEach(c=>{
     if(c.comp!=null)return;
-    c.or=c.ax; c.comp=comp;
-    const seen=bfs(c,(p,o)=>{let a=o.ax;if(Math.cos(a-p.or)<0)a+=Math.PI;o.or=a;o.comp=comp;});
-    let far=c;seen.forEach(k=>{const o=cells.get(k);if(o._h>far._h)far=o;});
-    bfs(far,null); seen.forEach(k=>{const o=cells.get(k);o.al=o._h*CUR_CELL;});
+    const members=[...flood([c])].map(k=>cells.get(k));
+    members.forEach(m=>m.comp=comp);
+    /* orientation: stored river direction wins; new cells follow neighbours */
+    const RV=riverView();
+    const known=members.filter(m=>RV.cells[m.k]);
+    const starts=known.length?known:[c];
+    starts.forEach(m=>{let a=m.ax;const so=RV.cells[m.k];if(so&&Math.cos(a-so.or)<0)a+=Math.PI;if(!so)a=m.ax;m.or=a;});
+    const seen=new Set(starts.map(m=>m.k)),qq=starts.slice();
+    while(qq.length){const p=qq.shift();for(const o of nb(p)){if(seen.has(o.k))continue;seen.add(o.k);let a=o.ax;if(Math.cos(a-p.or)<0)a+=Math.PI;o.or=a;qq.push(o);}}
+    let far=c;flood([c]);members.forEach(m=>{if(m._h>far._h)far=m;});
+    flood([far]);members.forEach(m=>{m.al=m._h*CUR_CELL;});
     comp++;
   });
   S.forEach(q=>{const c=q.cell;q.sg=Math.sign(Math.sin(c.or)*q.ux+Math.cos(c.or)*q.uy)||1;q.al=c.al;q.comp=c.comp;q.area=c.comp+':'+Math.floor(c.al/CUR_AREA);q.blk=Math.floor((q.t-S[0].t)/CUR_BLOCK);q.g=q.area+'|'+q.blk;});
-  /* groups with both directions */
+  out.cellsSave=[...cells.values()].map(c=>({k:c.k,or:+c.or.toFixed(3)}));
+  const shape=riverShape(), sOf=k=>(shape[k]!=null?shape[k]:1);
+  /* groups with both directions -> fit */
+  const SE=S.filter(q=>!isNaN(q.X));
   const grp=new Map();
-  S.forEach(q=>{let g=grp.get(q.g);if(!g){g={key:q.g,area:q.area,blk:q.blk,comp:q.comp,up:0,dn:0,al:0,n:0};grp.set(q.g,g);}q.sg>0?g.up++:g.dn++;g.al+=q.al;g.n++;});
+  SE.forEach(q=>{let g=grp.get(q.g);if(!g){g={key:q.g,area:q.area,blk:q.blk,comp:q.comp,up:0,dn:0,al:0,n:0,cells:new Set(),ssum:0};grp.set(q.g,g);}q.sg>0?g.up++:g.dn++;g.al+=q.al;g.n++;g.cells.add(q.cell.k);g.ssum+=sOf(q.cell.k);});
   const fitG=[...grp.values()].filter(g=>g.up>=CUR_MIN_EACH&&g.dn>=CUR_MIN_EACH);
-  if(!fitG.length){out.msg='No stretch rowed both ways';return out;}
-  fitG.forEach((g,j)=>{g.j=j+1;g.al/=g.n;});
+  fitG.forEach((g,j)=>{g.j=j+1;g.al/=g.n;g.S=g.ssum/g.n;});
   const gi=new Map(fitG.map(g=>[g.key,g]));
-  const F=S.filter(q=>gi.has(q.g)), P=fitG.length+1;
-  const A=Array.from({length:P},()=>new Array(P).fill(0)), bb=new Array(P).fill(0);
-  F.forEach(q=>{const j=gi.get(q.g).j;const row=[[0,q.X],[j,q.sg]];for(const[r,vr]of row){bb[r]+=vr*q.v;for(const[c,vc]of row)A[r][c]+=vr*vc;}});
-  for(let k=1;k<P;k++)A[k][k]+=1e-6;
-  const x=_curSolve(A,bb); if(!x){out.msg='Fit failed';return out;}
-  let ss=0;F.forEach(q=>{const e=q.v-x[0]*q.X-x[gi.get(q.g).j]*q.sg;ss+=e*e;});
-  const rms=Math.sqrt(ss/Math.max(1,F.length-P));
-  /* Neighbouring strokes share GPS smoothing and effort, so they are not
-     independent: shrink the stroke counts by the residuals' lag-1 correlation. */
-  let r01=0,r00=0,prev=null;
-  F.forEach(q=>{const e=q.v-x[0]*q.X-x[gi.get(q.g).j]*q.sg;if(prev&&prev.g===q.g){r01+=e*prev.e;}r00+=e*e;prev={g:q.g,e};});
-  const rho=clamp(r00>0?r01/r00:0,0,0.95), nf=(1-rho)/(1+rho);
-  fitG.forEach(g=>{g.c=x[g.j];g.se=rms*Math.sqrt(1/Math.max(1,g.up*nf)+1/Math.max(1,g.dn*nf))/2;});
-  out.rho=rho;
-  /* per block: accept when significant estimates agree in direction */
   const blocks={};
-  fitG.forEach(g=>{(blocks[g.blk]=blocks[g.blk]||{blk:g.blk,g:[]}).g.push(g);});
-  Object.values(blocks).forEach(B=>{
-    const sig=B.g.filter(g=>Math.abs(g.c)>2*g.se);
-    const pos=sig.filter(g=>g.c>0).length,neg=sig.length-pos;
-    B.status=!sig.length?'none':(pos&&neg?'mixed':'ok');
+  if(fitG.length){
+    const F=SE.filter(q=>gi.has(q.g)), P=fitG.length+1;
+    const A=Array.from({length:P},()=>new Array(P).fill(0)), bb=new Array(P).fill(0);
+    F.forEach(q=>{const j=gi.get(q.g).j;const row=[[0,q.X],[j,q.sg]];for(const[r,vr]of row){bb[r]+=vr*q.v;for(const[c,vc]of row)A[r][c]+=vr*vc;}});
+    for(let k=1;k<P;k++)A[k][k]+=1e-6;
+    const x=_curSolve(A,bb);
+    if(x){
+      let ss=0;F.forEach(q=>{const e=q.v-x[0]*q.X-x[gi.get(q.g).j]*q.sg;ss+=e*e;});
+      const rms=Math.sqrt(ss/Math.max(1,F.length-P));
+      /* Neighbouring strokes share GPS smoothing and effort, so they are not
+         independent: shrink the stroke counts by the residuals' lag-1 correlation. */
+      let r01=0,r00=0,prev=null;
+      F.forEach(q=>{const e=q.v-x[0]*q.X-x[gi.get(q.g).j]*q.sg;if(prev&&prev.g===q.g){r01+=e*prev.e;}r00+=e*e;prev={g:q.g,e};});
+      const rho=clamp(r00>0?r01/r00:0,0,0.95), nf=(1-rho)/(1+rho);
+      fitG.forEach(g=>{g.c=x[g.j];g.se=rms*Math.sqrt(1/Math.max(1,g.up*nf)+1/Math.max(1,g.dn*nf))/2;});
+      out.rms=rms;out.rho=rho;out.a=x[0];
+      fitG.forEach(g=>{(blocks[g.blk]=blocks[g.blk]||{blk:g.blk,g:[]}).g.push(g);});
+      Object.values(blocks).forEach(B=>{
+        const sig=B.g.filter(g=>Math.abs(g.c)>2*g.se);
+        const pos=sig.filter(g=>g.c>0).length,neg=sig.length-pos;
+        B.status=!sig.length?'none':(pos&&neg?'mixed':'ok');
+        /* block level along the river shape, weighted by certainty */
+        let n=0,dd=0;B.g.forEach(g=>{const w=1/Math.max(1e-4,g.se*g.se);n+=g.c*g.S*w;dd+=g.S*g.S*w;});
+        B.q=dd>0?n/dd:0;
+      });
+    } else fitG.length=0;
+  }
+  /* blocks with no measurement: borrow a nearby-in-time level on this river */
+  const sid=_curSid(d);
+  const blkT={};S.forEach(q=>{(blkT[q.blk]=blkT[q.blk]||[]).push(q.t);});
+  Object.keys(blkT).forEach(b=>{
+    if(blocks[b])return;
+    const tm=blkT[b].reduce((a,v)=>a+v,0)/blkT[b].length;
+    const myCells=new Set(S.filter(q=>q.blk==b).map(q=>q.cell.k));
+    let best=null;
+    const RV2=riverView();
+    RV2.obs.forEach(o=>{if(o.sid===sid||!(Math.abs(o.t-tm)<=CUR_CARRY_MS))return;
+      if(!o.items.some(it=>(it.cells||[]).some(k=>myCells.has(k))))return;
+      if(!best||Math.abs(o.t-tm)<Math.abs(best.t-tm))best=o;});
+    if(best&&Math.abs(best.q)>0.02)blocks[b]={blk:+b,g:[],status:'carried',q:best.q,from:best.t};
   });
   /* per stroke current (signed along the boat's travel) */
   const curOfStroke=new Map();
   S.forEach(q=>{
-    const B=blocks[q.blk]; if(!B||B.status!=='ok')return;
-    const pts=B.g.filter(g=>g.comp===q.comp).sort((a,b)=>a.al-b.al); if(!pts.length)return;
-    let c;
-    if(q.al<=pts[0].al)c=pts[0].c;else if(q.al>=pts[pts.length-1].al)c=pts[pts.length-1].c;
-    else{for(let k=1;k<pts.length;k++)if(q.al<=pts[k].al){const f=(q.al-pts[k-1].al)/((pts[k].al-pts[k-1].al)||1);c=pts[k-1].c+f*(pts[k].c-pts[k-1].c);break;}}
-    const meas=gi.has(q.g);
-    curOfStroke.set(q.i,{along:c*q.sg,c,meas});
+    const B=blocks[q.blk]; if(!B||(B.status!=='ok'&&B.status!=='carried'))return;
+    const g=gi.get(q.g); let c,kind;
+    if(g&&B.status==='ok'){c=g.c;kind='meas';}
+    else{c=B.q*sOf(q.cell.k);kind=B.status==='carried'?'carried':'shape';}
+    curOfStroke.set(q.i,{along:c*q.sg,c,kind});
   });
   /* areas for the map */
   const areas=new Map();
-  S.forEach(q=>{let a=areas.get(q.area);if(!a){a={area:q.area,x:0,y:0,n:0,cs:0,cn:0,meas:false,cell:null,bl:[]};areas.set(q.area,a);}a.x+=q.x;a.y+=q.y;a.n++;const co=curOfStroke.get(q.i);if(co){a.cs+=co.c;a.cn++;if(co.meas)a.meas=true;}});
-  areas.forEach(a=>{a.x/=a.n;a.y/=a.n;let best=null,bd=1e18;cells.forEach(c=>{if(c.comp+':'+Math.floor(c.al/CUR_AREA)!==a.area)return;const dd=(c.gx*CUR_CELL+CUR_CELL/2-a.x)**2+(c.gy*CUR_CELL+CUR_CELL/2-a.y)**2;if(dd<bd){bd=dd;best=c;}});a.or=best?best.or:0;a.c=a.cn?a.cs/a.cn:null;a.lat=lat0+a.y/R*180/Math.PI;a.lon=lo0+a.x/(R*Math.cos(la0))*180/Math.PI;a.bl=fitG.filter(g=>g.area===a.area).map(g=>({blk:g.blk,c:g.c,se:g.se,st:blocks[g.blk].status}));});
-  out.ok=curOfStroke.size>0; out.rms=rms; out.a=x[0]; out.blocks=blocks; out.areas=[...areas.values()];
-  out.perStroke=curOfStroke;
-  const okB=Object.values(blocks).filter(B=>B.status==='ok').length, nB=Object.keys(blocks).length;
-  out.msg=out.ok?('Current found in '+okB+' of '+nB+' time blocks'):('No clear current ('+nB+' time block'+(nB===1?'':'s')+' checked)');
+  S.forEach(q=>{let a=areas.get(q.area);if(!a){a={area:q.area,x:0,y:0,n:0,cs:0,cn:0,kinds:{},bl:[]};areas.set(q.area,a);}a.x+=q.x;a.y+=q.y;a.n++;const co=curOfStroke.get(q.i);if(co){a.cs+=co.c;a.cn++;a.kinds[co.kind]=(a.kinds[co.kind]||0)+1;}});
+  areas.forEach(a=>{a.x/=a.n;a.y/=a.n;let best=null,bd=1e18;cells.forEach(c=>{if(c.comp+':'+Math.floor(c.al/CUR_AREA)!==a.area)return;const dd=(c.x-a.x)**2+(c.y-a.y)**2;if(dd<bd){bd=dd;best=c;}});a.or=best?best.or:0;a.c=a.cn?a.cs/a.cn:null;
+    a.kind=a.kinds.meas?'meas':(a.kinds.shape?'shape':(a.kinds.carried?'carried':'none'));
+    a.lat=lat0+a.y/R*180/Math.PI;a.lon=lo0+a.x/(R*Math.cos(la0))*180/Math.PI;
+    a.bl=fitG.filter(g=>g.area===a.area).map(g=>({blk:g.blk,c:g.c,se:g.se,st:blocks[g.blk].status}));});
+  out.ok=curOfStroke.size>0; out.blocks=blocks; out.areas=[...areas.values()]; out.perStroke=curOfStroke;
+  /* what this session adds to the river model */
+  const obs=[];
+  Object.values(blocks).forEach(B=>{if(B.status!=='ok')return;
+    const ts=blkT[B.blk]||[];const tm=ts.length?ts.reduce((a,v)=>a+v,0)/ts.length:0;
+    obs.push({sid,t:Math.round(tm),blk:B.blk,q:+B.q.toFixed(3),items:B.g.map(g=>({c:+g.c.toFixed(3),se:+g.se.toFixed(3),cells:[...g.cells]}))});});
+  out.save={sid,obs};
+  const nOk=Object.values(blocks).filter(B=>B.status==='ok').length, nCar=Object.values(blocks).filter(B=>B.status==='carried').length, nB=Object.keys(blkT).length;
+  out.msg=out.ok?('Current measured in '+nOk+' of '+nB+' time blocks'+(nCar?', borrowed for '+nCar:'')):(fitG.length?'No clear current':'No stretch rowed both ways, and no recent measurement on this river')+' · river model: '+_riverSessions()+' session'+(_riverSessions()===1?'':'s');
   return out;
 }
+/* Fold this session into the river model and save it (own sessions only). */
+let _riverSaveT=null;
+function riverLearn(d){
+  const sess=SESSIONS[activeSessionIdx];
+  const cur=d&&d._cur; if(!cur||!cur.save||!cur.save.sid||!cur.cellsSave)return;
+  if(!sess||sess.d!==d||!sess.fileId||sess.squadCode)return;
+  if(_riverAdd(cur,false))try{riverPushClubs(d,cur);}catch(e){}
+}
+/* Adds one session's measurements to your own model. Returns true if it changed. */
+function _riverAdd(cur,quiet){
+  if(!cur||!cur.save||!cur.save.sid||!cur.cellsSave)return false;
+  const sid=cur.save.sid;
+  let changed=false;
+  cur.cellsSave.forEach(c=>{if(!RIVER.cells[c.k]){RIVER.cells[c.k]={or:c.or};changed=true;}});
+  const before=JSON.stringify(RIVER.obs.filter(o=>o.sid===sid));
+  RIVER.obs=RIVER.obs.filter(o=>o.sid!==sid).concat(cur.save.obs);
+  if(JSON.stringify(cur.save.obs)!==before)changed=true;
+  if(RIVER.obs.length>3000)RIVER.obs=RIVER.obs.slice(-3000);
+  if(!changed)return false;
+  RIVER.upd=Date.now(); _riverDirty();
+  if(quiet)return true;
+  try{localStorage.setItem(RIVER_LS,JSON.stringify(RIVER));}catch{}
+  clearTimeout(_riverSaveT);
+  _riverSaveT=setTimeout(()=>{try{AnalyserDrive.pushRiver(RIVER).catch(()=>{});}catch{}},4000);
+  return true;
+}
+/* SESSION CRAWL: run every on-water session on Drive through the current
+   estimate, oldest first, so the river model (and the clubs you share with)
+   learn from your whole history. Sessions already crawled are skipped unless
+   they changed on Drive. Click again to stop. */
+const RIVER_CRAWL_LS='br_river_crawled';
+let _riverCrawlBusy=false,_riverCrawlStop=false;
+async function riverCrawl(){
+  if(_riverCrawlBusy){_riverCrawlStop=true;return;}
+  if(!AnalyserDrive.isSignedIn()){toast('Sign in to Google Drive to scan your sessions');return;}
+  let done={};try{done=JSON.parse(localStorage.getItem(RIVER_CRAWL_LS)||'{}')||{};}catch{}
+  const btn=()=>document.getElementById('_cur_crawl_btn');
+  const setP=t=>{const b=btn();if(b)b.textContent=t;};
+  _riverCrawlBusy=true;_riverCrawlStop=false;setP('Listing\u2026');
+  const keepUnits={...unitSettings}, keepZones=(typeof hrZones!=='undefined')?hrZones.slice():null;
+  try{await riverPull();}catch{} try{await riverPullClubs(true);}catch{}
+  let files=[];
+  try{files=(await AnalyserDrive.list()).filter(f=>!_sumParseFn(f.name).erg);}
+  catch(err){_riverCrawlBusy=false;setP('Scan');if(!driveAuthExpired(err))toast('Could not list sessions');return;}
+  files=files.slice().reverse();
+  const todo=files.filter(f=>done[f.id]!==(f.modifiedTime||f.name));
+  let n=0,withCur=0,added=0,errs=0;
+  for(const f of todo){
+    if(_riverCrawlStop)break;
+    n++;setP('Scan '+n+'/'+todo.length+' \u25A0');
+    try{
+      const session=await AnalyserDrive.fetchSession(f.id);
+      applySessionUnits(session);
+      const d=sessionToAnalyserFmt(session);
+      if(d&&d.sum&&d.sum.session_mode!=='erg'&&(d.gpsTrace||[]).length>20){
+        (d.strokes||[]).forEach(s=>{s._pace0=s.pace;s._dps0=s.dps;});
+        const cur=estimateCurrent(d);
+        if(cur.ok)withCur++;
+        if(_riverAdd(cur,true)){added++;try{await riverPushClubs(d,cur);}catch(e){}}
+      }
+      done[f.id]=f.modifiedTime||f.name;
+      if(n%10===0){try{localStorage.setItem(RIVER_CRAWL_LS,JSON.stringify(done));localStorage.setItem(RIVER_LS,JSON.stringify(RIVER));}catch{}}
+    }catch(err){if(driveAuthExpired(err))break;errs++;}
+  }
+  try{localStorage.setItem(RIVER_CRAWL_LS,JSON.stringify(done));localStorage.setItem(RIVER_LS,JSON.stringify(RIVER));}catch{}
+  try{await AnalyserDrive.pushRiver(RIVER);}catch{}
+  unitSettings=keepUnits; if(keepZones)hrZones=keepZones;
+  _riverCrawlBusy=false;setP('Scan');
+  const sess=SESSIONS[activeSessionIdx];
+  if(sess&&sess.d){sess.d._cur=null;try{prepCurrent(sess.d);}catch{} try{buildCards(sess.d.sum);}catch{} try{buildStrokeTable();}catch{} try{schedRender();}catch{} try{drawCurrentLayer();}catch{}}
+  try{buildUnitsBar();}catch{}
+  toast((_riverCrawlStop?'Scan stopped':'Scan complete')+' \u00b7 '+n+' session'+(n===1?'':'s')+' checked ('+(files.length-todo.length)+' already done) \u00b7 '+withCur+' with current \u00b7 '+added+' added \u00b7 river model now '+_riverSessions()+' session'+(_riverSessions()===1?'':'s')+(errs?' \u00b7 '+errs+' could not load':''),7000);
+}
+window.riverCrawl=riverCrawl;
+/* Clubs this session's river belongs to: one of the club's lines/hazards
+   within 2 km of the track, or the club already has current cells here. */
+function _riverClubsFor(d,cur){
+  const keys=new Set((cur.cellsSave||[]).map(c=>c.k));
+  const gp=(d.gpsTrace||[]).filter(p=>p.lat!=null);
+  if(!gp.length)return [];
+  let a=90,b=-90,c=180,e=-180;gp.forEach(p=>{a=Math.min(a,p.lat);b=Math.max(b,p.lat);c=Math.min(c,p.lon);e=Math.max(e,p.lon);});
+  const pl=2000/111320, po=pl/Math.cos(((a+b)/2)*Math.PI/180);
+  const near=pt=>pt[0]>=a-pl&&pt[0]<=b+pl&&pt[1]>=c-po&&pt[1]<=e+po;
+  return navClubsLive().filter(cl=>!cl.gone&&!cl.stale&&!cl.noCur).filter(cl=>{
+    const cr=CLUB_RIVER[cl.code];
+    if(cr&&cr.cells&&[...keys].some(k=>cr.cells[k]))return true;
+    return navClubLines(cl).some(l=>(l.pts||[]).some(near));
+  });
+}
+/* Opting out: remove every session of yours from that club's current data. */
+/* Unticking sharing: stop new sessions only, or also remove past ones. */
+function _curUnshareChoice(c){
+  return new Promise(res=>{
+    const ov=document.createElement('div');
+    ov.style.cssText='position:fixed;inset:0;background:rgba(0,0,0,.6);display:flex;align-items:center;justify-content:center;z-index:10001;padding:16px;';
+    ov.innerHTML='<div style="background:var(--s1);border:1px solid var(--border);border-radius:10px;padding:16px;width:min(92vw,420px);color:var(--text);font-family:-apple-system,BlinkMacSystemFont,Helvetica Neue,sans-serif;">'
+      +'<div style="font-size:14px;font-weight:700;margin-bottom:6px;">Stop sharing with '+_secEsc(c.name||c.code)+'?</div>'
+      +'<div style="font-size:12px;color:var(--muted);line-height:1.45;margin-bottom:12px;">Your past measurements help the club\u2019s current map. They show when and roughly where you rowed, and only the club\u2019s editors can see them.</div>'
+      +'<button data-ch="stop" class="hbtn" style="width:100%;margin-bottom:6px;">Stop sharing new sessions (keep past data)</button>'
+      +'<button data-ch="remove" class="hbtn" style="width:100%;margin-bottom:6px;color:#f54040;">Stop and remove my past data</button>'
+      +'<button data-ch="" class="hbtn" style="width:100%;">Cancel</button></div>';
+    ov.querySelectorAll('[data-ch]').forEach(b=>b.onclick=()=>{ov.remove();res(b.dataset.ch||null);});
+    ov.onclick=e=>{if(e.target===ov){ov.remove();res(null);}};
+    document.body.appendChild(ov);
+  });
+}
+async function riverUnshareClub(c){
+  const me=_myUid(); if(!me)return 0;
+  let keys=[];
+  try{const g=await navFb('navCur/'+c.code+'/obs','GET');if(g.ok&&g.data)keys=Object.keys(g.data).filter(k=>k.startsWith(me+'_'));}catch(e){}
+  let n=0;
+  for(const k of keys){const r=await navFb('navCur/'+c.code+'/obs/'+k,'DELETE');if(r.ok)n++;}
+  const cr=CLUB_RIVER[c.code];
+  if(cr){cr.obs=(cr.obs||[]).filter(o=>o.uid!==me);try{localStorage.setItem('br_river_club',JSON.stringify(CLUB_RIVER));}catch{} _riverDirty();}
+  return n;
+}
+async function riverPushClubs(d,cur){
+  const me=_myUid(); if(!me||!cur.save||!cur.save.obs.length)return;
+  const clubs=_riverClubsFor(d,cur); if(!clubs.length)return;
+  const sid=cur.save.sid;
+  for(const cl of clubs){
+    /* fresh copy first: cells are create-only, so a stale list would fail the write */
+    try{const g=await navFb('navCur/'+cl.code+'/cells','GET');if(g.ok){const cr0=CLUB_RIVER[cl.code]||(CLUB_RIVER[cl.code]={cells:{},obs:[]});cr0.cells=g.data||{};}}catch(e){}
+    const cr=CLUB_RIVER[cl.code]||{cells:{},obs:[]};
+    /* express this session in the club's river direction */
+    let v=0;(cur.cellsSave||[]).forEach(c=>{const o=cr.cells&&cr.cells[c.k];if(o)v+=Math.cos(c.or-o.or);});
+    const f=v<0?-1:1;
+    const patch={};
+    (cur.cellsSave||[]).forEach(c=>{if(!(cr.cells&&cr.cells[c.k]))patch['cells/'+c.k]={or:+(((c.or+(f<0?Math.PI:0))%(2*Math.PI))).toFixed(3)};});
+    const blocks=cur.save.obs.map(o=>({t:o.t,blk:o.blk,q:+(o.q*f).toFixed(3),items:o.items.map(it=>({c:+(it.c*f).toFixed(3),se:it.se,cells:it.cells}))}));
+    patch['obs/'+me+'_'+sid]={uid:me,sid,upd:Date.now(),blocks};
+    const r=await navFb('navCur/'+cl.code,'PATCH',patch);
+    if(r.ok){
+      CLUB_RIVER[cl.code]=cr;cr.cells=cr.cells||{};Object.keys(patch).forEach(k=>{if(k.startsWith('cells/'))cr.cells[k.slice(6)]=patch[k];});
+      cr.obs=(cr.obs||[]).filter(o=>!(o.uid===me&&o.sid===sid)).concat(blocks.map(b=>({uid:me,sid,...b})));
+      try{localStorage.setItem('br_river_club',JSON.stringify(CLUB_RIVER));}catch{}
+      _riverDirty();
+    }
+  }
+}
+/* Pull every joined club's current data, then turn your own model round
+   where it disagrees with a club's river direction. */
+let _riverClubPullT=0;
+async function riverPullClubs(force){
+  if(!force&&Date.now()-_riverClubPullT<300000)return;
+  _riverClubPullT=Date.now();
+  const clubs=navClubsLive().filter(c=>!c.gone&&!c.stale); if(!clubs.length)return;
+  let changed=false;
+  for(const cl of clubs){
+    const r=await navFb('navCur/'+cl.code,'GET'); if(!r.ok)continue;
+    const dd=r.data||{}, obs=[];
+    Object.values(dd.obs||{}).forEach(s=>{if(s&&Array.isArray(s.blocks))s.blocks.forEach(b=>{if(b&&Array.isArray(b.items))obs.push({uid:s.uid,sid:s.sid,t:b.t,blk:b.blk,q:b.q,items:b.items});});});
+    CLUB_RIVER[cl.code]={cells:dd.cells||{},obs,pulled:Date.now()};changed=true;
+    let v=0;Object.keys(RIVER.cells).forEach(k=>{const o=dd.cells&&dd.cells[k];if(o)v+=Math.cos(RIVER.cells[k].or-o.or);});
+    if(v<0){
+      Object.values(RIVER.cells).forEach(c=>{c.or=+(((c.or+Math.PI)%(2*Math.PI))).toFixed(3);});
+      RIVER.obs.forEach(o=>{o.q=-o.q;(o.items||[]).forEach(it=>{it.c=-it.c;});});
+      RIVER.upd=Date.now();
+      try{localStorage.setItem(RIVER_LS,JSON.stringify(RIVER));}catch{}
+      try{AnalyserDrive.pushRiver(RIVER).catch(()=>{});}catch{}
+    }
+  }
+  Object.keys(CLUB_RIVER).forEach(k=>{if(!clubs.some(c=>c.code===k)){delete CLUB_RIVER[k];changed=true;}});
+  if(changed){try{localStorage.setItem('br_river_club',JSON.stringify(CLUB_RIVER));}catch{} _riverDirty();}
+}
+async function riverPull(){
+  try{
+    if(!AnalyserDrive.isSignedIn())return;
+    const m=await AnalyserDrive.pullRiver(); if(!m||!m.cells||!Array.isArray(m.obs))return;
+    /* merge: union of cells (Drive's direction wins), sessions from both;
+       a session in both takes the copy from whichever model was saved last */
+    const newerLocal=(RIVER.upd||0)>(m.upd||0), bySid={};
+    const add=(arr,src)=>(arr||[]).forEach(o=>{const e=bySid[o.sid]||(bySid[o.sid]={});(e[src]=e[src]||[]).push(o);});
+    add(m.obs,'r');add(RIVER.obs,'l');
+    const obs=[];Object.values(bySid).forEach(e=>{obs.push(...((e.l&&e.r)?(newerLocal?e.l:e.r):(e.l||e.r)));});
+    const merged={v:1,cells:{...RIVER.cells,...m.cells},obs,upd:Math.max(RIVER.upd||0,m.upd||0)};
+    RIVER=merged;_riverDirty();
+    try{localStorage.setItem(RIVER_LS,JSON.stringify(RIVER));}catch{}
+  }catch(e){}
+}
+function riverForget(){
+  if(!confirm('Forget your own learned river currents?\n\nThis clears your river model from this browser and from Google Drive. Club current data stays with the club. Sessions themselves are not changed.'))return;
+  RIVER={v:1,cells:{},obs:[],upd:Date.now()};_riverDirty();
+  try{localStorage.removeItem(RIVER_CRAWL_LS);}catch{}
+  try{localStorage.setItem(RIVER_LS,JSON.stringify(RIVER));}catch{}
+  try{AnalyserDrive.pushRiver(RIVER).catch(()=>{});}catch{}
+  const sess=SESSIONS[activeSessionIdx]; if(sess&&sess.d){sess.d._cur=null;try{prepCurrent(sess.d);}catch{}}
+  try{buildCards(sess.d.sum);}catch{} try{buildStrokeTable();}catch{} try{buildUnitsBar();}catch{} try{schedRender();}catch{} try{drawCurrentLayer();}catch{}
+  toast('River model cleared');
+}
+window.riverForget=riverForget;
 /* Corrected session pace: the GPS average pace scaled by how much the
    corrected strokes speed up or slow down overall (sum of water speeds over
    sum of ground speeds), so it stays a time/distance average like the original. */
@@ -10672,7 +10996,7 @@ function prepCurrent(d){
   d.strokes.forEach(s=>{if(s._pace0===undefined){s._pace0=s.pace;s._dps0=s.dps;}});
   if(!d._cur){try{d._cur=estimateCurrent(d);}catch(e){d._cur={ok:false,msg:'Estimate failed'};}}
   const pc=(d._cur&&d._cur.perStroke)||new Map();
-  d.strokes.forEach((s,i)=>{const c=pc.get(i);s.curAlong=c?c.along:NaN;});
+  d.strokes.forEach((s,i)=>{const c=pc.get(i);s.curAlong=c?c.along:NaN;s.curKind=c?c.kind:null;});
   applyCurCorr(d);
 }
 function applyCurCorr(d){
@@ -10693,27 +11017,29 @@ function drawCurrentLayer(){
   const sess=SESSIONS[activeSessionIdx]; const cur=sess&&sess.d&&sess.d._cur;
   if(!_curMapOn||!leafletMap||!cur||!cur.areas)return;
   _curLayer=L.layerGroup().addTo(leafletMap);
+  const KC={meas:'#00e5ff',shape:'#80deea',carried:'#b0bec5',none:'#9e9e9e'}, KM={meas:'',shape:' ~',carried:' ≈',none:''};
   cur.areas.forEach(a=>{
     const has=a.c!=null&&Math.abs(a.c)>=0.01;
     const deg=((a.or+(has&&a.c<0?Math.PI:0))*180/Math.PI+360)%360;
-    const col=!has?'#9e9e9e':(a.meas?'#00e5ff':'#b0bec5');
-    const lbl=has?(Math.abs(a.c).toFixed(2)+' m/s'+(a.meas?'':' ~')):'none';
+    const col=has?KC[a.kind]:KC.none;
+    const lbl=has?(Math.abs(a.c).toFixed(2)+' m/s'+KM[a.kind]):'none';
     const arrow=has?`<div style="transform:rotate(${deg}deg);font-size:22px;line-height:22px;color:${col};text-shadow:0 0 3px #000;">&#x2191;</div>`:'';
     const html=`<div style="display:flex;flex-direction:column;align-items:center;font:700 11px -apple-system,Helvetica,sans-serif;">${arrow}<div style="background:rgba(0,0,0,.65);color:${col};padding:1px 5px;border-radius:4px;white-space:nowrap;">${lbl}</div></div>`;
-    const tip=(a.bl.length?a.bl.map(b=>'Block '+(b.blk*15)+'-'+(b.blk*15+15)+' min: '+(b.c>=0?'+':'')+b.c.toFixed(2)+' ±'+b.se.toFixed(2)+(b.st==='ok'?'':' ('+b.st+')')).join('<br>'):'Rowed one way only here - value carried from nearby areas');
+    const how={meas:'Measured here (rowed both ways)',shape:'Filled from this block’s measured areas using the learned river shape',carried:'Borrowed from another measurement on this river within 2 h',none:'No current used here'}[a.kind];
+    const tip=how+(a.bl.length?'<br>'+a.bl.map(b=>'Block '+(b.blk*15)+'-'+(b.blk*15+15)+' min: '+(b.c>=0?'+':'')+b.c.toFixed(2)+' ±'+b.se.toFixed(2)+(b.st==='ok'?'':' ('+b.st+')')).join('<br>'):'');
     L.marker([a.lat,a.lon],{icon:L.divIcon({html,className:'',iconSize:[70,44],iconAnchor:[35,22]})}).bindTooltip(tip).addTo(_curLayer);
   });
 }
 function toggleCurMap(){
   _curMapOn=!_curMapOn; try{localStorage.setItem('br_cur_map',_curMapOn?'1':'0');}catch{}
   const sess=SESSIONS[activeSessionIdx], cur=sess&&sess.d&&sess.d._cur;
-  if(_curMapOn&&cur)toast(cur.msg||'',3500);
+  if(_curMapOn&&cur)toast(cur.msg||'',4000);
   drawCurrentLayer(); try{buildUnitsBar();}catch{}
 }
 function toggleCurCorr(){
   const sess=SESSIONS[activeSessionIdx]; if(!sess||!sess.d)return;
   const cur=sess.d._cur;
-  if(!_curCorrOn&&!(cur&&cur.ok)){toast('No current to correct for: '+((cur&&cur.msg)||'not estimated'),3500);return;}
+  if(!_curCorrOn&&!(cur&&cur.ok)){toast('No current to correct for: '+((cur&&cur.msg)||'not estimated'),4000);return;}
   _curCorrOn=!_curCorrOn; try{localStorage.setItem('br_cur_corr',_curCorrOn?'1':'0');}catch{}
   applyCurCorr(sess.d);
   try{buildCards(sess.d.sum);}catch{} try{buildStrokeTable();}catch{} try{buildUnitsBar();}catch{} try{schedRender();}catch{}
@@ -10724,6 +11050,8 @@ window.toggleCurMap=toggleCurMap; window.toggleCurCorr=toggleCurCorr;
 function mountData(d,label){
   _pinnedStrokeIdx=-1; if(_mapPinMarker){if(leafletMap)leafletMap.removeLayer(_mapPinMarker);_mapPinMarker=null;}
   try{ prepCurrent(d); }catch(e){ try{ applyEffPower(d); }catch(e2){} }
+  try{ riverLearn(d); }catch(e){}
+  if(!window._riverPullT||Date.now()-window._riverPullT>600000){ window._riverPullT=Date.now(); riverPull(); riverPullClubs(true).catch(()=>{}); }
   ST=d.strokes||[];
   _rawOarAngles = ST.map(s => s.oarAngle);  // snapshot before any conversion
   computeStrokeAngles(ST);
