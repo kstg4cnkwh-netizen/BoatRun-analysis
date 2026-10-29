@@ -3827,7 +3827,7 @@ function cancelSectorCreate(){
   _sectorCreate=null;
   document.getElementById('sectorAdjust')?.remove();
   if(leafletMap){leafletMap.off('click',_sectorMapClick);plotCursorOff(leafletMap);leafletMap.getContainer().style.cursor='';setTimeout(()=>{if(leafletMap)leafletMap.invalidateSize();},50);}
-  if(mapBaseLine)mapBaseLine.setStyle({opacity:curveGroups.length?0.25:0.85});
+  if(mapBaseLine)mapBaseLine.setStyle({opacity:curveGroups.length?0.45:0.9});
   const b=document.getElementById('sectorAddBtn');if(b)b.textContent='＋ Create Sector';
 }
 function _sectorEndIcon(col,lbl){
@@ -3847,7 +3847,7 @@ function _sectorDrawEdit(fit){
   _sectorClearLayers(c);
   if(c.i0>=0&&c.i1>c.i0){
     const pts=GPSTRACE.slice(c.i0,c.i1+1).filter(q=>q.lat!=null&&q.lon!=null).map(q=>[q.lat,q.lon]);
-    if(pts.length>1){c.line=L.polyline(pts,{color:'#ff2fd0',weight:6,opacity:0.95}).addTo(leafletMap);if(mapBaseLine)mapBaseLine.setStyle({opacity:0.25});if(fit)leafletMap.fitBounds(c.line.getBounds(),{padding:[30,30]});}
+    if(pts.length>1){c.line=L.polyline(pts,{color:'#ff2fd0',weight:6,opacity:0.95}).addTo(leafletMap);if(mapBaseLine)mapBaseLine.setStyle({opacity:0.45});if(fit)leafletMap.fitBounds(c.line.getBounds(),{padding:[30,30]});}
   }
   const mk=(idx,col,lbl,which)=>{
     const p=GPSTRACE[idx];if(!p)return null;
@@ -4444,7 +4444,7 @@ function _sectorHLRestore(){
 function clearSectorHighlight(){
   if(_sectorHL){try{if(leafletMap)leafletMap.removeLayer(_sectorHL.line);}catch{}}
   _sectorHL=null;
-  if(mapBaseLine)mapBaseLine.setStyle({opacity:curveGroups.length?0.25:0.85});
+  if(mapBaseLine)mapBaseLine.setStyle({opacity:curveGroups.length?0.45:0.9});
   refreshSelButtons();
 }
 window.highlightSector=function(id,t0,t1){
@@ -4456,7 +4456,7 @@ window.highlightSector=function(id,t0,t1){
   const pts=GPSTRACE.filter(p=>p.lat!=null&&p.lon!=null&&p.t>=t0-1000&&p.t<=t1+1000).map(p=>[p.lat,p.lon]);
   if(pts.length<2)return;
   const line=L.polyline(pts,{color:'#ff2fd0',weight:6,opacity:0.95}).addTo(leafletMap);
-  if(mapBaseLine)mapBaseLine.setStyle({opacity:0.25});
+  if(mapBaseLine)mapBaseLine.setStyle({opacity:0.45});
   leafletMap.fitBounds(line.getBounds(),{padding:[30,30]});
   _sectorHL={key,line,rng:null};
   const _idx=[];ST.forEach((st,k)=>{if(st.ms!=null&&st.ms>=t0&&st.ms<=t1)_idx.push(k);});
@@ -9964,14 +9964,15 @@ function updateMapGroups(){
   mapGroupLines.forEach(l=>leafletMap.removeLayer(l));
   mapGroupLines=[];
   const hasGroups=curveGroups.length>0;
-  if(mapBaseLine) mapBaseLine.setStyle({opacity:hasGroups?0.25:0.85});
+  if(mapBaseLine) mapBaseLine.setStyle({opacity:hasGroups?0.45:0.9});
   if(!GPSTRACE.length||!hasGroups)return;
   curveGroups.filter(g=>g.sessionIdx===activeSessionIdx).forEach(g=>{
     if(!ST[g.absS]||!ST[g.absE])return;
     const t1=ST[g.absS].ms, t2=ST[g.absE].ms;
     const pts=GPSTRACE.filter(p=>p.t>=t1&&p.t<=t2).map(p=>[p.lat,p.lon]);
     if(pts.length<2)return;
-    mapGroupLines.push(L.polyline(pts,{color:g.color,weight:5,opacity:0.9}).addTo(leafletMap));
+    mapGroupLines.push(L.polyline(pts,{color:'#fff',weight:9,opacity:0.85,interactive:false}).addTo(leafletMap));
+    mapGroupLines.push(L.polyline(pts,{color:g.color,weight:5,opacity:1}).addTo(leafletMap));
   });
 }
 
@@ -10016,7 +10017,12 @@ function buildMap(){
   leafletMap=L.map('mapbox',{zoomControl:true,attributionControl:true});
   leafletMap.attributionControl.setPrefix('');
   addSatLayers(leafletMap);
-  mapBaseLine=L.polyline(latlngs,{color:'#29b8ff',weight:3,opacity:0.85}).addTo(leafletMap);
+  /* Track: bright cyan over a dark edge so it stands out on dark water in
+     the satellite view. A group, so the existing dim/undim calls (setStyle
+     opacity) apply to both parts. */
+  {const _in=L.polyline(latlngs,{color:'#00e5ff',weight:3.5,opacity:0.95});
+   mapBaseLine=L.featureGroup([L.polyline(latlngs,{color:'#000',weight:7,opacity:0.55,interactive:false}),_in]).addTo(leafletMap);
+   mapBaseLine.getLatLngs=()=>_in.getLatLngs();}
   L.circleMarker(latlngs[0],{radius:6,fillColor:'#fff',color:'#000',weight:2,fillOpacity:1}).bindTooltip('Start',{permanent:false}).addTo(leafletMap);
   L.circleMarker(latlngs[latlngs.length-1],{radius:6,fillColor:'#f54040',color:'#000',weight:2,fillOpacity:1}).bindTooltip('Finish',{permanent:false}).addTo(leafletMap);
   const scullLaps=LAPS.filter(l=>l.stroke_rate_spm!=null||l.pace_s_per_500m!=null);
