@@ -9971,8 +9971,7 @@ function updateMapGroups(){
     const t1=ST[g.absS].ms, t2=ST[g.absE].ms;
     const pts=GPSTRACE.filter(p=>p.t>=t1&&p.t<=t2).map(p=>[p.lat,p.lon]);
     if(pts.length<2)return;
-    mapGroupLines.push(L.polyline(pts,{color:'#fff',weight:9,opacity:0.85,interactive:false}).addTo(leafletMap));
-    mapGroupLines.push(L.polyline(pts,{color:g.color,weight:5,opacity:1}).addTo(leafletMap));
+    mapGroupLines.push(L.polyline(pts,{color:g.color,weight:5,opacity:0.9}).addTo(leafletMap));
   });
 }
 
@@ -10017,12 +10016,8 @@ function buildMap(){
   leafletMap=L.map('mapbox',{zoomControl:true,attributionControl:true});
   leafletMap.attributionControl.setPrefix('');
   addSatLayers(leafletMap);
-  /* Track: bright cyan over a dark edge so it stands out on dark water in
-     the satellite view. A group, so the existing dim/undim calls (setStyle
-     opacity) apply to both parts. */
-  {const _in=L.polyline(latlngs,{color:'#00e5ff',weight:3.5,opacity:0.95});
-   mapBaseLine=L.featureGroup([L.polyline(latlngs,{color:'#000',weight:7,opacity:0.55,interactive:false}),_in]).addTo(leafletMap);
-   mapBaseLine.getLatLngs=()=>_in.getLatLngs();}
+  /* Bright cyan, a touch thicker, so the track shows on dark water in the satellite view. */
+  mapBaseLine=L.polyline(latlngs,{color:'#00e5ff',weight:4,opacity:0.9}).addTo(leafletMap);
   L.circleMarker(latlngs[0],{radius:6,fillColor:'#fff',color:'#000',weight:2,fillOpacity:1}).bindTooltip('Start',{permanent:false}).addTo(leafletMap);
   L.circleMarker(latlngs[latlngs.length-1],{radius:6,fillColor:'#f54040',color:'#000',weight:2,fillOpacity:1}).bindTooltip('Finish',{permanent:false}).addTo(leafletMap);
   const scullLaps=LAPS.filter(l=>l.stroke_rate_spm!=null||l.pace_s_per_500m!=null);
@@ -11110,7 +11105,8 @@ function mountData(d,label){
   buildCards(d.sum);
   buildLaps();
   assignLapNumbers();
-  buildMap();
+  /* A map problem must never stop the session loading. */
+  try{ buildMap(); }catch(e){ console.warn('map',e); toast('Map could not be drawn: '+(e&&e.message||e),5000); }
   cancelSectorCreate();
   renderSectors();
   buildStrokeTable();
