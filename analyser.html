@@ -52,7 +52,7 @@ function adClearPendingOpen(){try{sessionStorage.removeItem('_ad_open');}catch(e
     --mc-dps:#66BB6A; --mc-rloss:#AB47BC; --mc-slope:#9E9D24;
     --mc-impulse:#00897B; --mc-schar:#D81B60; --mc-ratio:#5C6BC0;
     --mc-oar:#26C6DA; --mc-cdelta:#546E7A; --mc-cdur:#FFB300; --mc-recoveryaccel:#D84315; --mc-driveaccel:#43A047;
-    --mc-catchaccel:#7E57C2; --mc-catchslopeneg:#C0CA33;
+    --mc-catchaccel:#7E57C2; --mc-catchslopeneg:#C0CA33; --mc-epower:#8D6E63;
     --text: #dce8fa; --muted: #46597a; --faint: #0d1e38;
     --grid-ln: rgba(17,40,72,1); --grid-lb: #1e3d6a; --frame-ln: #173358;
     --sel-fill: rgba(41,184,255,.06); --sel-stk: rgba(41,184,255,.32);
@@ -69,7 +69,7 @@ function adClearPendingOpen(){try{sessionStorage.removeItem('_ad_open');}catch(e
     --mc-dps:#66BB6A; --mc-rloss:#AB47BC; --mc-slope:#9E9D24;
     --mc-impulse:#00897B; --mc-schar:#D81B60; --mc-ratio:#5C6BC0;
     --mc-oar:#26C6DA; --mc-cdelta:#546E7A; --mc-cdur:#FFB300; --mc-recoveryaccel:#D84315; --mc-driveaccel:#43A047;
-    --mc-catchaccel:#7E57C2; --mc-catchslopeneg:#C0CA33;
+    --mc-catchaccel:#7E57C2; --mc-catchslopeneg:#C0CA33; --mc-epower:#8D6E63;
     --text: #0e1624; --muted: #000000; --faint: #000000;
     --grid-ln: #e2ecf7; --grid-lb: #7080a0; --frame-ln: #bccadd;
     --sel-fill: rgba(0,116,200,.05); --sel-stk: rgba(0,116,200,.36);
@@ -1576,6 +1576,19 @@ const AnalyserDrive = {
   },
   /* Session note: kept in the body and mirrored to the file description, which
      Metrics reads from its plain folder listing (' ' = no note). */
+  /* Rower weight for this session only (kg); null clears it. */
+  async patchCrewKg(fileId, kg) {
+    this._check();
+    const content = await this.fetchSession(fileId);
+    if (kg > 30 && kg < 200) content.crewKg = +kg; else delete content.crewKg;
+    const form = new FormData();
+    form.append('metadata', new Blob([JSON.stringify({})], {type:'application/json'}));
+    form.append('file', new Blob([JSON.stringify(content)], {type:'application/json'}));
+    const r = await this._api(`https://www.googleapis.com/upload/drive/v3/files/${fileId}?uploadType=multipart`, {
+      method: 'PATCH', body: form
+    }, 'Weight', 45000, fileId);
+    this._ok(r, 'Weight');
+  },
   async patchNote(fileId, note) {
     this._check();
     const content = await this.fetchSession(fileId);
@@ -2115,7 +2128,7 @@ function pal() {
     mc_dps:v('--mc-dps'), mc_rloss:v('--mc-rloss'), mc_slope:v('--mc-slope'),
     mc_impulse:v('--mc-impulse'), mc_schar:v('--mc-schar'), mc_ratio:v('--mc-ratio'),
     mc_oar:v('--mc-oar'), mc_cdelta:v('--mc-cdelta'), mc_cdur:v('--mc-cdur'), mc_recoveryaccel:v('--mc-recoveryaccel'), mc_driveaccel:v('--mc-driveaccel'),
-    mc_catchaccel:v('--mc-catchaccel'), mc_catchslopeneg:v('--mc-catchslopeneg'),
+    mc_catchaccel:v('--mc-catchaccel'), mc_catchslopeneg:v('--mc-catchslopeneg'), mc_epower:v('--mc-epower'),
     gridLn: v('--grid-ln'), gridLb: v('--grid-lb'), frameLn: v('--frame-ln'),
     selFill: v('--sel-fill'), selStk: v('--sel-stk'),
     text: v('--text'), muted: v('--muted'), s1: v('--s1'), s2: v('--s2'),
@@ -2328,6 +2341,7 @@ const METRIC_DEFS = [
   {k:'cdur',   l:'Catch Dur',   c:'var(--mc-cdur)',  cat:'boat',  filter:s=>!isNaN(s.catchDuration)&&s.catchDuration>0&&s.catchDuration<1500, val:s=>s.catchDuration, fmtAvg:v=>f0(v)+' ms', fmtBest:null, tip:'Time from the point deceleration at the catch reaches 30% of its peak depth, until acceleration crosses back through zero. Measures the width of the check, not time-to-peak-force. Accelerometer-derived. Not comparable across boat classes \u2014 hull inertia differs, same as the catch slopes.'},
   {k:'drivetime', l:'Drive Time', c:'var(--mc-oar)',  cat:'boat',  filter:s=>!isNaN(s.driveTimeMs)&&s.driveTimeMs>50&&s.driveTimeMs<1500, val:s=>s.driveTimeMs, fmtAvg:v=>f0(v)+' ms', fmtBest:null, tip:'Time from peak drive acceleration to blade exit — the back half of the drive. Accelerometer-derived, so it covers every stroke regardless of GPS. Catch Dur and Drive Time overlap around the peak, so the true total drive time is less than their sum but more than Drive Time alone.'},
   {k:'impulse',l:'Impulse',     c:'var(--mc-impulse)', cat:'boat',  filter:s=>s.impulse>0&&s.impulse<1000,  val:s=>s.impulse,     fmtAvg:v=>Math.round(v).toString(),fmtBest:null, tip:'Total positive acceleration during the drive, integrated as a change in velocity (Δv). Higher means more drive power applied to the hull — not a peak value. IMU-derived — scale varies with boat class and mass.'},
+  {k:'epower', l:'Eff Power', c:'var(--mc-epower)', cat:'cond', filter:s=>!isNaN(s.epower)&&s.epower>0&&s.epower<6000, val:s=>s.epower, fmtAvg:v=>f0(v)+' W', fmtBest:null, tip:'Estimated effective power: power that went into moving the boat, in watts. Mean speed x speed gained on the drive x strokes per second gives W/kg; x total mass (boat minimum weight for the boat type + crew at the rower weight set in the units bar + 55 kg cox in coxed boats). Needs the boat type set. On-water only.'},
   {k:'driveaccel', l:'Drive Accel', c:'var(--mc-driveaccel)', cat:'boat', filter:s=>!isNaN(s.driveAccel)&&s.driveAccel>0&&s.driveAccel<20, val:s=>s.driveAccel, fmtAvg:v=>f1(v)+' m/s²', fmtBest:null, tip:'Peak forward acceleration during the drive, catch to finish. IMU-derived — scale varies with boat class and mass.'},
   {k:'recoveryaccel', l:'Recovery Accel', c:'var(--mc-recoveryaccel)', cat:'boat', filter:s=>!isNaN(s.recoveryAccel)&&s.recoveryAccel>0&&s.recoveryAccel<20, val:s=>s.recoveryAccel, fmtAvg:v=>f1(v)+' m/s²', fmtBest:null, tip:'Peak forward acceleration during the recovery, taken after the small drag-dip that follows the finish. IMU-derived — scale varies with boat class and mass.'},
   {k:'rloss',  l:'Recovery Loss', c:'var(--mc-rloss)', cat:'indep', filter:s=>!isNaN(s.rloss)&&s.rloss>0&&s.rloss<100, val:s=>s.rloss, fmtAvg:v=>fmtRunLossU(v), fmtBest:null, tip:'Percentage of drive speed lost to deceleration during recovery. Accelerometer-derived, condition-independent. Lower is better.'},
@@ -2389,9 +2403,9 @@ let currentView=[];
 let viewS=0,viewE=0;
 let selS=-1,selE=-1;
 let activeLapTypes=new Set(); // lap types currently shown in the laps table filter (empty = All)
-let vis={pace:true,rate:true,slope:false,slopeneg:false,caccel:false,dps:false,impulse:false,rloss:false,schar:false,ratio:false,angle:false,cdelta:false,cdur:false,drivetime:false,driveaccel:false,recoveryaccel:false,hr:false,peakforce:false,drivelength:false};
+let vis={pace:true,rate:true,slope:false,slopeneg:false,caccel:false,dps:false,impulse:false,rloss:false,schar:false,ratio:false,angle:false,cdelta:false,cdur:false,drivetime:false,driveaccel:false,recoveryaccel:false,hr:false,peakforce:false,drivelength:false,epower:false};
 try{const sv=JSON.parse(localStorage.getItem('br_tile_vis')||'null');if(sv&&typeof sv==='object')Object.assign(vis,sv);}catch{}
-let hid={pace:false,rate:false,slope:false,slopeneg:false,caccel:false,dps:false,impulse:false,rloss:false,schar:false,ratio:false,angle:false,cdelta:false,cdur:false,drivetime:false,driveaccel:false,recoveryaccel:false,hr:false,peakforce:false,drivelength:false};
+let hid={pace:false,rate:false,slope:false,slopeneg:false,caccel:false,dps:false,impulse:false,rloss:false,schar:false,ratio:false,angle:false,cdelta:false,cdur:false,drivetime:false,driveaccel:false,recoveryaccel:false,hr:false,peakforce:false,drivelength:false,epower:false};
 try{const sh=JSON.parse(localStorage.getItem('br_tile_hidden')||'null');if(sh&&typeof sh==='object')Object.assign(hid,sh);}catch{}
 hid.pace=false; hid.rate=false;
 vis=new Proxy(vis,{get(t,k){return hid[k]?false:t[k];},set(t,k,v){t[k]=v;return true;}});
@@ -2724,6 +2738,7 @@ function sessionToAnalyserFmt(s) {
     workoutName: s.workoutName || null,
     squadCode: s.squadCode || null,
     name: s.name || null,
+    crewKg: (s.crewKg > 30 && s.crewKg < 200) ? +s.crewKg : null,
     vidSync: s.vidSync || null,
     videoFlags: s.videoFlags || null,
     manualLaps: (Array.isArray(s.manualLaps) && s.manualLaps.length) ? s.manualLaps : null,
@@ -7193,6 +7208,7 @@ function editSessionBoat(){
     if(sess.d&&sess.d.sum){sess.d.sum.boat_type=r.t;sess.d.sum.boat_mixed=r.m;sess.d.sum.boat_coastal=r.c;}
     if(_lastSum){_lastSum.boat_type=r.t;_lastSum.boat_mixed=r.m;_lastSum.boat_coastal=r.c;}
     buildMeta(sess.label,_lastSum);
+    try{ effPowerRefresh(); }catch{}
     if(!AnalyserDrive.isSignedIn()){toast('Boat set here only \u2013 link Drive to save it');return;}
     toast('Saving boat type\u2026');
     AnalyserDrive.patchBoat(sess.fileId,r.t,r.m,r.c)
@@ -7285,12 +7301,13 @@ function buildCards(sum) {
         const cal=(sum.erg&&sum.erg.calories!=null)?sum.erg.calories:null;
         return cal!=null?card('c-pace','Calories',Math.round(cal),'total kcal','pace',tipOf('watts')):'';
       }
-      return vals.pace?card('c-pace','Pace',fmtPaceU(avgPace>0?avgPace:vals.pace.mean),workPace>0?'work '+fmtPaceU(workPace):(movPace>0?'mov '+fmtPaceU(movPace):paceULabel()),'pace',tipOf('pace')):'';
+      return vals.pace?card('c-pace',(_curCorrOn&&_curOk())?'Pace (water)':'Pace',fmtPaceU(avgPace>0?avgPace/_curSpeedRatio():vals.pace.mean),workPace>0?'work '+fmtPaceU(workPace):(movPace>0?'mov '+fmtPaceU(movPace):paceULabel()),'pace',tipOf('pace')):'';
     },
     rate:()=>vals.rate?card('c-rate','Rate',f1(vals.rate.mean),'spm · max '+f0(vals.rate.max),'rate',tipOf('rate')):'',
     dps:()=>vals.dps?card('c-dps','DPS',fmtDPSU(vals.dps.mean),dpsULabelU()+'/stroke','dps',tipOf('dps')):'',
     cdelta:()=>vals.cdelta?`<div class="card clickable${!vis.cdelta?' dim':''}" id="card-cdelta" data-vis="cdelta" style="border-top:2px solid var(--mc-cdelta)" title="${tipOf('cdelta')}"><div class="lbl">Vel Efficiency</div><div class="val" style="color:var(--mc-cdelta)">${f1(vals.cdelta.mean)}%</div><div class="sub">vs steady hull</div></div>`:'',
     rloss:()=>vals.rloss?card('c-rloss','Recovery Loss',fmtRunLossU(vals.rloss.mean),'avg/stroke','rloss',tipOf('rloss')):'',
+    epower:()=>vals.epower?`<div class="card clickable${!vis.epower?' dim':''}" id="card-epower" data-vis="epower" style="border-top:2px solid var(--mc-epower)" title="${tipOf('epower')}"><div class="lbl">Eff Power</div><div class="val" style="color:var(--mc-epower)">${f0(vals.epower.mean)} W</div><div class="sub">peak ${f0(vals.epower.max)} W</div></div>`:'',
     impulse:()=>vals.impulse?card('c-impulse','Impulse',Math.round(vals.impulse.mean),'peak '+Math.round(vals.impulse.max),'impulse',tipOf('impulse')):'',
     slope:()=>vals.slope?card('c-slope','Pos Slope',f0(vals.slope.mean),'peak '+f1(vals.slope.max),'slope',tipOf('slope')):'',
     slopeneg:()=>vals.slopeneg?card('c-slopeneg','Neg Slope',f0(vals.slopeneg.mean),'peak '+f1(vals.slopeneg.max),'slopeneg',tipOf('slopeneg')):'',
@@ -7460,7 +7477,7 @@ window.panSlide=function(val){
 function emaSmooth(view,alpha){
   if(alpha>=1)return view;
   const out=view.map(s=>Object.assign({},s));
-  const fields=['pace','rate','slope','catchSlopeNeg','catchAccel','dps','impulse','rloss','schar','ratio','checkDelta','catchDuration','driveAccel','recoveryAccel','driveTimeMs','peakforceN','drivelength'];
+  const fields=['pace','rate','slope','catchSlopeNeg','catchAccel','dps','impulse','rloss','schar','ratio','checkDelta','catchDuration','driveAccel','recoveryAccel','driveTimeMs','peakforceN','drivelength','epower'];
   for(const f of fields){let ema=NaN;for(let i=0;i<out.length;i++){const v=out[i][f];if(isNaN(v)||v==null){ema=NaN;continue;}ema=isNaN(ema)?v:alpha*v+(1-alpha)*ema;out[i][f]=ema;}}
   return out;
 }
@@ -7589,7 +7606,7 @@ function drawMain(){
   const xRng=xMax-xMin||1;
   const toX=v=>PL+(v-xMin)/xRng*pw;
 
-  const pv=[],rv=[],jv=[],jnv=[],cav=[],dv=[],iv=[],rlv=[],scv=[],ratv=[],cdv=[],cdurv=[],dtv=[],daccv=[],raccv=[],hrv=[],pfv=[],slv=[];
+  const pv=[],rv=[],jv=[],jnv=[],cav=[],dv=[],iv=[],rlv=[],scv=[],ratv=[],cdv=[],cdurv=[],dtv=[],daccv=[],raccv=[],hrv=[],pfv=[],slv=[],epv=[];
   for(let i=0;i<N;i++){const s=sv[i];
     if(vis.pace&&s.pace>50&&s.pace<500)pv.push(s.pace);
     if(vis.rate&&s.rate>5&&s.rate<50)rv.push(s.rate);
@@ -7609,6 +7626,7 @@ function drawMain(){
     if(vis.hr){const b=nearestHRAt(view[i].ms);if(b!=null&&b>40&&b<220)hrv.push(b);}
     if(vis.peakforce&&!isNaN(s.peakforceN)&&s.peakforceN>0&&s.peakforceN<3000)pfv.push(s.peakforceN);
     if(vis.drivelength&&!isNaN(s.drivelength)&&s.drivelength>0&&s.drivelength<3)slv.push(s.drivelength);
+    if(vis.epower&&!isNaN(s.epower)&&s.epower>0&&s.epower<6000)epv.push(s.epower);
 }
 
   let yPMin=90,yPMax=300;
@@ -7651,6 +7669,9 @@ function drawMain(){
   let ySLMin=0,ySLMax=2.0;
   if(slv.length){const[lo,hi]=pctBounds(slv,0.03,0.97,0.10);ySLMin=0;ySLMax=Math.min(3,hi);}
   const toYSL=v=>PT+ph-(v-ySLMin)/(ySLMax-ySLMin||1)*ph;
+  let yEPMax=400;
+  if(epv.length){const[,hi]=pctBounds(epv,0.03,0.97,0.10);yEPMax=Math.min(6000,Math.max(50,hi));}
+  const toYEP=v=>PT+ph-(v/yEPMax)*ph;
   drawLapBands(ctx,computeLapSegments(),toX,xMin,xMin+xRng,PT,ph);
   ctx.font='9px -apple-system, BlinkMacSystemFont, Helvetica Neue, sans-serif';
 
@@ -7711,6 +7732,7 @@ function drawMain(){
   if(vis.peakforce&&pfv.length){ctx.fillStyle=C.mc_impulse;for(let i=0;i<N;i++){const v=sv[i].peakforceN;if(isNaN(v)||v<=0||v>=3000)continue;ctx.beginPath();ctx.arc(toX(xs[i]),toYPF(v),2.5,0,6.283);ctx.fill();}}
   if(vis.drivelength&&slv.length){ctx.fillStyle=C.mc_oar;for(let i=0;i<N;i++){const v=sv[i].drivelength;if(isNaN(v)||v<=0||v>=3)continue;ctx.beginPath();ctx.arc(toX(xs[i]),toYSL(v),2.5,0,6.283);ctx.fill();}}
 
+  if(vis.epower&&epv.length){ctx.fillStyle=C.mc_epower;for(let i=0;i<N;i++){const v=sv[i].epower;if(isNaN(v)||v<=0||v>=6000)continue;ctx.beginPath();ctx.arc(toX(xs[i]),toYEP(v),2.5,0,6.283);ctx.fill();}}
   drawLapLines(ctx,computeLapBoundaryXValues(),toX,xMin,xRng,PT,ph,true);
   ctx.strokeStyle=C.frameLn;ctx.lineWidth=1;ctx.strokeRect(PL,PT,pw,ph);
   if(_pinnedStrokeIdx>=viewS&&_pinnedStrokeIdx<=viewE){
@@ -7829,6 +7851,7 @@ function showTooltipAt(clientX, clientY, force, above){
     recoveryaccel:()=>ttRow('Recovery Accel',isNaN(s.recoveryAccel)||s.recoveryAccel<=0?EM:f1(s.recoveryAccel)+' m/s²',C.mc_recoveryaccel),
     rloss:()=>ttRow('Recovery Loss',isNaN(s.rloss)||s.rloss<0?EM:fmtRunLossU(s.rloss),C.mc_rloss),
     impulse:()=>ttRow('Impulse',isNaN(s.impulse)||s.impulse<=0?EM:Math.round(s.impulse).toString(),C.mc_impulse),
+    epower:()=>ttRow('Eff Power',isNaN(s.epower)||s.epower<=0?EM:f0(s.epower)+' W',C.mc_epower),
     slope:()=>ttRow('Pos catch slope',isNaN(s.slope)||s.slope<=0?EM:f0(s.slope),C.mc_slope),
     ratio:()=>ttRow('Stroke Ratio',(s.ratio==null||isNaN(s.ratio)||s.ratio<0.5||s.ratio>5)?EM:s.ratio.toFixed(2),C.mc_ratio),
     schar:()=>ttRow('Stroke Char',isNaN(s.schar)?EM:f0(s.schar)+'%',C.mc_schar),
@@ -9953,6 +9976,7 @@ function buildMap(){
   _routeHazLayer=null;
   try{drawRouteHazards();}catch(e){}
   updateMapGroups();
+  try{drawCurrentLayer();}catch(e){}
 }
 
 // ══════════════════════════════════════════════════════════════════════════
@@ -10317,6 +10341,7 @@ const TBL_COLS={
   cdelta:{h:()=>'Vel Eff %', cell:s=>`<td style="color:var(--mc-cdelta)">${(!isNaN(s.checkDelta)&&s.checkDelta>=50)?f1(s.checkDelta):EM}</td>`},
   rloss:{h:()=>'Recovery Loss %', cell:s=>`<td style="color:var(--mc-rloss)">${isNaN(s.rloss)||s.rloss<0?EM:fmtRunLossU(s.rloss)}</td>`},
   impulse:{h:()=>'Impulse', cell:s=>`<td style="color:var(--mc-impulse)">${isNaN(s.impulse)||s.impulse<=0?EM:Math.round(s.impulse)}</td>`},
+  epower:{h:()=>'Eff Power W', cell:s=>`<td style="color:var(--mc-epower)">${isNaN(s.epower)||s.epower<=0?EM:f0(s.epower)}</td>`},
   slope:{h:()=>'Pos slope', cell:s=>`<td style="color:var(--mc-slope)">${isNaN(s.slope)||s.slope<=0?EM:f1(s.slope)}</td>`},
   slopeneg:{h:()=>'Neg slope', cell:s=>`<td style="color:var(--mc-catchslopeneg)">${isNaN(s.catchSlopeNeg)||s.catchSlopeNeg<=0?EM:f1(s.catchSlopeNeg)}</td>`},
   caccel:{h:()=>'Catch Accel', cell:s=>`<td style="color:var(--mc-catchaccel)">${isNaN(s.catchAccel)||s.catchAccel>=0?EM:f1(s.catchAccel)}</td>`},
@@ -10461,6 +10486,10 @@ function buildUnitsBar() {
     `<span class="seglbl">Pace</span>${seg('paceUnit',[['pace500','/500m'],['pace1000','/1km'],['kph','km/h'],['pacemile','/mi'],['mph','mph']])}` +
     `<span class="seglbl">Dist</span>${seg('distUnit',[['km','km'],['mi','mi']])}` +
     `<span class="seglbl">Sub</span>${seg('dpsUnit',[['m','m'],['ft','ft'],['in','in']])}` +
+    (()=>{ const sess=SESSIONS[activeSessionIdx], own=sess&&sess.d&&sess.d.crewKg;
+      return `<span class="seglbl" title="Rower weight for Eff Power">Rower kg</span><span class="segwrap"><input class="hrzin" type="number" min="30" max="200" value="${crewKgDefault()}" title="Default rower weight, all sessions (kg)" onchange="setCrewKg('default',this.value)"><input class="hrzin" type="number" min="30" max="200" value="${own||''}" placeholder="this" title="This session only (kg) - blank uses the default" onchange="setCrewKg('session',this.value)"></span>`; })() +
+    (()=>{ const s=SESSIONS[activeSessionIdx], c=s&&s.d&&s.d._cur, ok=!!(c&&c.ok);
+      return `<span class="seglbl" title="${(c&&c.msg)||''}">Tide/current${ok?'':' (none)'}</span><span class="segwrap"><button class="segbtn${_curMapOn?' on':''}" onclick="toggleCurMap()" title="Show the estimated current on the map">Map</button><button class="segbtn${_curCorrOn&&ok?' on':''}" onclick="toggleCurCorr()" title="Pace, DPS and Eff Power through the water instead of over the ground">Corrected</button></span>`; })() +
     (HR.length>10?`<span class="seglbl">HR zones</span><span class="segwrap">`+hrZones.map((v,i)=>`<input class="hrzin" type="number" value="${v}" min="40" max="230" title="Z${i+1} upper limit (bpm)" onchange="setHRZone(${i},this.value)" style="border-color:${HR_ZONE_COLORS[i]};color:${HR_ZONE_COLORS[i]};">`).join('')+`</span>`:'');
 }
 window.setUnitsAndRebuild = setUnitsAndRebuild;
@@ -10468,8 +10497,233 @@ window.setUnitsAndRebuild = setUnitsAndRebuild;
 // ══════════════════════════════════════════════════════════════════════════
 // MOUNT / RESET
 // ══════════════════════════════════════════════════════════════════════════
+/* ── EFFECTIVE POWER (on water, Pro) ─────────────────────────────────────
+   W/kg per stroke = mean speed x speed gained on the drive (impulse) x
+   strokes per second. Watts = W/kg x total mass: boat minimum weight for the
+   boat type (Rowing Australia 2025; coastal boats heavier) + crew x rower
+   weight + a 55 kg cox in coxed boats. Rower weight: this session's own value
+   if set, otherwise the default in the units bar. No boat type = no watts. */
+const BOAT_KG = {'1x':14,'2-':27,'2x':27,'4+':51,'4-':50,'4x':52,'8+':96};
+const BOAT_KG_COASTAL = {'1x':35,'2-':60,'2x':60,'4+':130,'4-':130,'4x':130,'8+':200};
+const COX_KG = 55;
+function crewKgDefault(){ try{ const v=+localStorage.getItem('br_crew_kg'); return (v>30&&v<200)?v:80; }catch{ return 80; } }
+function _effBoat(d){
+  const sum=(d&&d.sum)||{}; let bt=sum.boat_type, bc=!!sum.boat_coastal;
+  const cs=SESSIONS[activeSessionIdx];
+  if(!bt&&cs&&cs.fileId){ try{ const o=boatOfFid(cs.fileId); if(o&&o.t){ bt=o.t; bc=!!o.c; } }catch{} }
+  return BOAT_ORDER.includes(bt)?{t:bt,c:bc}:null;
+}
+function effTotalKg(d){
+  const b=_effBoat(d); if(!b) return null;
+  const n=parseInt(b.t,10)||1, kg=(d&&d.crewKg>30&&d.crewKg<200)?d.crewKg:crewKgDefault();
+  return (b.c?BOAT_KG_COASTAL:BOAT_KG)[b.t] + n*kg + (b.t.indexOf('+')>=0?COX_KG:0);
+}
+function applyEffPower(d){
+  const st=(d&&d.strokes)||[];
+  const erg=!!(d&&d.sum&&d.sum.session_mode==='erg');
+  const tot=(!erg&&isPro())?effTotalKg(d):null;
+  for(const s of st){
+    s.epower=NaN;
+    if(erg) continue;
+    const v=(s.pace>50&&s.pace<500)?500/s.pace:NaN, dv=s.impulse/100, r=s.rate;
+    const pk=(v>=1&&dv>0&&r>5&&r<50)?v*dv*r/60:NaN;
+    s.powerKg=(pk>0&&pk<20)?pk:NaN;
+    if(tot&&!isNaN(s.powerKg)) s.epower=s.powerKg*tot;
+  }
+}
+function effPowerRefresh(){
+  const sess=SESSIONS[activeSessionIdx]; if(!sess||!sess.d) return;
+  try{ applyCurCorr(sess.d); }catch(e){ applyEffPower(sess.d); }
+  try{ buildCards(sess.d.sum); }catch{}
+  try{ buildStrokeTable(); }catch{}
+  try{ buildUnitsBar(); }catch{}
+  try{ schedRender(); }catch{}
+}
+function setCrewKg(which, val){
+  const kg=+val;
+  if(which==='default'){
+    if(!(kg>30&&kg<200)){ toast('Enter a weight between 30 and 200 kg'); buildUnitsBar(); return; }
+    try{ localStorage.setItem('br_crew_kg', String(kg)); }catch{}
+    effPowerRefresh(); return;
+  }
+  const sess=SESSIONS[activeSessionIdx]; if(!sess||!sess.d) return;
+  const v=(String(val).trim()==='')?null:kg;
+  if(v!=null&&!(v>30&&v<200)){ toast('Enter a weight between 30 and 200 kg, or leave blank for the default'); buildUnitsBar(); return; }
+  sess.d.crewKg=v;
+  effPowerRefresh();
+  if(sess.fileId&&!sess.squadCode&&AnalyserDrive.isSignedIn()){
+    AnalyserDrive.patchCrewKg(sess.fileId,v).then(()=>toast('\u2714 Rower weight saved to Drive')).catch(e=>{ if(!driveAuthExpired(e)) toast('Drive save failed: '+e.message,3000); });
+  }
+}
+window.setCrewKg=setCrewKg;
+/* ── TIDE / CURRENT ESTIMATE (on water) ───────────────────────────────────
+   Speed through the water ~ a x sqrt(impulse x rate): both come from the
+   accelerometer, so they measure effort and are unaffected by current. GPS
+   speed = a x sqrt(impulse x rate) + current along the river. Fitted per area
+   (~400 m of river) and 15 min block, only where the boat went both ways, so
+   rowing harder one way is not read as current. The river direction comes
+   from the session's own track (40 m cells, sign-free axis, made consistent
+   cell to cell), so bends are followed. A block is only used when its areas
+   agree on direction and at least one is clearly above its uncertainty; one-way
+   stretches then take a value interpolated along the river from measured areas. */
+const CUR_CELL=40, CUR_AREA=400, CUR_BLOCK=900000, CUR_MIN_EACH=15;
+let _curMapOn=false, _curCorrOn=false, _curLayer=null;
+try{_curMapOn=localStorage.getItem('br_cur_map')==='1';_curCorrOn=localStorage.getItem('br_cur_corr')==='1';}catch{}
+function _curSolve(A,b){const n=b.length;for(let i=0;i<n;i++){let p=i;for(let r=i+1;r<n;r++)if(Math.abs(A[r][i])>Math.abs(A[p][i]))p=r;[A[i],A[p]]=[A[p],A[i]];[b[i],b[p]]=[b[p],b[i]];const d=A[i][i];if(Math.abs(d)<1e-12)return null;for(let r=i+1;r<n;r++){const f=A[r][i]/d;if(!f)continue;for(let c=i;c<n;c++)A[r][c]-=f*A[i][c];b[r]-=f*b[i];}}const x=new Array(n).fill(0);for(let i=n-1;i>=0;i--){let s=b[i];for(let c=i+1;c<n;c++)s-=A[i][c]*x[c];x[i]=s/A[i][i];}return x;}
+function estimateCurrent(d){
+  const st=(d&&d.strokes)||[], gt=(d&&d.gpsTrace)||[];
+  const out={ok:false,areas:[],blocks:{},msg:''};
+  if(d&&d.sum&&d.sum.session_mode==='erg'){out.msg='erg';return out;}
+  const G=gt.filter(p=>p.lat!=null&&p.lon!=null&&p.t!=null).sort((a,b)=>a.t-b.t);
+  if(G.length<20||st.length<40){out.msg='Not enough GPS or strokes';return out;}
+  const R=6371000,la0=G[0].lat*Math.PI/180,lo0=G[0].lon,lat0=G[0].lat;
+  const T=G.map(p=>p.t),PX=G.map(p=>(p.lon-lo0)*Math.PI/180*R*Math.cos(la0)),PY=G.map(p=>(p.lat-lat0)*Math.PI/180*R);
+  const bis=v=>{let lo=0,hi=T.length-1;if(v<=T[0])return 0;if(v>=T[hi])return hi;while(hi-lo>1){const m=(lo+hi)>>1;if(T[m]<=v)lo=m;else hi=m;}return lo;};
+  const S=[];
+  st.forEach((s,i)=>{
+    if(!(s.ms>0))return;
+    const a=bis(s.ms-3000),b=bis(s.ms+3000);
+    if(b<=a||T[b]-T[a]<3000)return;
+    const dt=(T[b]-T[a])/1000,vx=(PX[b]-PX[a])/dt,vy=(PY[b]-PY[a])/dt,gs=Math.hypot(vx,vy);
+    const p0=s._pace0!=null?s._pace0:s.pace, vg=(p0>50&&p0<500)?500/p0:NaN;
+    const imp=s.impulse/100,r=s.rate;
+    if(!(gs>1.5&&vg>2&&imp>0.3&&r>14&&r<45))return;
+    S.push({i,t:s.ms,x:(PX[a]+PX[b])/2,y:(PY[a]+PY[b])/2,ux:vx/gs,uy:vy/gs,v:vg,X:Math.sqrt(imp*r)});
+  });
+  if(S.length<40){out.msg='Not enough steady strokes';return out;}
+  /* river axis per cell */
+  const ck=(x,y)=>Math.floor(x/CUR_CELL)+','+Math.floor(y/CUR_CELL);
+  const cells=new Map();
+  S.forEach(q=>{const k=ck(q.x,q.y);let c=cells.get(k);if(!c){c={k,gx:Math.floor(q.x/CUR_CELL),gy:Math.floor(q.y/CUR_CELL),c2:0,s2:0,n:0};cells.set(k,c);}const th=Math.atan2(q.ux,q.uy);c.c2+=Math.cos(2*th);c.s2+=Math.sin(2*th);c.n++;q.cell=c;});
+  cells.forEach(c=>{c.ax=0.5*Math.atan2(c.s2,c.c2);});
+  const nb=c=>{const r=[];for(let dx=-1;dx<=1;dx++)for(let dy=-1;dy<=1;dy++){if(!dx&&!dy)continue;const o=cells.get((c.gx+dx)+','+(c.gy+dy));if(o)r.push(o);}return r;};
+  let comp=0;
+  const bfs=(start,fn)=>{const seen=new Set([start.k]),q=[start];start._h=0;while(q.length){const c=q.shift();for(const o of nb(c)){if(seen.has(o.k))continue;seen.add(o.k);o._h=c._h+1;if(fn)fn(c,o);q.push(o);}}return seen;};
+  cells.forEach(c=>{
+    if(c.comp!=null)return;
+    c.or=c.ax; c.comp=comp;
+    const seen=bfs(c,(p,o)=>{let a=o.ax;if(Math.cos(a-p.or)<0)a+=Math.PI;o.or=a;o.comp=comp;});
+    let far=c;seen.forEach(k=>{const o=cells.get(k);if(o._h>far._h)far=o;});
+    bfs(far,null); seen.forEach(k=>{const o=cells.get(k);o.al=o._h*CUR_CELL;});
+    comp++;
+  });
+  S.forEach(q=>{const c=q.cell;q.sg=Math.sign(Math.sin(c.or)*q.ux+Math.cos(c.or)*q.uy)||1;q.al=c.al;q.comp=c.comp;q.area=c.comp+':'+Math.floor(c.al/CUR_AREA);q.blk=Math.floor((q.t-S[0].t)/CUR_BLOCK);q.g=q.area+'|'+q.blk;});
+  /* groups with both directions */
+  const grp=new Map();
+  S.forEach(q=>{let g=grp.get(q.g);if(!g){g={key:q.g,area:q.area,blk:q.blk,comp:q.comp,up:0,dn:0,al:0,n:0};grp.set(q.g,g);}q.sg>0?g.up++:g.dn++;g.al+=q.al;g.n++;});
+  const fitG=[...grp.values()].filter(g=>g.up>=CUR_MIN_EACH&&g.dn>=CUR_MIN_EACH);
+  if(!fitG.length){out.msg='No stretch rowed both ways';return out;}
+  fitG.forEach((g,j)=>{g.j=j+1;g.al/=g.n;});
+  const gi=new Map(fitG.map(g=>[g.key,g]));
+  const F=S.filter(q=>gi.has(q.g)), P=fitG.length+1;
+  const A=Array.from({length:P},()=>new Array(P).fill(0)), bb=new Array(P).fill(0);
+  F.forEach(q=>{const j=gi.get(q.g).j;const row=[[0,q.X],[j,q.sg]];for(const[r,vr]of row){bb[r]+=vr*q.v;for(const[c,vc]of row)A[r][c]+=vr*vc;}});
+  for(let k=1;k<P;k++)A[k][k]+=1e-6;
+  const x=_curSolve(A,bb); if(!x){out.msg='Fit failed';return out;}
+  let ss=0;F.forEach(q=>{const e=q.v-x[0]*q.X-x[gi.get(q.g).j]*q.sg;ss+=e*e;});
+  const rms=Math.sqrt(ss/Math.max(1,F.length-P));
+  /* Neighbouring strokes share GPS smoothing and effort, so they are not
+     independent: shrink the stroke counts by the residuals' lag-1 correlation. */
+  let r01=0,r00=0,prev=null;
+  F.forEach(q=>{const e=q.v-x[0]*q.X-x[gi.get(q.g).j]*q.sg;if(prev&&prev.g===q.g){r01+=e*prev.e;}r00+=e*e;prev={g:q.g,e};});
+  const rho=clamp(r00>0?r01/r00:0,0,0.95), nf=(1-rho)/(1+rho);
+  fitG.forEach(g=>{g.c=x[g.j];g.se=rms*Math.sqrt(1/Math.max(1,g.up*nf)+1/Math.max(1,g.dn*nf))/2;});
+  out.rho=rho;
+  /* per block: accept when significant estimates agree in direction */
+  const blocks={};
+  fitG.forEach(g=>{(blocks[g.blk]=blocks[g.blk]||{blk:g.blk,g:[]}).g.push(g);});
+  Object.values(blocks).forEach(B=>{
+    const sig=B.g.filter(g=>Math.abs(g.c)>2*g.se);
+    const pos=sig.filter(g=>g.c>0).length,neg=sig.length-pos;
+    B.status=!sig.length?'none':(pos&&neg?'mixed':'ok');
+  });
+  /* per stroke current (signed along the boat's travel) */
+  const curOfStroke=new Map();
+  S.forEach(q=>{
+    const B=blocks[q.blk]; if(!B||B.status!=='ok')return;
+    const pts=B.g.filter(g=>g.comp===q.comp).sort((a,b)=>a.al-b.al); if(!pts.length)return;
+    let c;
+    if(q.al<=pts[0].al)c=pts[0].c;else if(q.al>=pts[pts.length-1].al)c=pts[pts.length-1].c;
+    else{for(let k=1;k<pts.length;k++)if(q.al<=pts[k].al){const f=(q.al-pts[k-1].al)/((pts[k].al-pts[k-1].al)||1);c=pts[k-1].c+f*(pts[k].c-pts[k-1].c);break;}}
+    const meas=gi.has(q.g);
+    curOfStroke.set(q.i,{along:c*q.sg,c,meas});
+  });
+  /* areas for the map */
+  const areas=new Map();
+  S.forEach(q=>{let a=areas.get(q.area);if(!a){a={area:q.area,x:0,y:0,n:0,cs:0,cn:0,meas:false,cell:null,bl:[]};areas.set(q.area,a);}a.x+=q.x;a.y+=q.y;a.n++;const co=curOfStroke.get(q.i);if(co){a.cs+=co.c;a.cn++;if(co.meas)a.meas=true;}});
+  areas.forEach(a=>{a.x/=a.n;a.y/=a.n;let best=null,bd=1e18;cells.forEach(c=>{if(c.comp+':'+Math.floor(c.al/CUR_AREA)!==a.area)return;const dd=(c.gx*CUR_CELL+CUR_CELL/2-a.x)**2+(c.gy*CUR_CELL+CUR_CELL/2-a.y)**2;if(dd<bd){bd=dd;best=c;}});a.or=best?best.or:0;a.c=a.cn?a.cs/a.cn:null;a.lat=lat0+a.y/R*180/Math.PI;a.lon=lo0+a.x/(R*Math.cos(la0))*180/Math.PI;a.bl=fitG.filter(g=>g.area===a.area).map(g=>({blk:g.blk,c:g.c,se:g.se,st:blocks[g.blk].status}));});
+  out.ok=curOfStroke.size>0; out.rms=rms; out.a=x[0]; out.blocks=blocks; out.areas=[...areas.values()];
+  out.perStroke=curOfStroke;
+  const okB=Object.values(blocks).filter(B=>B.status==='ok').length, nB=Object.keys(blocks).length;
+  out.msg=out.ok?('Current found in '+okB+' of '+nB+' time blocks'):('No clear current ('+nB+' time block'+(nB===1?'':'s')+' checked)');
+  return out;
+}
+/* Corrected session pace: the GPS average pace scaled by how much the
+   corrected strokes speed up or slow down overall (sum of water speeds over
+   sum of ground speeds), so it stays a time/distance average like the original. */
+function _curSpeedRatio(){
+  if(!(_curCorrOn&&_curOk()))return 1;
+  let g=0,w=0;for(const s of ST){if(s._pace0>50&&s._pace0<500&&s.pace>50&&s.pace<500){g+=500/s._pace0;w+=500/s.pace;}}
+  return (g>0&&w>0)?w/g:1;
+}
+function _curOk(){const s=SESSIONS[activeSessionIdx];return !!(s&&s.d&&s.d._cur&&s.d._cur.ok);}
+function prepCurrent(d){
+  if(!d||!d.strokes)return;
+  d.strokes.forEach(s=>{if(s._pace0===undefined){s._pace0=s.pace;s._dps0=s.dps;}});
+  if(!d._cur){try{d._cur=estimateCurrent(d);}catch(e){d._cur={ok:false,msg:'Estimate failed'};}}
+  const pc=(d._cur&&d._cur.perStroke)||new Map();
+  d.strokes.forEach((s,i)=>{const c=pc.get(i);s.curAlong=c?c.along:NaN;});
+  applyCurCorr(d);
+}
+function applyCurCorr(d){
+  const on=_curCorrOn&&d&&d._cur&&d._cur.ok;
+  (d.strokes||[]).forEach(s=>{
+    s.pace=s._pace0;s.dps=s._dps0;
+    if(!on||isNaN(s.curAlong)||!(s._pace0>50&&s._pace0<500))return;
+    const vg=500/s._pace0,vw=vg-s.curAlong;
+    if(!(vw>0.5))return;
+    s.pace=500/vw;
+    if(s._dps0>0)s.dps=s._dps0*vw/vg;
+  });
+  try{applyEffPower(d);}catch(e){}
+}
+function drawCurrentLayer(){
+  if(_curLayer&&leafletMap){try{leafletMap.removeLayer(_curLayer);}catch{}}
+  _curLayer=null;
+  const sess=SESSIONS[activeSessionIdx]; const cur=sess&&sess.d&&sess.d._cur;
+  if(!_curMapOn||!leafletMap||!cur||!cur.areas)return;
+  _curLayer=L.layerGroup().addTo(leafletMap);
+  cur.areas.forEach(a=>{
+    const has=a.c!=null&&Math.abs(a.c)>=0.01;
+    const deg=((a.or+(has&&a.c<0?Math.PI:0))*180/Math.PI+360)%360;
+    const col=!has?'#9e9e9e':(a.meas?'#00e5ff':'#b0bec5');
+    const lbl=has?(Math.abs(a.c).toFixed(2)+' m/s'+(a.meas?'':' ~')):'none';
+    const arrow=has?`<div style="transform:rotate(${deg}deg);font-size:22px;line-height:22px;color:${col};text-shadow:0 0 3px #000;">&#x2191;</div>`:'';
+    const html=`<div style="display:flex;flex-direction:column;align-items:center;font:700 11px -apple-system,Helvetica,sans-serif;">${arrow}<div style="background:rgba(0,0,0,.65);color:${col};padding:1px 5px;border-radius:4px;white-space:nowrap;">${lbl}</div></div>`;
+    const tip=(a.bl.length?a.bl.map(b=>'Block '+(b.blk*15)+'-'+(b.blk*15+15)+' min: '+(b.c>=0?'+':'')+b.c.toFixed(2)+' ±'+b.se.toFixed(2)+(b.st==='ok'?'':' ('+b.st+')')).join('<br>'):'Rowed one way only here - value carried from nearby areas');
+    L.marker([a.lat,a.lon],{icon:L.divIcon({html,className:'',iconSize:[70,44],iconAnchor:[35,22]})}).bindTooltip(tip).addTo(_curLayer);
+  });
+}
+function toggleCurMap(){
+  _curMapOn=!_curMapOn; try{localStorage.setItem('br_cur_map',_curMapOn?'1':'0');}catch{}
+  const sess=SESSIONS[activeSessionIdx], cur=sess&&sess.d&&sess.d._cur;
+  if(_curMapOn&&cur)toast(cur.msg||'',3500);
+  drawCurrentLayer(); try{buildUnitsBar();}catch{}
+}
+function toggleCurCorr(){
+  const sess=SESSIONS[activeSessionIdx]; if(!sess||!sess.d)return;
+  const cur=sess.d._cur;
+  if(!_curCorrOn&&!(cur&&cur.ok)){toast('No current to correct for: '+((cur&&cur.msg)||'not estimated'),3500);return;}
+  _curCorrOn=!_curCorrOn; try{localStorage.setItem('br_cur_corr',_curCorrOn?'1':'0');}catch{}
+  applyCurCorr(sess.d);
+  try{buildCards(sess.d.sum);}catch{} try{buildStrokeTable();}catch{} try{buildUnitsBar();}catch{} try{schedRender();}catch{}
+  toast(_curCorrOn?'Showing pace, DPS and Eff Power through the water':'Showing GPS (over ground) values',2500);
+}
+window.toggleCurMap=toggleCurMap; window.toggleCurCorr=toggleCurCorr;
+
 function mountData(d,label){
   _pinnedStrokeIdx=-1; if(_mapPinMarker){if(leafletMap)leafletMap.removeLayer(_mapPinMarker);_mapPinMarker=null;}
+  try{ prepCurrent(d); }catch(e){ try{ applyEffPower(d); }catch(e2){} }
   ST=d.strokes||[];
   _rawOarAngles = ST.map(s => s.oarAngle);  // snapshot before any conversion
   computeStrokeAngles(ST);
