@@ -768,7 +768,6 @@ body.light .hdrname{color:#fff;}
     <div class="sec-hd">
       <h2>Stroke Chart</h2>
       <div style="display:flex;align-items:center;gap:6px;margin-left:auto;flex-wrap:wrap;">
-        <button class="segbtn" id="curCorrHdBtn" onclick="toggleCurCorr()" title="Pace, DPS and Eff Power through the water instead of over the ground">Tide/current corrected</button>
         <button class="zoom-btn" onclick="window.zoomChart(1)">＋</button>
         <input type="range" id="zoomSlider" min="0" max="100" value="100" style="width:70px;cursor:pointer;accent-color:var(--acc);" oninput="window.zoomSlide(this.value)">
         <button class="zoom-btn" onclick="window.zoomChart(-1)">－</button>
@@ -1589,6 +1588,19 @@ const AnalyserDrive = {
       method: 'PATCH', body: form
     }, 'Weight', 45000, fileId);
     this._ok(r, 'Weight');
+  },
+  /* Wind for this session (Open-Meteo rows and/or a hand-set value); null clears it. */
+  async patchWind(fileId, w) {
+    this._check();
+    const content = await this.fetchSession(fileId);
+    if (w) content.wind = w; else delete content.wind;
+    const form = new FormData();
+    form.append('metadata', new Blob([JSON.stringify({})], {type:'application/json'}));
+    form.append('file', new Blob([JSON.stringify(content)], {type:'application/json'}));
+    const r = await this._api(`https://www.googleapis.com/upload/drive/v3/files/${fileId}?uploadType=multipart`, {
+      method: 'PATCH', body: form
+    }, 'Wind', 45000, fileId);
+    this._ok(r, 'Wind');
   },
   /* River current model (BoatRunCurrents.json in appDataFolder). */
   async _appFileId(name) {
@@ -2769,6 +2781,7 @@ function sessionToAnalyserFmt(s) {
     squadCode: s.squadCode || null,
     name: s.name || null,
     crewKg: (s.crewKg > 30 && s.crewKg < 200) ? +s.crewKg : null,
+    wind: (s.wind && typeof s.wind === 'object') ? s.wind : null,
     vidSync: s.vidSync || null,
     videoFlags: s.videoFlags || null,
     manualLaps: (Array.isArray(s.manualLaps) && s.manualLaps.length) ? s.manualLaps : null,
@@ -7383,6 +7396,7 @@ function buildCards(sum) {
   let html=
     card('cw','Distance',distDisp,distLbl,null,'Total distance travelled (GPS), in km or mi based on units setting.')+
     card('cw','Duration',dur,ST.length+' strokes',null,'Total elapsed time of the session.')+
+    (()=>{try{const sd=SESSIONS[activeSessionIdx]&&SESSIONS[activeSessionIdx].d,ws=windSummary(sd);if(!ws)return '';return card('cw','Wind',ws.ws.toFixed(1)+' m/s',windDirName(ws.wd)+' \u00b7 '+Math.round(ws.ws*3.6)+' km/h'+(ws.man?' \u00b7 set':(ws.g!=null?' \u00b7 gust '+ws.g.toFixed(1):'')),null,ws.man?'Wind set by hand for this session (on the water).':'Open-Meteo wind at 10 m, session average, from the direction shown. Used for the tide/current fit and Corrected values.');}catch(e){return '';}})()+
     METRIC_DEFS.map(m=>(hid[m.k]||!CARD_BUILDERS[m.k])?'':CARD_BUILDERS[m.k]()).join('');
   document.getElementById('cards').innerHTML=html;
   document.querySelectorAll('#cards .card .val').forEach(v=>{
@@ -10534,7 +10548,6 @@ function updateMapPin(){
 // UNITS BAR
 // ══════════════════════════════════════════════════════════════════════════
 function buildUnitsBar() {
-  try{const b=document.getElementById('curCorrHdBtn'),s=SESSIONS[activeSessionIdx],c=s&&s.d&&s.d._cur;if(b)b.classList.toggle('on',!!(_curCorrOn&&c&&c.ok));}catch{}
   const bar = document.getElementById('unitsbar');
   if (!bar) return;
   function seg(key, options) {
@@ -10556,8 +10569,11 @@ function buildUnitsBar() {
     `<span class="seglbl">Sub</span>${seg('dpsUnit',[['m','m'],['ft','ft'],['in','in']])}` +
     (()=>{ const sess=SESSIONS[activeSessionIdx], own=sess&&sess.d&&sess.d.crewKg;
       return `<span class="seglbl" title="Rower weight for Eff Power">Rower kg</span><span class="segwrap" style="align-items:center;"><span style="font-size:10px;color:var(--muted);padding:0 3px 0 4px;">All</span><input class="hrzin" type="number" min="30" max="200" value="${crewKgDefault()}" title="Default rower weight for all sessions (kg)" onchange="setCrewKg('default',this.value)"><span style="font-size:10px;color:var(--muted);padding:0 3px 0 6px;">This session</span><input class="hrzin" type="number" min="30" max="200" value="${own||''}" placeholder="${crewKgDefault()}" title="This session only (kg). Leave blank to use the All value." onchange="setCrewKg('session',this.value)"></span>`; })() +
-    (()=>{ const s=SESSIONS[activeSessionIdx], c=s&&s.d&&s.d._cur, ok=!!(c&&c.ok);
-      return `<span class="seglbl" title="${(c&&c.msg)||''}">Tide/current${ok?'':' (none)'}</span><span class="segwrap"><button class="segbtn${_curMapOn?' on':''}" onclick="toggleCurMap()" title="Show the estimated current on the map">Show on map</button><button class="segbtn" id="_cur_crawl_btn" onclick="riverCrawl()" title="Scan every on-water session on Drive into the river model (and the clubs you share with). Click again to stop.">${_riverCrawlBusy?'Scanning\u2026':'Scan all sessions'}</button><button class="segbtn" onclick="riverForget()" title="River model: ${_riverSessions()} session${_riverSessions()===1?'':'s'} (${_riverClubSessions()} from clubs), ${Object.keys(riverView().cells).length} cells. Click to forget your own.">\u21ba</button></span>`; })() +
+    (()=>{ const s=SESSIONS[activeSessionIdx], d=s&&s.d; if(!d||!d.sum||d.sum.session_mode==='erg')return '';
+      const w=d.wind, sm=windSummary(d), lbl=!w?(d._windTried?'none':'\u2026'):(w.off?'off':(sm?sm.ws.toFixed(1)+' m/s '+windDirName(sm.wd)+(sm.man?' (set)':''):'none'));
+      return `<span class="seglbl" title="Wind is taken out of the tide/current fit and the Corrected values">Wind</span><span class="segwrap" style="align-items:center;"><button class="segbtn" onclick="windEdit()" title="Click to set the wind yourself for this session, or turn it off">${lbl}</button><span style="font-size:10px;color:var(--muted);padding:0 3px 0 6px;">Water %</span><input class="hrzin" type="number" min="20" max="120" value="${Math.round(windK()*100)}" title="Open-Meteo wind is at 10 m over open ground. Wind on the water is lower, more so on a sheltered river. Default 70%." onchange="setWindK(this.value)"></span>`; })() +
+    (()=>{ const s=SESSIONS[activeSessionIdx], c=s&&s.d&&s.d._cur, ok=_curOkD(s&&s.d);
+      return `<span class="seglbl" title="${(c&&c.msg)||''}">Tide/current${ok?'':' (none)'}</span><span class="segwrap"><button class="segbtn${_curMapOn?' on':''}" onclick="toggleCurMap()" title="Show the estimated current on the map">Map</button><button class="segbtn${_curCorrOn&&ok?' on':''}" onclick="toggleCurCorr()" title="Pace, DPS and Eff Power through the water instead of over the ground">Corrected</button><button class="segbtn" id="_cur_crawl_btn" onclick="riverCrawl()" title="Scan every on-water session on Drive into the river model (and the clubs you share with). Click again to stop.">${_riverCrawlBusy?'Scanning\u2026':'Scan'}</button><button class="segbtn" onclick="riverForget()" title="River model: ${_riverSessions()} session${_riverSessions()===1?'':'s'} (${_riverClubSessions()} from clubs), ${Object.keys(riverView().cells).length} cells. Click to forget your own.">\u21ba</button></span>`; })() +
     (HR.length>10?`<span class="seglbl">HR zones</span><span class="segwrap">`+hrZones.map((v,i)=>`<input class="hrzin" type="number" value="${v}" min="40" max="230" title="Z${i+1} upper limit (bpm)" onchange="setHRZone(${i},this.value)" style="border-color:${HR_ZONE_COLORS[i]};color:${HR_ZONE_COLORS[i]};">`).join('')+`</span>`:'');
 }
 window.setUnitsAndRebuild = setUnitsAndRebuild;
@@ -10626,6 +10642,133 @@ function setCrewKg(which, val){
   }
 }
 window.setCrewKg=setCrewKg;
+/* WIND from Open-Meteo (free, no key): hourly 10 m wind speed (m/s), the
+   direction it blows FROM (deg) and gusts, for one point. The last ~3 months
+   come from the forecast API, older days from the ERA5 archive. Rows are
+   [t ms, speed, from deg, gust]. Returns null on any failure. */
+async function windFetch(lat, lon, t0, t1, toMs) {
+  if (!(isFinite(lat) && isFinite(lon) && t0 > 0)) return null;
+  t1 = t1 || t0;
+  const d0 = new Date(t0 - 3600000).toISOString().slice(0, 10), d1 = new Date(t1 + 3600000).toISOString().slice(0, 10);
+  const old = Date.now() - t0 > 80 * 86400000;
+  const url = (old ? 'https://archive-api.open-meteo.com/v1/archive' : 'https://api.open-meteo.com/v1/forecast')
+    + '?latitude=' + (+lat).toFixed(3) + '&longitude=' + (+lon).toFixed(3)
+    + '&hourly=wind_speed_10m,wind_direction_10m,wind_gusts_10m&wind_speed_unit=ms&timezone=GMT&start_date=' + d0 + '&end_date=' + d1;
+  const ac = (typeof AbortController !== 'undefined') ? new AbortController() : null;
+  const tm = ac ? setTimeout(() => { try { ac.abort(); } catch (e) {} }, toMs || 8000) : null;
+  try {
+    const r = await fetch(url, ac ? { signal: ac.signal } : {});
+    if (!r.ok) return null;
+    const j = await r.json(), h = j && j.hourly;
+    if (!h || !Array.isArray(h.time)) return null;
+    const out = [];
+    h.time.forEach((ts, i) => {
+      const t = Date.parse(ts + ':00Z'), ws = h.wind_speed_10m && h.wind_speed_10m[i], wd = h.wind_direction_10m && h.wind_direction_10m[i], wg = h.wind_gusts_10m ? h.wind_gusts_10m[i] : null;
+      if (isFinite(t) && ws != null && wd != null && t >= t0 - 7200000 && t <= t1 + 7200000) out.push([t, +(+ws).toFixed(1), Math.round(wd), wg != null ? +(+wg).toFixed(1) : null]);
+    });
+    return out.length ? { v: 1, src: 'open-meteo', lat: +(+lat).toFixed(3), lon: +(+lon).toFixed(3), h: out, at: Date.now() } : null;
+  } catch (e) { return null; } finally { if (tm) clearTimeout(tm); }
+}
+/* ── WIND (on water) ───────────────────────────────────────────────────────
+   Wind and current both change speed up versus down the river, so without
+   wind the current fit absorbed it. Each stroke's headwind (+) or tailwind (-)
+   along the boat's GPS direction is turned into the still-air speed at the
+   same power: v0^3 = (1-f) g^3 + f (g+h)|g+h| g, where f is the air share of
+   drag. The current fit and Corrected values then use v0. Wind comes from
+   Open-Meteo (saved with the session by Metrics, or fetched here and saved
+   to Drive) scaled to the water by Water %, or is set by hand per session. */
+const WIND_K_LS='br_wind_k';
+function windK(){try{const v=+localStorage.getItem(WIND_K_LS);return (v>=0.2&&v<=1.2)?v:0.7;}catch{return 0.7;}}
+function setWindK(v){v=+v/100;if(!(v>=0.2&&v<=1.2))v=0.7;try{localStorage.setItem(WIND_K_LS,String(v));}catch{}const s=SESSIONS[activeSessionIdx];if(s&&s.d)windRefresh(s.d);}
+window.setWindK=setWindK;
+function windAirFrac(sum){let f={'1x':0.12,'2x':0.10,'2-':0.10,'4x':0.08,'4-':0.08,'4+':0.08,'8+':0.07}[sum&&sum.boat_type]||0.10;if(sum&&sum.boat_coastal)f+=0.02;return f;}
+function windStill(g,h,f){const a=g+h,v=(1-f)*g*g*g+f*a*Math.abs(a)*g;return v>0?Math.cbrt(v):g;}
+const WIND_DIRS=['N','NNE','NE','ENE','E','ESE','SE','SSE','S','SSW','SW','WSW','W','WNW','NW','NNW'];
+function windDirName(d){return WIND_DIRS[Math.round(((d%360)+360)%360/22.5)%16];}
+/* 10 m wind at time t, vector-interpolated between hours. */
+function _wind10At(w,t){
+  const H=(w&&w.h)||[];if(!H.length)return null;
+  let i=0;while(i<H.length-1&&H[i+1][0]<=t)i++;
+  const a=H[i],b=H[Math.min(H.length-1,i+1)],f=b[0]>a[0]?clamp((t-a[0])/(b[0]-a[0]),0,1):0,k=Math.PI/180;
+  const ex=(1-f)*a[1]*Math.sin(a[2]*k)+f*b[1]*Math.sin(b[2]*k),ny=(1-f)*a[1]*Math.cos(a[2]*k)+f*b[1]*Math.cos(b[2]*k);
+  return {ws:Math.hypot(ex,ny),wd:(Math.atan2(ex,ny)/k+360)%360};
+}
+/* Wind on the water at time t: hand-set value wins, else Open-Meteo x Water %. */
+function windAt(w,t){
+  if(!w||w.off)return null;
+  if(w.man&&w.man.ws>=0)return {ws:w.man.ws,wd:w.man.wd};
+  const x=_wind10At(w,t);return x?{ws:x.ws*windK(),wd:x.wd}:null;
+}
+/* Whole-session figures for the card and the units bar (10 m, as reported). */
+function windSummary(d){
+  const w=d&&d.wind;if(!w||w.off)return null;
+  if(w.man&&w.man.ws>=0)return {ws:w.man.ws,wd:w.man.wd,man:true,g:null};
+  const st=(d.strokes||[]).filter(s=>s.ms>0);if(!st.length||!(w.h||[]).length)return null;
+  const t0=st[0].ms,t1=st[st.length-1].ms,k=Math.PI/180;let ex=0,ny=0,n=0,g=null;
+  for(let t=t0;t<=t1;t+=300000){const x=_wind10At(w,t);if(!x)continue;ex+=x.ws*Math.sin(x.wd*k);ny+=x.ws*Math.cos(x.wd*k);n++;}
+  (w.h||[]).forEach(r=>{if(r[3]!=null&&r[0]>=t0-3600000&&r[0]<=t1+3600000&&(g==null||r[3]>g))g=r[3];});
+  return n?{ws:Math.hypot(ex,ny)/n,wd:(Math.atan2(ex,ny)/k+360)%360,man:false,g}:null;
+}
+/* Per stroke headwind (m/s, + = into the bow) along the GPS direction of travel. */
+function windPrep(d){
+  const st=(d&&d.strokes)||[];if(d){d._windOn=false;d._windF=windAirFrac(d.sum);}
+  st.forEach(s=>{s.windH=NaN;});
+  if(!d||!d.wind||d.wind.off||(d.sum&&d.sum.session_mode==='erg'))return;
+  const G=(d.gpsTrace||[]).filter(p=>p.lat!=null&&p.lon!=null&&p.t!=null).sort((a,b)=>a.t-b.t);if(G.length<5)return;
+  const R=6371000,la0=G[0].lat*Math.PI/180,lo0=G[0].lon,lat0=G[0].lat;
+  const T=G.map(p=>p.t),PX=G.map(p=>(p.lon-lo0)*Math.PI/180*R*Math.cos(la0)),PY=G.map(p=>(p.lat-lat0)*Math.PI/180*R);
+  const bis=v=>{let lo=0,hi=T.length-1;if(v<=T[0])return 0;if(v>=T[hi])return hi;while(hi-lo>1){const m=(lo+hi)>>1;if(T[m]<=v)lo=m;else hi=m;}return lo;};
+  const k=Math.PI/180;let n=0;
+  st.forEach(s=>{
+    if(!(s.ms>0))return;
+    const a=bis(s.ms-3000),b=bis(s.ms+3000);if(b<=a||T[b]-T[a]<2000)return;
+    const vx=PX[b]-PX[a],vy=PY[b]-PY[a],m=Math.hypot(vx,vy);if(m<3)return;
+    const w=windAt(d.wind,s.ms);if(!w)return;
+    s.windH=w.ws*(Math.sin(w.wd*k)*vx/m+Math.cos(w.wd*k)*vy/m);n++;
+  });
+  d._windOn=n>0;
+}
+function windRefresh(d){
+  d._cur=null;try{prepCurrent(d);}catch(e){}try{riverLearn(d);}catch(e){}
+  if(SESSIONS[activeSessionIdx]&&SESSIONS[activeSessionIdx].d!==d)return;
+  try{buildCards(d.sum);}catch(e){}try{buildStrokeTable();}catch(e){}try{buildUnitsBar();}catch(e){}try{schedRender();}catch(e){}try{buildCurveStats();}catch(e){}try{updateStatsStrip();}catch(e){}try{drawCurrentLayer();}catch(e){}
+}
+function _windSave(d){
+  const s=SESSIONS.find(x=>x&&x.d===d);
+  if(!s||!s.fileId||s.squadCode)return;
+  try{if(!AnalyserDrive.isSignedIn())return;}catch{return;}
+  AnalyserDrive.patchWind(s.fileId,d.wind).catch(e=>{try{if(!driveAuthExpired(e))toast('Wind not saved to Drive: '+e.message,3000);}catch{}});
+}
+/* Fetch once for an on-water session that has none, then save it to Drive. */
+async function windEnsure(d){
+  if(!d||d.wind||d._windTried||!d.sum||d.sum.session_mode==='erg')return;
+  const G=(d.gpsTrace||[]).filter(p=>p.lat!=null&&p.lon!=null&&p.t>0).sort((a,b)=>a.t-b.t);if(G.length<10)return;
+  d._windTried=true;
+  const m=G[Math.floor(G.length/2)];
+  const w=await windFetch(m.lat,m.lon,G[0].t,G[G.length-1].t,10000);
+  if(!w||d.wind)return;
+  d.wind=w;windRefresh(d);_windSave(d);
+}
+function windEdit(){
+  const sess=SESSIONS[activeSessionIdx],d=sess&&sess.d;if(!d)return;
+  const w=d.wind,cur=w&&w.off?'0':(w&&w.man?(w.man.ws+' '+windDirName(w.man.wd)):'');
+  const v=prompt('Wind on the water for this session.\n\nSpeed in m/s and the direction it blows FROM, e.g. "4 SE" or "4 135".\nBlank = use Open-Meteo.  0 = no wind.',cur);
+  if(v===null)return;
+  const t=v.trim().toUpperCase();
+  let nw=w?{...w}:{v:1,h:[]};delete nw.man;delete nw.off;
+  if(t==='0')nw.off=true;
+  else if(t){
+    const m=/^([\d.]+)\s*(?:M\/S)?\s*([A-Z]{1,3}|\d{1,3})$/.exec(t);
+    if(!m){toast('Use speed then direction, e.g. 4 SE',3000);return;}
+    const ws=+m[1],wd=/^\d/.test(m[2])?(+m[2])%360:WIND_DIRS.indexOf(m[2])*22.5;
+    if(!(ws>=0&&ws<40)||wd<0){toast('Use speed then direction, e.g. 4 SE',3000);return;}
+    nw.man={ws,wd};
+  }
+  d.wind=(nw.off||nw.man||(nw.h&&nw.h.length))?nw:null;
+  if(!d.wind){d._windTried=false;windEnsure(d);}
+  windRefresh(d);_windSave(d);
+}
+window.windEdit=windEdit;
 /* ── TIDE / CURRENT ESTIMATE + RIVER MODEL (on water) ─────────────────────
    Speed through the water ~ a x sqrt(impulse x rate): both come from the
    accelerometer, so they measure effort and are unaffected by current. GPS
@@ -10706,7 +10849,9 @@ function estimateCurrent(d){
     const p0=s._pace0!=null?s._pace0:s.pace, vg=(p0>50&&p0<500)?500/p0:NaN;
     if(!(gs>1.5&&vg>2))return;
     const imp=s.impulse/100,r=s.rate, eff=(imp>0.3&&r>14&&r<45);
-    S.push({i,t:s.ms,x:(PX[a]+PX[b])/2,y:(PY[a]+PY[b])/2,lat:(G[a].lat+G[b].lat)/2,lon:(G[a].lon+G[b].lon)/2,ux:vx/gs,uy:vy/gs,v:vg,X:eff?Math.sqrt(imp*r):NaN});
+    /* wind taken out first, so a head/tailwind along the river is not read as current */
+    const v0=(d._windOn&&!isNaN(s.windH))?windStill(vg,s.windH,d._windF):vg;
+    S.push({i,t:s.ms,x:(PX[a]+PX[b])/2,y:(PY[a]+PY[b])/2,lat:(G[a].lat+G[b].lat)/2,lon:(G[a].lon+G[b].lon)/2,ux:vx/gs,uy:vy/gs,v:v0,X:eff?Math.sqrt(imp*r):NaN});
   });
   if(S.length<40){out.msg='Not enough steady strokes';return out;}
   /* river axis per global cell */
@@ -10853,7 +10998,7 @@ async function riverCrawl(){
   try{await riverPull();}catch{} try{await riverPullClubs(true);}catch{}
   let files=[];
   try{files=(await AnalyserDrive.list()).filter(f=>!_sumParseFn(f.name).erg);}
-  catch(err){_riverCrawlBusy=false;setP('Scan all sessions');if(!driveAuthExpired(err))toast('Could not list sessions');return;}
+  catch(err){_riverCrawlBusy=false;setP('Scan');if(!driveAuthExpired(err))toast('Could not list sessions');return;}
   files=files.slice().reverse();
   const todo=files.filter(f=>done[f.id]!==(f.modifiedTime||f.name));
   let n=0,withCur=0,added=0,errs=0;
@@ -10866,6 +11011,7 @@ async function riverCrawl(){
       const d=sessionToAnalyserFmt(session);
       if(d&&d.sum&&d.sum.session_mode!=='erg'&&(d.gpsTrace||[]).length>20){
         (d.strokes||[]).forEach(s=>{s._pace0=s.pace;s._dps0=s.dps;});
+        try{windPrep(d);}catch(e){}
         const cur=estimateCurrent(d);
         if(cur.ok)withCur++;
         if(_riverAdd(cur,true)){added++;try{await riverPushClubs(d,cur);}catch(e){}}
@@ -10877,7 +11023,7 @@ async function riverCrawl(){
   try{localStorage.setItem(RIVER_CRAWL_LS,JSON.stringify(done));localStorage.setItem(RIVER_LS,JSON.stringify(RIVER));}catch{}
   try{await AnalyserDrive.pushRiver(RIVER);}catch{}
   unitSettings=keepUnits; if(keepZones)hrZones=keepZones;
-  _riverCrawlBusy=false;setP('Scan all sessions');
+  _riverCrawlBusy=false;setP('Scan');
   const sess=SESSIONS[activeSessionIdx];
   if(sess&&sess.d){sess.d._cur=null;try{prepCurrent(sess.d);}catch{} try{buildCards(sess.d.sum);}catch{} try{buildStrokeTable();}catch{} try{schedRender();}catch{} try{drawCurrentLayer();}catch{}}
   try{buildUnitsBar();}catch{}
@@ -11011,22 +11157,26 @@ function _curSpeedRatio(){
 }
 /* ' (water)' after any figure that the tide/current correction has changed. */
 function _cwS(){return (_curCorrOn&&_curOk())?' (water)':'';}
-function _curOk(){const s=SESSIONS[activeSessionIdx];return !!(s&&s.d&&s.d._cur&&s.d._cur.ok);}
+function _curOkD(d){return !!(d&&((d._cur&&d._cur.ok)||d._windOn));}
+function _curOk(){const s=SESSIONS[activeSessionIdx];return _curOkD(s&&s.d);}
 function prepCurrent(d){
   if(!d||!d.strokes)return;
   d.strokes.forEach(s=>{if(s._pace0===undefined){s._pace0=s.pace;s._dps0=s.dps;}});
+  if(!d._cur){try{windPrep(d);}catch(e){}}
   if(!d._cur){try{d._cur=estimateCurrent(d);}catch(e){d._cur={ok:false,msg:'Estimate failed'};}}
   const pc=(d._cur&&d._cur.perStroke)||new Map();
   d.strokes.forEach((s,i)=>{const c=pc.get(i);s.curAlong=c?c.along:NaN;s.curKind=c?c.kind:null;});
   applyCurCorr(d);
 }
 function applyCurCorr(d){
-  const on=_curCorrOn&&d&&d._cur&&d._cur.ok;
+  const on=_curCorrOn&&_curOkD(d), cOk=!!(d&&d._cur&&d._cur.ok);
   (d.strokes||[]).forEach(s=>{
     s.pace=s._pace0;s.dps=s._dps0;
-    if(!on||isNaN(s.curAlong)||!(s._pace0>50&&s._pace0<500))return;
-    const vg=500/s._pace0,vw=vg-s.curAlong;
-    if(!(vw>0.5))return;
+    if(!on||!(s._pace0>50&&s._pace0<500))return;
+    const vg=500/s._pace0;let vw=vg;
+    if(d._windOn&&!isNaN(s.windH))vw=windStill(vw,s.windH,d._windF);
+    if(cOk&&!isNaN(s.curAlong))vw-=s.curAlong;
+    if(!(vw>0.5)||vw===vg)return;
     s.pace=500/vw;
     if(s._dps0>0)s.dps=s._dps0*vw/vg;
   });
@@ -11036,8 +11186,18 @@ function drawCurrentLayer(){
   if(_curLayer&&leafletMap){try{leafletMap.removeLayer(_curLayer);}catch{}}
   _curLayer=null;
   const sess=SESSIONS[activeSessionIdx]; const cur=sess&&sess.d&&sess.d._cur;
-  if(!_curMapOn||!leafletMap||!cur||!cur.areas)return;
+  if(!_curMapOn||!leafletMap||!sess||!sess.d)return;
   _curLayer=L.layerGroup().addTo(leafletMap);
+  /* Wind arrow (points downwind) at the start of the track. */
+  try{
+    const ws=windSummary(sess.d),gp=(sess.d.gpsTrace||[]).find(p=>p.lat!=null&&p.lon!=null);
+    if(ws&&gp){
+      const wl=ws.ws.toFixed(1)+' m/s '+windDirName(ws.wd)+(ws.man?' (set)':'');
+      const wh=`<div style="display:flex;flex-direction:column;align-items:center;font:700 11px -apple-system,Helvetica,sans-serif;"><div style="transform:rotate(${(ws.wd+180)%360}deg);font-size:26px;line-height:26px;color:#ffd54f;text-shadow:0 0 3px #000;">&#x2191;</div><div style="background:rgba(0,0,0,.65);color:#ffd54f;padding:1px 5px;border-radius:4px;white-space:nowrap;">Wind ${wl}</div></div>`;
+      L.marker([gp.lat,gp.lon],{icon:L.divIcon({html:wh,className:'',iconSize:[110,48],iconAnchor:[55,24]})}).bindTooltip(ws.man?'Wind set by hand for this session (on the water)':'Open-Meteo wind at 10 m, session average'+(ws.g!=null?', gusts to '+ws.g.toFixed(1)+' m/s':'')+'. The fit uses '+Math.round(windK()*100)+'% of it on the water.').addTo(_curLayer);
+    }
+  }catch(e){}
+  if(!cur||!cur.areas)return;
   const KC={meas:'#00e5ff',shape:'#80deea',carried:'#b0bec5',none:'#9e9e9e'}, KM={meas:'',shape:' ~',carried:' ≈',none:''};
   cur.areas.forEach(a=>{
     const has=a.c!=null&&Math.abs(a.c)>=0.01;
@@ -11060,11 +11220,11 @@ function toggleCurMap(){
 function toggleCurCorr(){
   const sess=SESSIONS[activeSessionIdx]; if(!sess||!sess.d)return;
   const cur=sess.d._cur;
-  if(!_curCorrOn&&!(cur&&cur.ok)){toast('No current to correct for: '+((cur&&cur.msg)||'not estimated'),4000);return;}
+  if(!_curCorrOn&&!_curOkD(sess.d)){toast('No current or wind to correct for: '+((cur&&cur.msg)||'not estimated'),4000);return;}
   _curCorrOn=!_curCorrOn; try{localStorage.setItem('br_cur_corr',_curCorrOn?'1':'0');}catch{}
   applyCurCorr(sess.d);
   try{buildCards(sess.d.sum);}catch{} try{buildStrokeTable();}catch{} try{buildUnitsBar();}catch{} try{schedRender();}catch{} try{buildCurveStats();}catch{} try{updateStatsStrip();}catch{}
-  toast(_curCorrOn?'Showing pace, DPS and Eff Power through the water':'Showing GPS (over ground) values',2500);
+  toast(_curCorrOn?('Showing pace, DPS and Eff Power through the water'+(sess.d._windOn?', in still air':'')):'Showing GPS (over ground) values',2500);
 }
 window.toggleCurMap=toggleCurMap; window.toggleCurCorr=toggleCurCorr;
 
@@ -11072,6 +11232,7 @@ function mountData(d,label){
   _pinnedStrokeIdx=-1; if(_mapPinMarker){if(leafletMap)leafletMap.removeLayer(_mapPinMarker);_mapPinMarker=null;}
   try{ prepCurrent(d); }catch(e){ try{ applyEffPower(d); }catch(e2){} }
   try{ riverLearn(d); }catch(e){}
+  try{ windEnsure(d); }catch(e){}
   if(!window._riverPullT||Date.now()-window._riverPullT>600000){ window._riverPullT=Date.now(); riverPull(); riverPullClubs(true).catch(()=>{}); }
   ST=d.strokes||[];
   _rawOarAngles = ST.map(s => s.oarAngle);  // snapshot before any conversion
