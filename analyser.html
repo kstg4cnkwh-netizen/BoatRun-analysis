@@ -9733,8 +9733,9 @@ function buildCurveStats(){
       /* Tide/current Corrected on: the same average, through the water. */
       if(m.k==='pace'&&_curCorrOn) rows.push({l:' Corrected pace', c:m.c, fn:g=>{
         let vg=0,vw=0,n=0;
-        for(const s of g.strokes){if(isNaN(s.curAlong)||!(s._pace0>50&&s._pace0<500))continue;const a=500/s._pace0,w=a-s.curAlong;if(!(w>0.5))continue;vg+=a;vw+=w;n++;}
-        if(!n||!(vg>0))return EM;
+        /* s.pace already holds the corrected value (current and/or wind) */
+        for(const s of g.strokes){if(!(s._pace0>50&&s._pace0<500&&s.pace>50&&s.pace<500))continue;vg+=500/s._pace0;vw+=500/s.pace;if(s.pace!==s._pace0)n++;}
+        if(!n||!(vg>0&&vw>0))return EM;
         const gp=(g.lap&&g.lap.pace!=null)?g.lap.pace:groupAvgPace(g.strokes);
         return gp!=null?m.fmtAvg(gp*vg/vw)+(n<g.strokes.length*0.8?' ~':''):EM;
       }});
@@ -10571,7 +10572,7 @@ function buildUnitsBar() {
       return `<span class="seglbl" title="Rower weight for Eff Power">Rower kg</span><span class="segwrap" style="align-items:center;"><span style="font-size:10px;color:var(--muted);padding:0 3px 0 4px;">All</span><input class="hrzin" type="number" min="30" max="200" value="${crewKgDefault()}" title="Default rower weight for all sessions (kg)" onchange="setCrewKg('default',this.value)"><span style="font-size:10px;color:var(--muted);padding:0 3px 0 6px;">This session</span><input class="hrzin" type="number" min="30" max="200" value="${own||''}" placeholder="${crewKgDefault()}" title="This session only (kg). Leave blank to use the All value." onchange="setCrewKg('session',this.value)"></span>`; })() +
     (()=>{ const s=SESSIONS[activeSessionIdx], d=s&&s.d; if(!d||!d.sum||d.sum.session_mode==='erg')return '';
       const w=d.wind, sm=windSummary(d), lbl=!w?(d._windTried?'none':'\u2026'):(w.off?'off':(sm?windFmt(sm.ws)+' '+windDirName(sm.wd)+(sm.man?' (set)':''):'none'));
-      return `<span class="seglbl" title="Wind is taken out of the tide/current fit and the Corrected values">Wind</span><span class="segwrap" style="align-items:center;"><button class="segbtn" onclick="windEdit()" title="Click to set the wind yourself for this session, or turn it off">${lbl}</button>${[['kph','km/h'],['mph','mph'],['kn','kn']].map(([v,l])=>`<button class="segbtn${windUnit()===v?' on':''}" onclick="setWindUnit('${v}')">${l}</button>`).join('')}<span style="font-size:10px;color:var(--muted);padding:0 3px 0 6px;">Water %</span><input class="hrzin" type="number" min="20" max="120" value="${Math.round(windK()*100)}" title="Open-Meteo wind is at 10 m over open ground. Wind on the water is lower, more so on a sheltered river. Default 70%." onchange="setWindK(this.value)"></span>`; })() +
+      return `<span class="seglbl" title="Wind is taken out of the tide/current fit and the Corrected values">Wind</span><span class="segwrap" style="align-items:center;"><button class="segbtn" onclick="windEdit()" title="Click to set the wind yourself for this session, or turn it off">${lbl}</button>${(w&&(w.man||w.off))?`<button class="segbtn" onclick="windReset()" title="Back to the downloaded Open-Meteo wind">\u21ba</button>`:''}${[['kph','km/h'],['mph','mph'],['kn','kn']].map(([v,l])=>`<button class="segbtn${windUnit()===v?' on':''}" onclick="setWindUnit('${v}')">${l}</button>`).join('')}<span style="font-size:10px;color:var(--muted);padding:0 3px 0 6px;">Water %</span><input class="hrzin" type="number" min="20" max="120" value="${Math.round(windK()*100)}" title="Open-Meteo wind is at 10 m over open ground. Wind on the water is lower, more so on a sheltered river. Default 70%." onchange="setWindK(this.value)"></span>`; })() +
     (()=>{ const s=SESSIONS[activeSessionIdx], c=s&&s.d&&s.d._cur, ok=_curOkD(s&&s.d);
       return `<span class="seglbl" title="${(c&&c.msg)||''}">Tide/current${ok?'':' (none)'}</span><span class="segwrap"><button class="segbtn${_curMapOn?' on':''}" onclick="toggleCurMap()" title="Show the estimated current on the map">Map</button><button class="segbtn${_curCorrOn&&ok?' on':''}" onclick="toggleCurCorr()" title="Pace, DPS and Eff Power through the water instead of over the ground">Corrected</button><button class="segbtn" id="_cur_crawl_btn" onclick="riverCrawl()" title="Scan every on-water session on Drive into the river model (and the clubs you share with). Click again to stop.">${_riverCrawlBusy?'Scanning\u2026':'Scan'}</button><button class="segbtn" onclick="riverForget()" title="River model: ${_riverSessions()} session${_riverSessions()===1?'':'s'} (${_riverClubSessions()} from clubs), ${Object.keys(riverView().cells).length} cells. Click to forget your own.">\u21ba</button></span>`; })() +
     (HR.length>10?`<span class="seglbl">HR zones</span><span class="segwrap">`+hrZones.map((v,i)=>`<input class="hrzin" type="number" value="${v}" min="40" max="230" title="Z${i+1} upper limit (bpm)" onchange="setHRZone(${i},this.value)" style="border-color:${HR_ZONE_COLORS[i]};color:${HR_ZONE_COLORS[i]};">`).join('')+`</span>`:'');
@@ -10681,7 +10682,7 @@ const WIND_K_LS='br_wind_k';
 function windK(){try{const v=+localStorage.getItem(WIND_K_LS);return (v>=0.2&&v<=1.2)?v:0.7;}catch{return 0.7;}}
 function setWindK(v){v=+v/100;if(!(v>=0.2&&v<=1.2))v=0.7;try{localStorage.setItem(WIND_K_LS,String(v));}catch{}const s=SESSIONS[activeSessionIdx];if(s&&s.d)windRefresh(s.d);}
 window.setWindK=setWindK;
-function windAirFrac(sum){let f={'1x':0.12,'2x':0.10,'2-':0.10,'4x':0.08,'4-':0.08,'4+':0.08,'8+':0.07}[sum&&sum.boat_type]||0.10;if(sum&&sum.boat_coastal)f+=0.02;return f;}
+function windAirFrac(sum){let f={'1x':0.08,'2x':0.07,'2-':0.07,'4x':0.06,'4-':0.06,'4+':0.06,'8+':0.05}[sum&&sum.boat_type]||0.07;if(sum&&sum.boat_coastal)f+=0.02;return f;}
 function windStill(g,h,f){const a=g+h,v=(1-f)*g*g*g+f*a*Math.abs(a)*g;return v>0?Math.cbrt(v):g;}
 /* Wind shown in km/h, mph or knots (remembered in this browser); stored in m/s. */
 const WIND_U={kph:[3.6,'km/h'],mph:[2.23694,'mph'],kn:[1.94384,'kn']};
@@ -10776,6 +10777,16 @@ function windEdit(){
   windRefresh(d);_windSave(d);
 }
 window.windEdit=windEdit;
+/* Back to the downloaded Open-Meteo wind (drops a hand-set value or 'off'). */
+function windReset(){
+  const sess=SESSIONS[activeSessionIdx],d=sess&&sess.d;if(!d||!d.wind)return;
+  const nw={...d.wind};delete nw.man;delete nw.off;
+  d.wind=(nw.h&&nw.h.length)?nw:null;
+  if(!d.wind){d._windTried=false;windEnsure(d);}
+  windRefresh(d);_windSave(d);
+  toast('Wind reset to Open-Meteo',2000);
+}
+window.windReset=windReset;
 /* ── TIDE / CURRENT ESTIMATE + RIVER MODEL (on water) ─────────────────────
    Speed through the water ~ a x sqrt(impulse x rate): both come from the
    accelerometer, so they measure effort and are unaffected by current. GPS
@@ -10938,9 +10949,13 @@ function estimateCurrent(d){
   /* per stroke current (signed along the boat's travel) */
   const curOfStroke=new Map();
   S.forEach(q=>{
-    const B=blocks[q.blk]; if(!B||(B.status!=='ok'&&B.status!=='carried'))return;
+    /* 'none' = fitted but under 2 x its error: still the best estimate, so it is
+       used here (30 Oct: with the wind out the tide fell to ~0.1 m/s and was
+       dropped entirely, so W->E laps lost their tide correction). Only 'ok'
+       blocks go into the river model. */
+    const B=blocks[q.blk]; if(!B||(B.status!=='ok'&&B.status!=='carried'&&B.status!=='none'))return;
     const g=gi.get(q.g); let c,kind;
-    if(g&&B.status==='ok'){c=g.c;kind='meas';}
+    if(g&&(B.status==='ok'||B.status==='none')){c=g.c;kind='meas';}
     else{c=B.q*sOf(q.cell.k);kind=B.status==='carried'?'carried':'shape';}
     curOfStroke.set(q.i,{along:c*q.sg,c,kind});
   });
@@ -10959,7 +10974,8 @@ function estimateCurrent(d){
     obs.push({sid,t:Math.round(tm),blk:B.blk,q:+B.q.toFixed(3),items:B.g.map(g=>({c:+g.c.toFixed(3),se:+g.se.toFixed(3),cells:[...g.cells]}))});});
   out.save={sid,obs};
   const nOk=Object.values(blocks).filter(B=>B.status==='ok').length, nCar=Object.values(blocks).filter(B=>B.status==='carried').length, nB=Object.keys(blkT).length;
-  out.msg=out.ok?('Current measured in '+nOk+' of '+nB+' time blocks'+(nCar?', borrowed for '+nCar:'')):(fitG.length?'No clear current':'No stretch rowed both ways, and no recent measurement on this river')+' · river model: '+_riverSessions()+' session'+(_riverSessions()===1?'':'s');
+  const nWeak=Object.values(blocks).filter(B=>B.status==='none').length;
+  out.msg=out.ok?('Current measured in '+nOk+' of '+nB+' time blocks'+(nWeak?', weak in '+nWeak:'')+(nCar?', borrowed for '+nCar:'')):(fitG.length?'No clear current':'No stretch rowed both ways, and no recent measurement on this river')+' · river model: '+_riverSessions()+' session'+(_riverSessions()===1?'':'s');
   return out;
 }
 /* Fold this session into the river model and save it (own sessions only). */
