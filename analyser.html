@@ -7396,7 +7396,7 @@ function buildCards(sum) {
   let html=
     card('cw','Distance',distDisp,distLbl,null,'Total distance travelled (GPS), in km or mi based on units setting.')+
     card('cw','Duration',dur,ST.length+' strokes',null,'Total elapsed time of the session.')+
-    (()=>{try{const sd=SESSIONS[activeSessionIdx]&&SESSIONS[activeSessionIdx].d,ws=windSummary(sd);if(!ws)return '';return card('cw','Wind',ws.ws.toFixed(1)+' m/s',windDirName(ws.wd)+' \u00b7 '+Math.round(ws.ws*3.6)+' km/h'+(ws.man?' \u00b7 set':(ws.g!=null?' \u00b7 gust '+ws.g.toFixed(1):'')),null,ws.man?'Wind set by hand for this session (on the water).':'Open-Meteo wind at 10 m, session average, from the direction shown. Used for the tide/current fit and Corrected values.');}catch(e){return '';}})()+
+    (()=>{try{const sd=SESSIONS[activeSessionIdx]&&SESSIONS[activeSessionIdx].d,ws=windSummary(sd);if(!ws)return '';return card('cw','Wind',windFmt(ws.ws),windDirName(ws.wd)+(ws.man?' \u00b7 set':(ws.g!=null?' \u00b7 gust '+windFmt(ws.g):'')),null,ws.man?'Wind set by hand for this session (on the water).':'Open-Meteo wind at 10 m, session average, from the direction shown. Used for the tide/current fit and Corrected values.');}catch(e){return '';}})()+
     METRIC_DEFS.map(m=>(hid[m.k]||!CARD_BUILDERS[m.k])?'':CARD_BUILDERS[m.k]()).join('');
   document.getElementById('cards').innerHTML=html;
   document.querySelectorAll('#cards .card .val').forEach(v=>{
@@ -10570,8 +10570,8 @@ function buildUnitsBar() {
     (()=>{ const sess=SESSIONS[activeSessionIdx], own=sess&&sess.d&&sess.d.crewKg;
       return `<span class="seglbl" title="Rower weight for Eff Power">Rower kg</span><span class="segwrap" style="align-items:center;"><span style="font-size:10px;color:var(--muted);padding:0 3px 0 4px;">All</span><input class="hrzin" type="number" min="30" max="200" value="${crewKgDefault()}" title="Default rower weight for all sessions (kg)" onchange="setCrewKg('default',this.value)"><span style="font-size:10px;color:var(--muted);padding:0 3px 0 6px;">This session</span><input class="hrzin" type="number" min="30" max="200" value="${own||''}" placeholder="${crewKgDefault()}" title="This session only (kg). Leave blank to use the All value." onchange="setCrewKg('session',this.value)"></span>`; })() +
     (()=>{ const s=SESSIONS[activeSessionIdx], d=s&&s.d; if(!d||!d.sum||d.sum.session_mode==='erg')return '';
-      const w=d.wind, sm=windSummary(d), lbl=!w?(d._windTried?'none':'\u2026'):(w.off?'off':(sm?sm.ws.toFixed(1)+' m/s '+windDirName(sm.wd)+(sm.man?' (set)':''):'none'));
-      return `<span class="seglbl" title="Wind is taken out of the tide/current fit and the Corrected values">Wind</span><span class="segwrap" style="align-items:center;"><button class="segbtn" onclick="windEdit()" title="Click to set the wind yourself for this session, or turn it off">${lbl}</button><span style="font-size:10px;color:var(--muted);padding:0 3px 0 6px;">Water %</span><input class="hrzin" type="number" min="20" max="120" value="${Math.round(windK()*100)}" title="Open-Meteo wind is at 10 m over open ground. Wind on the water is lower, more so on a sheltered river. Default 70%." onchange="setWindK(this.value)"></span>`; })() +
+      const w=d.wind, sm=windSummary(d), lbl=!w?(d._windTried?'none':'\u2026'):(w.off?'off':(sm?windFmt(sm.ws)+' '+windDirName(sm.wd)+(sm.man?' (set)':''):'none'));
+      return `<span class="seglbl" title="Wind is taken out of the tide/current fit and the Corrected values">Wind</span><span class="segwrap" style="align-items:center;"><button class="segbtn" onclick="windEdit()" title="Click to set the wind yourself for this session, or turn it off">${lbl}</button>${[['kph','km/h'],['mph','mph'],['kn','kn']].map(([v,l])=>`<button class="segbtn${windUnit()===v?' on':''}" onclick="setWindUnit('${v}')">${l}</button>`).join('')}<span style="font-size:10px;color:var(--muted);padding:0 3px 0 6px;">Water %</span><input class="hrzin" type="number" min="20" max="120" value="${Math.round(windK()*100)}" title="Open-Meteo wind is at 10 m over open ground. Wind on the water is lower, more so on a sheltered river. Default 70%." onchange="setWindK(this.value)"></span>`; })() +
     (()=>{ const s=SESSIONS[activeSessionIdx], c=s&&s.d&&s.d._cur, ok=_curOkD(s&&s.d);
       return `<span class="seglbl" title="${(c&&c.msg)||''}">Tide/current${ok?'':' (none)'}</span><span class="segwrap"><button class="segbtn${_curMapOn?' on':''}" onclick="toggleCurMap()" title="Show the estimated current on the map">Map</button><button class="segbtn${_curCorrOn&&ok?' on':''}" onclick="toggleCurCorr()" title="Pace, DPS and Eff Power through the water instead of over the ground">Corrected</button><button class="segbtn" id="_cur_crawl_btn" onclick="riverCrawl()" title="Scan every on-water session on Drive into the river model (and the clubs you share with). Click again to stop.">${_riverCrawlBusy?'Scanning\u2026':'Scan'}</button><button class="segbtn" onclick="riverForget()" title="River model: ${_riverSessions()} session${_riverSessions()===1?'':'s'} (${_riverClubSessions()} from clubs), ${Object.keys(riverView().cells).length} cells. Click to forget your own.">\u21ba</button></span>`; })() +
     (HR.length>10?`<span class="seglbl">HR zones</span><span class="segwrap">`+hrZones.map((v,i)=>`<input class="hrzin" type="number" value="${v}" min="40" max="230" title="Z${i+1} upper limit (bpm)" onchange="setHRZone(${i},this.value)" style="border-color:${HR_ZONE_COLORS[i]};color:${HR_ZONE_COLORS[i]};">`).join('')+`</span>`:'');
@@ -10683,6 +10683,12 @@ function setWindK(v){v=+v/100;if(!(v>=0.2&&v<=1.2))v=0.7;try{localStorage.setIte
 window.setWindK=setWindK;
 function windAirFrac(sum){let f={'1x':0.12,'2x':0.10,'2-':0.10,'4x':0.08,'4-':0.08,'4+':0.08,'8+':0.07}[sum&&sum.boat_type]||0.10;if(sum&&sum.boat_coastal)f+=0.02;return f;}
 function windStill(g,h,f){const a=g+h,v=(1-f)*g*g*g+f*a*Math.abs(a)*g;return v>0?Math.cbrt(v):g;}
+/* Wind shown in km/h, mph or knots (remembered in this browser); stored in m/s. */
+const WIND_U={kph:[3.6,'km/h'],mph:[2.23694,'mph'],kn:[1.94384,'kn']};
+function windUnit(){try{const u=localStorage.getItem('br_wind_unit');return WIND_U[u]?u:'kph';}catch{return 'kph';}}
+function windFmt(ms){const u=WIND_U[windUnit()];return Math.round(ms*u[0])+' '+u[1];}
+function setWindUnit(u){if(!WIND_U[u])return;try{localStorage.setItem('br_wind_unit',u);}catch{}const s=SESSIONS[activeSessionIdx];try{if(s&&s.d)buildCards(s.d.sum);}catch(e){}try{buildUnitsBar();}catch(e){}try{drawCurrentLayer();}catch(e){}}
+window.setWindUnit=setWindUnit;
 const WIND_DIRS=['N','NNE','NE','ENE','E','ESE','SE','SSE','S','SSW','SW','WSW','W','WNW','NW','NNW'];
 function windDirName(d){return WIND_DIRS[Math.round(((d%360)+360)%360/22.5)%16];}
 /* 10 m wind at time t, vector-interpolated between hours. */
@@ -10751,18 +10757,19 @@ async function windEnsure(d){
 }
 function windEdit(){
   const sess=SESSIONS[activeSessionIdx],d=sess&&sess.d;if(!d)return;
-  const w=d.wind,cur=w&&w.off?'0':(w&&w.man?(w.man.ws+' '+windDirName(w.man.wd)):'');
-  const v=prompt('Wind on the water for this session.\n\nSpeed in m/s and the direction it blows FROM, e.g. "4 SE" or "4 135".\nBlank = use Open-Meteo.  0 = no wind.',cur);
+  const U=WIND_U[windUnit()];
+  const w=d.wind,cur=w&&w.off?'0':(w&&w.man?(Math.round(w.man.ws*U[0])+' '+windDirName(w.man.wd)):'');
+  const v=prompt('Wind on the water for this session.\n\nSpeed in '+U[1]+' and the direction it blows FROM, e.g. "15 SE" or "15 135".\nBlank = use Open-Meteo.  0 = no wind.',cur);
   if(v===null)return;
   const t=v.trim().toUpperCase();
   let nw=w?{...w}:{v:1,h:[]};delete nw.man;delete nw.off;
   if(t==='0')nw.off=true;
   else if(t){
-    const m=/^([\d.]+)\s*(?:M\/S)?\s*([A-Z]{1,3}|\d{1,3})$/.exec(t);
-    if(!m){toast('Use speed then direction, e.g. 4 SE',3000);return;}
-    const ws=+m[1],wd=/^\d/.test(m[2])?(+m[2])%360:WIND_DIRS.indexOf(m[2])*22.5;
-    if(!(ws>=0&&ws<40)||wd<0){toast('Use speed then direction, e.g. 4 SE',3000);return;}
-    nw.man={ws,wd};
+    const m=/^([\d.]+)\s*(?:KM\/H|KPH|MPH|KN|KTS?)?\s*([A-Z]{1,3}|\d{1,3})$/.exec(t);
+    if(!m){toast('Use speed then direction, e.g. 15 SE',3000);return;}
+    const ws=+m[1]/U[0],wd=/^\d/.test(m[2])?(+m[2])%360:WIND_DIRS.indexOf(m[2])*22.5;
+    if(!(ws>=0&&ws<40)||wd<0){toast('Use speed then direction, e.g. 15 SE',3000);return;}
+    nw.man={ws:+ws.toFixed(2),wd};
   }
   d.wind=(nw.off||nw.man||(nw.h&&nw.h.length))?nw:null;
   if(!d.wind){d._windTried=false;windEnsure(d);}
@@ -11192,9 +11199,9 @@ function drawCurrentLayer(){
   try{
     const ws=windSummary(sess.d),gp=(sess.d.gpsTrace||[]).find(p=>p.lat!=null&&p.lon!=null);
     if(ws&&gp){
-      const wl=ws.ws.toFixed(1)+' m/s '+windDirName(ws.wd)+(ws.man?' (set)':'');
+      const wl=windFmt(ws.ws)+' '+windDirName(ws.wd)+(ws.man?' (set)':'');
       const wh=`<div style="display:flex;flex-direction:column;align-items:center;font:700 11px -apple-system,Helvetica,sans-serif;"><div style="transform:rotate(${(ws.wd+180)%360}deg);font-size:26px;line-height:26px;color:#ffd54f;text-shadow:0 0 3px #000;">&#x2191;</div><div style="background:rgba(0,0,0,.65);color:#ffd54f;padding:1px 5px;border-radius:4px;white-space:nowrap;">Wind ${wl}</div></div>`;
-      L.marker([gp.lat,gp.lon],{icon:L.divIcon({html:wh,className:'',iconSize:[110,48],iconAnchor:[55,24]})}).bindTooltip(ws.man?'Wind set by hand for this session (on the water)':'Open-Meteo wind at 10 m, session average'+(ws.g!=null?', gusts to '+ws.g.toFixed(1)+' m/s':'')+'. The fit uses '+Math.round(windK()*100)+'% of it on the water.').addTo(_curLayer);
+      L.marker([gp.lat,gp.lon],{icon:L.divIcon({html:wh,className:'',iconSize:[110,48],iconAnchor:[55,24]})}).bindTooltip(ws.man?'Wind set by hand for this session (on the water)':'Open-Meteo wind at 10 m, session average'+(ws.g!=null?', gusts to '+windFmt(ws.g):'')+'. The fit uses '+Math.round(windK()*100)+'% of it on the water.').addTo(_curLayer);
     }
   }catch(e){}
   if(!cur||!cur.areas)return;
