@@ -2597,7 +2597,11 @@ function parseCSV(text) {
 /* Erg interval sessions: build the lap list from the PM5's own splits (work + rest
    rows). The app's workout clock can drift from the erg, so its laps are not trusted. */
 function _ergLapsFromIntervals(iv, hrTrace, t0) {
-  if (!Array.isArray(iv) || !iv.some(r => (r.restTime || 0) > 0 || (r.restDist || 0) > 0)) return null;
+  /* 7 Nov: single time/distance pieces with PM5 splits (e.g. 15,000 m in 5 x 3,000 m)
+     now show each split as a lap, the same as the Concept2 Logbook - not one work piece. */
+  if (!Array.isArray(iv)) return null;
+  const hasRest = iv.some(r => (r.restTime || 0) > 0 || (r.restDist || 0) > 0);
+  if (!hasRest && iv.filter(r => (r.time || 0) > 0 || (r.dist || 0) > 0).length < 2) return null;
   const mx = (a, b) => { if (!hrTrace || !hrTrace.length || !t0) return null; let m = 0; for (const h of hrTrace) { const e = (h.t - t0) / 1000; if (e >= a && e <= b && h.hr > m) m = h.hr; } return m || null; };
   const out = []; let t = 0, d = 0;
   for (const r of iv) {
@@ -10682,7 +10686,7 @@ const WIND_K_LS='br_wind_k';
 function windK(){try{const v=+localStorage.getItem(WIND_K_LS);return (v>=0.2&&v<=1.2)?v:0.7;}catch{return 0.7;}}
 function setWindK(v){v=+v/100;if(!(v>=0.2&&v<=1.2))v=0.7;try{localStorage.setItem(WIND_K_LS,String(v));}catch{}const s=SESSIONS[activeSessionIdx];if(s&&s.d)windRefresh(s.d);}
 window.setWindK=setWindK;
-function windAirFrac(sum){let f={'1x':0.08,'2x':0.07,'2-':0.07,'4x':0.06,'4-':0.06,'4+':0.06,'8+':0.05}[sum&&sum.boat_type]||0.07;if(sum&&sum.boat_coastal)f+=0.02;return f;}
+function windAirFrac(sum){let f={'1x':0.12,'2x':0.10,'2-':0.10,'4x':0.08,'4-':0.08,'4+':0.08,'8+':0.07}[sum&&sum.boat_type]||0.10;if(sum&&sum.boat_coastal)f+=0.02;return f;}
 function windStill(g,h,f){const a=g+h,v=(1-f)*g*g*g+f*a*Math.abs(a)*g;return v>0?Math.cbrt(v):g;}
 /* Wind shown in km/h, mph or knots (remembered in this browser); stored in m/s. */
 const WIND_U={kph:[3.6,'km/h'],mph:[2.23694,'mph'],kn:[1.94384,'kn']};
@@ -10949,13 +10953,9 @@ function estimateCurrent(d){
   /* per stroke current (signed along the boat's travel) */
   const curOfStroke=new Map();
   S.forEach(q=>{
-    /* 'none' = fitted but under 2 x its error: still the best estimate, so it is
-       used here (30 Oct: with the wind out the tide fell to ~0.1 m/s and was
-       dropped entirely, so W->E laps lost their tide correction). Only 'ok'
-       blocks go into the river model. */
-    const B=blocks[q.blk]; if(!B||(B.status!=='ok'&&B.status!=='carried'&&B.status!=='none'))return;
+    const B=blocks[q.blk]; if(!B||(B.status!=='ok'&&B.status!=='carried'))return;
     const g=gi.get(q.g); let c,kind;
-    if(g&&(B.status==='ok'||B.status==='none')){c=g.c;kind='meas';}
+    if(g&&B.status==='ok'){c=g.c;kind='meas';}
     else{c=B.q*sOf(q.cell.k);kind=B.status==='carried'?'carried':'shape';}
     curOfStroke.set(q.i,{along:c*q.sg,c,kind});
   });
@@ -10974,8 +10974,7 @@ function estimateCurrent(d){
     obs.push({sid,t:Math.round(tm),blk:B.blk,q:+B.q.toFixed(3),items:B.g.map(g=>({c:+g.c.toFixed(3),se:+g.se.toFixed(3),cells:[...g.cells]}))});});
   out.save={sid,obs};
   const nOk=Object.values(blocks).filter(B=>B.status==='ok').length, nCar=Object.values(blocks).filter(B=>B.status==='carried').length, nB=Object.keys(blkT).length;
-  const nWeak=Object.values(blocks).filter(B=>B.status==='none').length;
-  out.msg=out.ok?('Current measured in '+nOk+' of '+nB+' time blocks'+(nWeak?', weak in '+nWeak:'')+(nCar?', borrowed for '+nCar:'')):(fitG.length?'No clear current':'No stretch rowed both ways, and no recent measurement on this river')+' · river model: '+_riverSessions()+' session'+(_riverSessions()===1?'':'s');
+  out.msg=out.ok?('Current measured in '+nOk+' of '+nB+' time blocks'+(nCar?', borrowed for '+nCar:'')):(fitG.length?'No clear current':'No stretch rowed both ways, and no recent measurement on this river')+' · river model: '+_riverSessions()+' session'+(_riverSessions()===1?'':'s');
   return out;
 }
 /* Fold this session into the river model and save it (own sessions only). */
