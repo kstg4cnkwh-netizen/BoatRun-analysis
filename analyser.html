@@ -10127,7 +10127,26 @@ function buildLaps(){
     :'')+lapEditBtns;
   document.getElementById('lapcurvebar').innerHTML=lapCurveBtns;
   document.querySelector('#laptbl thead').innerHTML=`<tr>${hasType?'<th style="text-align:left;">Type</th>':''}<th>Lap</th><th>Dist</th><th>Time</th><th>Pace</th><th>Rate</th>${hasHR?'<th>HR avg</th><th>HR max</th>':''}${hasCal?'<th>Cal</th>':''}</tr>`;
-  document.querySelector('#laptbl tbody').innerHTML=showLaps.map((l,i)=>`<tr data-lap="${i+1}" data-type="${l.type||''}" style="cursor:pointer">
+  /* 7 Nov: erg time/distance piece shown as splits - total row on top, like the Concept2 Logbook. */
+  let _totRow='';
+  if(isErgSession()&&!_lapEditMode&&showLaps.length>=2&&!showLaps.some(l=>l.type==='rest')){
+    const tD=showLaps.reduce((a,l)=>a+(+l.distance_m||0),0),tT=showLaps.reduce((a,l)=>a+(+l.time_s||0),0);
+    const rv=ST.filter(x=>x.rate>5&&x.rate<50).map(x=>x.rate);
+    const tR=rv.length?+(rv.reduce((a,b)=>a+b,0)/rv.length).toFixed(1):null;
+    const hw=showLaps.filter(l=>l.avg_hr_bpm>0&&l.time_s>0),hT=hw.reduce((a,l)=>a+(+l.time_s),0);
+    const tHa=hT>0?Math.round(hw.reduce((a,l)=>a+l.avg_hr_bpm*l.time_s,0)/hT):null;
+    const hm=showLaps.map(l=>+l.max_hr_bpm||0).filter(v=>v>0),tHm=hm.length?Math.max(...hm):null;
+    const cl=showLaps.map(l=>+l.calories||0).filter(v=>v>0),tC=cl.length?cl.reduce((a,b)=>a+b,0):null;
+    _totRow=`<tr class="lap-total" style="background:var(--s2);font-weight:700;">
+    ${hasType?'<td></td>':''}<td style="white-space:nowrap;">Total</td>
+    <td>${tD.toFixed(0)}m</td><td>${fmtTime(tT)}</td>
+    <td style="color:var(--mc-pace)">${tD>0?fmtPaceU(tT*500/tD):EM}</td>
+    <td style="color:var(--mc-rate)">${tR!=null?tR:EM}</td>
+    ${hasHR?`<td style="color:var(--mc-hr)">${tHa||EM}</td><td style="color:var(--mc-hr)">${tHm||EM}</td>`:''}
+    ${hasCal?`<td>${tC||EM}</td>`:''}
+  </tr>`;
+  }
+  document.querySelector('#laptbl tbody').innerHTML=_totRow+showLaps.map((l,i)=>`<tr data-lap="${i+1}" data-type="${l.type||''}" style="cursor:pointer">
     ${hasType?(_lapEditMode
       ?`<td><select class="lapedit-sel" data-i="${i}" onclick="event.stopPropagation()" style="font-size:9px;padding:2px 3px;background:var(--s3);color:var(--text);border:1px solid var(--s3);border-radius:4px;">${['',...availTypes].map(t=>`<option value="${t}"${(_lapEditDraft[i]||'')===t?' selected':''}>${t||'—'}</option>`).join('')}</select></td>`
       :`<td>${lapTypeChip(l.type)}</td>`):''}
@@ -10140,6 +10159,7 @@ function buildLaps(){
     ${hasCal?`<td>${l.calories||EM}</td>`:''}
   </tr>`).join('');
   document.querySelectorAll('#laptbl tbody tr').forEach(row=>{
+    if(!row.dataset.lap)return;   // total row
     row.addEventListener('click',()=>{
       if(_lapEditMode)return;
       const lapN=+row.dataset.lap;
@@ -10159,7 +10179,7 @@ function applyLapTypeFilter(){
     b.classList.toggle('on', b.dataset.type==='all'?activeLapTypes.size===0:activeLapTypes.has(b.dataset.type));
   });
   document.querySelectorAll('#laptbl tbody tr').forEach(row=>{
-    row.style.display=(activeLapTypes.size===0||activeLapTypes.has(row.dataset.type))?'':'none';
+    row.style.display=(!row.dataset.lap||activeLapTypes.size===0||activeLapTypes.has(row.dataset.type))?'':'none';
   });
 }
 function toggleLapType(type){
