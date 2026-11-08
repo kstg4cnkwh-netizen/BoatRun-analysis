@@ -4858,7 +4858,7 @@ function renderStartNav(){
   const mine=srt(navLive()), clubs=navClubsLive();
   const b=(id,t)=>'<button class="hbtn" id="'+id+'" style="font-size:10px;">'+t+'</button>';
   /* Same look as the Lane / Divider / Hazard buttons in the draw popup. */
-  const nb=(id,m)=>{const c=navColor({mode:m});return '<button class="hbtn" id="'+id+'" style="font-size:11px;background:#000;color:'+c+';border-color:'+c+';">+ '+NAV_LBL[m]+'</button>';};
+  const nb=(id,m)=>{const c=navColor({mode:m});return '<button class="hbtn" id="'+id+'" style="font-size:11px;font-weight:800;background:'+c+';color:'+(m==='divider'?'#fff':'#000')+';border-color:'+c+';">+ '+NAV_LBL[m]+'</button>';};
   const sub=t=>'<div style="font-size:10px;font-weight:700;letter-spacing:.08em;color:var(--muted);margin:10px 0 6px;">'+t+'</div>';
   let h='<div class="sz-lhd" style="margin-bottom:8px;">Navigation<span style="display:flex;gap:6px;flex-wrap:wrap;justify-content:flex-end;">'
     +nb('sz-nav-lane','lane')+nb('sz-nav-div','divider')+nb('sz-nav-haz','hazard')+'</span></div>'
@@ -5234,7 +5234,7 @@ window.navDraw=function(editId,newMode,clubCode,keep){
   const updHead=()=>{
     document.getElementById('_navdraw_title').textContent=(edit?'Edit ':'Draw ')+NAV_LBL[mode].toLowerCase()+(club0?' \u00b7 club '+(club0.name||club0.code):'');
     document.getElementById('_navdraw_help').textContent=help[mode]+' Drag a point to move it, tap a point to delete it, long-press the line to add one.';
-    panel.querySelectorAll('[data-nd-mode]').forEach(b=>{const on=b.dataset.ndMode===mode,c=navColor({mode:b.dataset.ndMode});b.style.background=on?c:'#000';b.style.color=on?'#000':c;b.style.borderColor=c;});
+    panel.querySelectorAll('[data-nd-mode]').forEach(b=>{const on=b.dataset.ndMode===mode,c=navColor({mode:b.dataset.ndMode});b.style.background=on?c:'#000';b.style.color=on?(b.dataset.ndMode==='divider'?'#fff':'#000'):c;b.style.borderColor=c;});
     const rv=document.getElementById('_navdraw_rev');if(rv)rv.style.display=mode==='lane'?'':'none';
     const wv=document.getElementById('_navdraw_warn');
     if(wv){wv.style.display=mode==='hazard'?'':'none';wv.textContent=hzWarn?'\u26a0 Warn ON by default':'Warn OFF by default';wv.style.background=hzWarn?'#ff9500':'';wv.style.color=hzWarn?'#000':'';wv.style.borderColor=hzWarn?'#ff9500':'';}
