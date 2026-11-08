@@ -4729,10 +4729,33 @@ async function navClubPull(c){
     const raw=d.lines&&typeof d.lines==='object'?Object.values(d.lines):[];
     c.lines=raw.filter(l=>l&&l.id).map(l=>l.deleted?{id:String(l.id),name:String(l.name||''),deleted:true,upd:+l.upd||0}:navClean(l));
     if(d.name&&d.name!==c.name)c.name=String(d.name).slice(0,60);
+    try{const ri=await fetch(NAV_FB+'navIndex/'+c.code+'/n.json?t='+Date.now(),{cache:'no-store'});if(ri.ok)c.listed=(await ri.json())!==null;}catch(e){}
     c.pulled=Date.now();
     return true;
   }catch(e){return false;}
 }
+/* 9 Nov: list a club so rowers starting a session on this water are offered
+   its lines (Firebase /navIndex/{CODE} = {name,lat,lon,r,n,upd}). Only the
+   club's editors can write it. Kept up to date as lines change. */
+async function navClubIndexSet(c,on,loud){
+  if(!on){
+    const r=await navFb('navIndex/'+c.code,'DELETE');
+    if(!r.ok){if(loud)toast(navFbMsg(r,'Only the club’s editors can do this'),4000);return false;}
+    c.listed=false;navClubsSave();return true;
+  }
+  const lines=navClubLines(c);
+  const pts=[];lines.forEach(l=>(l.pts||[]).forEach(p=>pts.push(p)));
+  if(!pts.length){if(loud)toast('Add some lines to the club first');return false;}
+  const lat=pts.reduce((a,p)=>a+p[0],0)/pts.length, lon=pts.reduce((a,p)=>a+p[1],0)/pts.length;
+  const k=Math.PI/180;
+  let r=0;pts.forEach(p=>{const dy=(p[0]-lat)*111320,dx=(p[1]-lon)*111320*Math.cos(lat*k);r=Math.max(r,Math.hypot(dx,dy));});
+  const rec={name:String(c.name||'Club').slice(0,60),lat:+lat.toFixed(5),lon:+lon.toFixed(5),r:Math.round(Math.min(50000,r+200)),n:lines.length,upd:{'.sv':'timestamp'}};
+  const res=await navFb('navIndex/'+c.code,'PUT',rec);
+  if(!res.ok){if(loud)toast(navFbMsg(res,'Not allowed — join the club as an editor first (or the database rules need updating)'),5000);return false;}
+  c.listed=true;navClubsSave();return true;
+}
+let _navIdxT={};
+function navClubIndexSoon(c){clearTimeout(_navIdxT[c.code]);_navIdxT[c.code]=setTimeout(()=>{navClubIndexSet(c,true,false).catch(()=>{});},3000);}
 async function navClubPullAll(force){
   if(!force&&Date.now()-_navClubPullT<60000)return;
   _navClubPullT=Date.now();
@@ -4750,6 +4773,7 @@ async function navClubPutLine(c,rec){
     return false;
   }
   delete c.stale;
+  if(c.listed)navClubIndexSoon(c);
   const ix=(c.lines||[]).findIndex(l=>l.id===rec.id);
   if(ix>=0)c.lines[ix]=rec;else (c.lines=c.lines||[]).push(rec);
   navClubsSave();
@@ -4808,6 +4832,7 @@ async function navClubDelete(c){
   const r1=await navFb('navSets/'+c.code,'DELETE');
   if(!r1.ok){toast(navFbMsg(r1,'Not allowed'));return false;}
   try{await navFb('navCur/'+c.code,'DELETE');}catch(e){}
+  try{await navFb('navIndex/'+c.code,'DELETE');}catch(e){}
   await navFb('navKeys/'+c.code,'DELETE');
   c.deleted=true;c.lines=[];navClubTouch(c);navRefreshViews();
   return true;
@@ -5010,7 +5035,7 @@ window.navClub=function(){
     if(!document.getElementById('_navclub_modal'))return;
     const pro=isPro(), clubs=navClubsLive(), mine=navLive().sort((a,b)=>String(a.name).localeCompare(String(b.name)));
     let h='<div style="display:flex;align-items:center;gap:8px;margin-bottom:10px;"><div style="font-size:13px;font-weight:600;color:var(--text);">Club lanes & hazards</div><button class="hbtn" id="_navclub_close" style="margin-left:auto;font-size:11px;">Close</button></div>'
-      +'<div style="font-size:11px;color:var(--muted);margin-bottom:12px;line-height:1.45;">Club lines are kept under a club code. Rowers enter the code in the app (HOME ▸ DISPLAY ▸ Hazards &amp; Lanes ▸ CLUB LINES) and get every change automatically. Anyone with a Pro account and the club\'s edit password can add, edit and delete club lines here.</div>';
+      +'<div style="font-size:11px;color:var(--muted);margin-bottom:12px;line-height:1.45;">Club lines are kept under a club code. Rowers enter the code in the app (HOME ▸ COURSE ▸ Navigation ▸ CLUB LINES) and get every change automatically. Anyone with a Pro account and the club\'s edit password can add, edit and delete club lines here.</div>';
     clubs.forEach(c=>{
       const n=navClubLines(c).length;
       h+='<div style="background:var(--s1);border:1px solid var(--border);border-radius:12px;padding:10px 12px;margin-bottom:10px;">'
@@ -5019,6 +5044,7 @@ window.navClub=function(){
         +'<button class="hbtn" data-cl-copy="'+c.code+'" style="font-size:11px;">Copy code</button></div>'
         +'<label style="display:flex;align-items:center;gap:8px;margin-top:8px;font-size:12px;color:var(--text);cursor:pointer;" title="Your sessions\u2019 measured tide/current (when and where you rowed, and the current found) are added to this club\u2019s current map, which only the club\u2019s editors can see."><input type="checkbox" data-cl-cur="'+c.code+'"'+(c.noCur?'':' checked')+'> Share my tide/current measurements with this club</label>'
         +(c.noCur?'<div style="font-size:11px;color:var(--muted);margin:2px 0 0 24px;">Not sharing new sessions. <a href="#" data-cl-curdel="'+c.code+'" style="color:#1a5276;">Remove my past data</a></div>':'');
+        +(c.gone?'':'<label style="display:flex;align-items:center;gap:8px;margin-top:8px;font-size:12px;color:var(--text);cursor:pointer;" title="Rowers who start a session on this water are offered these lines. They can follow them (read-only, updated when you change them) or copy them. Nobody else can change them."><input type="checkbox" data-cl-list="'+c.code+'"'+(c.listed?' checked':'')+'>Offer these lines to rowers on this water</label>')
       if(c.stale)h+='<div style="margin-top:8px;font-size:11px;color:#f54040;">The edit password has changed. Enter the new one:</div><div style="display:flex;gap:6px;margin-top:4px;">'+inp('_cl_rejoin_'+c.code,'New edit password','password')+'<button class="hbtn" data-cl-rejoin="'+c.code+'" style="font-size:11px;">Continue</button></div>';
       h+='<div style="display:flex;gap:6px;flex-wrap:wrap;margin-top:8px;">'
         +(pro&&mine.length?'<button class="hbtn" data-cl-move="'+c.code+'" style="font-size:11px;">Move my lines in…</button>':'')
@@ -5044,6 +5070,12 @@ window.navClub=function(){
     $('_cl_forgot').onclick=e=>{e.preventDefault();$('_cl_recbox').style.display='';};
     const busy=async(btn,fn)=>{if(btn){btn.disabled=true;}try{await fn();}finally{if(btn)btn.disabled=false;}};
     panel.querySelectorAll('[data-cl-copy]').forEach(b=>b.onclick=()=>{try{navigator.clipboard.writeText(b.dataset.clCopy);toast('Code copied');}catch(e){}});
+    panel.querySelectorAll('[data-cl-list]').forEach(b=>b.onchange=()=>busy(null,async()=>{
+      const c=navClubByCode(b.dataset.clList);if(!c)return;
+      const ok=await navClubIndexSet(c,b.checked,true);
+      if(ok)toast(b.checked?c.name+' is now offered to rowers on this water':c.name+' is no longer listed',3500);
+      render();
+    }));
     panel.querySelectorAll('[data-cl-cur]').forEach(b=>b.onchange=()=>busy(null,async()=>{
       const c=navClubByCode(b.dataset.clCur);if(!c)return;
       if(b.checked){c.noCur=false;navClubTouch(c);toast('Sharing with '+c.name+' \u2014 sessions are added as you open them',3500);render();return;}
