@@ -315,9 +315,20 @@ function adClearPendingOpen(){try{sessionStorage.removeItem('_ad_open');}catch(e
 .sz-prompt p{font-size:.85rem;color:var(--muted);margin:0;}
 .sz-list{width:100%;max-width:480px;}
 .sz-sumcol{display:none;}
+.sz-ntabs{display:none;}
+.sz-ctabs{display:flex;gap:4px;margin:0 0 12px;padding:3px;border-radius:10px;background:var(--ov-line,#e3e6eb);}
+.sz-ctabs .sz-ntab{flex:1;min-width:0;border:none;background:transparent;padding:10px 4px;border-radius:8px;font:700 13px Inter,-apple-system,sans-serif;color:var(--ov-muted,#555);cursor:pointer;touch-action:manipulation;}
+.sz-ctabs .sz-ntab.sel{background:var(--ov-card,#fff);color:var(--ov-text,#000);box-shadow:0 1px 3px rgba(0,0,0,.15);}
+.sz-sumwrap[data-ct="sec"] #sz-nav,.sz-sumwrap[data-ct="nav"] #sz-sectors{display:none!important;}
 @media (max-width:1199px){
   .sz-grid{display:flex;flex-direction:column;}
   .sz-calcol{order:-1;}
+  .sz-ntabs{display:flex;gap:4px;margin:0 0 12px;padding:3px;border-radius:10px;background:var(--ov-line,#e3e6eb);}
+  .sz-ntab{flex:1;min-width:0;border:none;background:transparent;padding:10px 4px;border-radius:8px;font:700 13px Inter,-apple-system,sans-serif;color:var(--ov-muted,#555);cursor:pointer;touch-action:manipulation;}
+  .sz-ntab.sel{background:var(--ov-card,#fff);color:var(--ov-text,#000);box-shadow:0 1px 3px rgba(0,0,0,.15);}
+  .sz-list[data-ntab="sess"] .sz-calcol,.sz-list[data-ntab="sess"] .sz-sumwrap{display:none!important;}
+  .sz-list[data-ntab="cal"] #sz-sesspill,.sz-list[data-ntab="cal"] .sz-sumwrap{display:none!important;}
+  .sz-list[data-ntab="course"] #sz-sesspill,.sz-list[data-ntab="course"] .sz-calcol{display:none!important;}
 }
 @media (min-width:1200px){
   .sz-list{max-width:1560px;}
@@ -723,6 +734,7 @@ body.light .hdrname{color:#fff;}
   <div class="sp"></div>
   <label class="hdr-search" id="hdrsearchwrap"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><circle cx="11" cy="11" r="7"></circle><path d="M20 20l-4-4"></path></svg><input type="text" id="hdrsearch" placeholder="Search sessions" aria-label="Search sessions" autocomplete="off"></label>
   <div class="hdr-tabs">
+  <button class="hbtn hicon-btn" id="closeallbtn" title="Close all open sessions" style="display:none;margin-right:6px;background:#fc4c02;border-color:#fc4c02;color:#fff;font-weight:800;box-shadow:0 3px 9px rgba(252,76,2,.45);"><span class="hicon-txt" style="color:#fff;">&#10005; Close all sessions</span></button>
   <button class="hbtn hdr-act" id="resetbtn" style="display:none;" title="Open a different session"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"></path></svg><span>Open</span></button>
   <button class="hbtn hdr-act hdr-act-pri" id="addcompbtn" style="display:none;" title="Add another session to compare with this one"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" aria-hidden="true"><path d="M12 5v14M5 12h14"></path></svg><span>Compare</span></button>
   <div class="hmenu-wrap">
@@ -735,7 +747,6 @@ body.light .hdrname{color:#fff;}
       <button class="hbtn" id="tplmenubtn"><img class="hmenu-icon" src="icons/Export.svg"><span>Stroke template…</span></button>
     </div>
   </div>
-  <button class="hbtn hicon-btn" id="closeallbtn" title="Close all open sessions" style="display:none;background:#fc4c02;border-color:#fc4c02;color:#fff;font-weight:800;box-shadow:0 3px 9px rgba(252,76,2,.45);"><span class="hicon-txt" style="color:#fff;">&#10005; Close all sessions</span></button>
   <button class="hbtn hicon-btn" id="openbtn" style="display:none;"><img class="hicon-img" src="icons/Open.svg"><span class="hicon-txt">Open</span></button>
   <button class="hbtn hicon-btn" id="summarybtn" style="display:none;" title="Summary and personal bests"><img class="hicon-img" src="icons/Win.svg"><span class="hicon-txt">Summary</span></button>
   <button class="hbtn hicon-btn" id="wktbtn" title="Create and edit workouts for BoatRun Metrics"><svg class="hicon-img" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M4 6h10M4 12h16M4 18h7"/></svg><span class="hicon-txt">Workouts</span></button>
@@ -4838,7 +4849,7 @@ function renderStartNav(){
     /* Not Pro: only the club button, so a club creator can still reset the password. */
     if(!navClubsLive().length){box.style.display='none';box.innerHTML='';return;}
     box.style.display='';
-    box.innerHTML='<div class="sz-lhd" style="margin-bottom:8px;">Lanes & hazards<button class="hbtn" id="sz-nav-club" style="font-size:10px;">\u{1F465} Club</button></div><div class="sz-loading">Drawing and editing lines needs Pro. You can still manage club passwords.</div>';
+    box.innerHTML='<div class="sz-lhd" style="margin-bottom:8px;">Navigation<button class="hbtn" id="sz-nav-club" style="font-size:10px;">\u{1F465} Club</button></div><div class="sz-loading">Drawing and editing lines needs Pro. You can still manage club passwords.</div>';
     document.getElementById('sz-nav-club').onclick=()=>window.navClub();
     return;
   }
@@ -4849,9 +4860,9 @@ function renderStartNav(){
   /* Same look as the Lane / Divider / Hazard buttons in the draw popup. */
   const nb=(id,m)=>{const c=navColor({mode:m});return '<button class="hbtn" id="'+id+'" style="font-size:11px;background:#000;color:'+c+';border-color:'+c+';">+ '+NAV_LBL[m]+'</button>';};
   const sub=t=>'<div style="font-size:10px;font-weight:700;letter-spacing:.08em;color:var(--muted);margin:10px 0 6px;">'+t+'</div>';
-  let h='<div class="sz-lhd" style="margin-bottom:8px;">Lanes & hazards<span style="display:flex;gap:6px;flex-wrap:wrap;justify-content:flex-end;">'
+  let h='<div class="sz-lhd" style="margin-bottom:8px;">Navigation<span style="display:flex;gap:6px;flex-wrap:wrap;justify-content:flex-end;">'
     +nb('sz-nav-lane','lane')+nb('sz-nav-div','divider')+nb('sz-nav-haz','hazard')+'</span></div>'
-    +'<div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:4px;">'+b('sz-nav-club','\u{1F465} Club')+b('sz-nav-course','Course file')+b('sz-nav-share','Share')+b('sz-nav-import','Import')+'</div>'
+    +'<div style="margin-bottom:4px;"><button class="hbtn" id="sz-nav-sharetog" style="font-size:10px;" onclick="var x=document.getElementById(\'sz-nav-sharebox\');if(x)x.style.display=x.style.display===\'none\'?\'flex\':\'none\';">Share / Import \u25BE</button>'+'<div id="sz-nav-sharebox" style="display:none;gap:6px;flex-wrap:wrap;margin-top:6px;">'+b('sz-nav-club','\u{1F465} Club')+b('sz-nav-course','Export course file')+b('sz-nav-share','Share')+b('sz-nav-import','Import')+'</div></div>'
     +'<div style="max-height:520px;overflow-y:auto;">';
   if(clubs.length||mine.length)h+=sub('MY LINES');
   h+=mine.length?mine.map(l=>navTileHtml(l,'')).join(''):'<div class="sz-loading">'+(clubs.length?'None':'No lanes or hazards yet. Tap + Lane, + Divider or + Hazard to draw one on the map.')+'</div>';
@@ -4886,13 +4897,13 @@ async function navSaveBlob(obj,fname,title){
   toast('Saved '+fname);
 }
 window.navShareFile=function(){
-  if(!isPro()){showPlanModal('Lanes & hazards are a Pro feature.');return;}
+  if(!isPro()){showPlanModal('Navigation is a Pro feature.');return;}
   const list=navLive();
   if(!list.length){toast('Nothing to share');return;}
   navSaveBlob({type:'boatrun-lines',v:1,exported:new Date().toISOString(),lines:list.map(navClean)},'BoatRun_lines_'+list.length+'.json','BoatRun lanes & hazards');
 };
 window.navImportFile=function(){
-  if(!isPro()){showPlanModal('Lanes & hazards are a Pro feature.');return;}
+  if(!isPro()){showPlanModal('Navigation is a Pro feature.');return;}
   const inp=document.createElement('input');
   inp.type='file';inp.accept='.json,application/json';
   inp.onchange=async()=>{
@@ -4934,7 +4945,7 @@ window.navCourseFile=function(){
     +'<input type="text" id="_navcrs_note" class="brsearch" placeholder="Note (optional)" style="width:100%;box-sizing:border-box;margin-bottom:10px;">'
     +'<div class="sz-lhd" style="margin:6px 0;">Sectors ('+secs.length+')'+(secs.length?'<button class="hbtn" data-crs-all="crs-sec" style="font-size:11px;">Deselect all</button>':'')+'</div>'
     +(secs.length?secs.map(s=>row('crs-sec',s.id,s.name,s.distance+' m','#ff2fd0')).join(''):'<div class="sz-loading">No sectors</div>')
-    +'<div class="sz-lhd" style="margin:12px 0 6px;">Lanes & hazards ('+lines.length+')'+(lines.length?'<button class="hbtn" data-crs-all="crs-line" style="font-size:11px;">Deselect all</button>':'')+'</div>'
+    +'<div class="sz-lhd" style="margin:12px 0 6px;">Navigation \u00b7 lanes & hazards ('+lines.length+')'+(lines.length?'<button class="hbtn" data-crs-all="crs-line" style="font-size:11px;">Deselect all</button>':'')+'</div>'
     +(lines.length?lines.map(l=>row('crs-line',l.id,l.name,NAV_LBL[navMode(l)],navColor(l),navWarnTag(l))).join(''):'<div class="sz-loading">No lanes or hazards</div>')
     +'<div style="display:flex;gap:6px;margin-top:12px;"><button class="dzbtn dzbtn-pri" id="_navcrs_save" style="margin-left:auto;">Download course file</button></div>'
     +'<div id="_navcrs_out" style="margin-top:10px;"></div>';
@@ -5167,7 +5178,7 @@ async function navLastWater(){
 }
 /* ── Draw / edit modal ── */
 window.navDraw=function(editId,newMode,clubCode,keep){
-  if(!isPro()){showPlanModal('Lanes & hazards are a Pro feature.');return;}
+  if(!isPro()){showPlanModal('Navigation is a Pro feature.');return;}
   const club0=clubCode?navClubByCode(clubCode):null;
   const edit=typeof editId==='string'?(club0?club0.lines:NAV_LINES).find(l=>l.id===editId&&!l.deleted):null;
   const clubs=navClubsLive().filter(c=>!c.gone);
@@ -11408,7 +11419,7 @@ async function showStartup(){
 
   if(adPeekPendingOpen())setTimeout(adRunPendingOpen,400);
   document.getElementById('app').style.display='none';
-  el.innerHTML=`<div class="sz-list">
+  el.innerHTML=`<div class="sz-list" data-ntab="sess">
     <div class="brpill-row">
       ${SESSIONS.length ? '<button class="dzbtn" id="sz-back" style="background:#fc4c02;border-color:#fc4c02;color:#fff;font-weight:800;box-shadow:0 3px 9px rgba(252,76,2,.45);"><span style="color:#fff;">&#10005; Back to session</span></button>' : ''}
       <button class="dzbtn dzbtn-sec" id="sz-trends"><span>Trends</span></button>
@@ -11419,8 +11430,9 @@ async function showStartup(){
       <button class="dzbtn dzbtn-sec" id="sz-demo"><span>Demo session</span></button>
       ${(localStorage.getItem('_ad_legacy_done') === '1' || localStorage.getItem('_ad_legacy_empty') === '1') ? '' : '<button class="dzbtn dzbtn-sec" id="sz-oldacct"><span>Import old sessions</span></button>'}
     </div>
+    <div class="sz-ntabs" id="sz-ntabs"><button class="sz-ntab sel" data-nt="sess">Sessions</button><button class="sz-ntab" data-nt="cal">Calendar</button><button class="sz-ntab" data-nt="course" style="display:none;">Course</button></div>
     <div class="sz-grid">
-    <div class="sz-sumwrap"><div class="brpill" id="sz-sectors" style="display:none;"></div><div class="brpill" id="sz-nav" style="display:none;"></div><div class="brpill sz-sumcol"><div class="sz-lhd" style="margin-bottom:8px;">Summary</div><div id="sz-sumbody"></div></div></div>
+    <div class="sz-sumwrap" data-ct="sec"><div class="sz-ctabs" id="sz-ctabs" style="display:none;"><button class="sz-ntab sel" data-ct="sec">Sectors</button><button class="sz-ntab" data-ct="nav">Navigation</button></div><div class="brpill" id="sz-sectors" style="display:none;"></div><div class="brpill" id="sz-nav" style="display:none;"></div><div class="brpill sz-sumcol"><div class="sz-lhd" style="margin-bottom:8px;">Summary</div><div id="sz-sumbody"></div></div></div>
     <div class="sz-calcol"><div class="brpill" id="sz-cal"></div><div class="brpill" id="sz-calday" style="display:none;"></div></div>
     <div class="brpill" id="sz-sesspill">
       <div class="sz-lhd">Sessions<span class="sz-count" id="sz-count"></span><span class="sz-signout" id="sz-signout">Sign out</span></div>
@@ -11432,6 +11444,29 @@ async function showStartup(){
   </div>`;
   {const hs=document.getElementById('hdrsearch'),ss=document.getElementById('sz-search');
    if(hs&&ss){hs.value='';hs.oninput=()=>{ss.value=hs.value;ss.dispatchEvent(new Event('input'));};}}
+  /* Narrow screens: one section at a time, Sessions first. COURSE (sectors
+     + navigation) only shows when there is something in it. On every width,
+     the COURSE card has its own Sectors | Navigation tabs. */
+  {const lst=el.querySelector('.sz-list'),bar=document.getElementById('sz-ntabs');
+   const sw=el.querySelector('.sz-sumwrap'),cbar=document.getElementById('sz-ctabs');
+   if(lst&&bar&&sw&&cbar){
+     const set=t=>{lst.dataset.ntab=t;bar.querySelectorAll('.sz-ntab').forEach(b=>b.classList.toggle('sel',b.dataset.nt===t));try{window.scrollTo(0,0);}catch(e){}};
+     const setC=t=>{sw.dataset.ct=t;cbar.querySelectorAll('.sz-ntab').forEach(b=>b.classList.toggle('sel',b.dataset.ct===t));try{localStorage.setItem('_sz_ct',t);}catch(e){}};
+     bar.onclick=e=>{const b=e.target.closest('.sz-ntab');if(b)set(b.dataset.nt);};
+     cbar.onclick=e=>{const b=e.target.closest('.sz-ntab');if(b)setC(b.dataset.ct);};
+     {let c0='sec';try{if(localStorage.getItem('_sz_ct')==='nav')c0='nav';}catch(e){}setC(c0);}
+     const sync=()=>{
+       const vis=id=>{const x=document.getElementById(id);return !!(x&&x.style.display!=='none');};
+       const s=vis('sz-sectors'),n=vis('sz-nav');
+       cbar.style.display=(s&&n)?'':'none';
+       if(s&&!n&&sw.dataset.ct!=='sec')setC('sec');
+       if(n&&!s&&sw.dataset.ct!=='nav')setC('nav');
+       const cb=bar.querySelector('[data-nt="course"]');if(cb)cb.style.display=(s||n)?'':'none';
+       if(!(s||n)&&lst.dataset.ntab==='course')set('sess');
+     };
+     try{const mo=new MutationObserver(sync);['sz-sectors','sz-nav'].forEach(id=>{const x=document.getElementById(id);if(x)mo.observe(x,{attributes:true,attributeFilter:['style']});});}catch(e){}
+     sync();
+   }}
   szWideSummary();
   renderStartSectors();
   try{renderStartNav();}catch(e){}
@@ -13152,6 +13187,40 @@ function _wktStepTxt(s){
   if(s.targetPace!=null)x+=' '+_wktFmtTime(s.targetPace)+'/500m';
   return x;
 }
+/* One-line summary of a workout: WARM · 4×500m / 2:00 · COOL. On-water
+   workouts always show WARM / COOL (Metrics adds them on load); erg never. */
+function _wktSummaryLine(w){
+  try{
+    const erg=w&&w.venue==='erg';
+    let st=(w&&w.steps||[]).slice();
+    if(erg)st=st.filter(s=>s&&s.type!=='warmup'&&s.type!=='cooldown');
+    else{
+      if(!(st[0]&&st[0].type==='warmup'))st.unshift({type:'warmup',mode:'open'});
+      if(!(st[st.length-1]&&st[st.length-1].type==='cooldown'))st.push({type:'cooldown',mode:'open'});
+    }
+    const fv=s=>{
+      if(!s||s.mode==='open'||!(s.value>0))return'';
+      if(s.mode==='time')return _wktFmtTime(s.value);
+      if(s.mode==='calorie')return s.value+'cal';
+      return (s.value>=1000&&s.value%1000===0)?(s.value/1000)+'k':s.value+'m';
+    };
+    const seq=list=>{
+      const out=[];
+      for(let i=0;i<list.length;i++){
+        const s=list[i];if(!s)continue;
+        if(s.type==='warmup'){const v=fv(s);out.push('WARM'+(v?' '+v:''));}
+        else if(s.type==='cooldown'){const v=fv(s);out.push('COOL'+(v?' '+v:''));}
+        else if(s.type==='repeat')out.push((s.count||1)+'×'+seq(s.steps||[]).join(' / '));
+        else if(s.type==='work'){const n=list[i+1];if(n&&n.type==='rest'){out.push(fv(s)+' / '+(fv(n)||'LAP'));i++;}else out.push(fv(s));}
+        else if(s.type==='rest')out.push((fv(s)||'LAP')+' rest');
+      }
+      const m=[];
+      out.forEach(t=>{const p=m[m.length-1];if(p&&p.t===t&&t.indexOf('WARM')!==0&&t.indexOf('COOL')!==0)p.n++;else m.push({t:t,n:1});});
+      return m.map(x=>x.n>1?x.n+'×'+x.t:x.t);
+    };
+    return seq(st).join(' · ');
+  }catch(e){return'';}
+}
 const _WKT_MODAL_CSS="#_wkt_modal .layout-size-row{display:flex;gap:2px;background:#e9e9ec;border-radius:9px;padding:2px;margin-bottom:8px;}\n#_wkt_modal .layout-size-btn{flex:1;padding:7px 6px;border-radius:7px;border:none;background:transparent;font-family:-apple-system,\"Roboto\",sans-serif;font-size:11px;font-weight:600;cursor:pointer;color:#555;touch-action:manipulation;-webkit-tap-highlight-color:transparent;transition:background .15s;}\n#_wkt_modal .layout-size-btn.sel{background:#007aff;color:#fff;box-shadow:0 1px 2px rgba(0,0,0,.15);}\n#_wkt_modal .setup-input{width:100%;padding:9px 10px;border-radius:10px;border:1px solid #ddd;font-family:-apple-system,\"Roboto\",sans-serif;font-size:13px;margin-bottom:8px;-webkit-appearance:none;appearance: none;}\n#_wkt_modal .wkt-card{background:#fff;border-radius:12px;margin-bottom:6px;border-left:4px solid #007aff;box-shadow:0 1px 3px rgba(0,0,0,.07);overflow:hidden;}\n#_wkt_modal .wkc-header{display:flex;align-items:center;padding:10px 12px;cursor:pointer;gap:8px;user-select:none;}\n#_wkt_modal .wkc-grip{flex-shrink:0;font-size:18px;color:#aaa;padding:4px 6px;cursor:grab;touch-action:none;-webkit-user-select:none;user-select:none;}\n#_wkt_modal .wkc-name{font-size:13px;font-weight:700;color:#000;flex:1;}\n#_wkt_modal .wkc-arrow{font-size:10px;color:#aaa;display:inline-block;transition:transform .2s;flex-shrink:0;}\n#_wkt_modal .wkc-arrow.open{transform:rotate(90deg);}\n#_wkt_modal .wkc-load-btn{flex:0 0 auto;padding:6px 10px;font-size:9px;}\n#_wkt_modal .wkc-body{display:none;padding:0 12px 10px;border-top:1px solid #f0f0f0;}\n#_wkt_modal .wkc-body.open{display:block;}\n#_wkt_modal #wkt-builder-wrap.in-card{margin-top:4px;}\n#_wkt_modal #wkt-builder-wrap.in-card .wkt-builder{background:none;box-shadow:none;border-radius:0;padding:6px 0 0;}\n#_wkt_modal .wkt-builder{background:#fff;border-radius:12px;padding:12px;margin-bottom:6px;box-shadow:0 1px 3px rgba(0,0,0,.07);}\n#_wkt_modal /* Step rows in builder */\n.step-row{display:flex;align-items:center;gap:4px;padding:4px 0;border-bottom:1px solid #f0f0f0;user-select:none;flex-wrap:wrap;box-sizing:border-box;min-width:0;max-width:100%;}\n#_wkt_modal .wkt-target-row{flex-basis:100%;width:100%;box-sizing:border-box;display:flex;flex-direction:column;gap:3px;align-items:stretch;padding:3px 0 0 26px;min-width:0;}\n#_wkt_modal .wkt-target-item{display:flex;align-items:center;gap:8px;min-width:0;}\n#_wkt_modal .wkt-target-tog{font-size:9px;font-weight:700;letter-spacing:.08em;padding:2px 6px;border-radius:10px;border:1px solid #ccc;background:#eee;color:#999;cursor:pointer;touch-action:manipulation;}\n#_wkt_modal .wkt-target-tog.ton{background:#007aff;color:#fff;border-color:#007aff;}\n#_wkt_modal .wkt-target-val{font-size:12px;font-weight:700;min-width:34px;text-align:center;color:#222;}\n#_wkt_modal .wkt-target-val.tdim{color:#ccc;}\n#_wkt_modal .wkt-warn{font-size:9px;font-weight:700;letter-spacing:.08em;color:#ff3b30;background:rgba(192,57,43,.08);padding:2px 6px;border-radius:10px;display:none;flex-shrink:0;white-space:nowrap;}\n#_wkt_modal .step-row.step-sel{background:#f0f7ff;margin:0 -12px;padding:8px 12px;}\n#_wkt_modal .step-val-row{flex-basis:100%;width:100%;box-sizing:border-box;display:flex;align-items:center;gap:6px;padding:4px 0 0 26px;min-width:0;}\n#_wkt_modal .step-val-input{flex:1;min-width:0;text-align:center;font-size:25px;font-weight:800;padding:5px 4px;border:none;background:#f2f2f7;border-radius:12px;box-sizing:border-box;-webkit-appearance:none;appearance:none;font-family:-apple-system,\"Roboto\",sans-serif;color:#000;}\n#_wkt_modal .step-val-unit{font-size:11px;color:#8e8e93;font-weight:700;width:44px;flex-shrink:0;line-height:1.1;}\n#_wkt_modal .step-drag{color:#bbb;font-size:16px;cursor:grab;padding:0 4px;flex-shrink:0;}\n#_wkt_modal .step-grip{flex-shrink:0;font-size:20px;color:#999;padding:2px 6px;cursor:grab;touch-action:none;-webkit-user-select:none;user-select:none;}\n#_wkt_modal .step-check{width:18px;height:18px;border-radius:10px;border:2px solid #ddd;flex-shrink:0;cursor:pointer;display:flex;align-items:center;justify-content:center;}\n#_wkt_modal .step-check.checked{background:#007aff;border-color:#007aff;color:#fff;font-size:11px;}\n#_wkt_modal .step-badge{font-size:9px;font-weight:700;letter-spacing:.08em;padding:3px 7px;border-radius:10px;flex-shrink:0;cursor:pointer;}\n#_wkt_modal .step-badge.warmup{background:#64d2ff;color:#fff;}\n#_wkt_modal .step-badge.work{background:#34c759;color:#fff;}\n#_wkt_modal .step-badge.rest{background:#ff9500;color:#000;}\n#_wkt_modal .step-badge.cooldown{background:#af52de;color:#fff;}\n#_wkt_modal .step-dur{font-size:12px;font-weight:700;color:#000;flex:1;cursor:pointer;}\n#_wkt_modal .step-edit-btn{background:none;border:1px solid #ddd;border-radius:10px;padding:4px 8px;font-size:10px;color:#555;cursor:pointer;touch-action:manipulation;}\n#_wkt_modal .step-del{background:none;border:none;color:#ff3b30;font-size:18px;cursor:pointer;padding:0 4px;line-height:1;touch-action:manipulation;}\n#_wkt_modal .step-reorder{display:flex;flex-direction:column;gap:2px;flex-shrink:0;}\n#_wkt_modal .reorder-btn{background:none;border:none;color:#aaa;font-size:12px;cursor:pointer;padding:1px 4px;line-height:1;touch-action:manipulation;}\n#_wkt_modal /* Repeat group */\n.repeat-group{border:2px solid #007aff;border-radius:12px;padding:6px;margin:4px 0;}\n#_wkt_modal .repeat-group-hdr{display:flex;align-items:center;gap:8px;margin-bottom:3px;}\n#_wkt_modal .repeat-count-input{width:44px;font-size:14px;font-weight:700;padding:4px;border:1px solid #ddd;border-radius:10px;text-align:center;-webkit-appearance:none;appearance: none;}\n#_wkt_modal .skip-rest-row{display:flex;align-items:center;gap:8px;margin-top:6px;font-size:11px;color:#555;}\n#_wkt_modal .skip-rest-cb{width:16px;height:16px;}\n#_wkt_modal .repeat-inner-band{border:1.5px solid #ff9500;border-radius:10px;padding:0 8px;}\n#_wkt_modal .start-row-btn{background:none;border:1px solid #ddd;border-radius:10px;padding:3px 7px;font-size:9px;font-weight:700;letter-spacing:.05em;color:#aaa;cursor:pointer;touch-action:manipulation;flex-shrink:0;}\n#_wkt_modal .start-row-btn.active{background:#34c759;border-color:#34c759;color:#fff;}\n#_wkt_modal /* Add step buttons */\n.add-step-row{display:flex;gap:4px;flex-wrap:wrap;margin-top:8px;}\n#_wkt_modal .add-step-btn{padding:7px 10px;border-radius:10px;border:1px solid #ddd;background:#fff;font-family:-apple-system,\"Roboto\",sans-serif;font-size:10px;font-weight:700;cursor:pointer;touch-action:manipulation;}\n#_wkt_modal .add-step-btn.warmup{border-color:#64d2ff;color:#0071e3;}\n#_wkt_modal .add-step-btn.work{border-color:#34c759;color:#1e8449;}\n#_wkt_modal .add-step-btn.rest{border-color:#ff9500;color:#c76f00;}\n#_wkt_modal .add-step-btn.cooldown{border-color:#af52de;color:#8e44ad;}\n#_wkt_modal .add-step-btn.repeats{border-color:#007aff;color:#007aff;display:none;}\n#_wkt_modal .add-step-btn.repeats.show{display:inline-block;}\n#_wkt_modal /* Step value editor inline */\n.step-val-edit{display:flex;align-items:center;gap:6px;padding:8px;background:#f8f8f8;border-radius:12px;margin:4px 0;}\n#_wkt_modal .stepper-btn{width:32px;height:32px;border-radius:10px;border:1px solid #ddd;background:#fff;font-size:20px;font-weight:700;cursor:pointer;display:flex;align-items:center;justify-content:center;color:#333;touch-action:manipulation;}\n#_wkt_modal .stepper-val{font-size:15px;font-weight:700;min-width:40px;text-align:center;}\n#_wkt_modal .mode-toggle{display:flex;border-radius:10px;overflow:hidden;border:1px solid #ddd;min-width:0;}\n#_wkt_modal .mode-toggle-btn{flex:1;padding:6px 8px;border:none;background:#fff;font-family:-apple-system,\"Roboto\",sans-serif;font-size:9px;font-weight:700;letter-spacing:.06em;cursor:pointer;color:#888;touch-action:manipulation;}\n#_wkt_modal .mode-toggle-btn.sel{background:#007aff;color:#fff;}\n#_wkt_modal .wkt-actions{display:flex;gap:6px;margin-top:10px;}\n#_wkt_modal .wkt-btn{flex:1;padding:10px 4px;border-radius:10px;border:none;font-family:-apple-system,\"Roboto\",sans-serif;font-size:10px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;cursor:pointer;touch-action:manipulation;}\n#_wkt_modal .wkt-btn.load{background:#34c759;color:#fff;}\n#_wkt_modal .wkt-btn.del{background:#fff;color:#ff3b30;border:1px solid #e0e0e0;}\n#_wkt_modal .wkt-btn.new-w{background:#007aff;color:#fff;}\n#_wkt_modal .wkt-btn.save{background:#007aff;color:#fff;}\n#_wkt_modal .wkt-card.erg-item{border-left-color:#c0392b!important;}\n#_wkt_modal .erg-badge{display:inline-block;background:#c0392b;color:#fff;font-size:9px;font-weight:800;letter-spacing:.08em;padding:2px 6px;border-radius:4px;margin-left:6px;vertical-align:middle;}";
 window.showWorkoutsModal=function(opts){
   opts=(opts&&typeof opts==='object'&&!opts.target)?opts:{};
@@ -13176,7 +13245,7 @@ window.showWorkoutsModal=function(opts){
   const Q_MIN_D=100, Q_MIN_T=20, Q_REST_MAX=595;
   const qStep=(mode,v)=>mode==='time'?{id:'s'+Date.now()+Math.random().toString(36).slice(2),type:'work',mode:'time',value:v,timeValue:v,distValue:500}
     :{id:'s'+Date.now()+Math.random().toString(36).slice(2),type:'work',mode:'distance',value:v,distValue:v,timeValue:120};
-  const qNew=k=>({kind:k,name:'',dist:2000,dsplit:500,time:1200,tsplit:300,cmode:'distance',cdist:500,ctime:120,crest:180,reps:6,
+  const qNew=(k,v)=>({kind:k,venue:v==='water'?'water':'erg',name:'',dist:2000,dsplit:500,time:1200,tsplit:300,cmode:'distance',cdist:500,ctime:120,crest:180,reps:6,
     ivs:[{mode:'distance',value:500,restS:60},{mode:'distance',value:500,restS:60}]});
   /* opts.list + opts.onListSave: show/edit a workout held in another list
      (a squad, or My workouts while a squad is open). */
@@ -13321,7 +13390,10 @@ window.showWorkoutsModal=function(opts){
 
   const renderList=()=>{
     const all=_wktOrdered();
-    const list=all.filter(w=>(isErgW(w)?'erg':'water')===_wktVenueView);
+    let todayIds=[];try{todayIds=planIds(_dayKey(Date.now()));}catch(e){}
+    const list=all.filter(w=>(isErgW(w)?'erg':'water')===_wktVenueView)
+      .map((w,i)=>({w,i,today:!_wktCtx&&todayIds.indexOf(w.id)>=0}))
+      .sort((p,q)=>(q.today?1:0)-(p.today?1:0)||p.i-q.i);
     let h=hdr(_wktCtx?'Squad workouts · '+_wktCtx:'Workouts')
       +'<div class="layout-size-row" style="margin:0 0 10px;">'
       +'<button class="layout-size-btn'+(_wktVenueView==='water'?' sel':'')+'" data-a="venue" data-m="water">ON&nbsp;WATER</button>'
@@ -13329,32 +13401,26 @@ window.showWorkoutsModal=function(opts){
     if(_wktCtx)h+='<div style="font-size:11px;color:#8e8e93;margin:-4px 0 10px;">Squad workouts — members can view and import them.</div>';
     else if(!AnalyserDrive.isSignedIn())h+='<div style="font-size:11px;color:#c76f00;margin:-4px 0 10px;">Sign in and link Drive so these workouts sync with BoatRun Metrics.</div>';
     else h+='<div style="font-size:11px;color:#8e8e93;margin:-4px 0 10px;">Saved workouts sync with BoatRun Metrics through Drive.</div>';
-    if(_wktVenueView==='erg'){
-      const qi=(k,t,sub)=>'<button type="button" data-a="quick" data-m="'+k+'" style="display:flex;align-items:center;gap:10px;width:100%;text-align:left;background:#fff;border:1px solid #e0e0e5;border-left:4px solid '+ERG+';border-radius:12px;box-shadow:0 1px 3px rgba(0,0,0,.07);padding:10px 12px;margin-bottom:6px;font-family:inherit;font-size:14px;font-weight:800;color:#000;cursor:pointer;">'
-        +'<span style="flex:1;min-width:0;pointer-events:none;">'+t+'<div style="font-size:11px;font-weight:500;color:#555;margin-top:2px;">'+sub+'</div></span>'
-        +'<span style="font-size:20px;font-weight:700;color:#c7c7cc;pointer-events:none;">&#8250;</span></button>';
-      h+='<div style="font-size:10px;font-weight:800;letter-spacing:.08em;color:#8e8e93;margin:2px 2px 6px;">QUICK ERG PIECES</div>'
-        +qi('dist','Single Distance','Fixed metres, with a split length')
-        +qi('time','Single Time','Fixed duration, with a split length')
-        +qi('const','Constant Intervals','Identical work + rest, repeated')
-        +qi('var','Variable Intervals','Different work/rest each rep')
-        +'<div style="font-size:10px;font-weight:800;letter-spacing:.08em;color:#8e8e93;margin:12px 2px 6px;">SAVED WORKOUTS</div>';
-    }
     if(!list.length)h+='<div style="text-align:center;padding:20px;color:#bbb;font-size:12px;">No '+(_wktVenueView==='erg'?'erg':'on-water')+' workouts yet.</div>';
-    list.forEach((w,li)=>{
+    list.forEach(({w,today})=>{
       const o=openId===w.id;
+      const sum=_wktSummaryLine(w);
       h+='<div class="wkt-card'+(isErgW(w)?' erg-item':'')+'" data-wid="'+esc(w.id)+'">'
-        +'<div class="wkc-header" data-a="toggle" data-id="'+esc(w.id)+'">'
+        +'<div class="wkc-header" data-a="toggle" data-id="'+esc(w.id)+'" title="Edit">'
         +(list.length>1?'<span class="wkc-grip" title="Drag to re-order">&#10303;</span>':'')
-        +'<span class="wkc-arrow'+(o?' open':'')+'">&#9654;</span>'
-        +'<span class="wkc-name">'+esc(w.name)+(isErgW(w)?'<span class="erg-badge">ERG</span>':'')+'</span>'
+        +'<div style="flex:1;min-width:0;">'
+        +'<div style="display:flex;align-items:center;gap:6px;min-width:0;">'
+        +(today?'<span style="flex-shrink:0;font-size:10px;font-weight:800;letter-spacing:.06em;color:#fff;background:#f39c12;padding:3px 6px;border-radius:6px;">&#9733; TODAY</span>':'')
+        +'<span class="wkc-name" style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">'+esc(w.name)+'</span></div>'
+        +(sum?'<div style="font-size:13px;font-weight:600;color:#555;margin-top:2px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">'+esc(sum)+'</div>':'')
+        +'</div>'
+        +'<button data-a="more" data-id="'+esc(w.id)+'" title="More" style="flex:0 0 auto;border:none;background:#f2f2f7;color:#555;font-size:20px;font-weight:800;line-height:1;padding:8px 10px;border-radius:10px;cursor:pointer;">&#8943;</button>'
         +'</div>'
         +'<div class="wkc-body'+(o?' open':'')+'">'
-        +(o?((w.note?'<div style="white-space:pre-wrap;font-size:13px;color:#333;background:#fff8dc;border-left:3px solid #f1c40f;border-radius:6px;padding:8px 10px;margin:6px 0 8px;">'+esc(w.note)+'</div>':'')+viewSteps(w))
-          +'<div class="wkt-actions">'
+        +(o?'<div class="wkt-actions" style="margin:8px 0 6px;">'
           +'<button class="wkt-btn save" data-a="edit" data-id="'+esc(w.id)+'">EDIT</button>'
           +'<button class="wkt-btn new-w" data-a="dup" data-id="'+esc(w.id)+'">COPY</button>'
-          +'<button class="wkt-btn del" data-a="wdel" data-id="'+esc(w.id)+'">DEL</button></div>':'')
+          +'<button class="wkt-btn del" data-a="wdel" data-id="'+esc(w.id)+'">DELETE</button></div>':'')
         +'</div></div>';
     });
     h+='<button class="wkt-btn new-w" style="width:100%;margin-top:4px;'+(_wktVenueView==='erg'?'background:'+ERG+';color:#fff;':'')+'" data-a="new">+ NEW WORKOUT</button>';
@@ -13394,22 +13460,24 @@ window.showWorkoutsModal=function(opts){
     const nt=document.getElementById('_wkt_note');
     if(nt)nt.oninput=()=>{edit.note=nt.value;};
   };
-  /* + ERG WORKOUT from the calendar: same quick erg pieces as the Workouts
-     list, plus a custom step-by-step workout. */
-  const renderNewErg=()=>{
-    const qi=(k,t,sub)=>'<button type="button" data-a="quick" data-m="'+k+'" style="display:flex;align-items:center;gap:10px;width:100%;text-align:left;background:#fff;border:1px solid #e0e0e5;border-left:4px solid '+ERG+';border-radius:12px;box-shadow:0 1px 3px rgba(0,0,0,.07);padding:10px 12px;margin-bottom:6px;font-family:inherit;font-size:14px;font-weight:800;color:#000;cursor:pointer;">'
-      +'<span style="flex:1;min-width:0;pointer-events:none;">'+t+'<div style="font-size:11px;font-weight:500;color:#555;margin-top:2px;">'+sub+'</div></span>'
+  /* + NEW WORKOUT (list or calendar): pick a type first. Only CUSTOM opens
+     the full step builder. Works for on-water and erg. */
+  let newVenue='erg';
+  const renderNew=v=>{
+    newVenue=v==='water'?'water':'erg';
+    const col=newVenue==='erg'?ERG:'#27ae60';
+    const qi=(k,t,sub)=>'<button type="button" data-a="quick" data-m="'+k+'" style="display:flex;align-items:center;gap:10px;width:100%;text-align:left;background:#fff;border:1px solid #e0e0e5;border-left:4px solid '+col+';border-radius:12px;box-shadow:0 1px 3px rgba(0,0,0,.07);padding:12px;margin-bottom:8px;font-family:inherit;font-size:15px;font-weight:800;color:#000;cursor:pointer;">'
+      +'<span style="flex:1;min-width:0;pointer-events:none;">'+t+'<div style="font-size:12px;font-weight:500;color:#555;margin-top:2px;">'+sub+'</div></span>'
       +'<span style="font-size:20px;font-weight:700;color:#c7c7cc;pointer-events:none;">&#8250;</span></button>';
-    panel.innerHTML=hdr('New erg workout')
-      +'<div style="font-size:10px;font-weight:800;letter-spacing:.08em;color:#8e8e93;margin:2px 2px 6px;">QUICK ERG PIECES</div>'
-      +qi('dist','Single Distance','Fixed metres, with a split length')
-      +qi('time','Single Time','Fixed duration, with a split length')
-      +qi('const','Constant Intervals','Identical work + rest, repeated')
+    panel.innerHTML=hdr('New '+(newVenue==='erg'?'erg':'on-water')+' workout')
+      +qi('dist','Single Distance','One piece, fixed metres')
+      +qi('time','Single Time','One piece, fixed duration')
+      +qi('const','Intervals','Same work + rest, repeated')
       +qi('var','Variable Intervals','Different work/rest each rep')
-      +'<div style="font-size:10px;font-weight:800;letter-spacing:.08em;color:#8e8e93;margin:12px 2px 6px;">CUSTOM</div>'
-      +qi('custom','Custom Workout','Build it step by step')
-      +'<div class="wkt-actions" style="margin-top:8px;"><button class="wkt-btn del" data-a="close">CANCEL</button></div>';
+      +qi('custom','Custom','Build it step by step')
+      +'<div class="wkt-actions" style="margin-top:8px;"><button class="wkt-btn del" data-a="'+(opts.newVenue?'close':'newback')+'">CANCEL</button></div>';
   };
+  const renderNewErg=()=>renderNew('erg');
   const renderQuick=()=>{
     const q=quick;
     const T={dist:'Single Distance',time:'Single Time',const:'Constant Intervals',var:'Variable Intervals'}[q.kind];
@@ -13424,12 +13492,13 @@ window.showWorkoutsModal=function(opts){
       +'<button class="mode-toggle-btn'+(cur==='time'?' sel':'')+'" data-a="'+a+'" data-m="time"'+(i!=null?' data-i="'+i+'"':'')+'>TIME</button></div>';
     let h=hdr(T)
       +'<div style="background:#fff;border-radius:12px;padding:10px 12px;">'
-      +'<div style="font-size:10px;font-weight:800;letter-spacing:.08em;color:#fff;background:'+ERG+';padding:5px 8px;border-radius:6px;margin-bottom:6px;">ERG WORKOUT</div>'
+      +(q.venue==='water'?'<div style="font-size:10px;font-weight:800;letter-spacing:.08em;color:#fff;background:#27ae60;padding:5px 8px;border-radius:6px;margin-bottom:6px;">ON-WATER WORKOUT · WARM + COOL ADDED</div>'
+        :'<div style="font-size:10px;font-weight:800;letter-spacing:.08em;color:#fff;background:'+ERG+';padding:5px 8px;border-radius:6px;margin-bottom:6px;">ERG WORKOUT</div>')
       +'<input type="text" class="setup-input" id="_wkt_qname" maxlength="40" placeholder="Workout name (blank = automatic)" value="'+esc(q.name||'')+'">';
     if(q.kind==='dist'){
-      h+=lbl('DISTANCE')+fld('dist',false,'metres',q.dist)+lbl('SPLIT \u00b7 0 FOR NONE')+fld('dsplit',false,'metres',q.dsplit);
+      h+=lbl('DISTANCE')+fld('dist',false,'metres',q.dist)+(q.venue==='water'?'':lbl('SPLIT · 0 FOR NONE')+fld('dsplit',false,'metres',q.dsplit));
     }else if(q.kind==='time'){
-      h+=lbl('DURATION')+fld('time',true,'m : ss',q.time)+lbl('SPLIT \u00b7 0:00 FOR NONE')+fld('tsplit',true,'m : ss',q.tsplit);
+      h+=lbl('DURATION')+fld('time',true,'m : ss',q.time)+(q.venue==='water'?'':lbl('SPLIT · 0:00 FOR NONE')+fld('tsplit',true,'m : ss',q.tsplit));
     }else if(q.kind==='const'){
       h+=lbl('WORK TYPE')+seg(q.cmode,'qcmode')
         +(q.cmode==='time'?lbl('WORK TIME')+fld('ctime',true,'m : ss',q.ctime):lbl('WORK DISTANCE')+fld('cdist',false,'metres',q.cdist))
@@ -13486,10 +13555,13 @@ window.showWorkoutsModal=function(opts){
       erg={ivs:ivs.map(x=>({mode:x.mode,value:x.value,restS:x.restS||0}))};
       def=[];ivs.forEach((iv,i)=>{def.push(qStep(iv.mode,iv.value));if(iv.restS>0&&i<ivs.length-1)def.push({id:'s'+Date.now()+'r'+i,type:'rest',mode:'time',value:iv.restS,timeValue:iv.restS,distValue:250});});
     }
+    const water=q.venue==='water';
+    if(water){def=[newStep('warmup'),...def,newStep('cooldown')];erg=null;}
     const name=String(q.name||'').trim()||label;
-    const w={id:Date.now().toString(),name:name,venue:'erg',startMode:'lap5',steps:def,erg:erg,rev:Date.now()};
+    const w={id:Date.now().toString(),name:name,venue:water?'water':'erg',startMode:'lap5',steps:def,rev:Date.now()};
+    if(erg)w.erg=erg;
     const DB=_mDB();DB.push(w);
-    _wktVenueView='erg';
+    _wktVenueView=water?'water':'erg';
     _mSave();
     quick=null;
     if(opts.onSaved&&opts.newVenue){overlay.remove();try{opts.onSaved(w.id);}catch{}return;}
@@ -13611,12 +13683,13 @@ window.showWorkoutsModal=function(opts){
       overlay.remove();return;
     }
     if(a==='quick'&&b.dataset.m==='custom'){
-      edit={id:Date.now().toString(),name:'',venue:'erg',startMode:'lap5',steps:[newStep('work')],_new:true};
+      const erg=newVenue==='erg';
+      edit={id:Date.now().toString(),name:'',venue:erg?'erg':'water',startMode:'lap5',steps:erg?[newStep('work')]:[newStep('warmup'),newStep('work'),newStep('cooldown')],_new:true};
       sel=new Set();renderEdit();return;
     }
-    if(a==='quick'){quick=qNew(b.dataset.m);renderQuick();return;}
+    if(a==='quick'){quick=qNew(b.dataset.m,newVenue);renderQuick();return;}
     if(quick){
-      if(a==='qcancel'){quick=null;if(opts.newVenue==='erg')renderNewErg();else renderList();return;}
+      if(a==='qcancel'){const v=quick.venue;quick=null;renderNew(v);return;}
       if(a==='qsave'){qSave();return;}
       if(a==='qcmode'){quick.cmode=b.dataset.m;renderQuick();return;}
       if(a==='qvmode'){const iv=quick.ivs[+b.dataset.i];if(iv&&iv.mode!==b.dataset.m){iv.mode=b.dataset.m;iv.value=iv.mode==='time'?120:500;}renderQuick();return;}
@@ -13634,13 +13707,15 @@ window.showWorkoutsModal=function(opts){
     }
     /* list view */
     if(a==='venue'){_wktVenueView=b.dataset.m;openId=null;renderList();return;}
-    if(a==='toggle'){if(e.target.closest('.step-reorder')||e.target.closest('.wkc-grip')||Date.now()-_wkDragEnd<400)return;openId=openId===b.dataset.id?null:b.dataset.id;renderList();return;}
+    if(a==='more'){openId=openId===b.dataset.id?null:b.dataset.id;renderList();return;}
+    if(a==='toggle'){if(e.target.closest('.step-reorder')||e.target.closest('.wkc-grip')||Date.now()-_wkDragEnd<400)return;
+      const w=WORKOUTS_DB.find(x=>x.id===b.dataset.id);if(!w)return;
+      edit=JSON.parse(JSON.stringify(w));
+      if(!edit.startMode)edit.startMode=JSON.stringify(edit.steps||[]).indexOf('"startWhenRowing":true')>=0?'rowing':'lap5';
+      edit.steps=edit.steps||[];ensureBookends();sel=new Set();renderEdit();return;}
     if(a==='wup'||a==='wdn'){moveWorkout(b.dataset.id,a==='wup'?-1:1);renderList();return;}
-    if(a==='new'){
-      const erg=_wktVenueView==='erg';
-      edit={id:Date.now().toString(),name:'',venue:erg?'erg':'water',startMode:'lap5',steps:erg?[newStep('work')]:[newStep('warmup'),newStep('work'),newStep('cooldown')],_new:true};
-      sel=new Set();renderEdit();return;
-    }
+    if(a==='new'){renderNew(_wktVenueView==='erg'?'erg':'water');return;}
+    if(a==='newback'){renderList();return;}
     if(a==='edit'||a==='dup'||a==='wdel'){
       const i=WORKOUTS_DB.findIndex(w=>w.id===b.dataset.id);if(i<0)return;
       const w=WORKOUTS_DB[i];
@@ -13722,7 +13797,7 @@ window.showWorkoutsModal=function(opts){
     if(a==='tpace'&&s){if(s.targetPace!=null)delete s.targetPace;else s.targetPace=120;renderEdit();return;}
     if(a==='arate'&&s&&s.targetRate!=null){s.targetRate=Math.max(10,Math.min(50,s.targetRate+d));renderEdit();return;}
     if(a==='apace'&&s&&s.targetPace!=null){s.targetPace=Math.max(60,Math.min(300,s.targetPace+d*2));renderEdit();return;}
-    if(a==='cancel'){if(opts.newVenue==='erg'&&!opts.editId){edit=null;sel=new Set();renderNewErg();return;}if(opts.newVenue||opts.editId){overlay.remove();return;}edit=null;sel=new Set();renderList();return;}
+    if(a==='cancel'){if(opts.newVenue&&!opts.editId){edit=null;sel=new Set();renderNew(opts.newVenue);return;}if(opts.editId){overlay.remove();return;}edit=null;sel=new Set();renderList();return;}
     if(a==='save'){
       const name=String(edit.name||'').trim();
       if(!name){alert('Enter a workout name');return;}
@@ -13768,11 +13843,7 @@ window.showWorkoutsModal=function(opts){
   }else if(opts.newVenue){
     const erg=opts.newVenue==='erg';
     _wktVenueView=erg?'erg':'water';
-    if(erg)renderNewErg();
-    else{
-      edit={id:Date.now().toString(),name:'',venue:'water',startMode:'lap5',steps:[newStep('warmup'),newStep('work'),newStep('cooldown')],_new:true};
-      renderEdit();
-    }
+    renderNew(erg?'erg':'water');
   }else renderList();
   if(AnalyserDrive.isSignedIn())AnalyserDrive.pullPrefs().then(cur=>{if(!cur)return;applyWorkoutsFromPrefs(cur.workouts);if(!edit&&!opts.viewId&&!opts.viewW&&document.getElementById('_wkt_modal'))renderList();}).catch(()=>{});
 };
