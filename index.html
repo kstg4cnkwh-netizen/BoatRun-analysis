@@ -110,12 +110,21 @@ h1.hero-h em{font-style:normal;color:var(--coral);}
 .btn-coral{background:var(--coral);color:#fff;box-shadow:0 8px 24px -8px rgba(255,90,60,.55);}
 .btn-ghost{background:transparent;color:var(--ink);border-color:rgba(255,255,255,.22);}
 .btn-ghost:hover{border-color:rgba(255,255,255,.45);}
+.btn-teal{background:var(--teal);color:var(--navy);box-shadow:0 8px 24px -8px rgba(47,211,198,.6);}
+.btn-teal:hover{filter:brightness(1.06);}
+.btn-teal:after{content:"→";font-size:16px;line-height:1;}
 .btn[aria-disabled="true"]{opacity:.42;cursor:default;pointer-events:none;box-shadow:none;}
+.hero-analyser{display:flex;align-items:center;gap:14px;flex-wrap:wrap;margin:-18px 0 34px;}
+.hero-analyser .btn{font-size:15.5px;padding:14px 24px;}
+.hero-analyser span{font-size:13px;color:var(--ink-dim);}
 .store-badge{display:inline-flex;align-items:center;text-decoration:none;transition:transform .1s ease;}
 .store-badge:active{transform:scale(.98);}
 .store-badge img{height:48px;width:143px;object-fit:contain;display:block;}
 .store-badge-sm{margin-top:8px;}
 .store-badge-sm img{height:42px;width:125px;}
+/* Google's badge image has built-in padding: size it up so the visible badge matches Apple's */
+.gp-badge img{height:70px;width:auto;margin:-11px -10px;}
+.store-badge-sm.gp-badge img{height:61px;width:auto;margin:-9px -9px;}
 .hero-stats{display:flex;gap:30px;}
 .hstat b{display:block;font-family:'Space Grotesk',sans-serif;font-size:22px;font-weight:700;}
 .hstat span{font-size:12px;color:var(--ink-faint);letter-spacing:.03em;}
@@ -202,8 +211,11 @@ h2.section-h{font-family:'Space Grotesk',sans-serif;font-size:clamp(26px,3.4vw,3
 .legend span{display:inline-flex;align-items:center;gap:8px;font-size:13px;font-weight:600;color:rgba(14,20,32,.72);}
 .legend i{display:inline-block;width:26px;height:5px;border-radius:3px;}
 .legend i.lane{background:#ffd60a;box-shadow:0 0 0 1px rgba(0,0,0,.35);}
-.legend i.div{background:repeating-linear-gradient(90deg,#e74c3c 0 7px,transparent 7px 11px);}
+.legend i.div{background:repeating-linear-gradient(90deg,#ff3b30 0 7px,transparent 7px 11px);}
 .legend i.haz{width:0;height:0;border-radius:0;border-left:8px solid transparent;border-right:8px solid transparent;border-bottom:14px solid #ff9500;}
+.local-card{margin-top:22px;background:#fff;border:1px solid rgba(255,149,0,.45);border-left:4px solid #ff9500;border-radius:14px;padding:16px 18px;}
+.local-card h4{font-family:'Space Grotesk',sans-serif;font-size:16px;font-weight:700;margin-bottom:6px;}
+.local-card p{font-size:14px;color:rgba(14,20,32,.72);}
 
 /* planning calendar mockup */
 .calmock{background:linear-gradient(180deg,#0C1730,#081020);border:1px solid rgba(255,255,255,.12);border-radius:20px;padding:18px;color:var(--ink);box-shadow:0 40px 80px -28px rgba(0,0,0,.45);}
@@ -311,10 +323,11 @@ footer{background:var(--navy);color:var(--ink-faint);border-top:1px solid rgba(2
   <div class="wrap nav">
     <a class="brand" href="./"><span class="dot"></span>BoatRun</a>
     <nav class="navlinks">
+      <a href="#lanes">Lanes &amp; Hazards</a>
       <a href="#rowers">Rowers</a>
       <a href="./courses.html">Courses</a>
-      <a href="#lanes">Lanes &amp; Hazards</a>
       <a href="#planning">Planning</a>
+      <a href="#erg">Erg</a>
       <a href="#coaches">Coaches</a>
       <a href="#analysis">Analysis</a>
       <a href="#spectator">Spectator</a>
@@ -330,12 +343,13 @@ footer{background:var(--navy);color:var(--ink-faint);border-top:1px solid rgba(2
     </div>
   </div>
   <nav class="navdrop" id="navDrop">
+    <a href="#telemetry">Real-Time Telemetry</a>
+    <a href="#lanes">Lanes, Dividers &amp; Hazards</a>
     <a href="#rowers">Rowers</a>
     <a href="#courses">Sectors &amp; Courses</a>
     <a href="./courses.html">Courses</a>
-    <a href="#lanes">Lanes, Dividers &amp; Hazards</a>
     <a href="#planning">Training Calendar &amp; Planning</a>
-    <a href="#erg">Squad Erg</a>
+    <a href="#erg">Erg &amp; Squad Erg</a>
     <a href="#coaches">Coaches</a>
     <a href="#analysis">Analysis</a>
     <a href="#spectator">Spectator</a>
@@ -348,7 +362,7 @@ footer{background:var(--navy);color:var(--ink-faint);border-top:1px solid rgba(2
   </nav>
 </header>
 
-<!-- HERO -->
+<!-- 1. HERO -->
 <section class="hero">
   <div class="wrap hero-grid">
     <div>
@@ -357,8 +371,11 @@ footer{background:var(--navy);color:var(--ink-faint);border-top:1px solid rgba(2
       <p class="hero-sub">Real-time rowing metrics built for rowers, coxes and coaches who want raw data, honest precision, and tactical confidence on the water.</p>
       <div class="hero-ctas">
         <a class="store-badge" href="https://apps.apple.com/au/app/boatrun/id6792436401?itscg=30200&amp;itsct=apps_box_badge&amp;mttnsubad=6792436401" target="_blank" rel="noopener"><img src="https://toolbox.marketingtools.apple.com/api/v2/badges/download-on-the-app-store/black/en-us?releaseDate=1787702400" alt="Download on the App Store"></a>
-        <a class="btn btn-coral" aria-disabled="true">Android — Coming Soon</a>
-        <a class="btn btn-ghost" href="https://boatrun.au/analyser.html">Open Web Analyser</a>
+        <a class="store-badge gp-badge" href="https://play.google.com/store/apps/details?id=com.davidmacready74.boatrunmetrics" target="_blank" rel="noopener"><img src="https://play.google.com/intl/en_us/badges/static/images/badges/en_badge_web_generic.png" alt="Get it on Google Play"></a>
+      </div>
+      <div class="hero-analyser">
+        <a class="btn btn-teal" href="https://boatrun.au/analyser.html">Open Web Analyser</a>
+        <span>Free in any browser — no install</span>
       </div>
       <div class="hero-stats">
         <div class="hstat"><b>50Hz</b><span>Sensor sample rate</span></div>
@@ -372,68 +389,19 @@ footer{background:var(--navy);color:var(--ink-faint);border-top:1px solid rgba(2
   </div>
 </section>
 
-<!-- TELEMETRY PACK -->
-<section>
+<!-- 2. TELEMETRY PACK -->
+<section id="telemetry">
   <div class="wrap">
     <div class="section-head">
       <span class="eyebrow section-eyebrow">Precision Indicators</span>
       <h2 class="section-h">Real-Time Telemetry Pack</h2>
       <p class="section-p">The sensor engine reads boat motion, stroke dynamics and biometric data up to 50 times a second, every stroke, every session.</p>
     </div>
-    <div class="shot" style="max-width:640px;margin:0 auto;"><img src="screenshot-live-metrics.png" alt="BoatRun live telemetry grid — real stroke data"></div>
+    <div class="shot" style="max-width:640px;margin:0 auto;"><img src="screenshot-cockpit-curve.png" alt="BoatRun live stroke curve with telemetry"></div>
   </div>
 </section>
 
-<!-- FOR ROWERS -->
-<section id="rowers" style="background:#EFEDE6;">
-  <div class="wrap feature-row">
-    <div>
-      <span class="eyebrow section-eyebrow">For Rowers</span>
-      <h2 class="section-h">Your Cockpit on the Water</h2>
-      <p class="section-p">Mount your phone, press calibrate and go. BoatRun delivers a high-contrast, sun-readable metric overlay with immediate feedback to keep you in perfect form.</p>
-      <ul class="checklist">
-        <li>Custom workouts</li>
-        <li>Real-time visual metrics and stroke curve with ideal stroke template overlays</li>
-        <li>Automatically sync sessions to your personal Google Drive and sent to coach</li>
-        <li>Lane, divider and hazard warnings so you can keep your eyes in the boat</li>
-        <li>Today's planned workout pops up ready to load when you open the app</li>
-      </ul>
-    </div>
-    <div class="fr-media">
-      <div class="shot">
-        <img src="screenshot-cockpit-curve.png" alt="BoatRun rower cockpit — stroke curve and live metrics">
-      </div>
-    </div>
-  </div>
-</section>
-
-<!-- SECTORS & COURSES -->
-<section id="courses">
-  <div class="wrap feature-row rev">
-    <div>
-      <span class="eyebrow section-eyebrow">Sectors &amp; Courses</span><span class="pro-tag">PRO</span>
-      <h2 class="section-h">Race Your Own Stretch of Water</h2>
-      <p class="section-p">A sector is a timed stretch between a start line and a finish line. Draw your own, or download a ready-made course in the app. Row through it on any session and BoatRun times you automatically, keeps your PB, and races you against it live.</p>
-      <ul class="checklist">
-        <li>Automatic timing between start and finish gates, every time you row through</li>
-        <li>Pre-arm a sector for hands free head racing</li>
-        <li>Live metres to the finish for entire sector</li>
-        <li>Live meters comparison against your PB or a target time</li>
-        <li>Sector history, personal bests and side-by-side track playback in the Analyser</li>
-        <li>Ready-made head race courses, downloaded straight into the app from HOME ▸ SECTORS ▸ COURSES</li>
-        <li>Courses can bring the lanes, dividers and hazards for that stretch of water with them</li>
-      </ul>
-      <a class="btn btn-coral" style="margin-top:22px;" href="./courses.html">Browse Courses</a>
-    </div>
-    <div class="fr-media">
-      <div class="shot">
-        <img src="screenshot-sectors.png" alt="BoatRun live sector — metres to the finish and ahead or behind your PB">
-      </div>
-    </div>
-  </div>
-</section>
-
-<!-- LANES, DIVIDERS & HAZARDS -->
+<!-- 3. LANES, DIVIDERS & HAZARDS -->
 <section id="lanes" style="background:#EFEDE6;">
   <div class="wrap feature-row">
     <div>
@@ -447,8 +415,12 @@ footer{background:var(--navy);color:var(--ink-faint);border-top:1px solid rgba(2
         <li>Live readout with an arrow pointing to the line, the distance in metres, and ON LANE or WRONG WAY</li>
         <li>Choose your off-line alert distance — 5, 10, 20 or 30 m, or off</li>
         <li>Draw lines in the app or the Web Analyser, and share them with one tap</li>
-        <li>Follow your club's code to get its lanes and hazards, updated automatically whenever the club changes them</li>
+        <li>Follow as many club codes as you like — club lines update automatically whenever the club changes them</li>
       </ul>
+      <div class="local-card">
+        <h4>Rowing somewhere new? Join the local clubs' lines</h4>
+        <p>Clubs can share their lanes and hazards with anyone rowing on their water. Start a session in a new area and BoatRun tells you which local clubs have shared lines. Follow them all, or tick just the ones you want — followed lines stay up to date, and only the club can change them. Or copy them to your own lines to edit. Find them any time in COURSE ▸ Navigation ▸ Find Clubs Nearby.</p>
+      </div>
       <div class="legend">
         <span><i class="lane"></i>Lane</span>
         <span><i class="div"></i>Divider</span>
@@ -463,7 +435,55 @@ footer{background:var(--navy);color:var(--ink-faint);border-top:1px solid rgba(2
   </div>
 </section>
 
-<!-- TRAINING CALENDAR & PLANNING -->
+<!-- 4. FOR ROWERS -->
+<section id="rowers">
+  <div class="wrap feature-row rev">
+    <div>
+      <span class="eyebrow section-eyebrow">For Rowers</span>
+      <h2 class="section-h">Your Cockpit on the Water</h2>
+      <p class="section-p">Mount your phone, press calibrate and go. BoatRun delivers a high-contrast, sun-readable metric overlay with immediate feedback to keep you in perfect form.</p>
+      <ul class="checklist">
+        <li>Custom workouts — pick a type, tap to load</li>
+        <li>Real-time visual metrics and stroke curve with ideal stroke template overlays</li>
+        <li>Automatically sync sessions to your personal Google Drive and send them to your coach</li>
+        <li>Today's planned workout pops up ready to load when you open the app</li>
+      </ul>
+    </div>
+    <div class="fr-media">
+      <div class="shot">
+        <img src="screenshot-live-metrics.png" alt="BoatRun rower cockpit — live metrics">
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- 5. SECTORS & COURSES -->
+<section id="courses" style="background:#EFEDE6;">
+  <div class="wrap feature-row">
+    <div>
+      <span class="eyebrow section-eyebrow">Sectors &amp; Courses</span><span class="pro-tag">PRO</span>
+      <h2 class="section-h">Race Your Own Stretch of Water</h2>
+      <p class="section-p">A sector is a timed stretch between a start line and a finish line. Draw your own, or download a ready-made course in the app. Row through it on any session and BoatRun times you automatically, keeps your PB, and races you against it live.</p>
+      <ul class="checklist">
+        <li>Automatic timing between start and finish gates, every time you row through</li>
+        <li>Pre-arm a sector for hands free head racing</li>
+        <li>Live metres to the finish for entire sector</li>
+        <li>Live metres comparison against your PB or a target time</li>
+        <li>Sector history, personal bests and side-by-side track playback in the Analyser</li>
+        <li>Ready-made head race courses, downloaded straight into the app from COURSE ▸ Sectors ▸ Download courses</li>
+        <li>Courses can bring the lanes, dividers and hazards for that stretch of water with them</li>
+      </ul>
+      <a class="btn btn-coral" style="margin-top:22px;" href="./courses.html">Browse Courses</a>
+    </div>
+    <div class="fr-media">
+      <div class="shot">
+        <img src="screenshot-sectors.png" alt="BoatRun live sector — metres to the finish and ahead or behind your PB">
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- 6. TRAINING CALENDAR & PLANNING -->
 <section id="planning">
   <div class="wrap feature-row rev">
     <div>
@@ -544,23 +564,25 @@ footer{background:var(--navy);color:var(--ink-faint);border-top:1px solid rgba(2
   </div>
 </section>
 
-<!-- ERG MODE -->
+<!-- 7. ERG MODE -->
 <section id="erg" style="background:#EFEDE6;">
   <div class="wrap feature-row">
     <div>
-      <span class="eyebrow section-eyebrow">Squad Erg</span>
+      <span class="eyebrow section-eyebrow">Erg &amp; Squad Erg</span>
       <h2 class="section-h">Take the App Indoors</h2>
-      <p class="section-p">Connect to erg as an individual or as part of a squad. Race against or train with others in real-time.</p>
+      <p class="section-p">Connect to a Concept2 erg as an individual or as part of a squad. Race against or train with others in real-time.</p>
       <ul class="checklist">
+        <li>Live stroke curve from the erg, with ideal stroke template overlays</li>
         <li>Coach-pushed erg workouts</li>
         <li>Live squad panel showing pace, rate and relative metres</li>
         <li>Simulated race track with real-time boat positions</li>
-        <li>Ideal stroke template overlays for visual feedback</li>
+        <li>Splits and totals that match the Concept2 Logbook, with one-tap upload</li>
       </ul>
     </div>
     <div class="fr-media">
-      <div class="shot" style="max-width:640px;">
-        <img src="screenshot-erg-squad.png" alt="BoatRun squad erg mode — live pace and race track">
+      <div class="shot-pair">
+        <div class="shot"><img src="screenshot-erg-squad.png" alt="BoatRun squad erg view — live pace and race track"></div>
+        <div class="shot"><img src="screenshot-erg-curve.png" alt="BoatRun erg stroke curve view"></div>
       </div>
     </div>
   </div>
@@ -642,7 +664,7 @@ footer{background:var(--navy);color:var(--ink-faint);border-top:1px solid rgba(2
         <h3>BoatRun App</h3>
         <p>Row, Cox or Coach — one native app for iPhone and Android. Live metrics, squad sync, lanes and hazards, training calendar, video and Strava export.</p>
         <a class="store-badge store-badge-sm" href="https://apps.apple.com/au/app/boatrun/id6792436401?itscg=30200&amp;itsct=apps_box_badge&amp;mttnsubad=6792436401" target="_blank" rel="noopener"><img src="https://toolbox.marketingtools.apple.com/api/v2/badges/download-on-the-app-store/black/en-us?releaseDate=1787702400" alt="Download on the App Store"></a>
-        <span class="app-tag">Android — coming soon</span>
+        <a class="store-badge store-badge-sm gp-badge" href="https://play.google.com/store/apps/details?id=com.davidmacready74.boatrunmetrics" target="_blank" rel="noopener"><img src="https://play.google.com/intl/en_us/badges/static/images/badges/en_badge_web_generic.png" alt="Get it on Google Play"></a>
       </div>
       <div class="app-card">
         <span class="app-tag">Post-session</span>
@@ -786,10 +808,10 @@ footer{background:var(--navy);color:var(--ink-faint);border-top:1px solid rgba(2
   <div class="wrap">
     <span class="eyebrow" style="color:var(--coral);border-color:rgba(255,90,60,.35);background:var(--coral-dim);">Get BoatRun</span>
     <h2>Ready to see every stroke?</h2>
-    <p>BoatRun is live on the App Store for iPhone and iPad. Android is coming soon to Google Play.</p>
+    <p>BoatRun is live on the App Store for iPhone and iPad, and on Google Play for Android.</p>
     <div class="hero-ctas">
       <a class="store-badge" href="https://apps.apple.com/au/app/boatrun/id6792436401?itscg=30200&amp;itsct=apps_box_badge&amp;mttnsubad=6792436401" target="_blank" rel="noopener"><img src="https://toolbox.marketingtools.apple.com/api/v2/badges/download-on-the-app-store/black/en-us?releaseDate=1787702400" alt="Download on the App Store"></a>
-      <a class="btn btn-coral" aria-disabled="true">BoatRun for Android — Coming Soon</a>
+      <a class="store-badge gp-badge" href="https://play.google.com/store/apps/details?id=com.davidmacready74.boatrunmetrics" target="_blank" rel="noopener"><img src="https://play.google.com/intl/en_us/badges/static/images/badges/en_badge_web_generic.png" alt="Get it on Google Play"></a>
       <a class="btn btn-ghost" href="https://boatrun.au/analyser.html">Try the Web Analyser free</a>
     </div>
   </div>
