@@ -3246,6 +3246,9 @@ function computeBestDurations(gpsTrace) {
   const targets=[1800000,3600000];
   const out={};
   targets.forEach(ms=>{ const d=bestDistanceForDuration(pts,ms); if(d!=null) out[ms]=d; });
+  /* 9 Nov: longest session by distance, kept with the duration bests under
+     'max' so merge / exclude / rescan all work the same way. */
+  if(pts.length>1){ const dd=pts[pts.length-1].dist-pts[0].dist, tt=pts[pts.length-1].t-pts[0].t; if(dd>0){ out.max=dd; out._maxT=tt; } }
   return out;
 }
 function updateRecords(gpsTrace, label, dateISO, fileId, mode) {
@@ -3263,10 +3266,12 @@ function updateRecords(gpsTrace, label, dateISO, fileId, mode) {
   });
   if(!RECORDS_DB[m].dur) RECORDS_DB[m].dur={};
   Object.keys(durations).forEach(ms=>{
+    if (ms==='_maxT') return;
     const cur=RECORDS_DB[m].dur[ms];
     if (recIsExcl(RECORDS_DB, m, 'dur' + ms, fileId, dateISO)) return;
     if (!cur || durations[ms]>cur.distM) {
       RECORDS_DB[m].dur[ms]={distM:durations[ms], date:dateISO||null, label:label||'', fileId:fileId||null};
+      if (ms==='max' && durations._maxT>0) RECORDS_DB[m].dur[ms].timeMs=durations._maxT;
       changed=true;
     }
   });
@@ -3300,7 +3305,8 @@ function recPaceLine(r,distM){
   return '<div class="sub" style="font-size:1.05rem;font-weight:700;line-height:1.3;">'+(p||'&nbsp;')+'</div>';
 }
 function recDurPaceLine(r,ms){
-  const p=(r&&r.distM)?fmtRecPace500((ms/1000)*500/r.distM):'';
+  if(ms==='max')ms=r&&r.timeMs;
+  const p=(r&&r.distM&&ms>0)?fmtRecPace500((ms/1000)*500/r.distM):'';
   return '<div class="sub" style="font-size:1.05rem;font-weight:700;line-height:1.3;">'+(p||'&nbsp;')+'</div>';
 }
 function fmtRecordDate(dateISO) {
@@ -12508,12 +12514,12 @@ function _sumRecordsCardsHTML(mode){
     const dateStr=r?fmtRecordDate(r.date):'';
     return '<div class="card cb" style="cursor:'+(r&&(r.fileId||r.date)?'pointer':'default')+';" onclick="'+(r&&(r.fileId||r.date)?'window.loadRecordSession(\''+d+'\',\''+mode+'\');document.getElementById(\'_summary_modal\')?.remove();':'')+'"><div class="lbl">'+(r?'<button title="Exclude this result" onclick="event.stopPropagation();window.excludeRecord(\''+mode+'\',\''+d+'\')" style="float:right;margin:-4px -4px 0 0;background:none;border:0;color:var(--muted);font-size:14px;line-height:1;padding:2px 4px;cursor:pointer;">\u2715</button>':'')+lbl+'</div><div class="val">'+val+'</div>'+recPaceLine(r,d)+'<div class="sub">'+dateStr+'</div></div>';
   }).join('');
-  const durTargets=[{ms:1800000,lbl:'30 min'},{ms:3600000,lbl:'1 hour'}];
+  const durTargets=[{ms:1800000,lbl:'30 min'},{ms:3600000,lbl:'1 hour'},{ms:'max',lbl:'Longest session'}];
   out+=durTargets.map(t=>{
     const r=RECORDS_DB[mode].dur&&RECORDS_DB[mode].dur[t.ms];
     const val=r?fmtRecordDist(r.distM,mode):'—';
     const dateStr=r?fmtRecordDate(r.date):'';
-    return '<div class="card cb" style="cursor:'+(r&&(r.fileId||r.date)?'pointer':'default')+';" onclick="'+(r&&(r.fileId||r.date)?'window.loadRecordDurationSession(\''+t.ms+'\',\''+mode+'\');document.getElementById(\'_summary_modal\')?.remove();':'')+'"><div class="lbl">'+(r?'<button title="Exclude this result" onclick="event.stopPropagation();window.excludeRecord(\''+mode+'\',\''+'dur'+t.ms+'\')" style="float:right;margin:-4px -4px 0 0;background:none;border:0;color:var(--muted);font-size:14px;line-height:1;padding:2px 4px;cursor:pointer;">\u2715</button>':'')+t.lbl+'</div><div class="val">'+val+'</div>'+recDurPaceLine(r,t.ms)+'<div class="sub">'+dateStr+'</div></div>';
+    return '<div class="card cb" style="cursor:'+(r&&(r.fileId||r.date)?'pointer':'default')+';" onclick="'+(r&&(r.fileId||r.date)?'window.loadRecordDurationSession(\''+t.ms+'\',\''+mode+'\');document.getElementById(\'_summary_modal\')?.remove();':'')+'"><div class="lbl">'+(r?'<button title="Exclude this result" onclick="event.stopPropagation();window.excludeRecord(\''+mode+'\',\''+'dur'+t.ms+'\')" style="float:right;margin:-4px -4px 0 0;background:none;border:0;color:var(--muted);font-size:14px;line-height:1;padding:2px 4px;cursor:pointer;">\u2715</button>':'')+t.lbl+'</div><div class="val">'+val+'</div>'+recDurPaceLine(r,t.ms)+'<div class="sub">'+(t.ms==='max'&&r&&r.timeMs?fmtRecordTime(r.timeMs).replace(/\.\d$/,'')+' \u00b7 ':'')+dateStr+'</div></div>';
   }).join('');
   return out;
 }
@@ -17895,13 +17901,13 @@ body:has(#startup .sz-list) #sz-search{display:none!important;}
 #startup{background:var(--bg);color:var(--ov-text);font-family:Inter,-apple-system,sans-serif;padding:24px 28px 40px;}
 #startup .sz-list{max-width:1640px;}
 @media (min-width:1200px){
-  #startup .sz-grid{grid-template-columns:320px minmax(0,1fr);gap:20px;align-items:start;}
+  #startup .sz-grid{grid-template-columns:320px minmax(0,1fr);grid-template-rows:auto 1fr;gap:20px;align-items:start;}   /* 9 Nov: left column's extra height goes to row 2, not between calendar and sessions */
   #startup .sz-sumwrap{grid-column:1;grid-row:1 / span 2;}
   #startup .sz-calcol{grid-column:2;grid-row:1;}
   #startup #sz-sesspill{grid-column:2;grid-row:2;}
 }
 @media (min-width:1560px){
-  #startup .sz-grid{grid-template-columns:320px minmax(0,1fr) 400px;}
+  #startup .sz-grid{grid-template-columns:320px minmax(0,1fr) 400px;grid-template-rows:auto;}
   #startup .sz-sumwrap{grid-row:1;}
   #startup #sz-sesspill{grid-column:2;grid-row:1;}
   #startup .sz-calcol{grid-column:3;grid-row:1;}
