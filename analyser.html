@@ -2304,7 +2304,22 @@ function fmtDistU(m) {
 function distULabelU() { if (isErgSession()) return 'm'; return unitSettings.distUnit === 'mi' ? 'mi' : 'km'; }
 function fmtRunLossU(pct) {
   if (isNaN(pct) || pct == null) return EM;
-  return pct.toFixed(1) + '%';
+  return (pct > 0 ? '+' : '') + pct.toFixed(1) + '%';
+}
+/* 11 Nov RECOVERY RUN (replaces Recovery Loss, same 'rloss' slot): boat speed
+   gained from the finish to the next catch, % of the stroke's mean speed
+   (DPS x rate). Positive = boat runs during the recovery. Same formula as
+   Metrics_261111_3; older sessions are worked out from each stroke's saved curve. */
+function recRunFromCurve(data, driveFrac, rate, dpsVal, paceS) {
+  if (!data || data.length < 10 || !(driveFrac > 0 && driveFrac < 1) || !(rate > 0)) return NaN;
+  const N = data.length, dt = (60 / rate) / (N - 1);
+  const vBase = (dpsVal > 0) ? dpsVal * rate / 60 : (paceS > 0 ? 500 / paceS : 0);
+  if (!(vBase > 0.5)) return NaN;
+  const fi = clamp(Math.round(driveFrac * (N - 1)), 1, N - 2);
+  let gain = 0;
+  for (let i = fi + 1; i < N; i++) gain += (+data[i] || 0) * dt;
+  const pct = gain / vBase * 100;
+  return Math.abs(pct) <= 50 ? +pct.toFixed(1) : NaN;
 }
 function setUnitsAndRebuild(key, val) {
   unitSettings[key] = val;
@@ -2397,7 +2412,7 @@ const METRIC_DEFS = [
   {k:'epower', l:'Eff Power', c:'var(--mc-epower)', cat:'cond', filter:s=>!isNaN(s.epower)&&s.epower>0&&s.epower<6000, val:s=>s.epower, fmtAvg:v=>f0(v)+' W', fmtBest:null, tip:'Estimated effective power per rower, in watts: the power that went into moving the boat, shared equally across the rowers. Mean speed x speed gained on the drive x strokes per second gives W/kg; x total mass (boat minimum weight for the boat type + crew at the rower weight set in the units bar + 55 kg cox in coxed boats), divided by the number of rowers. Needs the boat type set. On-water only.'},
   {k:'driveaccel', l:'Drive Accel', c:'var(--mc-driveaccel)', cat:'boat', filter:s=>!isNaN(s.driveAccel)&&s.driveAccel>0&&s.driveAccel<20, val:s=>s.driveAccel, fmtAvg:v=>f1(v)+' m/s²', fmtBest:null, tip:'Peak forward acceleration during the drive, catch to finish. IMU-derived — scale varies with boat class and mass.'},
   {k:'recoveryaccel', l:'Recovery Accel', c:'var(--mc-recoveryaccel)', cat:'boat', filter:s=>!isNaN(s.recoveryAccel)&&s.recoveryAccel>0&&s.recoveryAccel<20, val:s=>s.recoveryAccel, fmtAvg:v=>f1(v)+' m/s²', fmtBest:null, tip:'Peak forward acceleration during the recovery, taken after the small drag-dip that follows the finish. IMU-derived — scale varies with boat class and mass.'},
-  {k:'rloss',  l:'Recovery Loss', c:'var(--mc-rloss)', cat:'indep', filter:s=>!isNaN(s.rloss)&&s.rloss>0&&s.rloss<100, val:s=>s.rloss, fmtAvg:v=>fmtRunLossU(v), fmtBest:null, tip:'Percentage of drive speed lost to deceleration during recovery. Accelerometer-derived, condition-independent. Lower is better.'},
+  {k:'rloss',  l:'Recovery Run', c:'var(--mc-rloss)', cat:'indep', filter:s=>!isNaN(s.rloss)&&Math.abs(s.rloss)<50, val:s=>s.rloss, fmtAvg:v=>fmtRunLossU(v), fmtBest:null, tip:'Boat speed gained from the finish to the next catch, as a percentage of average boat speed. Positive means the boat runs as you slide to the stern; near zero or negative means the recovery is checking the boat. Higher is better.'},
   {k:'ratio',  l:'Ratio',       c:'var(--mc-ratio)', cat:'indep', filter:s=>!isNaN(s.ratio)&&s.ratio>0.5&&s.ratio<5, val:s=>s.ratio, fmtAvg:v=>f2(v),       fmtBest:null, tip:'Recovery time ÷ drive time. Higher means a longer, more relaxed recovery relative to the drive.'},
   {k:'schar',  l:'Stroke Char', c:'var(--mc-schar)', cat:'indep', filter:s=>!isNaN(s.schar)&&s.schar>0&&s.schar<=100, val:s=>s.schar,       fmtAvg:v=>f0(v)+'%',        fmtBest:null, tip:'Where the peak drive acceleration falls within the drive, as %: 0% = the moment the boat starts accelerating after the catch, 100% = blade exit. The peak time is interpolated between sensor samples and smoothed over 5 strokes. Under 40% = front-loaded, 40–60% = mid-drive, over 60% = back-loaded. Neither is inherently better — it\'s a technique style that varies by boat type and rower. Sessions recorded before Metrics 260915_3 used the impulse centroid, which reads closer to 50% — don\'t compare them directly.'},
   {k:'cdelta', l:'Vel Efficiency', c:'var(--mc-cdelta)',  cat:'boat',  filter:s=>!isNaN(s.checkDelta)&&s.checkDelta>=50&&s.checkDelta<=100, val:s=>s.checkDelta, fmtAvg:v=>f1(v)+'%', fmtBest:null, tip:'Hydrodynamic efficiency of the boat\'s speed profile within one stroke — 100% = perfectly steady hull, typical sculling 93–97%. Drag power rises with the cube of speed, so speed swings waste energy versus a constant speed. Higher is better. GPS-anchored IMU metric.'},
@@ -2563,7 +2578,7 @@ function parseCSV(text) {
           slope:parseFloat(row.catch_ms3), schar:parseFloat(row.char),
           consistency:parseFloat(row.consistency), rate:parseFloat(row.rate_spm),
           pace:parseFloat(row.pace_s500), dist:parseFloat(row.dist_m),
-          dps:parseFloat(row.dps_m), rloss:(parseFloat(row.run_loss_m)>=0&&parseFloat(row.dps_m)>0?parseFloat(row.run_loss_m)/parseFloat(row.dps_m)*100:NaN),
+          dps:parseFloat(row.dps_m), rloss:NaN,
           ratio:parseFloat(row.ratio), impulse:parseFloat(row.impulse) });
         break;
       }
@@ -2753,7 +2768,7 @@ function sessionToAnalyserFmt(s) {
     n:i+1, ms:r.t, elapsed:(r.t-t0)/1000,
     slope:num(r.catchPeak), schar:(!isNaN(num(r.char))?num(r.char):(fcFix[i]&&!r.curve?ergCharOf(fcFix[i]):NaN)), consistency:num(r.catchConsistency),
     rate:num(r.rate), pace:num(r.pace), dist:num(r.dist), dps:num(r.dps),
-    rloss:!isNaN(num(r.runLossPct))?num(r.runLossPct):(num(r.runLossM)>=0&&num(r.dps)>0?num(r.runLossM)/num(r.dps)*100:NaN), runeff:num(r.runEfficiency), impulse:num(r.driveImpulse)*100,
+    rloss:!isNaN(num(r.recRunPct))?num(r.recRunPct):(r.curve&&!r.forceCurve?recRunFromCurve(r.curve,num(r.curveDriveFrac),num(r.rate),num(r.dps),num(r.pace)):NaN), runeff:num(r.runEfficiency), impulse:num(r.driveImpulse)*100,
     ratio:num(r.strokeRatio), oarAngle:num(r.oarAngle), checkDelta:num(r.velEff),
     catchDuration:num(r.catchDuration), driveTimeMs:num(r.driveTimeMs), recoveryAccel:num(r.recoveryAccel), driveAccel:num(r.driveAccel),
     catchAccel:num(r.catchAccel), catchSlopeNeg:num(r.catchSlopeNeg),
@@ -7430,7 +7445,7 @@ function buildCards(sum) {
     rate:()=>vals.rate?card('c-rate','Rate',f1(vals.rate.mean),'spm · max '+f0(vals.rate.max),'rate',tipOf('rate')):'',
     dps:()=>vals.dps?card('c-dps','DPS'+_cwS(),fmtDPSU(vals.dps.mean),dpsULabelU()+'/stroke','dps',tipOf('dps')):'',
     cdelta:()=>vals.cdelta?`<div class="card clickable${!vis.cdelta?' dim':''}" id="card-cdelta" data-vis="cdelta" style="border-top:2px solid var(--mc-cdelta)" title="${tipOf('cdelta')}"><div class="lbl">Vel Efficiency</div><div class="val" style="color:var(--mc-cdelta)">${f1(vals.cdelta.mean)}%</div><div class="sub">vs steady hull</div></div>`:'',
-    rloss:()=>vals.rloss?card('c-rloss','Recovery Loss',fmtRunLossU(vals.rloss.mean),'avg/stroke','rloss',tipOf('rloss')):'',
+    rloss:()=>vals.rloss?card('c-rloss','Recovery Run',fmtRunLossU(vals.rloss.mean),'avg/stroke','rloss',tipOf('rloss')):'',
     epower:()=>vals.epower?`<div class="card clickable${!vis.epower?' dim':''}" id="card-epower" data-vis="epower" style="border-top:2px solid var(--mc-epower)" title="${tipOf('epower')}"><div class="lbl">Eff Power${_cwS()}</div><div class="val" style="color:var(--mc-epower)">${f0(vals.epower.mean)} W</div><div class="sub">per rower · peak ${f0(vals.epower.max)} W</div></div>`:'',
     impulse:()=>vals.impulse?card('c-impulse','Impulse',Math.round(vals.impulse.mean),'peak '+Math.round(vals.impulse.max),'impulse',tipOf('impulse')):'',
     slope:()=>vals.slope?card('c-slope','Pos Slope',f0(vals.slope.mean),'peak '+f1(vals.slope.max),'slope',tipOf('slope')):'',
@@ -7740,7 +7755,7 @@ function drawMain(){
     if(vis.caccel&&s.catchAccel<0&&s.catchAccel>-20)cav.push(s.catchAccel);
     if(vis.dps&&s.dps>1&&s.dps<25)dv.push(s.dps);
     if(vis.impulse&&s.impulse>0&&s.impulse<1000)iv.push(s.impulse);
-    if(vis.rloss&&s.rloss>=0&&s.rloss<100)rlv.push(s.rloss);
+    if(vis.rloss&&!isNaN(s.rloss)&&Math.abs(s.rloss)<50)rlv.push(s.rloss);
     if(vis.schar&&!isNaN(s.schar)&&s.schar>=0&&s.schar<=100)scv.push(s.schar);
     if(vis.ratio&&!isNaN(s.ratio)&&s.ratio>0.5&&s.ratio<5)ratv.push(s.ratio);
     if(vis.cdelta&&!isNaN(s.checkDelta)&&s.checkDelta>=50&&s.checkDelta<=100)cdv.push(s.checkDelta);
@@ -7768,8 +7783,9 @@ function drawMain(){
   let yImpMin=0.2,yImpMax=2.0;
   if(iv.length){const[lo,hi]=pctBounds(iv,0.03,0.97,0.10);yImpMin=Math.max(0,lo);yImpMax=Math.min(1000,hi);}
   const toYImp=v=>PT+ph-(v-yImpMin)/(yImpMax-yImpMin||1)*ph;
-  const yRLMax=rlv.length?Math.min(Math.max(pctBounds(rlv,0.03,0.97,0.10)[1],0.5),50):2;
-  const toYRL=v=>PT+ph-(v/yRLMax)*ph;
+  const _rlB=rlv.length?pctBounds(rlv,0.03,0.97,0.10):[0,2];
+  const yRLMax=Math.min(Math.max(_rlB[1],0.5),50), yRLMin=Math.max(Math.min(_rlB[0],0),-50);
+  const toYRL=v=>PT+ph-((v-yRLMin)/((yRLMax-yRLMin)||1))*ph;
   const accAll=[...daccv,...raccv,...cav];const yAccMax=accAll.length?Math.min(Math.max(pctBounds(accAll,0.03,0.97,0.10)[1],0.5),20):6;
   // Catch Accel is negative, so the shared accel axis drops below zero only when it is shown
   const yAccMin=cav.length?Math.max(-20,Math.min(0,pctBounds(cav,0.03,0.97,0.10)[0])):0;
@@ -7843,7 +7859,7 @@ function drawMain(){
   if(vis.rate&&rv.length){ctx.fillStyle=C.mc_rate;for(let i=0;i<N;i++){const v=sv[i].rate;if(isNaN(v)||v<5||v>50)continue;ctx.beginPath();ctx.arc(toX(xs[i]),toYR(v),2.2,0,6.283);ctx.fill();}}
   if(vis.slope&&jv.length){const jMax=arrMax(jv);for(let i=0;i<N;i++){const v=sv[i].slope;if(isNaN(v)||v<=0||v>300)continue;const rad=clamp(1.5+(v/jMax)*3.5,1.5,5);ctx.beginPath();ctx.arc(toX(xs[i]),toYR(v),rad,0,6.283);ctx.fillStyle=C.mc_slope;ctx.fill();}}
   if(vis.impulse&&iv.length){ctx.fillStyle=C.mc_impulse;for(let i=0;i<N;i++){const v=sv[i].impulse;if(isNaN(v)||v<=0||v>1000)continue;ctx.beginPath();ctx.arc(toX(xs[i]),toYImp(v),2.5,0,6.283);ctx.fill();}}
-  if(vis.rloss&&rlv.length){ctx.fillStyle=C.mc_rloss;for(let i=0;i<N;i++){const v=sv[i].rloss;if(isNaN(v)||v<0||v>=100)continue;ctx.beginPath();ctx.arc(toX(xs[i]),toYRL(v),2.2,0,6.283);ctx.fill();}}
+  if(vis.rloss&&rlv.length){ctx.fillStyle=C.mc_rloss;for(let i=0;i<N;i++){const v=sv[i].rloss;if(isNaN(v)||Math.abs(v)>=50)continue;ctx.beginPath();ctx.arc(toX(xs[i]),toYRL(v),2.2,0,6.283);ctx.fill();}}
   if(vis.schar&&scv.length){ctx.fillStyle=C.mc_schar;for(let i=0;i<N;i++){const v=sv[i].schar;if(isNaN(v)||v<0||v>100)continue;ctx.beginPath();ctx.arc(toX(xs[i]),toYSC(v),2.2,0,6.283);ctx.fill();}}
   if(vis.ratio&&ratv.length){ctx.fillStyle=C.mc_ratio;for(let i=0;i<N;i++){const v=sv[i].ratio;if(isNaN(v)||v<0.5||v>5)continue;ctx.beginPath();ctx.arc(toX(xs[i]),toYRatio(v),2.2,0,6.283);ctx.fill();}}
   if(vis.cdelta&&cdv.length){ctx.fillStyle=C.mc_cdelta;for(let i=0;i<N;i++){const v=sv[i].checkDelta;if(isNaN(v)||v<50||v>100)continue;ctx.beginPath();ctx.arc(toX(xs[i]),toYCD(v),2.2,0,6.283);ctx.fill();}}
@@ -7974,7 +7990,7 @@ function showTooltipAt(clientX, clientY, force, above){
     caccel:()=>ttRow('Catch Accel',isNaN(s.catchAccel)||s.catchAccel>=0?EM:f1(s.catchAccel)+' m/s²',C.mc_catchaccel),
     slopeneg:()=>ttRow('Neg catch slope',isNaN(s.catchSlopeNeg)||s.catchSlopeNeg<=0?EM:f0(s.catchSlopeNeg),C.mc_catchslopeneg),
     recoveryaccel:()=>ttRow('Recovery Accel',isNaN(s.recoveryAccel)||s.recoveryAccel<=0?EM:f1(s.recoveryAccel)+' m/s²',C.mc_recoveryaccel),
-    rloss:()=>ttRow('Recovery Loss',isNaN(s.rloss)||s.rloss<0?EM:fmtRunLossU(s.rloss),C.mc_rloss),
+    rloss:()=>ttRow('Recovery Run',isNaN(s.rloss)?EM:fmtRunLossU(s.rloss),C.mc_rloss),
     impulse:()=>ttRow('Impulse',isNaN(s.impulse)||s.impulse<=0?EM:Math.round(s.impulse).toString(),C.mc_impulse),
     epower:()=>ttRow('Eff Power/rower'+_cwS(),isNaN(s.epower)||s.epower<=0?EM:f0(s.epower)+' W',C.mc_epower),
     slope:()=>ttRow('Pos catch slope',isNaN(s.slope)||s.slope<=0?EM:f0(s.slope),C.mc_slope),
@@ -10494,7 +10510,7 @@ const TBL_COLS={
   rate:{h:()=>'Rate', cell:s=>`<td style="color:var(--mc-rate)">${isNaN(s.rate)||s.rate<1?EM:f0(s.rate)}</td>`},
   dps:{h:()=>'DPS '+dpsULabelU()+_cwS(), cell:s=>`<td style="color:var(--mc-dps)">${isNaN(s.dps)||s.dps<1?EM:fmtDPSU(s.dps)}</td>`},
   cdelta:{h:()=>'Vel Eff %', cell:s=>`<td style="color:var(--mc-cdelta)">${(!isNaN(s.checkDelta)&&s.checkDelta>=50)?f1(s.checkDelta):EM}</td>`},
-  rloss:{h:()=>'Recovery Loss %', cell:s=>`<td style="color:var(--mc-rloss)">${isNaN(s.rloss)||s.rloss<0?EM:fmtRunLossU(s.rloss)}</td>`},
+  rloss:{h:()=>'Recovery Run %', cell:s=>`<td style="color:var(--mc-rloss)">${isNaN(s.rloss)?EM:fmtRunLossU(s.rloss)}</td>`},
   impulse:{h:()=>'Impulse', cell:s=>`<td style="color:var(--mc-impulse)">${isNaN(s.impulse)||s.impulse<=0?EM:Math.round(s.impulse)}</td>`},
   epower:{h:()=>'Eff Power W/rower'+_cwS(), cell:s=>`<td style="color:var(--mc-epower)">${isNaN(s.epower)||s.epower<=0?EM:f0(s.epower)}</td>`},
   slope:{h:()=>'Pos slope', cell:s=>`<td style="color:var(--mc-slope)">${isNaN(s.slope)||s.slope<=0?EM:f1(s.slope)}</td>`},
@@ -12551,7 +12567,7 @@ const TREND_METRICS = [
   { k: 'impulse', l: 'Impulse', val: x => x, fmt: v => _trR(v, 0), unit: () => '', better: 0 },
   { k: 'driveAccel', l: 'Drive accel', val: x => x, fmt: v => _trR(v, 1), unit: () => 'm/s²', better: 0 },
   { k: 'recoveryAccel', l: 'Recovery accel', val: x => x, fmt: v => _trR(v, 1), unit: () => 'm/s²', better: 0 },
-  { k: 'rloss', l: 'Recovery loss', val: x => x, fmt: v => _trR(v, 1), unit: () => '%', better: -1 },
+  { k: 'rloss', l: 'Recovery run', val: x => x, fmt: v => _trR(v, 1), unit: () => '%', better: 1 },
   { k: 'checkDelta', l: 'Vel efficiency', val: x => x, fmt: v => _trR(v, 1), unit: () => '%', better: 1 },
   { k: 'consistency', l: 'Catch consistency', val: x => x, fmt: v => _trR(v, 1), unit: () => '', better: -1 },
   { k: 'hr', l: 'Heart rate', val: x => x, fmt: v => _trR(v, 0), unit: () => 'bpm', better: 0 }
@@ -15290,7 +15306,7 @@ const VID_METRICS = {
   slopeneg:     {l:'Neg Slope',fmt:s=>({v:f0(s.catchSlopeNeg),u:''})},
   caccel:       {l:'Catch Accel', fmt:s=>({v:f1(s.catchAccel),u:'m/s²'})},
   impulse:      {l:'Impulse',    fmt:s=>({v:f0(s.impulse),u:''})},
-  rloss:        {l:'Recovery Loss', fmt:s=>({v:fmtRunLossU(s.rloss),u:''})},
+  rloss:        {l:'Recovery Run', fmt:s=>({v:fmtRunLossU(s.rloss),u:''})},
   schar:        {l:'Char',       fmt:s=>({v:f0(s.schar),u:'%'})},
   ratio:        {l:'Stroke Ratio',fmt:s=>({v:f2(s.ratio),u:''})},
   checkDelta:   {l:'Vel Eff',fmt:s=>({v:f1(s.checkDelta),u:'%'})},
