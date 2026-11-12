@@ -1747,7 +1747,8 @@ const AnalyserDrive = {
     const content = await this.fetchSession(fileId);
     const erg = content.sessionMode === 'erg';
     if (ends && ends.length) {
-      content.manualLaps = ends.map(x => ({ t: +(+x.t).toFixed(2), type: x.type || null }));
+      { const _rec = (content.lapsOrig && typeof content.lapsOrig === 'object') ? (content.lapsOrig.workoutLapMetrics || content.lapsOrig.laps) : (content.workoutLapMetrics || content.laps);
+        content.manualLaps = _endsWithD(ends, _rec).map(x => { const o = { t: +(+x.t).toFixed(2), type: x.type || null }; if (x.d != null && isFinite(x.d)) o.d = Math.round(+x.d); return o; }); }
       /* The Metrics log, its lap table and the session card all read laps /
          workoutLapMetrics, so the new laps are written there too, in Metrics'
          own format. The recorded laps are kept once in lapsOrig so either app
@@ -10308,6 +10309,27 @@ function cancelLapTypes(){
    ended at 9:17 but its last stroke was at 7:31 (paddled in, then sat), and
    every lap was rebuilt from "last stroke" times, so lap 2 swallowed the 1:46
    with no strokes. Distance at a boundary is interpolated between strokes. */
+/* 12 Nov: manual lap ends saved before today carry only a time. Where an end
+   sits on a recorded lap boundary (within 1.5 s), take that lap's recorded
+   distance, so Metrics and the Analyser show the same lap distances. Accepts
+   Metrics rows (startT/time/startD/dist) or Analyser rows. */
+function _endsWithD(ends,recorded){
+  if(!Array.isArray(ends)||!ends.length)return ends;
+  const rec=(Array.isArray(recorded)?recorded:[]).map(l=>{
+    const st=l.startT!=null?+l.startT:(l.start_time_s!=null?+l.start_time_s:null);
+    const tm=l.time!=null?+l.time:(l.time_s!=null?+l.time_s:null);
+    const sd=l.startD!=null?+l.startD:(l.start_dist_m!=null?+l.start_dist_m:null);
+    const ds=l.dist!=null?+l.dist:(l.distance_m!=null?+l.distance_m:null);
+    return (st!=null&&tm!=null&&sd!=null&&ds!=null&&isFinite(st+tm+sd+ds))?{t:st+tm,d:sd+ds}:null;
+  }).filter(Boolean);
+  if(!rec.length)return ends;
+  return ends.map(x=>{
+    if(x.d!=null&&isFinite(x.d))return x;
+    let best=null;
+    for(const r of rec){const dt=Math.abs(r.t-x.t);if(dt<=1.5&&(!best||dt<best.dt))best={dt,d:r.d};}
+    return best?{...x,d:best.d}:x;
+  });
+}
 function _distAtT(t,offset){
   const n=ST.length;if(!n)return offset;
   if(t<=(ST[0].elapsed||0))return offset;
@@ -11388,7 +11410,17 @@ function mountData(d,label){
   computeStrokeAngles(ST);
   HR=d.hr||[]; buildHRIndex();
   if(!d._origLaps)d._origLaps=d.laps||[];
-  if(Array.isArray(d.manualLaps)&&d.manualLaps.length&&ST.length)d.laps=_lapsFromEnds(d.manualLaps,Date.parse((d.sum&&d.sum.start_time)||''));
+  if(Array.isArray(d.manualLaps)&&d.manualLaps.length&&ST.length){
+    const _nd=d.manualLaps.filter(x=>x&&x.d!=null).length;
+    d.manualLaps=_endsWithD(d.manualLaps,d._origLaps);
+    d.laps=_lapsFromEnds(d.manualLaps,Date.parse((d.sum&&d.sum.start_time)||''));
+    /* Older saves had no distances: put them back on Drive once, so Metrics'
+       lap table matches (12 Nov: Metrics 439 m vs Analyser 471 m). */
+    if(d.manualLaps.filter(x=>x&&x.d!=null).length>_nd){
+      try{const _s=(typeof SESSIONS!=='undefined'&&activeSessionIdx>=0)?SESSIONS[activeSessionIdx]:null;
+        if(_s&&_s.d===d&&_s.fileId&&AnalyserDrive.isSignedIn())setTimeout(()=>{try{_saveManualLaps(_s,d.manualLaps);}catch(e){}},1500);}catch(e){}
+    }
+  }
   LAPS=[...(d.laps||[]),...(d.glaps||[])]; GPSTRACE=d.gpsTrace||[];
   try{navNoteWater(d);}catch{}
   viewS=0; viewE=ST.length-1; selS=-1; selE=-1;
