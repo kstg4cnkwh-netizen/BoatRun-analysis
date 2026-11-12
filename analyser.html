@@ -1160,6 +1160,12 @@ function boatOfFid(fid) {
   if (!n) { try { const f = (AnalyserDrive.cachedList('RowSess_') || []).find(x => x.id === fid); if (f) n = f.name; } catch (e) {} }
   return n ? { t: boatFromFilename(n), m: boatMixedFromFilename(n), c: boatCoastalFromFilename(n) } : null;
 }
+/* 12 Nov: general location written by Metrics (_LC token, same encoding as _NM). */
+function locFromFilename(n) {
+  const m = String(n || '').match(/_LC([A-Za-z0-9\-~]+)/);
+  if (!m) return null;
+  try { return decSessName(m[1]) || null; } catch (e) { return null; }
+}
 function raceOfFid(fid) {
   let n = _fidNames[fid];
   if (!n) { try { const f = (AnalyserDrive.cachedList('RowSess_') || []).find(x => x.id === fid); if (f) n = f.name; } catch (e) {} }
@@ -2783,6 +2789,7 @@ function sessionToAnalyserFmt(s) {
     boat_type: (s.sessionMode !== 'erg' && BOAT_ORDER.includes(s.boatType)) ? s.boatType : null,
     boat_mixed: !!(s.sessionMode !== 'erg' && s.boatMixed && s.boatType && s.boatType !== '1x'),
     boat_coastal: !!(s.sessionMode !== 'erg' && s.boatCoastal && s.boatType),
+    loc_name: (s.sessionMode !== 'erg' && s.locName) ? String(s.locName) : null,
   };
   const num = v => (v!=null&&!isNaN(+v)) ? +v : NaN;
   const t0 = s.startTime;
@@ -6375,6 +6382,7 @@ async function showAddComparePicker() {
                         strokes: str ? parseInt(str[1]) : null,
                         favourite: fav,
                         race: /_RACE1/.test(name),
+                        loc: locFromFilename(name),
                         erg: erg,
                         approxTs: ts ? new Date(+ts[1],+ts[2]-1,+ts[3],+ts[4],+ts[5]).getTime() : 0
                     };
@@ -6480,7 +6488,7 @@ async function showAddComparePicker() {
                         btn.style.marginBottom = '0';
                         if (name) { const nd=document.createElement('div');nd.style.cssText='font-weight:700;font-size:.85rem;color:var(--text);margin-bottom:2px;';nd.textContent=name;btn.appendChild(nd); }
                         const dd = document.createElement('div'); dd.className='asc-date';
-                        dd.innerHTML = '<span>' + dateStr + '</span>' + (p.race ? '<span class="asc-badge" style="background:#c0392b;color:#fff;">\u{1F3C1} RACE</span>' : '') + (p.boat ? '<span class="asc-badge">' + boatLabel(p.boat, p.mixed, p.coastal) + '</span>' : '');
+                        dd.innerHTML = '<span>' + dateStr + '</span>' + (p.loc && !p.erg ? '<span style="color:var(--muted);font-weight:600;">\u{1F4CD} ' + _secEsc(p.loc) + '</span>' : '') + (p.race ? '<span class="asc-badge" style="background:#c0392b;color:#fff;">\u{1F3C1} RACE</span>' : '') + (p.boat ? '<span class="asc-badge">' + boatLabel(p.boat, p.mixed, p.coastal) + '</span>' : '');
                         btn.appendChild(dd);
                         const sd = document.createElement('div'); sd.className='asc-stats';
                         if(distM!=null)sd.innerHTML+='<div><span class="asc-v">'+(p.erg?Math.round(distM):(distM/1000).toFixed(2))+'</span><span class="asc-l">'+(p.erg?'m':'km')+'</span></div>';
@@ -7145,6 +7153,7 @@ function showDrivePicker(files, onSelect) {
       squadCode: sq?sq[1]:null,
       favourite: fav,
       race: /_RACE1/.test(name),
+      loc: locFromFilename(name),
       erg: erg,
       approxTs: ts?new Date(+ts[1],+ts[2]-1,+ts[3],+ts[4],+ts[5]).getTime():0
     };
@@ -7203,6 +7212,7 @@ function showDrivePicker(files, onSelect) {
       dateDiv.className='asc-date';
       dateDiv.innerHTML='<span>'+dateStr+'</span>'
         +(p.race?'<span class="asc-badge" style="background:#c0392b;color:#fff;">\u{1F3C1} RACE</span>':'')
+        +(p.loc&&!p.erg?'<span class="asc-loc" style="color:var(--muted);font-weight:600;">\u{1F4CD} '+_secEsc(p.loc)+'</span>':'')
         +(p.boat?'<span class="asc-badge">'+boatLabel(p.boat,p.mixed,p.coastal)+'</span>':'')
         +(p.squadCode?'<span class="asc-badge">'+p.squadCode+'</span>':'')
         
@@ -7328,6 +7338,7 @@ function buildMeta(fname,sum) {
   const btBadge=bt
     ?' <span title="Boat type'+(_canBoat?' \u2013 tap to change':'')+'"'+(_canBoat?' onclick="editSessionBoat()"':'')+' style="'+(_canBoat?'cursor:pointer;':'')+'font-size:12px;font-weight:800;background:#fff;border-radius:4px;padding:1px 7px;color:#1a5276;letter-spacing:.04em;vertical-align:middle;">'+boatLabel(bt,bm,bc)+'</span>'
     :(_canBoat?' <span title="Set the boat type" onclick="editSessionBoat()" style="cursor:pointer;font-size:11px;font-weight:700;border:1px dashed rgba(255,255,255,.6);border-radius:4px;padding:1px 7px;color:rgba(255,255,255,.85);vertical-align:middle;">+ Boat</span>':'');
+ const _locName=(sum&&sum.loc_name)||(_cs&&_cs.fileId&&(()=>{let n=_fidNames[_cs.fileId];if(!n){try{const f=(AnalyserDrive.cachedList('RowSess_')||[]).find(x=>x.id===_cs.fileId);if(f)n=f.name;}catch(e){}}return n?locFromFilename(n):null;})())||null;
  const _isRace=(sum&&sum.race!=null)?!!sum.race:!!(_cs&&_cs.fileId&&raceOfFid(_cs.fileId));
   const _canRace=_canBoat;
   const raceBadge=_isRace
@@ -7335,7 +7346,7 @@ function buildMeta(fname,sum) {
     :'';
   document.getElementById('hdrmeta').innerHTML=
     '<span class="hdrname" style="cursor:pointer;border-bottom:1px dotted rgba(255,255,255,.5);font-size:19px;font-weight:700;" onclick="renameCurrentSession()" title="Tap to rename">'+safe+'</span>'
-    +' <span style="color:var(--muted);font-size:12px;">✎</span>'+btBadge+raceBadge+sqBadge+'<br><span style="font-size:12px;font-weight:400;color:rgba(255,255,255,.75);">'+date+(time?' '+time:'')+' · '+dist+' · '+dur+'</span>'
+    +' <span style="color:var(--muted);font-size:12px;">✎</span>'+btBadge+raceBadge+sqBadge+'<br><span style="font-size:12px;font-weight:400;color:rgba(255,255,255,.75);">'+date+(time?' '+time:'')+' · '+dist+' · '+dur+(_locName?' · \u{1F4CD} '+_locName.replace(/&/g,'&amp;').replace(/</g,'&lt;'):'')+'</span>'
     +'<div onclick="editSessionNote()" title="Tap to edit notes" style="cursor:pointer;margin-top:3px;font-size:12px;font-weight:400;line-height:1.35;white-space:pre-wrap;max-width:640px;color:'+(sum&&sum.note?'#ffe58a':'rgba(255,255,255,.55)')+';">'
     +(sum&&sum.note?'📝 '+String(sum.note).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'):'+ Add note')+'</div>';
 }
@@ -11832,6 +11843,7 @@ async function showStartup(){
         squadCode: sq?sq[1]:null,
         favourite: fav,
         race: /_RACE1/.test(name),
+        loc: locFromFilename(name),
         erg: erg,
         approxTs: ts?new Date(+ts[1],+ts[2]-1,+ts[3],+ts[4],+ts[5]).getTime():0
       };
@@ -12019,6 +12031,7 @@ async function showStartup(){
         dateDiv.className='asc-date';
         dateDiv.innerHTML='<span>'+dateStr+'</span>'
           +(p.race?'<span class="asc-badge" style="background:#c0392b;color:#fff;">\u{1F3C1} RACE</span>':'')
+          +(p.loc&&!p.erg?'<span class="asc-loc" style="color:var(--muted);font-weight:600;">\u{1F4CD} '+_secEsc(p.loc)+'</span>':'')
           +(p.boat?'<span class="asc-badge asc-boat">'+boatLabel(p.boat,p.mixed,p.coastal)+'</span>':'')
           +(p.squadCode?'<span class="asc-badge">'+p.squadCode+'</span>':'')
           
