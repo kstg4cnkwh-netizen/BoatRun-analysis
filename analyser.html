@@ -10303,21 +10303,37 @@ function cancelLapTypes(){
    A lap is stored as the elapsed time of its last stroke plus its type. The
    lap rows are rebuilt from the strokes, so distance, time, pace, rate and HR
    always match the data. */
+/* 12 Nov: laps are cut at their boundary TIMES, not at the last stroke before
+   them. Joining laps 13+14 turned lap 2 into 3:53 / 513 m: lap 1 (warm-up)
+   ended at 9:17 but its last stroke was at 7:31 (paddled in, then sat), and
+   every lap was rebuilt from "last stroke" times, so lap 2 swallowed the 1:46
+   with no strokes. Distance at a boundary is interpolated between strokes. */
+function _distAtT(t,offset){
+  const n=ST.length;if(!n)return offset;
+  if(t<=(ST[0].elapsed||0))return offset;
+  if(t>=(ST[n-1].elapsed||0))return ST[n-1].dist||0;
+  let lo=0,hi=n-1;
+  while(hi-lo>1){const m=(lo+hi)>>1;if((ST[m].elapsed||0)<=t)lo=m;else hi=m;}
+  const a=ST[lo],b=ST[hi],ta=a.elapsed||0,tb=b.elapsed||0;
+  return tb>ta?(a.dist||0)+((b.dist||0)-(a.dist||0))*(t-ta)/(tb-ta):(a.dist||0);
+}
 function _lapsFromEnds(ends,startMs){
   const n=ST.length;if(!n||!ends||!ends.length)return[];
   const offset=ST[0].dist||0;
   const sorted=ends.slice().sort((a,b)=>a.t-b.t);
-  const out=[];let prev=-1;
+  const tLast=ST[n-1].elapsed||0;
+  const out=[];let prevT=0,prevD=offset,s=0;
   sorted.forEach((x,k)=>{
-    let e=prev;
-    while(e+1<n&&(ST[e+1].elapsed||0)<=x.t+0.01)e++;
-    if(k===sorted.length-1)e=n-1;
-    if(e<=prev)return;
-    const s=prev+1;
-    const d0=s===0?offset:(ST[s-1].dist||0);
-    const t0=s===0?0:(ST[s-1].elapsed||0);
-    const dist=Math.max(0,(ST[e].dist||0)-d0);
-    const time=Math.max(0,(ST[e].elapsed||0)-t0);
+    const isLast=k===sorted.length-1;
+    const tEnd=isLast?Math.max(x.t,tLast):x.t;
+    if(tEnd<=prevT+0.05)return;
+    let e=s-1;
+    while(e+1<n&&(isLast||(ST[e+1].elapsed||0)<=tEnd+0.01))e++;
+    /* Recorded boundary distance (x.d, metres from the start) when the end came
+       from a recorded lap: stroke distances can run 30-100 m behind it. */
+    const dEnd=(x.d!=null&&isFinite(x.d))?offset+x.d:(isLast?Math.max(_distAtT(tEnd,offset),ST[n-1].dist||0):_distAtT(tEnd,offset));
+    const dist=Math.max(0,dEnd-prevD);
+    const time=Math.max(0,tEnd-prevT);
     const rv=[],hb=[];
     for(let i=s;i<=e;i++){
       const q=ST[i];
@@ -10326,12 +10342,12 @@ function _lapsFromEnds(ends,startMs){
       const abs=q.ms>1e12?q.ms:((startMs>1e12&&q.elapsed!=null)?startMs+q.elapsed*1000:null);
       if(abs!=null){const b=nearestHRAt(abs);if(b>40&&b<220)hb.push(b);}
     }
-    const lap={lap:out.length+1,distance_m:dist,time_s:+time.toFixed(1),
+    const lap={lap:out.length+1,distance_m:Math.round(dist),time_s:+time.toFixed(1),
       pace_s_per_500m:dist>0?+(time*500/dist).toFixed(1):null,
       stroke_rate_spm:rv.length?+(rv.reduce((a,b)=>a+b,0)/rv.length).toFixed(1):null,
-      type:x.type||null,start_time_s:+t0.toFixed(1),start_dist_m:d0-offset,_manual:true};
+      type:x.type||null,start_time_s:+prevT.toFixed(1),start_dist_m:Math.round(prevD-offset),_manual:true};
     if(hb.length){lap.avg_hr_bpm=Math.round(hb.reduce((a,b)=>a+b,0)/hb.length);lap.max_hr_bpm=Math.max(...hb);}
-    out.push(lap);prev=e;
+    out.push(lap);prevT=tEnd;prevD=dEnd;s=e+1;
   });
   return out;
 }
@@ -10340,10 +10356,20 @@ function _currentLapEnds(){
   const useLaps=LAPS.filter(l=>'stroke_rate_spm' in l);
   assignLapNumbers();
   const ends=[];
+  /* Use each lap's own end time (start + length) when the laps carry them;
+     the last stroke in a lap can be well before its end (sitting at a rest). */
+  const timed=useLaps.every(l=>l.start_time_s!=null&&!isNaN(+l.start_time_s)&&l.time_s!=null&&!isNaN(+l.time_s));
+  let lastT=-1;
   useLaps.forEach((l,k)=>{
-    let last=-1;
-    for(let i=0;i<ST.length;i++)if(ST[i].lapNum===k+1)last=i;
-    if(last>=0)ends.push({t:ST[last].elapsed||0,type:l.type||null});
+    let t=null,d=null;
+    if(timed){t=+l.start_time_s+(+l.time_s);if(!(t>lastT+0.05))t=null;
+      else if(l.start_dist_m!=null&&!isNaN(+l.start_dist_m)&&l.distance_m!=null)d=+l.start_dist_m+(+l.distance_m);}
+    if(t==null){
+      let last=-1;
+      for(let i=0;i<ST.length;i++)if(ST[i].lapNum===k+1)last=i;
+      if(last>=0)t=ST[last].elapsed||0;
+    }
+    if(t!=null&&t>lastT+0.05){const o={t,type:l.type||null};if(d!=null)o.d=d;ends.push(o);lastT=t;}
   });
   if(!ends.length)ends.push({t:ST[ST.length-1].elapsed||0,type:null});
   return ends;
@@ -10366,36 +10392,51 @@ function _metricsLapRows(c,ends){
   const offset=st[0].dist||0;
   const hr=(c.hrTrace||[]).filter(h=>h&&h.hr>40&&h.hr<220);
   const avg=a=>a.length?a.reduce((x,y)=>x+y,0)/a.length:null;
+  const distAt=t=>{
+    if(t<=el(st[0]))return offset;
+    if(t>=el(st[n-1]))return st[n-1].dist||0;
+    let lo=0,hi=n-1;
+    while(hi-lo>1){const m=(lo+hi)>>1;if(el(st[m])<=t)lo=m;else hi=m;}
+    const ta=el(st[lo]),tb=el(st[hi]);
+    return tb>ta?(st[lo].dist||0)+((st[hi].dist||0)-(st[lo].dist||0))*(t-ta)/(tb-ta):(st[lo].dist||0);
+  };
   const sorted=ends.slice().sort((a,b)=>a.t-b.t);
-  const out=[];let prev=-1,bPrev=0;
+  const tLast=el(st[n-1]);
+  const out=[];let prevT=0,bPrev=0,s0=0;
   sorted.forEach((x,k)=>{
-    let e=prev;
-    while(e+1<n&&el(st[e+1])<=x.t+0.01)e++;
-    if(k===sorted.length-1)e=n-1;
-    if(e<=prev)return;
-    const s0=prev+1;
-    const d0=s0===0?offset:(st[s0-1].dist||0);
-    const ts=s0===0?0:el(st[s0-1]);
-    const rEnd=(st[e].dist||0)-offset, rNext=e+1<n?(st[e+1].dist||0)-offset:Infinity;
-    let bEnd=Math.ceil(rEnd+1e-6);if(bEnd>=rNext)bEnd=Math.round(rEnd);
+    const isLast=k===sorted.length-1;
+    const tEnd=isLast?Math.max(x.t,tLast):x.t;
+    if(tEnd<=prevT+0.05)return;
+    let e=s0-1;
+    while(e+1<n&&(isLast||el(st[e+1])<=tEnd+0.01))e++;
+    /* Whole-metre boundary, kept between this lap's last stroke and the next
+       one so Metrics groups the strokes the same way. */
+    let bEnd=Math.round(distAt(tEnd)-offset);
+    if(x.d!=null&&isFinite(x.d))bEnd=Math.round(x.d);
+    else if(isLast)bEnd=Math.max(bEnd,Math.round((st[n-1].dist||0)-offset));
+    else{
+      const rEnd=e>=0?(st[e].dist||0)-offset:0, rNext=e+1<n?(st[e+1].dist||0)-offset:Infinity;
+      if(bEnd<Math.ceil(rEnd))bEnd=Math.ceil(rEnd);
+      if(bEnd>=rNext)bEnd=Math.max(Math.ceil(rEnd),Math.floor(rNext-0.5));
+    }
     const dist=Math.max(0,bEnd-bPrev);
-    const tStart=s0===0?0:Math.ceil(ts*10+0.01)/10;
-    const time=Math.max(0,Math.ceil((el(st[e])-tStart)*10+1e-6)/10);
-    const g=st.slice(s0,e+1);
+    const tStart=Math.round(prevT*10)/10;
+    const time=Math.max(0,Math.round((tEnd-tStart)*10)/10);
+    const g=e>=s0?st.slice(s0,e+1):[];
     const rate=avg(g.map(q=>q.rate).filter(v=>v>5&&v<50));
     const dps=avg(g.map(q=>q.dps).filter(v=>v>0&&v<30));
     const cd=avg(g.map(q=>q.catchDuration).filter(v=>v>0));
-    const a=t0+ts*1000,b=t0+(ts+time)*1000;
+    const a=t0+tStart*1000,b=t0+(tStart+time)*1000;
     const hb=hr.filter(h=>h.t>=a&&h.t<=b).map(h=>h.hr);
     const pace=dist>0?+(time*500/dist).toFixed(1):0;
-    const r={n:out.length+1,type:x.type||null,startT:tStart,startD:s0===0?0:Math.round(d0),
+    const r={n:out.length+1,type:x.type||null,startT:tStart,startD:bPrev,
       dist,time,pace,lapPace:pace,
       rate:rate!=null?+rate.toFixed(1):null,avgRate:rate!=null?+rate.toFixed(1):null,
       strokes:g.length,manual:true};
     if(dps!=null)r.avgDPS=+dps.toFixed(2);
     if(cd!=null)r.avgCatchDur=Math.round(cd);
     if(hb.length){r.avgHr=Math.round(avg(hb));r.maxHr=Math.max(...hb);}
-    out.push(r);prev=e;bPrev=bEnd;
+    out.push(r);prevT=tEnd;bPrev=bEnd;s0=e+1;
   });
   return out;
 }
@@ -10476,7 +10517,8 @@ function mergeLapNext(i){
   const cur=_currentLapEnds();
   if(i<0||i>=cur.length-1)return;
   cur.forEach((c,k)=>{if(k<_lapEditDraft.length)c.type=_lapEditDraft[k]||null;});
-  cur[i+1].type=cur[i].type;
+  /* The joined lap keeps the first lap's type, unless one of the two was work. */
+  cur[i+1].type=(cur[i].type==='work'||cur[i+1].type==='work')?'work':cur[i].type;
   cur.splice(i,1);
   _applyLapEnds(cur);
 }
