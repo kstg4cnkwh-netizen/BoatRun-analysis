@@ -6354,7 +6354,7 @@ async function showAddComparePicker() {
                 if (!files.length) { content.innerHTML = '<div class="sz-loading">No sessions on Drive.</div>'; return; }
                 content.innerHTML = '';
                 let daSearchQuery = '';
-                let daFavOnly = false;
+                let daFavOnly = false, daRaceOnly = false;
                 let daSortBy = null;
                 let daSortDir = 'desc';
                 function parseDA(name) {
@@ -6384,6 +6384,7 @@ async function showAddComparePicker() {
                 daBar.innerHTML = '<input type="text" id="da-search" class="brsearch" placeholder="Search sessions…" autocomplete="off">'
                     + '<div style="display:flex;gap:6px;flex-wrap:wrap;">'
                     + '<button id="da-fav-btn" class="filt-chip">★ Favourites</button>'
+                    + '<button id="da-race-btn" class="filt-chip">\u{1F3C1} Races</button>'
                     + '<button id="da-sort-dist" class="filt-chip">Distance</button>'
                     + '<button id="da-sort-time" class="filt-chip">Time</button>'
                     + '<button id="da-sort-boat" class="filt-chip">Boat</button>'
@@ -6396,6 +6397,7 @@ async function showAddComparePicker() {
                     if (favBtn) {
                         favBtn.className = 'filt-chip' + (daFavOnly ? ' on' : '');
                     }
+                    { const rb = document.getElementById('da-race-btn'); if (rb) rb.className = 'filt-chip' + (daRaceOnly ? ' on' : ''); }
                     const distBtn = document.getElementById('da-sort-dist');
                     if (distBtn) {
                         const on = daSortBy === 'distance';
@@ -6420,6 +6422,7 @@ async function showAddComparePicker() {
                         const p = parseDA(f.name);
                         if (p.erg !== isErgSession()) return false;
                         if (daFavOnly && !p.favourite) return false;
+                        if (daRaceOnly && !p.race) return false;
                         if (!q) return true;
                         const hay = [p.name, f.name].filter(Boolean).join(' ').toLowerCase();
                         return hay.includes(q);
@@ -6443,7 +6446,7 @@ async function showAddComparePicker() {
                     if (!shown.length) {
                         const empty = document.createElement('div');
                         empty.style.cssText = 'color:var(--muted);font-size:.85rem;padding:8px 0;';
-                        empty.textContent = (q || daFavOnly) ? 'No sessions match your filters.' : 'No sessions on Drive.';
+                        empty.textContent = (q || daFavOnly || daRaceOnly) ? 'No sessions match your filters.' : 'No sessions on Drive.';
                         daRows.appendChild(empty);
                         return;
                     }
@@ -6503,6 +6506,7 @@ async function showAddComparePicker() {
                 }
                 document.getElementById('da-search').oninput = (e) => { daSearchQuery = e.target.value.trim().toLowerCase(); renderDA(); };
                 document.getElementById('da-fav-btn').onclick = () => { daFavOnly = !daFavOnly; renderDA(); };
+                document.getElementById('da-race-btn').onclick = () => { daRaceOnly = !daRaceOnly; renderDA(); };
                 document.getElementById('da-sort-dist').onclick = () => {
                     if (daSortBy !== 'distance') { daSortBy = 'distance'; daSortDir = 'desc'; }
                     else if (daSortDir === 'desc') { daSortDir = 'asc'; }
@@ -11707,7 +11711,7 @@ async function showStartup(){
     if(!files.length){container.innerHTML='<div class="sz-loading">No sessions on Drive</div>';return;}
     let fileList=[...files];
     let searchQuery='';
-    let favOnly=false;
+    let favOnly=false, raceOnly=false;
     /* '' = everything, 'water' = on-water only, 'erg' = erg only. */
     let modeFilter='';
     let sortBy='date';
@@ -11730,6 +11734,7 @@ async function showStartup(){
         +'<button id="sz-mode-water" class="filt-chip">On water</button>'
         +'<button id="sz-mode-erg" class="filt-chip">Erg</button></div>'
         +'<button id="sz-fav-btn" class="filt-chip" aria-label="Favourites only" title="Favourites only">\u2605</button>'
+        +'<button id="sz-race-btn" class="filt-chip" aria-label="Races only" title="Races only">\u{1F3C1}</button>'
         +'<label class="sz-sel">Boat '+boatFilterSelect('sz-boat-f',boatF)+'</label>'
         +'<button id="sz-mx" class="filt-chip" title="Mixed crews only">Mixed</button>'
         +'<button id="sz-cs" class="filt-chip" title="Coastal boats only">Coastal</button>'
@@ -11740,6 +11745,7 @@ async function showStartup(){
         +'<button id="sz-tag-all" class="filt-chip" style="text-transform:none;display:none;">Select all</button>'
         +'<button id="sz-tag-apply" class="filt-chip" style="text-transform:none;display:none;background:#27ae60;color:#fff;">Set boat\u2026</button>';
       document.getElementById('sz-fav-btn').onclick=()=>{favOnly=!favOnly;renderList();};
+      document.getElementById('sz-race-btn').onclick=()=>{raceOnly=!raceOnly;renderList();};
       document.getElementById('sz-mode-all').onclick=()=>{modeFilter='';renderList();};
       document.getElementById('sz-mode-water').onclick=()=>{modeFilter='water';renderList();};
       document.getElementById('sz-mode-erg').onclick=()=>{modeFilter='erg';renderList();};
@@ -11795,7 +11801,7 @@ async function showStartup(){
       document.getElementById('sz-mx').onclick=()=>{boatMx=!boatMx;renderList();};
       document.getElementById('sz-cs').onclick=()=>{boatCs=!boatCs;renderList();};
       document.getElementById('sz-clear').onclick=()=>{
-        modeFilter='';favOnly=false;boatF='';boatMx=false;boatCs=false;searchQuery='';
+        modeFilter='';favOnly=false;raceOnly=false;boatF='';boatMx=false;boatCs=false;searchQuery='';
         const _si=document.getElementById('sz-search'),_hs=document.getElementById('hdrsearch');
         if(_si)_si.value='';if(_hs)_hs.value='';
         renderList();
@@ -11898,6 +11904,7 @@ async function showStartup(){
       if(favBtn){
         favBtn.className='filt-chip'+(favOnly?' on':'');
       }
+      {const rb=document.getElementById('sz-race-btn');if(rb)rb.className='filt-chip'+(raceOnly?' on':'');}
       const allBtn=document.getElementById('sz-mode-all');
       if(allBtn) allBtn.className='filt-chip'+(!modeFilter?' on':'');
       const sortSel=document.getElementById('sz-sort');
@@ -11927,7 +11934,7 @@ async function showStartup(){
       const boatSel=document.getElementById('sz-boat-f');
       if(boatSel){boatSel.value=boatF;}
       {const m=document.getElementById('sz-mx'),c=document.getElementById('sz-cs');if(m)m.className='filt-chip'+(boatMx?' on':'');if(c)c.className='filt-chip'+(boatCs?' on':'');}
-      {const cl=document.getElementById('sz-clear');if(cl){const any=!!(modeFilter||favOnly||boatF||boatMx||boatCs||searchQuery);cl.disabled=!any;cl.className='filt-chip'+(any?' live':'');}}
+      {const cl=document.getElementById('sz-clear');if(cl){const any=!!(modeFilter||favOnly||raceOnly||boatF||boatMx||boatCs||searchQuery);cl.disabled=!any;cl.className='filt-chip'+(any?' live':'');}}
       const tagBtn=document.getElementById('sz-tag-boats');
       if(tagBtn&&!_szTagBusy){tagBtn.textContent=_szTagMode?'\u2715 Done tagging':'Tag boats\u2026';tagBtn.className='filt-chip'+(_szTagMode?' on':'');}
       fileList.forEach(f=>{_fidNames[f.id]=f.name;});
@@ -11936,6 +11943,7 @@ async function showStartup(){
       let shown=fileList.filter(f=>{
         const p=parseFn(f.name);
         if(favOnly&&!p.favourite) return false;
+        if(raceOnly&&!p.race) return false;
         if(modeFilter==='erg'&&!p.erg) return false;
         if(modeFilter==='water'&&p.erg) return false;
         if(!boatFilterOk(boatF,p.boat,p.mixed,p.coastal)) return false;
@@ -12052,7 +12060,7 @@ async function showStartup(){
       if(!shown.length){
         const empty=document.createElement('div');
         empty.style.cssText='color:var(--muted);font-size:.85rem;padding:8px 0;';
-        empty.textContent=(q||favOnly||modeFilter||boatF||boatMx||boatCs)?'No sessions match your filters.':'No sessions on Drive.';
+        empty.textContent=(q||favOnly||raceOnly||modeFilter||boatF||boatMx||boatCs)?'No sessions match your filters.':'No sessions on Drive.';
         container.appendChild(empty);
       }
     }
@@ -18125,7 +18133,8 @@ body:has(#startup .sz-list) #sz-search{display:none!important;}
 #startup #sz-clear{text-transform:none;color:var(--ov-bin)!important;border-color:var(--ov-bin)!important;background:var(--ov-card)!important;}
 #startup #sz-clear:disabled{color:var(--ov-muted)!important;border-color:var(--ov-line)!important;opacity:.6;cursor:default;}
 #startup #sz-clear.live:hover{background:var(--ov-bin)!important;color:#fff!important;}
-#startup #sz-fav-btn{width:36px;padding:0;font-size:16px;color:var(--ov-muted);}
+#startup #sz-fav-btn,#startup #sz-race-btn{width:36px;padding:0;font-size:16px;color:var(--ov-muted);}
+#startup #sz-race-btn.on{background:var(--ov-card);border-color:#C2381F!important;}
 #startup #sz-fav-btn.on{background:var(--ov-card);color:#C2381F;border-color:#C2381F!important;}
 #startup .sz-sel{display:inline-flex;align-items:center;gap:6px;height:36px;padding:0 4px 0 12px;border:1px solid var(--ov-line);border-radius:8px;background:var(--ov-card);font:500 13px Inter,sans-serif;color:var(--ov-muted);box-sizing:border-box;}
 #startup .sz-sel select{border:none!important;box-shadow:none!important;background-color:transparent!important;color:var(--ov-text)!important;font:600 13px Inter,sans-serif!important;padding:6px 24px 6px 2px!important;height:32px;}
