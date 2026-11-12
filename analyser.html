@@ -7441,7 +7441,7 @@ function buildCards(sum) {
         const cal=(sum.erg&&sum.erg.calories!=null)?sum.erg.calories:null;
         return cal!=null?card('c-pace','Calories',Math.round(cal),'total kcal','pace',tipOf('watts')):'';
       }
-      return vals.pace?card('c-pace',(_curCorrOn&&_curOk())?'Pace (water)':'Pace',fmtPaceU(avgPace>0?avgPace/_curSpeedRatio():vals.pace.mean),workPace>0?'work '+fmtPaceU(workPace):(movPace>0?'mov '+fmtPaceU(movPace):paceULabel()),'pace',tipOf('pace')):'';
+      return vals.pace?card('c-pace',(_curCorrOn&&_curOk())?'Pace (water)':'Pace',fmtPaceU(avgPace>0?avgPace/_curSpeedRatio():vals.pace.mean),workPace>0?'work '+fmtPaceU(workPace,false,true):(movPace>0?'mov '+fmtPaceU(movPace):paceULabel()),'pace',tipOf('pace')):'';
     },
     rate:()=>vals.rate?card('c-rate','Rate',f1(vals.rate.mean),'spm · max '+f0(vals.rate.max),'rate',tipOf('rate')):'',
     dps:()=>vals.dps?card('c-dps','DPS'+_cwS(),fmtDPSU(vals.dps.mean),dpsULabelU()+'/stroke','dps',tipOf('dps')):'',
