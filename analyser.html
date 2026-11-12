@@ -3116,6 +3116,52 @@ function unmarkSessHasVideo(fileId){
   if(!ids.delete(fileId)) return;
   try{ localStorage.setItem('_ad_vid_ids',JSON.stringify([...ids])); }catch(e){}
 }
+/* 12 Nov: one session-row layout for every picker (Add for comparison, the
+   session picker), matching the start-page list: race flag above the star,
+   boat type in the venue tile, then name / date line with location / stats.
+   opts: { onClick(btn,dateDiv), onDelete(btn) (optional) } */
+function buildPickRow(f, p, opts) {
+  opts = opts || {};
+  const dateStr = p.approxTs
+    ? new Date(p.approxTs).toLocaleDateString('en-AU',{day:'numeric',month:'short',year:'numeric'})+' '+new Date(p.approxTs).toLocaleTimeString('en-AU',{hour:'2-digit',minute:'2-digit'})
+    : new Date(f.createdTime).toLocaleDateString();
+  const pace = p.distM && p.durS ? (p.durS / p.distM * 500) : null;
+  const row = document.createElement('div'); row.className = 'drive-file-row szfmt';
+  const btn = document.createElement('div'); btn.className = 'asc' + (p.erg ? ' erg' : '');
+  const scol = document.createElement('div'); scol.className = 'asc-scol';
+  if (p.race) { const rf = document.createElement('div'); rf.className = 'asc-race'; rf.title = 'Race'; rf.textContent = '\u{1F3C1}'; scol.appendChild(rf); }
+  const star = document.createElement('button');
+  star.textContent = '\u2605'; star.className = 'asc-fav' + (p.favourite ? ' on' : '');
+  star.title = p.favourite ? 'Remove favourite' : 'Add favourite';
+  star.onclick = ev => { ev.stopPropagation(); favTapOptimistic(f, star, v => { star.title = v ? 'Remove favourite' : 'Add favourite'; star.className = 'asc-fav' + (v ? ' on' : ''); }); };
+  scol.appendChild(star); btn.appendChild(scol);
+  const ven = document.createElement('div'); ven.className = 'asc-venue ' + (p.erg ? 'erg' : 'water');
+  if (!p.erg && p.boat) { ven.classList.add('boat'); ven.title = boatLabel(p.boat, p.mixed, p.coastal); ven.textContent = String(p.boat) + (p.mixed && p.boat !== '1x' ? 'M' : '') + (p.coastal ? 'C' : ''); }
+  else { ven.title = p.erg ? 'Erg session' : 'On-water session'; ven.innerHTML = p.erg ? VEN_SVG.erg : VEN_SVG.water; }
+  btn.appendChild(ven);
+  if (p.name) { const nd = document.createElement('div'); nd.className = 'asc-name'; nd.textContent = p.name; btn.appendChild(nd); }
+  const dd = document.createElement('div'); dd.className = 'asc-date';
+  dd.innerHTML = '<span>' + dateStr + '</span>'
+    + (p.loc && !p.erg ? '<span class="asc-loc">\u{1F4CD} ' + _secEsc(p.loc) + '</span>' : '')
+    + (p.squadCode ? '<span class="asc-badge">' + _secEsc(p.squadCode) + '</span>' : '')
+    + (p.workout ? '<span class="asc-badge asc-wkt">' + _secEsc(p.workout) + '</span>' : '')
+    + (sessHasVideo(f) ? VID_BADGE : '');
+  btn.appendChild(dd);
+  const sd = document.createElement('div'); sd.className = 'asc-stats';
+  if (p.distM != null) sd.innerHTML += '<div><span class="asc-v">' + (p.erg ? Math.round(p.distM) : (p.distM / 1000).toFixed(2)) + '</span><span class="asc-l">' + (p.erg ? 'm' : 'km') + '</span></div>';
+  if (p.durS != null) sd.innerHTML += '<div><span class="asc-v">' + fmtTime(p.durS) + '</span><span class="asc-l">time</span></div>';
+  if (pace != null) sd.innerHTML += '<div><span class="asc-v">' + fmtPace(pace) + '</span><span class="asc-l">avg pace</span></div>';
+  if (p.strokes != null) sd.innerHTML += '<div><span class="asc-v">' + p.strokes + '</span><span class="asc-l">strokes</span></div>';
+  btn.appendChild(sd);
+  if (opts.onClick) btn.onclick = () => opts.onClick(btn, dd);
+  row.appendChild(btn);
+  if (opts.onDelete) {
+    const del = document.createElement('button'); del.className = 'sz-del'; del.title = 'Delete from Drive'; del.setAttribute('aria-label', 'Delete session'); del.innerHTML = SZ_BIN_SVG;
+    del.onclick = ev => { ev.stopPropagation(); opts.onDelete(del); };
+    row.appendChild(del);
+  }
+  return row;
+}
 function sessHasVideo(f){
   if(!f) return false;
   return /_VID1/.test(String(f.name||'')) || sessVidIds().has(f.id);
@@ -6467,36 +6513,7 @@ async function showAddComparePicker() {
                         const pace = distM && durS ? durS/distM*500 : null;
                         const isFav = p.favourite;
 
-                        const row = document.createElement('div');
-                        row.style.cssText = 'display:flex;align-items:center;gap:8px;margin-bottom:8px;';
-
-                        const star = document.createElement('button');
-                        star.textContent = isFav ? '★' : '☆';
-                        star.title = isFav ? 'Remove favourite' : 'Add favourite';
-                        star.className = 'sz-star' + (isFav ? ' on' : '');
-                        star.onclick = () => {
-                            favTapOptimistic(f, star, v => {
-                                star.textContent = v ? '★' : '☆';
-                                star.title = v ? 'Remove favourite' : 'Add favourite';
-                                star.className = 'sz-star' + (v ? ' on' : '');
-                            });
-                        };
-
-                        const btn = document.createElement('div');
-                        btn.className = 'asc';
-                        if (p && p.erg) btn.classList.add('erg');
-                        btn.style.marginBottom = '0';
-                        if (name) { const nd=document.createElement('div');nd.style.cssText='font-weight:700;font-size:.85rem;color:var(--text);margin-bottom:2px;';nd.textContent=name;btn.appendChild(nd); }
-                        const dd = document.createElement('div'); dd.className='asc-date';
-                        dd.innerHTML = '<span>' + dateStr + '</span>' + (p.loc && !p.erg ? '<span style="color:var(--muted);font-weight:600;">\u{1F4CD} ' + _secEsc(p.loc) + '</span>' : '') + (p.race ? '<span class="asc-badge" style="background:#c0392b;color:#fff;">\u{1F3C1} RACE</span>' : '') + (p.boat ? '<span class="asc-badge">' + boatLabel(p.boat, p.mixed, p.coastal) + '</span>' : '');
-                        btn.appendChild(dd);
-                        const sd = document.createElement('div'); sd.className='asc-stats';
-                        if(distM!=null)sd.innerHTML+='<div><span class="asc-v">'+(p.erg?Math.round(distM):(distM/1000).toFixed(2))+'</span><span class="asc-l">'+(p.erg?'m':'km')+'</span></div>';
-                        if(durS!=null)sd.innerHTML+='<div><span class="asc-v">'+fmtTime(durS)+'</span><span class="asc-l">time</span></div>';
-                        if(pace!=null)sd.innerHTML+='<div><span class="asc-v">'+fmtPace(pace)+'</span><span class="asc-l">avg pace</span></div>';
-                        if(strokes!=null)sd.innerHTML+='<div><span class="asc-v">'+strokes+'</span><span class="asc-l">strokes</span></div>';
-                        btn.appendChild(sd);
-                        btn.onclick = async () => {
+                        const row = buildPickRow(f, p, { onClick: async (btn, dd) => {
                             if (btn.dataset.added) return;
                             btn.style.opacity = '.55'; btn.style.pointerEvents = 'none';
                             try {
@@ -6507,8 +6524,7 @@ async function showAddComparePicker() {
                                 dd.innerHTML += ' <span style="color:var(--b);">\u2713 added</span>';
                                 btn.style.opacity = '1'; btn.style.pointerEvents = '';
                             } catch (e2) { if(!driveAuthExpired(e2)){ toast('Load failed: ' + e2.message); btn.style.opacity = '1'; btn.style.pointerEvents = ''; } }
-                        };
-                        row.appendChild(star); row.appendChild(btn);
+                        } });
                         daRows.appendChild(row);
                     });
                 }
@@ -7180,67 +7196,21 @@ function showDrivePicker(files, onSelect) {
       const pace=p.distM&&p.durS?(p.durS/p.distM*500):null;
       const isFav=p.favourite;
 
-      const row=document.createElement('div');
-      row.className='drive-file-row';
-      row.style.cssText='display:flex;align-items:center;gap:6px;margin-bottom:6px;';
-
-      const star=document.createElement('button');
-      star.textContent=isFav?'★':'☆';
-      star.title=isFav?'Remove favourite':'Add favourite';
-      star.style.cssText='padding:9px 8px;background:'+(isFav?'rgba(241,196,15,.15)':'transparent')+';border:1px solid var(--border);border-radius:6px;color:'+(isFav?'#f1c40f':'var(--muted)')+';cursor:pointer;font-size:.95rem;flex-shrink:0;';
-      star.onclick=()=>{
-        favTapOptimistic(f,star,v=>{
-          star.textContent=v?'★':'☆';
-          star.title=v?'Remove favourite':'Add favourite';
-          star.style.background=v?'rgba(241,196,15,.15)':'transparent';
-          star.style.color=v?'#f1c40f':'var(--muted)';
-        });
-      };
-
-      const btn=document.createElement('div');
-      btn.className='asc';
-      if(p.erg)btn.classList.add('erg');
-      btn.onclick=async()=>{
-        if(btn.dataset.added)return;
-        btn.style.opacity='.55';btn.style.pointerEvents='none';
-        await onSelect(f.id,p.name||f.name.replace('RowSess_','').replace('.json',''));
-        btn.dataset.added='1';
-        dateDiv.innerHTML+=' <span style="color:var(--b);">✓ added</span>';
-      };
-
-      const dateDiv=document.createElement('div');
-      dateDiv.className='asc-date';
-      dateDiv.innerHTML='<span>'+dateStr+'</span>'
-        +(p.race?'<span class="asc-badge" style="background:#c0392b;color:#fff;">\u{1F3C1} RACE</span>':'')
-        +(p.loc&&!p.erg?'<span class="asc-loc" style="color:var(--muted);font-weight:600;">\u{1F4CD} '+_secEsc(p.loc)+'</span>':'')
-        +(p.boat?'<span class="asc-badge">'+boatLabel(p.boat,p.mixed,p.coastal)+'</span>':'')
-        +(p.squadCode?'<span class="asc-badge">'+p.squadCode+'</span>':'')
-        
-        +(p.workout?'<span class="asc-badge asc-wkt">'+_secEsc(p.workout)+'</span>':'')
-        +(sessHasVideo(f)?VID_BADGE:'');
-
-      const statsDiv=document.createElement('div');
-      statsDiv.className='asc-stats';
-      if(p.distM!=null) statsDiv.innerHTML+='<div><span class="asc-v">'+(p.erg?Math.round(p.distM):(p.distM/1000).toFixed(2))+'</span><span class="asc-l">'+(p.erg?'m':'km')+'</span></div>';
-      if(p.durS!=null) statsDiv.innerHTML+='<div><span class="asc-v">'+fmtTime(p.durS)+'</span><span class="asc-l">time</span></div>';
-      if(pace!=null) statsDiv.innerHTML+='<div><span class="asc-v">'+fmtPace(pace)+'</span><span class="asc-l">avg pace</span></div>';
-      if(p.strokes!=null) statsDiv.innerHTML+='<div><span class="asc-v">'+p.strokes+'</span><span class="asc-l">strokes</span></div>';
-      if(!p.distM&&!p.durS) statsDiv.innerHTML='<span style="color:var(--muted);font-size:.8rem;">'+f.name.replace('RowSess_','').replace('.json','').replace('_FAV1','').replace('_VID1','').replace(/_NM[A-Za-z0-9\-~]*/,'')+'</span>';
-
-      if(p.name){const nameDiv=document.createElement('div');nameDiv.style.cssText='font-weight:700;font-size:.85rem;color:var(--text);margin-bottom:2px;';nameDiv.textContent=p.name;btn.appendChild(nameDiv);}
-      btn.appendChild(dateDiv);btn.appendChild(statsDiv);
-
-      const del=document.createElement('button');
-      del.textContent='🗑';del.title='Delete from Drive';
-      del.style.cssText='padding:9px 10px;background:rgba(192,57,43,.15);border:1px solid rgba(192,57,43,.4);border-radius:6px;color:#e74c3c;cursor:pointer;font-size:.85rem;flex-shrink:0;';
-      del.onclick=async()=>{
-        if(!confirm('Delete this session permanently?\n\nIt will be removed from Google Drive, and from every device on its next sync.\n\nThis cannot be undone.'))return;
-        del.textContent='…';del.disabled=true;
-        try{await AnalyserDrive.deleteFile(f.id);await AnalyserDrive.tombstoneSession(f.name,f.appProperties&&f.appProperties.sid);fileList=fileList.filter(x=>x.id!==f.id);renderList();}
-        catch(e){toast('Delete failed: '+e.message);del.textContent='🗑';del.disabled=false;}
-      };
-
-      row.appendChild(star);row.appendChild(btn);row.appendChild(del);
+      const row=buildPickRow(f,p,{
+        onClick:async(btn,dateDiv)=>{
+          if(btn.dataset.added)return;
+          btn.style.opacity='.55';btn.style.pointerEvents='none';
+          await onSelect(f.id,p.name||f.name.replace('RowSess_','').replace('.json',''));
+          btn.dataset.added='1';btn.style.opacity='1';btn.style.pointerEvents='';
+          dateDiv.innerHTML+=' <span style="color:var(--b);">\u2713 added</span>';
+        },
+        onDelete:async(del)=>{
+          if(!confirm('Delete this session permanently?\n\nIt will be removed from Google Drive, and from every device on its next sync.\n\nThis cannot be undone.'))return;
+          del.innerHTML='\u2026';del.disabled=true;
+          try{await AnalyserDrive.deleteFile(f.id);await AnalyserDrive.tombstoneSession(f.name,f.appProperties&&f.appProperties.sid);fileList=fileList.filter(x=>x.id!==f.id);renderList();}
+          catch(e){toast('Delete failed: '+e.message);del.innerHTML=SZ_BIN_SVG;del.disabled=false;}
+        }
+      });
       panel.insertBefore(row,cancel);
     });
     if(!shown.length){
@@ -18205,6 +18175,24 @@ body:has(#startup .sz-list) #sz-search{display:none!important;}
 #startup .asc,#startup .asc:hover,#startup .asc.erg,#startup .asc.erg:hover{grid-template-columns:24px 36px minmax(0,1fr) auto!important;grid-template-areas:"star ven name stats" "star ven date stats" "star ven note note"!important;}
 #startup .asc>.asc-vcol{grid-area:ven;display:flex;flex-direction:column;align-items:center;gap:3px;align-self:center;}
 #startup .asc-vcol>.asc-venue{width:36px;height:36px;border-radius:9px;display:flex;align-items:center;justify-content:center;}
+/* Picker rows in the start-page style (buildPickRow). */
+.szfmt{display:flex;align-items:center;gap:8px;margin:0;border-bottom:1px solid var(--border);}
+.szfmt>.asc,.szfmt>.asc:hover,.szfmt>.asc.erg,.szfmt>.asc.erg:hover{flex:1;min-width:0;display:grid;grid-template-columns:22px 34px minmax(0,1fr);grid-template-areas:"star ven name" "star ven date" "star ven stats";column-gap:10px;row-gap:2px;align-items:center;background:transparent!important;border:none!important;box-shadow:none!important;margin:0!important;padding:9px 4px!important;cursor:pointer;}
+.szfmt>.asc:hover{background:rgba(127,127,127,.08)!important;}
+.szfmt .asc-scol{grid-area:star;display:flex;flex-direction:column;align-items:center;gap:3px;}
+.szfmt .asc-scol>.asc-fav{float:none;padding:0;font-size:18px;}
+.szfmt .asc-race{font-size:14px;line-height:1;}
+.szfmt .asc-venue{grid-area:ven;width:34px;height:34px;border-radius:9px;display:flex;align-items:center;justify-content:center;}
+.szfmt .asc-venue.water{background:rgba(21,86,166,.14);color:#2f7be0;}
+.szfmt .asc-venue.erg{background:rgba(163,36,27,.14);color:#d0453a;}
+.szfmt .asc-venue.boat{font-weight:800;font-size:12px;letter-spacing:.02em;}
+.szfmt .asc-name{grid-area:name;font-weight:700;font-size:.85rem;color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.szfmt .asc-date{grid-area:date;margin:0;font-size:11px;letter-spacing:0;gap:6px;}
+.szfmt .asc-date>span:first-child{color:var(--text);font-weight:500;}
+.szfmt .asc-loc{color:var(--muted);font-weight:600;}
+.szfmt>.asc:not(:has(.asc-name))>.asc-date{grid-row:1 / span 2;}
+.szfmt .asc-stats{grid-area:stats;display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:6px;margin-top:2px;}
+.szfmt .sz-del{flex-shrink:0;padding:8px 9px;background:rgba(192,57,43,.12);border:1px solid rgba(192,57,43,.4);border-radius:6px;color:#e74c3c;cursor:pointer;display:flex;align-items:center;}
 #startup .asc-vboat{display:none;font:700 10px Inter,sans-serif;color:var(--ov-text);white-space:nowrap;}
 #startup .asc>.asc-scol{grid-area:star;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px;align-self:center;}
 #startup .asc-scol>.asc-fav{float:none;padding:0;font-size:18px;}
