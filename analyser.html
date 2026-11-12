@@ -12030,9 +12030,7 @@ async function showStartup(){
         const dateDiv=document.createElement('div');
         dateDiv.className='asc-date';
         dateDiv.innerHTML='<span>'+dateStr+'</span>'
-          +(p.race?'<span class="asc-badge" style="background:#c0392b;color:#fff;">\u{1F3C1} RACE</span>':'')
           +(p.loc&&!p.erg?'<span class="asc-loc" style="color:var(--muted);font-weight:600;">\u{1F4CD} '+_secEsc(p.loc)+'</span>':'')
-          +(p.boat?'<span class="asc-badge asc-boat">'+boatLabel(p.boat,p.mixed,p.coastal)+'</span>':'')
           +(p.squadCode?'<span class="asc-badge">'+p.squadCode+'</span>':'')
           
           +(p.workout?'<span class="asc-badge asc-wkt">'+_secEsc(p.workout)+'</span>':'')
@@ -12047,14 +12045,21 @@ async function showStartup(){
         if(!p.distM&&!p.durS) statsDiv.innerHTML='<span style="color:var(--muted);font-size:.8rem;">'+f.name.replace('RowSess_','').replace('.json','').replace('_FAV1','').replace('_VID1','').replace(/_NM[A-Za-z0-9\-~]*/,'')+'</span>';
 
         if(p.name){const nameDiv=document.createElement('div');nameDiv.className='asc-name';nameDiv.style.cssText='font-weight:700;font-size:.85rem;color:var(--text);margin-bottom:2px;';nameDiv.textContent=p.name;btn.appendChild(nameDiv);}
-        btn.insertBefore(star,btn.firstChild);
-        /* Venue icon; in the calendar day list the boat type sits under it
-           (it is hidden from the date line there) to keep each row short. */
+        /* 12 Nov: race flag sits above the star; the venue tile shows the boat
+           type for on-water sessions (water icon only when no boat is set), so
+           the date line has room for the location. */
+        const scol=document.createElement('div');scol.className='asc-scol';
+        if(p.race){const rf=document.createElement('div');rf.className='asc-race';rf.title='Race';rf.textContent='\u{1F3C1}';scol.appendChild(rf);}
+        scol.appendChild(star);
+        btn.insertBefore(scol,btn.firstChild);
         {const vc=document.createElement('div');vc.className='asc-vcol';
-         const ven=document.createElement('div');ven.className='asc-venue '+(p.erg?'erg':'water');ven.title=p.erg?'Erg session':'On-water session';
-         ven.innerHTML=p.erg?VEN_SVG.erg:VEN_SVG.water;vc.appendChild(ven);
-         if(p.boat){const vb=document.createElement('div');vb.className='asc-vboat';vb.textContent=boatLabel(p.boat,p.mixed,p.coastal).replace(/ \u00b7 Mixed/,' Mix').replace(/ \u00b7 Coastal/,' C');vb.title=boatLabel(p.boat,p.mixed,p.coastal);vc.appendChild(vb);}
-         star.after(vc);}
+         const ven=document.createElement('div');ven.className='asc-venue '+(p.erg?'erg':'water');
+         if(!p.erg&&p.boat){
+           ven.classList.add('boat');ven.title=boatLabel(p.boat,p.mixed,p.coastal);
+           ven.textContent=String(p.boat)+(p.mixed&&p.boat!=='1x'?'M':'')+(p.coastal?'C':'');
+         }else{ven.title=p.erg?'Erg session':'On-water session';ven.innerHTML=p.erg?VEN_SVG.erg:VEN_SVG.water;}
+         vc.appendChild(ven);
+         scol.after(vc);}
         btn.appendChild(dateDiv);btn.appendChild(statsDiv);
         if(typeof f.description==='string'&&f.description.trim()){const nd=document.createElement('div');nd.className='asc-note';nd.style.cssText='font-size:12px;color:var(--text);opacity:.85;white-space:pre-wrap;margin-top:4px;';nd.textContent='📝 '+f.description.trim();btn.appendChild(nd);}
 
@@ -18201,7 +18206,11 @@ body:has(#startup .sz-list) #sz-search{display:none!important;}
 #startup .asc>.asc-vcol{grid-area:ven;display:flex;flex-direction:column;align-items:center;gap:3px;align-self:center;}
 #startup .asc-vcol>.asc-venue{width:36px;height:36px;border-radius:9px;display:flex;align-items:center;justify-content:center;}
 #startup .asc-vboat{display:none;font:700 10px Inter,sans-serif;color:var(--ov-text);white-space:nowrap;}
-#startup #sz-calday .asc-vboat{display:block;}
+#startup .asc>.asc-scol{grid-area:star;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px;align-self:center;}
+#startup .asc-scol>.asc-fav{float:none;padding:0;font-size:18px;}
+#startup .asc-scol>.asc-race{font-size:15px;line-height:1;}
+#startup .asc-venue.boat{font:800 12px Inter,sans-serif;letter-spacing:.02em;}
+#startup #sz-calday .asc-vboat{display:none;}
 #startup #sz-calday .asc-date .asc-boat{display:none;}
 #startup .asc-venue.water{background:var(--ov-wbg);color:var(--ov-wfg);}
 #startup .asc-venue.erg{background:var(--ov-ebg);color:var(--ov-efg);}
