@@ -28,25 +28,33 @@
 <body>
 
 <h1>BoatRun — Privacy Policy</h1>
-<p class="updated">Last updated: 25 August 2026</p>
+<p class="updated">Last updated: 12 November 2026</p>
 
-<p>BoatRun is a set of personal rowing performance tools (Metrics, Analyser, Coach). This page explains what data BoatRun collects, how it's used, and how to delete it.</p>
+<p>BoatRun is a set of personal rowing performance tools (the BoatRun app for Row, Cox and Coach, the Analyser and the Viewer). This page explains what data BoatRun collects, how it's used, and how to delete it.</p>
 
 <h2>What data is collected</h2>
 <ul>
-  <li><strong>GPS location</strong> — recorded only while a session is actively running, to calculate speed, pace and distance.</li>
-  <li><strong>Motion sensor data</strong> — phone accelerometer, used on-device to detect stroke timing and technique metrics. Raw sensor data never leaves your device.</li>
+  <li><strong>GPS location</strong> — recorded only while a session is actively running, to calculate speed, pace, distance and heading.</li>
+  <li><strong>Motion sensor data</strong> — phone accelerometer and gyroscope, used on the device to detect stroke timing, technique metrics and boat heading. It is saved with the session on your device and in your own Google Drive (if linked); it is not sent anywhere else.</li>
   <li><strong>Heart rate</strong> — if you connect a heart rate strap, or import a Garmin FIT/TCX/GPX file.</li>
-  <li><strong>Session data you create</strong> — stroke rate, pace, distance, and related rowing metrics generated from the above.</li>
+  <li><strong>Session data you create</strong> — stroke rate, pace, distance, session names, notes, boat type, race flag and related rowing metrics generated from the above.</li>
   <li><strong>Account details (optional)</strong> — if you sign in with Google or Apple, BoatRun stores the account identifier supplied by that provider, together with your subscription tier, so Pro features can be unlocked on your devices. No password is ever created or held by BoatRun.</li>
 </ul>
 
 <h2>Where data is stored</h2>
 <ul>
-  <li><strong>On your device</strong> — all session data is saved locally in your browser first.</li>
-  <li><strong>Your Google Drive (optional)</strong> — if you sign in, sessions are backed up to a hidden app-data folder in your own Google Drive. This folder is private to BoatRun and not visible in your normal Drive view. No one else can access it.</li>
-  <li><strong>Firebase (Coach mode only)</strong> — if you join a squad session, your live stroke rate, pace and name are broadcast to your coach's screen in real time via Firebase, for the duration of the session. This is not stored permanently.</li>
+  <li><strong>On your device</strong> — all session data is saved locally in the app first.</li>
+  <li><strong>Your Google Drive (optional)</strong> — if you link Drive, sessions are backed up to a hidden app-data folder in your own Google Drive. This folder is private to BoatRun and not visible in your normal Drive view. No one else can access it.</li>
+  <li><strong>Firebase (squads only)</strong> — if you join a squad session, your live stroke rate, pace, position and name are broadcast to your coach's screen (and to the Viewer, if the coach shares the squad code) in real time via Firebase, for the duration of the session. This is not stored permanently.</li>
   <li><strong>Firebase (account record)</strong> — if you sign in, a single record holding your account identifier and subscription tier is kept so Pro access follows you across devices.</li>
+</ul>
+
+<h2>Location names and weather</h2>
+<p>To label an on-water session with a general location (for example "Hunter River, Newcastle"), and to show the wind during a session, BoatRun looks up the session's position online:</p>
+<ul>
+  <li><strong>Location name</strong> — the session's start position, rounded to about 100 m, is sent through BoatRun's own server to <strong>OpenStreetMap</strong> (Nominatim), which returns the nearest river, lake or town. No name, account or other session data is sent with it. Results are cached for 30 days so the same spot is not looked up again. Location names &copy; OpenStreetMap contributors, ODbL.</li>
+  <li><strong>Wind</strong> — a position from the session, rounded to about 100 m, and the session's date and time are sent to <strong>Open-Meteo</strong> to get the wind speed and direction for that hour. No other data is sent.</li>
+  <li>Both lookups happen only for on-water sessions, and only when the phone has a connection. If they fail, the session is saved without them.</li>
 </ul>
 
 <h2>Strava integration</h2>
@@ -56,9 +64,20 @@
   <li>You can revoke access at any time from BoatRun's settings, or directly at <code>strava.com/settings/apps</code>.</li>
 </ul>
 
+<h2>Concept2 Logbook integration</h2>
+<p>If you choose to connect your Concept2 Logbook (erg sessions, Pro), BoatRun asks Concept2 for permission to add workouts to your Logbook on your behalf.</p>
+<ul>
+  <li>When an erg workout finishes, the name screen shows <strong>Upload to C2 Logbook</strong>. It is on by default once you have connected; tap it to skip that workout. Nothing is uploaded unless you are connected.</li>
+  <li>An upload contains the workout's date, time zone, time, distance, splits or intervals, stroke rate and count, drag factor, calories, heart rate (if recorded), stroke-by-stroke data, your Logbook weight class and the session name.</li>
+  <li>The upload passes through BoatRun's own server on its way to Concept2. Your Concept2 access token is kept in the app on your device.</li>
+  <li>BoatRun uses this access only to add workouts to your Logbook.</li>
+  <li>You can disconnect at any time from BoatRun's settings, which removes the token from your device, or revoke BoatRun's access in your Concept2 Logbook account. Workouts already uploaded stay in your Logbook and must be deleted there.</li>
+</ul>
+
 <h2>What is never done with your data</h2>
 <ul>
-  <li>No data is sold or shared with advertisers or third parties.</li>
+  <li>No data is sold or shared with advertisers.</li>
+  <li>Data is only passed to the services named on this page (Google Drive, Firebase, Strava and Concept2 if you connect them, OpenStreetMap and Open-Meteo), and only for the purposes described here.</li>
   <li>No analytics or tracking scripts are used.</li>
   <li>No ads.</li>
 </ul>
@@ -77,9 +96,10 @@
 
 <h2>Deleting individual data</h2>
 <ul>
-  <li><strong>Local data</strong> — clear it from BoatRun's in-app settings, or by clearing your browser's site data for this page.</li>
+  <li><strong>Local data</strong> — delete sessions from the in-app session log, or clear all app data from BoatRun's settings.</li>
   <li><strong>Google Drive data</strong> — use the "Delete my Drive data" button in Metrics settings (while signed in) to permanently delete all session files from your Drive app folder. Revoking access at <code>myaccount.google.com/permissions</code> stops BoatRun from reading or writing the folder, but does not delete files already stored there — deletion must be done from within the app while signed in, since BoatRun has no separate server access to your Drive.</li>
   <li><strong>Strava connection</strong> — disconnect from BoatRun settings or from Strava directly; this also deletes the stored access token. Activities already uploaded to Strava remain in your Strava account and must be deleted there.</li>
+  <li><strong>Concept2 Logbook connection</strong> — disconnect from BoatRun settings; this deletes the stored access token. Workouts already uploaded remain in your Logbook and must be deleted there.</li>
 </ul>
 
 <h2>Contact</h2>
