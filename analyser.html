@@ -1160,6 +1160,11 @@ function boatOfFid(fid) {
   if (!n) { try { const f = (AnalyserDrive.cachedList('RowSess_') || []).find(x => x.id === fid); if (f) n = f.name; } catch (e) {} }
   return n ? { t: boatFromFilename(n), m: boatMixedFromFilename(n), c: boatCoastalFromFilename(n) } : null;
 }
+function raceOfFid(fid) {
+  let n = _fidNames[fid];
+  if (!n) { try { const f = (AnalyserDrive.cachedList('RowSess_') || []).find(x => x.id === fid); if (f) n = f.name; } catch (e) {} }
+  return n ? /_RACE1/.test(n) : null;
+}
 function nameFromFilename(n) {
   const s = String(n || '');
   const e = s.match(/_NM([A-Za-z0-9\-~]+)/);
@@ -1774,6 +1779,23 @@ const AnalyserDrive = {
     const r = await this._api(`https://www.googleapis.com/upload/drive/v3/files/${fileId}?uploadType=multipart`, {
       method: 'PATCH', body: form }, 'Laps', 45000, fileId);
     this._ok(r, 'Laps');
+  },
+  /* 12 Nov: race flag, _RACE1 in the filename (same place Metrics keeps it). */
+  async patchRace(fileId, isRace) {
+    this._check();
+    const mResp = await this._api(`https://www.googleapis.com/drive/v3/files/${fileId}?fields=name`, {}, 'Race', null, fileId);
+    this._ok(mResp, 'Race');
+    const { name: currentName } = await mResp.json();
+    let newName = currentName.replace(/_RACE1/g,'');
+    if (isRace) newName = newName.replace(/\.json$/, '_RACE1.json');
+    const r = await this._api(`https://www.googleapis.com/drive/v3/files/${fileId}`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ name: newName })
+    }, 'Race', null, fileId);
+    this._ok(r, 'Race');
+    this._invalidateFolder();
+    return newName;
   },
   async patchFavourite(fileId, isFav) {
     this._check();
@@ -7117,6 +7139,7 @@ function showDrivePicker(files, onSelect) {
       name: nm,
       squadCode: sq?sq[1]:null,
       favourite: fav,
+      race: /_RACE1/.test(name),
       erg: erg,
       approxTs: ts?new Date(+ts[1],+ts[2]-1,+ts[3],+ts[4],+ts[5]).getTime():0
     };
@@ -7299,14 +7322,19 @@ function buildMeta(fname,sum) {
   const btBadge=bt
     ?' <span title="Boat type'+(_canBoat?' \u2013 tap to change':'')+'"'+(_canBoat?' onclick="editSessionBoat()"':'')+' style="'+(_canBoat?'cursor:pointer;':'')+'font-size:12px;font-weight:800;background:#fff;border-radius:4px;padding:1px 7px;color:#1a5276;letter-spacing:.04em;vertical-align:middle;">'+boatLabel(bt,bm,bc)+'</span>'
     :(_canBoat?' <span title="Set the boat type" onclick="editSessionBoat()" style="cursor:pointer;font-size:11px;font-weight:700;border:1px dashed rgba(255,255,255,.6);border-radius:4px;padding:1px 7px;color:rgba(255,255,255,.85);vertical-align:middle;">+ Boat</span>':'');
+ const _isRace=(sum&&sum.race!=null)?!!sum.race:!!(_cs&&_cs.fileId&&raceOfFid(_cs.fileId));
+  const _canRace=_canBoat;
+  const raceBadge=_isRace
+    ?' <span title="Race'+(_canRace?' \u2013 change it with the boat type':'')+'"'+(_canRace?' onclick="editSessionBoat()"':'')+' style="'+(_canRace?'cursor:pointer;':'')+'font-size:12px;font-weight:800;background:#c0392b;border-radius:4px;padding:1px 7px;color:#fff;letter-spacing:.04em;vertical-align:middle;">\u{1F3C1} RACE</span>'
+    :'';
   document.getElementById('hdrmeta').innerHTML=
     '<span class="hdrname" style="cursor:pointer;border-bottom:1px dotted rgba(255,255,255,.5);font-size:19px;font-weight:700;" onclick="renameCurrentSession()" title="Tap to rename">'+safe+'</span>'
-    +' <span style="color:var(--muted);font-size:12px;">✎</span>'+btBadge+sqBadge+'<br><span style="font-size:12px;font-weight:400;color:rgba(255,255,255,.75);">'+date+(time?' '+time:'')+' · '+dist+' · '+dur+'</span>'
+    +' <span style="color:var(--muted);font-size:12px;">✎</span>'+btBadge+raceBadge+sqBadge+'<br><span style="font-size:12px;font-weight:400;color:rgba(255,255,255,.75);">'+date+(time?' '+time:'')+' · '+dist+' · '+dur+'</span>'
     +'<div onclick="editSessionNote()" title="Tap to edit notes" style="cursor:pointer;margin-top:3px;font-size:12px;font-weight:400;line-height:1.35;white-space:pre-wrap;max-width:640px;color:'+(sum&&sum.note?'#ffe58a':'rgba(255,255,255,.55)')+';">'
     +(sum&&sum.note?'📝 '+String(sum.note).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'):'+ Add note')+'</div>';
 }
 /* Boat picker: resolves {t, m, c} (c = coastal) or null. */
-function _boatPickModal(bt, mixed, title, note, okLabel, coastal) {
+function _boatPickModal(bt, mixed, title, note, okLabel, coastal, race) {
   return new Promise(resolve => {
     document.getElementById('_boat_modal')?.remove();
     const ov = document.createElement('div'); ov.id = '_boat_modal';
@@ -7314,7 +7342,8 @@ function _boatPickModal(bt, mixed, title, note, okLabel, coastal) {
     const pn = document.createElement('div');
     pn.style.cssText = 'background:var(--s1);border:1px solid var(--border);border-radius:10px;padding:16px;width:min(92vw,440px);color:var(--text);font-family:-apple-system,BlinkMacSystemFont,Helvetica Neue,sans-serif;';
     ov.appendChild(pn); document.body.appendChild(ov);
-    let t = BOAT_ORDER.includes(bt) ? bt : '1x', m = !!mixed, c = !!coastal;
+    let t = BOAT_ORDER.includes(bt) ? bt : '1x', m = !!mixed, c = !!coastal, rc = !!race;
+    const showRace = race !== undefined;   // single-session edit only, not bulk tagging
     const done = v => { ov.remove(); resolve(v); };
     const draw = () => {
       pn.innerHTML = '<div style="font-size:1rem;font-weight:700;margin-bottom:6px;color:var(--b);">' + title + '</div>'
@@ -7322,14 +7351,16 @@ function _boatPickModal(bt, mixed, title, note, okLabel, coastal) {
         + '<div style="display:flex;gap:6px;margin-bottom:10px;">' + BOAT_ORDER.map(x => '<button data-bt="' + x + '" class="filt-chip' + (x === t ? ' on' : '') + '" style="flex:1;min-width:0;padding:9px 0;text-transform:none;font-size:13px;">' + x + '</button>').join('') + '</div>'
         + '<div style="display:flex;gap:18px;flex-wrap:wrap;margin-bottom:12px;">'
         + '<label style="display:flex;align-items:center;gap:8px;font-size:13px;cursor:' + (t === '1x' ? 'not-allowed;opacity:.45' : 'pointer') + ';" title="' + (t === '1x' ? 'Pick a crew boat to set mixed' : 'Mixed crew') + '"><input type="checkbox" id="_boat_mx"' + (m && t !== '1x' ? ' checked' : '') + (t === '1x' ? ' disabled' : '') + '> Mixed crew' + (t === '1x' ? ' <span style="font-size:11px;">(crew boats only)</span>' : '') + '</label>'
-        + '<label style="display:flex;align-items:center;gap:8px;font-size:13px;cursor:pointer;"><input type="checkbox" id="_boat_cs"' + (c ? ' checked' : '') + '> Coastal</label></div>'
+        + '<label style="display:flex;align-items:center;gap:8px;font-size:13px;cursor:pointer;"><input type="checkbox" id="_boat_cs"' + (c ? ' checked' : '') + '> Coastal</label>'
+        + (showRace ? '<label style="display:flex;align-items:center;gap:8px;font-size:13px;cursor:pointer;"><input type="checkbox" id="_boat_rc"' + (rc ? ' checked' : '') + '> \u{1F3C1} Race</label>' : '') + '</div>'
         + '<div style="display:flex;gap:8px;"><button id="_boat_cancel" style="flex:1;padding:9px 0;background:var(--s2);border:1px solid var(--border);border-radius:6px;color:var(--text);cursor:pointer;font-family:inherit;">Cancel</button>'
         + '<button id="_boat_ok" style="flex:1;padding:9px 0;background:var(--b);border:1px solid var(--b);border-radius:6px;color:#000;font-weight:700;cursor:pointer;font-family:inherit;">' + (okLabel || 'Save') + '</button></div>';
       pn.querySelectorAll('[data-bt]').forEach(b => { b.onclick = () => { t = b.dataset.bt; draw(); }; });
       const mx = pn.querySelector('#_boat_mx'); if (mx) mx.onchange = () => { m = mx.checked; };
       const cs = pn.querySelector('#_boat_cs'); if (cs) cs.onchange = () => { c = cs.checked; };
+      const rcb = pn.querySelector('#_boat_rc'); if (rcb) rcb.onchange = () => { rc = rcb.checked; };
       pn.querySelector('#_boat_cancel').onclick = () => done(null);
-      pn.querySelector('#_boat_ok').onclick = () => done({ t, m: t !== '1x' && m, c });
+      pn.querySelector('#_boat_ok').onclick = () => done(showRace ? { t, m: t !== '1x' && m, c, race: rc } : { t, m: t !== '1x' && m, c });
     };
     ov.onclick = e => { if (e.target === ov) done(null); };
     draw();
@@ -7343,8 +7374,16 @@ function editSessionBoat(){
   const sum=(sess.d&&sess.d.sum)||_lastSum||{};
   let bt=sum.boat_type,bm=!!sum.boat_mixed,bc=!!sum.boat_coastal;
   if(!bt){const o=boatOfFid(sess.fileId);if(o&&o.t){bt=o.t;bm=o.m;bc=o.c;}}
-  _boatPickModal(bt||'1x',bm,'Boat type',null,null,bc).then(r=>{
+  const _wasRace=(sum&&sum.race!=null)?!!sum.race:!!raceOfFid(sess.fileId);
+  _boatPickModal(bt||'1x',bm,'Boat type',null,null,bc,_wasRace).then(r=>{
     if(!r)return;
+    const _raceChg=r.race!==undefined&&!!r.race!==_wasRace;
+    if(_raceChg){
+      if(sess.d&&sess.d.sum)sess.d.sum.race=!!r.race;
+      if(_lastSum)_lastSum.race=!!r.race;
+      const _on=_fidNames[sess.fileId];
+      if(_on){const b=_on.replace(/_RACE1/g,'');_fidNames[sess.fileId]=r.race?b.replace(/\.json$/,'_RACE1.json'):b;}
+    }
     if(sess.d&&sess.d.sum){sess.d.sum.boat_type=r.t;sess.d.sum.boat_mixed=r.m;sess.d.sum.boat_coastal=r.c;}
     if(_lastSum){_lastSum.boat_type=r.t;_lastSum.boat_mixed=r.m;_lastSum.boat_coastal=r.c;}
     buildMeta(sess.label,_lastSum);
@@ -7352,11 +7391,37 @@ function editSessionBoat(){
     if(!AnalyserDrive.isSignedIn()){toast('Boat set here only \u2013 link Drive to save it');return;}
     toast('Saving boat type\u2026');
     AnalyserDrive.patchBoat(sess.fileId,r.t,r.m,r.c)
-      .then(()=>toast('\u2714 Boat type saved to Drive'))
+      .then(()=>_raceChg?AnalyserDrive.patchRace(sess.fileId,!!r.race).then(n=>{_fidNames[sess.fileId]=n;}):null)
+      .then(()=>toast(_raceChg?(r.race?'\u2714 Boat type and race flag saved to Drive':'\u2714 Boat type saved, race flag removed'):'\u2714 Boat type saved to Drive'))
       .catch(e=>{if(!driveAuthExpired(e))toast('Drive save failed: '+e.message,3000);});
   });
 }
 window.editSessionBoat=editSessionBoat;
+/* Tap + Race / RACE in the header: flag or unflag the session as a race, saved
+   to Drive in the filename so Metrics shows it too. */
+function toggleSessionRace(){
+  if(activeSessionIdx<0||activeSessionIdx>=SESSIONS.length)return;
+  const sess=SESSIONS[activeSessionIdx];
+  if(!sess.fileId||sess.squadCode)return;
+  const sum=(sess.d&&sess.d.sum)||_lastSum||{};
+  const want=!((sum&&sum.race!=null)?!!sum.race:!!raceOfFid(sess.fileId));
+  if(sess.d&&sess.d.sum)sess.d.sum.race=want;
+  if(_lastSum)_lastSum.race=want;
+  const oldName=_fidNames[sess.fileId];
+  if(oldName){const b=oldName.replace(/_RACE1/g,'');_fidNames[sess.fileId]=want?b.replace(/\.json$/,'_RACE1.json'):b;}
+  buildMeta(sess.label,_lastSum);
+  if(!AnalyserDrive.isSignedIn()){toast('Race flag set here only \u2013 link Drive to save it');return;}
+  AnalyserDrive.patchRace(sess.fileId,want)
+    .then(n=>{_fidNames[sess.fileId]=n;toast(want?'\u{1F3C1} Marked as a race':'Race flag removed');})
+    .catch(e=>{
+      if(sess.d&&sess.d.sum)sess.d.sum.race=!want;
+      if(_lastSum)_lastSum.race=!want;
+      if(oldName)_fidNames[sess.fileId]=oldName;
+      buildMeta(sess.label,_lastSum);
+      if(!driveAuthExpired(e))toast('Drive save failed: '+e.message,3000);
+    });
+}
+window.toggleSessionRace=toggleSessionRace;
 /* Notes typed here are saved into the session's Drive file, and Metrics picks
    them up on its next Drive check. Squad / file sessions only change here. */
 function editSessionNote(){
@@ -11758,6 +11823,7 @@ async function showStartup(){
         name: nm,
         squadCode: sq?sq[1]:null,
         favourite: fav,
+        race: /_RACE1/.test(name),
         erg: erg,
         approxTs: ts?new Date(+ts[1],+ts[2]-1,+ts[3],+ts[4],+ts[5]).getTime():0
       };
@@ -11942,6 +12008,7 @@ async function showStartup(){
         const dateDiv=document.createElement('div');
         dateDiv.className='asc-date';
         dateDiv.innerHTML='<span>'+dateStr+'</span>'
+          +(p.race?'<span class="asc-badge" style="background:#c0392b;color:#fff;">\u{1F3C1} RACE</span>':'')
           +(p.boat?'<span class="asc-badge asc-boat">'+boatLabel(p.boat,p.mixed,p.coastal)+'</span>':'')
           +(p.squadCode?'<span class="asc-badge">'+p.squadCode+'</span>':'')
           
