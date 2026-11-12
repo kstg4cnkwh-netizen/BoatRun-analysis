@@ -7320,7 +7320,7 @@ function buildMeta(fname,sum) {
   let bt=sum&&sum.boat_type, bm=!!(sum&&sum.boat_mixed), bc=!!(sum&&sum.boat_coastal);
   const _cs=SESSIONS[activeSessionIdx];
   if(!bt&&_cs&&_cs.fileId){const o=boatOfFid(_cs.fileId);if(o&&o.t){bt=o.t;bm=o.m;bc=o.c;}}
-  const _canBoat=!!(_cs&&_cs.fileId&&!_cs.squadCode&&!(sum&&sum.session_mode==='erg'));
+  const _canBoat=!!(_cs&&_cs.fileId&&!(sum&&sum.session_mode==='erg'));   // 12 Nov: squad sessions in your own Drive can change boat too
   const btBadge=bt
     ?' <span title="Boat type'+(_canBoat?' \u2013 tap to change':'')+'"'+(_canBoat?' onclick="editSessionBoat()"':'')+' style="'+(_canBoat?'cursor:pointer;':'')+'font-size:12px;font-weight:800;background:#fff;border-radius:4px;padding:1px 7px;color:#1a5276;letter-spacing:.04em;vertical-align:middle;">'+boatLabel(bt,bm,bc)+'</span>'
     :(_canBoat?' <span title="Set the boat type" onclick="editSessionBoat()" style="cursor:pointer;font-size:11px;font-weight:700;border:1px dashed rgba(255,255,255,.6);border-radius:4px;padding:1px 7px;color:rgba(255,255,255,.85);vertical-align:middle;">+ Boat</span>':'');
@@ -7372,7 +7372,7 @@ function _boatPickModal(bt, mixed, title, note, okLabel, coastal, race) {
 function editSessionBoat(){
   if(activeSessionIdx<0||activeSessionIdx>=SESSIONS.length)return;
   const sess=SESSIONS[activeSessionIdx];
-  if(!sess.fileId||sess.squadCode)return;
+  if(!sess.fileId)return;
   const sum=(sess.d&&sess.d.sum)||_lastSum||{};
   let bt=sum.boat_type,bm=!!sum.boat_mixed,bc=!!sum.boat_coastal;
   if(!bt){const o=boatOfFid(sess.fileId);if(o&&o.t){bt=o.t;bm=o.m;bc=o.c;}}
@@ -11714,7 +11714,7 @@ async function showStartup(){
     let sortDir='desc';
     let boatF='',boatMx=false,boatCs=false;
     let _szShown=[],_szTagBusy=false,_szTagStop=false,_szTagMode=false,_szTagSel=new Set();
-    const _szTagOk=f=>{const p=parseFn(f.name);return !p.erg&&!p.squadCode&&!p.workout;};
+    const _szTagOk=f=>{const p=parseFn(f.name);return !p.erg&&!p.workout;};
     const _szTagChips=()=>{
       const ta=document.getElementById('sz-tag-all'),tp=document.getElementById('sz-tag-apply');
       const ok=_szShown.filter(_szTagOk);
@@ -11745,7 +11745,7 @@ async function showStartup(){
       document.getElementById('sz-mode-erg').onclick=()=>{modeFilter='erg';renderList();};
       document.getElementById('sz-sort').onchange=e=>{const v=String(e.target.value).split('|');sortBy=v[0]||'date';sortDir=v[1]||'desc';renderList();};
       /* Tag boats: shows a tick box on every session in the list. Tick the
-         ones to change, then Set boat. Squad and workout sessions keep their
+         ones to change, then Set boat. Workout sessions keep their
          boat. Tap Tag boats again to leave, or to stop a run. */
       document.getElementById('sz-tag-boats').onclick=()=>{
         if(_szTagBusy){_szTagStop=true;return;}
@@ -11765,7 +11765,7 @@ async function showStartup(){
         if(!targets.length){toast('Tick the sessions to change first');return;}
         const n=targets.length, f0=targets[0];
         const r=await _boatPickModal(boatFromFilename(f0.name)||'1x',boatMixedFromFilename(f0.name),'Set boat type',
-          'Sets the boat for the '+n+' ticked session'+(n===1?'':'s')+'. Squad and workout sessions cannot be changed.',
+          'Sets the boat for the '+n+' ticked session'+(n===1?'':'s')+'. Workout sessions cannot be changed.',
           'Set '+n+' session'+(n===1?'':'s'),boatCoastalFromFilename(f0.name));
         if(!r)return;
         _szTagBusy=true;_szTagStop=false;
@@ -11999,10 +11999,10 @@ async function showStartup(){
           const cb=document.createElement('input');cb.type='checkbox';
           cb.style.cssText='width:22px;height:22px;flex-shrink:0;align-self:center;cursor:'+(ok?'pointer':'not-allowed')+';accent-color:#27ae60;';
           cb.checked=ok&&_szTagSel.has(f.id);cb.disabled=!ok;
-          cb.title=ok?'Tick to change this boat':(p.erg?'Erg session':'Squad and workout sessions keep their boat');
+          cb.title=ok?'Tick to change this boat':(p.erg?'Erg session':'Workout sessions keep their boat');
           const tog=()=>{if(!ok)return;if(_szTagSel.has(f.id))_szTagSel.delete(f.id);else _szTagSel.add(f.id);cb.checked=_szTagSel.has(f.id);_szTagChips();};
           cb.onclick=ev=>{ev.stopPropagation();tog();};
-          btn.onclick=()=>{if(ok)tog();else toast(p.erg?'Erg sessions have no boat':'Squad and workout sessions cannot change boat');};
+          btn.onclick=()=>{if(ok)tog();else toast(p.erg?'Erg sessions have no boat':'Workout sessions cannot change boat');};
           if(!ok)btn.style.opacity='.45';
           row.appendChild(cb);
         }
