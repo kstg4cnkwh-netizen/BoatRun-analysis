@@ -2259,9 +2259,9 @@ function isErgSession() { return !!(_lastSum && _lastSum.session_mode === 'erg')
 function fmtPace1(s){if(!s||isNaN(s)||s<50||s>1200)return EM;const r=Math.round(s*10)/10;const m=Math.floor(r/60),sec=r-m*60;return m+':'+(sec<10?'0':'')+sec.toFixed(1);}
 /* Erg sessions show pace to 1 dp everywhere except chart axis labels
    (whole=true), which stay on whole seconds. */
-function fmtPaceU(s500, whole) {
+function fmtPaceU(s500, whole, tenths) {
   if (!s500 || isNaN(s500) || s500 < 50 || s500 > 700) return EM;
-  const P = (!whole && isErgSession()) ? fmtPace1 : fmtPace;
+  const P = (tenths || (!whole && isErgSession())) ? fmtPace1 : fmtPace;
   switch (unitSettings.paceUnit) {
     case 'pace500':  return P(s500);
     case 'pace1000': return P(s500 * 2);
@@ -10212,7 +10212,27 @@ function buildLaps(){
     ${hasCal?`<td>${tC||EM}</td>`:''}
   </tr>`;
   }
-  document.querySelector('#laptbl tbody').innerHTML=_totRow+showLaps.map((l,i)=>`<tr data-lap="${i+1}" data-type="${l.type||''}" style="cursor:pointer">
+  /* 12 Nov: AVG WORK row on top - mean lap distance and time, pace from the
+     work totals and rate as the mean of the work laps, both to 0.1. */
+  let _avgRow='';
+  { const wi=showLaps.map((l,i)=>l.type==='work'?i:-1).filter(i=>i>=0);
+    if(!_lapEditMode&&wi.length>=2){
+      const W=wi.map(i=>showLaps[i]);
+      const sD=W.reduce((a,l)=>a+(+l.distance_m||0),0),sT=W.reduce((a,l)=>a+(+l.time_s||0),0);
+      const rs=wi.map(i=>{const r=_lapAvgRate(i+1);return r!=null?r:(+(showLaps[i].avg_spm||showLaps[i].stroke_rate_spm)||null);}).filter(v=>v>0);
+      const aR=rs.length?(rs.reduce((a,b)=>a+b,0)/rs.length).toFixed(1):EM;
+      const ha=W.map(l=>+l.avg_hr_bpm||0).filter(v=>v>0),hm=W.map(l=>+l.max_hr_bpm||0).filter(v=>v>0);
+      const cl=W.map(l=>+l.calories||0).filter(v=>v>0);
+      _avgRow=`<tr class="lap-total" style="background:var(--s2);font-weight:700;">
+    ${hasType?'<td>'+lapTypeChip('work')+'</td>':''}<td style="white-space:nowrap;">Avg work</td>
+    <td>${(sD/W.length).toFixed(0)}m</td><td>${fmtTime(sT/W.length)}</td>
+    <td style="color:var(--mc-pace)">${sD>0?fmtPaceU(sT*500/sD,false,true):EM}</td>
+    <td style="color:var(--mc-rate)">${aR}</td>
+    ${hasHR?`<td style="color:var(--mc-hr)">${ha.length?Math.round(ha.reduce((a,b)=>a+b,0)/ha.length):EM}</td><td style="color:var(--mc-hr)">${hm.length?Math.round(hm.reduce((a,b)=>a+b,0)/hm.length):EM}</td>`:''}
+    ${hasCal?`<td>${cl.length?Math.round(cl.reduce((a,b)=>a+b,0)/cl.length):EM}</td>`:''}
+  </tr>`;
+    } }
+  document.querySelector('#laptbl tbody').innerHTML=_avgRow+_totRow+showLaps.map((l,i)=>`<tr data-lap="${i+1}" data-type="${l.type||''}" style="cursor:pointer">
     ${hasType?(_lapEditMode
       ?`<td><select class="lapedit-sel" data-i="${i}" onclick="event.stopPropagation()" style="font-size:9px;padding:2px 3px;background:var(--s3);color:var(--text);border:1px solid var(--s3);border-radius:4px;">${['',...availTypes].map(t=>`<option value="${t}"${(_lapEditDraft[i]||'')===t?' selected':''}>${t||'—'}</option>`).join('')}</select></td>`
       :`<td>${lapTypeChip(l.type)}</td>`):''}
