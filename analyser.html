@@ -13013,6 +13013,28 @@ function trFocus(g) {
   picks.sort((a, b) => Math.abs(b.r) - Math.abs(a.r));
   return { ses, picks: picks.slice(0, 3) };
 }
+/* 13 Nov: send the top two focus metrics per boat type to Metrics (prefs.focusTiles),
+   which puts them in the last two tiles of LIVE, CURVE and MAP. Only pushed when
+   the set changes. Analyser metric keys -> Metrics tile keys. */
+const TR_TO_METRICS = { swing: 'swing', caccel: 'catchaccel', schar: 'char', slope: 'catch', slopeneg: 'catchslopeneg', cdur: 'catchdur', drivetime: 'drivetime', rloss: 'runloss', ratio: 'ratio', recoveryaccel: 'recoveryaccel' };
+let _trPushT = null;
+function trPushFocus() {
+  clearTimeout(_trPushT);
+  _trPushT = setTimeout(() => {
+    try {
+      if (!AnalyserDrive.isSignedIn() || !isPro()) return;
+      const files = AnalyserDrive.cachedList('RowSess_') || [];
+      const groups = {};
+      files.forEach(f => { if (!/_ERG(?:_|\.)/.test(f.name)) { const g = trGroupOfName(f.name); if (g !== 'none') groups[g] = 1; } });
+      const map = {};
+      Object.keys(groups).forEach(g => { const ks = trFocus(g).picks.map(p => TR_TO_METRICS[p.k]).filter(Boolean).slice(0, 2); if (ks.length === 2) map[g] = ks; });
+      const sig = JSON.stringify(map);
+      let last = null; try { last = localStorage.getItem('br_focus_pushed'); } catch (e) {}
+      if (sig === last) return;
+      AnalyserDrive.pushPrefs({ focusTiles: { map, at: Date.now() } }).then(() => { try { localStorage.setItem('br_focus_pushed', sig); } catch (e) {} }).catch(() => {});
+    } catch (e) {}
+  }, 2000);
+}
 const _trFocusWord = p => p.neg ? (p.r > 0 ? 'less negative' : 'more negative') : (p.r > 0 ? 'higher' : 'lower');
 /* Row tab: focus card for the boat last looked at in Trends, else the most-rowed boat. */
 function szRenderFocus() {
@@ -13033,7 +13055,9 @@ function szRenderFocus() {
       h += '<div style="display:flex;flex-wrap:wrap;align-items:center;gap:6px 10px;padding:9px 0;border-top:1px solid var(--ov-line,#e3e6eb);font-size:13px;"><b>' + _secEsc(p.m.l) + '</b><span style="padding:2px 7px;border-radius:9px;background:' + p.cls.c + ';color:#fff;font-size:10px;font-weight:700;">' + p.cls.t + '</span><span style="margin-left:auto;">faster with <b>' + _trFocusWord(p) + '</b></span></div>';
     });
   }
+  if (f.picks.length) h += '<div style="font-size:11px;line-height:1.4;margin-top:6px;">The top two go in the last two tiles on the Metrics LIVE, CURVE and MAP screens for this boat.</div>';
   box.innerHTML = h;
+  try { trPushFocus(); } catch (e) {}
   const go = document.getElementById('sz-focus-go'); if (go) go.onclick = () => { try { window._szSetPrc('coach'); } catch (e) {} };
 }
 /* Open session: purple outline and FOCUS tag on the focus metrics' cards. */
@@ -13176,6 +13200,7 @@ async function showTrendsModal(host) {
     }
     scanning = false;
     trSave(true);
+    try { trPushFocus(); } catch (e) {}
     if (alive()) { draw(); status(); }
   }
   const bandLbl = b => (+b) + '–' + (+b + TREND_BAND_W);
