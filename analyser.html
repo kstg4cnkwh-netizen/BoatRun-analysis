@@ -10821,7 +10821,7 @@ const TBL_COLS={
 function buildStrokeTable(){
   const cols=METRIC_DEFS.filter(m=>!hid[m.k]&&metricFitsSession(m.k)).map(m=>TBL_COLS[m.k]).filter(Boolean);
   document.getElementById('sth').innerHTML=`<tr><th>#</th><th>Lap</th><th>Dist m</th><th>Time</th><th>Consist σ</th>${cols.map(c=>`<th>${c.h()}</th>`).join('')}</tr>`;
-  document.getElementById('stb').innerHTML=ST.slice(0,1000).map(s=>`<tr data-i="${s.n-1}">
+  document.getElementById('stb').innerHTML=ST.map(s=>`<tr data-i="${s.n-1}">
     <td>${s.n}</td>
     <td style="color:rgba(160,180,255,0.7)">${s.lapNum!=null?s.lapNum:EM}</td>
     <td>${isNaN(s.dist)?EM:s.dist.toFixed(0)}</td>
