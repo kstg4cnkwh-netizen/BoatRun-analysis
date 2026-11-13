@@ -132,6 +132,7 @@ function adClearPendingOpen(){try{sessionStorage.removeItem('_ad_open');}catch(e
   .c-ratio{border-top:3px solid var(--mc-ratio)}.c-ratio .val{color:var(--mc-ratio)}
   .c-oar{border-top:3px solid var(--mc-oar)}.c-oar .val{color:var(--mc-oar)}
   .c-cdelta{border-top:3px solid var(--mc-cdelta)}.c-cdelta .val{color:var(--mc-cdelta)}
+  .c-swing{border-top:3px solid #8e44ad}.c-swing .val{color:#8e44ad}
   .c-cdur{border-top:3px solid var(--mc-cdur)}.c-cdur .val{color:var(--mc-cdur)}
   .c-recoveryaccel{border-top:3px solid var(--mc-recoveryaccel)}.c-recoveryaccel .val{color:var(--mc-recoveryaccel)}
   .c-driveaccel{border-top:3px solid var(--mc-driveaccel)}.c-driveaccel .val{color:var(--mc-driveaccel)}
@@ -2433,7 +2434,7 @@ const METRIC_DEFS = [
   {k:'rate',   l:'Rate',        c:'var(--mc-rate)', cat:'indep', filter:s=>s.rate>5&&s.rate<50,          val:s=>s.rate,        fmtAvg:v=>f1(v)+' spm',     fmtBest:null, tip:'Average stroke rate, in strokes per minute (SPM).'},
   {k:'dps',    l:'DPS',         c:'var(--mc-dps)', cat:'cond',  filter:s=>s.dps>1&&s.dps<25,            val:s=>s.dps,         fmtAvg:v=>fmtDPSU(v)+dpsULabelU(), fmtBest:null, tip:'Distance per stroke — average boat travel per stroke cycle. GPS-derived — affected by current and tide.'},
   {k:'slopeneg', l:'Negative Catch Slope', c:'var(--mc-catchslopeneg)', cat:'boat', filter:s=>!isNaN(s.catchSlopeNeg)&&s.catchSlopeNeg>0&&s.catchSlopeNeg<400, val:s=>s.catchSlopeNeg, fmtAvg:v=>f0(v), fmtBest:null, tip:'Steepest rate of acceleration FALL going into the catch, as the blade enters and the hull checks. The companion to Positive Catch Slope, taken off the same jerk signal. Higher means a more abrupt check. IMU-derived - scale varies with boat class and mass.'},
-  {k:'caccel', l:'Catch Accel', c:'var(--mc-catchaccel)', cat:'boat', filter:s=>!isNaN(s.catchAccel)&&s.catchAccel<0&&s.catchAccel>-20, val:s=>s.catchAccel, fmtAvg:v=>f1(v)+' m/s²', fmtBest:null, tip:'Peak negative (backward) acceleration at the catch - the depth of the check. Read off the same stroke curve the graph plots. Closer to zero means a lighter check. IMU-derived - not comparable across boat classes.'},
+  {k:'caccel', l:'Catch Accel', c:'var(--mc-catchaccel)', cat:'boat', filter:s=>!isNaN(s.catchAccel)&&s.catchAccel<0&&s.catchAccel>-20, val:s=>s.catchAccel, fmtAvg:v=>f1(v)+' m/s²', fmtBest:null, tip:'Peak negative (backward) acceleration at the catch, read off the same stroke curve the graph plots. Much of it is the boat giving back the speed it gained on the recovery as your body stops at the catch - momentum swapped between you and the hull, not lost. So a deeper value often goes with a well-run, faster boat (13 Nov: more negative = faster at the same rate). Do not chase zero; judge the check by Catch Dur and Recovery Run. IMU-derived - not comparable across boat classes.'},
   {k:'slope',  l:'Positive Catch Slope', c:'var(--mc-slope)', cat:'boat',  filter:s=>s.slope>0&&s.slope<300,       val:s=>s.slope,       fmtAvg:v=>f0(v),            fmtBest:null, tip:'Rate of acceleration rise out of the catch as the drive load comes on. Higher means a sharper, more aggressive catch. IMU-derived — scale varies with boat class and mass.'},
   {k:'cdur',   l:'Catch Dur',   c:'var(--mc-cdur)',  cat:'boat',  filter:s=>!isNaN(s.catchDuration)&&s.catchDuration>0&&s.catchDuration<1500, val:s=>s.catchDuration, fmtAvg:v=>f0(v)+' ms', fmtBest:null, tip:'Time from the point deceleration at the catch reaches 30% of its peak depth, until acceleration crosses back through zero. Measures the width of the check, not time-to-peak-force. Accelerometer-derived. Not comparable across boat classes \u2014 hull inertia differs, same as the catch slopes.'},
   {k:'drivetime', l:'Drive Time', c:'var(--mc-oar)',  cat:'boat',  filter:s=>!isNaN(s.driveTimeMs)&&s.driveTimeMs>50&&s.driveTimeMs<1500, val:s=>s.driveTimeMs, fmtAvg:v=>f0(v)+' ms', fmtBest:null, tip:'Time from peak drive acceleration to blade exit — the back half of the drive. Accelerometer-derived, so it covers every stroke regardless of GPS. Catch Dur and Drive Time overlap around the peak, so the true total drive time is less than their sum but more than Drive Time alone.'},
@@ -2445,6 +2446,7 @@ const METRIC_DEFS = [
   {k:'ratio',  l:'Ratio',       c:'var(--mc-ratio)', cat:'indep', filter:s=>!isNaN(s.ratio)&&s.ratio>0.5&&s.ratio<5, val:s=>s.ratio, fmtAvg:v=>f2(v),       fmtBest:null, tip:'Recovery time ÷ drive time. Higher means a longer, more relaxed recovery relative to the drive.'},
   {k:'schar',  l:'Stroke Char', c:'var(--mc-schar)', cat:'indep', filter:s=>!isNaN(s.schar)&&s.schar>0&&s.schar<=100, val:s=>s.schar,       fmtAvg:v=>f0(v)+'%',        fmtBest:null, tip:'Where the peak drive acceleration falls within the drive, as %: 0% = the moment the boat starts accelerating after the catch, 100% = blade exit. The peak time is interpolated between sensor samples and smoothed over 5 strokes. Under 40% = front-loaded, 40–60% = mid-drive, over 60% = back-loaded. Neither is inherently better — it\'s a technique style that varies by boat type and rower. Sessions recorded before Metrics 260915_3 used the impulse centroid, which reads closer to 50% — don\'t compare them directly.'},
   {k:'cdelta', l:'Vel Efficiency', c:'var(--mc-cdelta)',  cat:'boat',  filter:s=>!isNaN(s.checkDelta)&&s.checkDelta>=50&&s.checkDelta<=100, val:s=>s.checkDelta, fmtAvg:v=>f1(v)+'%', fmtBest:null, tip:'Hydrodynamic efficiency of the boat\'s speed profile within one stroke — 100% = perfectly steady hull, typical sculling 93–97%. Drag power rises with the cube of speed, so speed swings waste energy versus a constant speed. Higher is better. GPS-anchored IMU metric.'},
+  {k:'swing', l:'Speed Swing', c:'#8e44ad', cat:'boat', filter:s=>!isNaN(s.speedSwing)&&s.speedSwing>0.05&&s.speedSwing<5, val:s=>s.speedSwing, fmtAvg:v=>f2(v)+' m/s', fmtBest:null, tip:'How much the boat speeds up and slows down inside one stroke: fastest minus slowest boat speed, from the accelerometer. Unlike Vel Efficiency it does not use GPS speed, so it is a fair technique measure at any pace. Lower = steadier hull. Most of the swing is momentum swapped between you and the hull (the boat speeds up as you slide toward the stern and gives it back at the catch), plus the push of the drive, so more swing often goes with a faster boat. Only the drag cost of the swing is lost, and that is small. Use it to compare pieces at the same rate and pressure, not as a number to drive down.'},
   {k:'hr',     l:'Avg HR',      c:'var(--mc-hr)',   cat:'indep', filter:s=>{const b=nearestHRAt(s.ms);return b!=null&&b>40&&b<220;}, val:s=>nearestHRAt(s.ms), fmtAvg:v=>f0(v)+' bpm', fmtBest:null, tip:'Session average heart rate \u2014 mean of all valid HR samples (40\u2013220 bpm). Matches HR Avg in the app log.'},
   {k:'watts',  l:'Power',       c:'var(--mc-pace)', cat:'cond',  filter:s=>!isNaN(s.watts)&&s.watts>0&&s.watts<2000, val:s=>s.watts, fmtAvg:v=>f0(v)+' W', fmtBest:v=>f0(v)+' W', showBest:true, bestIsMin:false, tip:'Power output as measured by the PM5. Ergometer only.'},
   {k:'peakforce', l:'Peak Force', c:'var(--mc-impulse)', cat:'boat', filter:s=>!isNaN(s.peakforceN)&&s.peakforceN>0&&s.peakforceN<3000, val:s=>s.peakforceN, fmtAvg:v=>f0(v)+' N', fmtBest:null, tip:'Peak handle force during the drive, as measured by the PM5. Ergometer only.'},
@@ -2815,7 +2817,7 @@ function sessionToAnalyserFmt(s) {
     slope:num(r.catchPeak), schar:(!isNaN(num(r.char))?num(r.char):(fcFix[i]&&!r.curve?ergCharOf(fcFix[i]):NaN)), consistency:num(r.catchConsistency),
     rate:num(r.rate), pace:num(r.pace), dist:num(r.dist), dps:num(r.dps),
     rloss:!isNaN(num(r.recRunPct))?num(r.recRunPct):(r.curve&&!r.forceCurve?recRunFromCurve(r.curve,num(r.curveDriveFrac),num(r.rate),num(r.dps),num(r.pace)):NaN), runeff:num(r.runEfficiency), impulse:num(r.driveImpulse)*100,
-    ratio:num(r.strokeRatio), oarAngle:num(r.oarAngle), checkDelta:num(r.velEff),
+    ratio:num(r.strokeRatio), oarAngle:num(r.oarAngle), checkDelta:num(r.velEff), speedSwing:num(r.checkDelta),
     catchDuration:num(r.catchDuration), driveTimeMs:num(r.driveTimeMs), recoveryAccel:num(r.recoveryAccel), driveAccel:num(r.driveAccel),
     catchAccel:num(r.catchAccel), catchSlopeNeg:num(r.catchSlopeNeg),
     /* Erg sessions carry `forceCurve` from the PM5 instead of the IMU `curve`:
@@ -2994,7 +2996,7 @@ function garminToAnalyserFmt(records, filename) {
       slope:NaN, schar:NaN, consistency:NaN,
       rate, pace, dist:r.dist!=null?r.dist:NaN, dps,
       rloss:NaN, runeff:NaN, impulse:NaN,
-      ratio:NaN, oarAngle:NaN, checkDelta:NaN,
+      ratio:NaN, oarAngle:NaN, checkDelta:NaN, speedSwing:NaN,
       catchDuration:NaN, driveTimeMs:NaN, recoveryAccel:NaN, driveAccel:NaN,
       catchAccel:NaN, catchSlopeNeg:NaN,
       curve:null, curveDriveFrac:null,
@@ -7515,6 +7517,7 @@ function buildCards(sum) {
     },
     rate:()=>vals.rate?card('c-rate','Rate',f1(vals.rate.mean),'spm · max '+f0(vals.rate.max),'rate',tipOf('rate')):'',
     dps:()=>vals.dps?card('c-dps','DPS'+_cwS(),fmtDPSU(vals.dps.mean),dpsULabelU()+'/stroke','dps',tipOf('dps')):'',
+    swing:()=>vals.swing?card('c-swing','Speed Swing',f2(vals.swing.mean)+' m/s','lower = steadier hull',null,tipOf('swing')):'',
     cdelta:()=>vals.cdelta?`<div class="card clickable${!vis.cdelta?' dim':''}" id="card-cdelta" data-vis="cdelta" style="border-top:2px solid var(--mc-cdelta)" title="${tipOf('cdelta')}"><div class="lbl">Vel Efficiency</div><div class="val" style="color:var(--mc-cdelta)">${f1(vals.cdelta.mean)}%</div><div class="sub">vs steady hull</div></div>`:'',
     rloss:()=>vals.rloss?card('c-rloss','Recovery Run',fmtRunLossU(vals.rloss.mean),'avg/stroke','rloss',tipOf('rloss')):'',
     epower:()=>vals.epower?`<div class="card clickable${!vis.epower?' dim':''}" id="card-epower" data-vis="epower" style="border-top:2px solid var(--mc-epower)" title="${tipOf('epower')}"><div class="lbl">Eff Power${_cwS()}</div><div class="val" style="color:var(--mc-epower)">${f0(vals.epower.mean)} W</div><div class="sub">per rower · peak ${f0(vals.epower.max)} W</div></div>`:'',
@@ -8393,7 +8396,8 @@ window.showPaceCorr=function(){
   const strokes=rowOnly(ST.slice(r[0],r[1]+1));
   const pm=METRIC_DEFS.find(m=>m.k==='pace'),rm=METRIC_DEFS.find(m=>m.k==='rate');
   if(!pm||!rm){toast('No pace data');return;}
-  const FROM_SPEED={dps:1,epower:1,watts:1};
+  /* 13 Nov: Vel Efficiency = V^3 / mean(v^3) with the same speed swing, so it rises with speed by itself - flagged like DPS and power. */
+  const FROM_SPEED={dps:1,epower:1,watts:1,cdelta:1};
   const sess=SESSIONS[activeSessionIdx],d=sess&&sess.d;
   const windOk=!!(d&&d._windOn),curOk=!!(d&&d._cur&&d._cur.ok);
   const vWater=st=>{const p0=st._pace0!==undefined?st._pace0:st.pace;if(!(p0>50&&p0<500))return NaN;let v=500/p0;
