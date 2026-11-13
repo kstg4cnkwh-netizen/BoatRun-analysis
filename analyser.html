@@ -8426,7 +8426,8 @@ window.showPaceCorr=function(){
     const k=Z.length;
     const rv=_pcCorr(_pcResid(bx,Z),_pcResid(bv,Z));
     if(!isFinite(rv))continue;
-    rows.push({m,n,rv,k});
+    const _srt=X.slice().sort((a,b)=>a-b);
+    rows.push({m,n,rv,k,neg:_srt[Math.floor(_srt.length/2)]<0});
   }
   if(!rows.length){toast('Not enough stroke data - select at least 40 strokes');return;}
   rows.sort((a,b)=>(FROM_SPEED[a.m.k]?1:0)-(FROM_SPEED[b.m.k]?1:0)||Math.abs(b.rv)-Math.abs(a.rv));
@@ -8449,7 +8450,10 @@ window.showPaceCorr=function(){
     +'<table style="width:100%;border-collapse:collapse;font-size:12px;"><thead><tr style="text-align:left;border-bottom:2px solid #1a5276;"><th style="padding:6px 4px;">Metric</th><th style="text-align:center;">r</th><th></th><th>Higher value &rarr;</th></tr></thead><tbody>';
   for(const x of tRows){
     const cl=_pcCls(x.rv,x.n,x.k);
-    const dir=cl.t==='noise'?'<span style="color:#9e9e9e;">no clear effect</span>':(x.rv>0?'<span style="color:#27ae60;font-weight:700;">faster</span>':'<span style="color:#c0392b;font-weight:700;">slower</span>');
+    /* 13 Nov: metrics that are negative numbers (e.g. Catch Accel) say less / more negative, since "higher" was ambiguous. */
+    const dir=cl.t==='noise'?'<span style="color:#9e9e9e;">no clear effect</span>':(x.neg
+      ?(x.rv>0?'less negative = <span style="color:#27ae60;font-weight:700;">faster</span>':'more negative = <span style="color:#27ae60;font-weight:700;">faster</span>')
+      :(x.rv>0?'<span style="color:#27ae60;font-weight:700;">faster</span>':'<span style="color:#c0392b;font-weight:700;">slower</span>'));
     h+='<tr class="_pc_row" data-k="'+x.m.k+'" title="Tap for definition" style="cursor:pointer;border-bottom:1px solid #eee;'+(FROM_SPEED[x.m.k]?'opacity:.6;':'')+'"><td style="padding:6px 4px;"><span style="display:inline-block;width:8px;height:8px;border-radius:4px;background:'+x.m.c+';margin-right:6px;"></span>'+x.m.l+(FROM_SPEED[x.m.k]?' <span style="font-size:9px;color:#888;">(built from speed)</span>':'')+'</td>'
       +'<td style="text-align:center;white-space:nowrap;"><b>'+(x.rv>=0?'+':'')+x.rv.toFixed(2)+'</b> <span style="display:inline-block;min-width:52px;padding:2px 6px;border-radius:9px;background:'+cl.c+';color:#fff;font-size:10px;font-weight:700;">'+cl.t+'</span></td>'
       +'<td>'+bar(x.rv)+'</td><td>'+dir+'</td></tr>';
