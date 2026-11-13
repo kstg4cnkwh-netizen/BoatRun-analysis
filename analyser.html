@@ -756,7 +756,7 @@ body.light .hdrname{color:#fff;}
   <button class="hbtn hicon-btn" id="infobtn" title="What the metrics mean"><img class="hicon-img" src="icons/Metrics.svg"><span class="hicon-txt">Metrics</span></button>
   <a class="hbtn hicon-btn" href="./stroke-curve.html" target="_blank" rel="noopener" title="How to read your stroke curve"><img class="hicon-img" src="icons/Curve.svg"><span class="hicon-txt">Explanation</span></a>
   <button class="hbtn hicon-btn" id="hdrThemeBtn"><img class="hicon-img" id="hdrThemeIcon" src="icons/Dark.svg"><span class="hicon-txt" id="hdrThemeLabel">Dark Mode</span></button>
-  <button class="hbtn hicon-btn" id="planbtn" title="Basic / Pro plan"><img class="hicon-img" src="icons/Lock.svg"><span class="hicon-txt">Plan</span></button>
+  <button class="hbtn hicon-btn" id="planbtn" title="Basic / Pro plan"><img class="hicon-img" src="icons/Lock.svg"><span class="hicon-txt">Subscription</span></button>
   <button class="hbtn hicon-btn" id="aboutbtn" title="How to use BoatRun, and send feedback"><img class="hicon-img" src="icons/About.svg"><span class="hicon-txt">About</span></button>
   </div>
 </div>
@@ -771,6 +771,8 @@ body.light .hdrname{color:#fff;}
   <div id="paneStack">
   <div id="topBlock" class="secpill" data-pane="topBlock"><div class="pane-grip" title="Drag to move this pane"><span></span></div>
   <div id="unitsbar" class="brsettings"></div>
+  <!-- 13 Nov: Coach tools for the open session -->
+  <div id="coachbar" style="display:flex;flex-wrap:wrap;align-items:center;gap:8px;margin:0 0 10px;padding:9px 12px;border:2px solid #6a3fb0;border-radius:12px;"><span style="font:800 12px Inter,-apple-system,sans-serif;letter-spacing:.05em;">COACH TOOLS</span><button class="coachtool" onclick="coachTool('pace')">What drives pace</button><button class="coachtool" onclick="coachTool('video')">Video overlay</button><button class="coachtool" onclick="coachTool('tpl')">Stroke template</button><button class="coachtool" onclick="coachTool('curves')">Add to curves</button><span style="font-size:11px;">Select strokes on the chart first</span></div>
   <!-- Summary cards -->
   <div id="cards"></div>
   </div>
@@ -7546,6 +7548,7 @@ function buildCards(sum) {
     const m=/^([\d:.,+\-\u2212]*\d)\s*([A-Za-z%\u00b0\/\u00b5].*)$/.exec(v.textContent.trim());
     if(m)v.innerHTML=m[1]+'<span class="u">'+m[2]+'</span>';
   });
+  try{applyFocusCards();}catch(e){}
   buildHRZoneTable();
 }
 
@@ -11758,9 +11761,9 @@ async function showStartup(){
       <p>${AnalyserAuth.user ? 'Step 2 of 2: link Google Drive to access your sessions' : 'Step 1 of 2: sign in to your BoatRun account'}</p>
       <div class="brpill-row brpill-col">
         <button class="dzbtn dzbtn-pri" id="sz-signin">${AnalyserAuth.user ? 'Link Google Drive \u00b7 Step 2 of 2' : 'Sign in \u00b7 Step 1 of 2'}</button>
-        <button class="dzbtn dzbtn-sec" id="sz-squad"><img src="icons/Import.svg"><span>From Squad</span></button>
-        <button class="dzbtn dzbtn-sec" id="sz-openfile"><img src="icons/Open.svg"><span>Open file</span></button>
-        <button class="dzbtn dzbtn-sec" id="sz-demo"><span>See a demo session</span></button>
+        <button class="dzbtn dzbtn-sec prc-row" id="sz-squad"><img src="icons/Import.svg"><span>From Squad</span></button>
+        <button class="dzbtn dzbtn-sec prc-row" id="sz-openfile"><img src="icons/Open.svg"><span>Open file</span></button>
+        <button class="dzbtn dzbtn-sec prc-row" id="sz-demo"><span>See a demo session</span></button>
       </div>
     </div>`;
     document.getElementById('sz-signin').onclick=()=>{ if(!AnalyserAuth.user){ showPlanModal(); return; } AnalyserDrive.signIn(); };
@@ -11772,20 +11775,22 @@ async function showStartup(){
 
   if(adPeekPendingOpen())setTimeout(adRunPendingOpen,400);
   document.getElementById('app').style.display='none';
-  el.innerHTML=`<div class="sz-list" data-ntab="sess">
+  el.innerHTML=`<div class="sz-list" data-ntab="prc" data-prc="row">
+    <div class="sz-prc" id="sz-prc"><button data-prc="plan">Plan</button><button data-prc="row" class="sel">Row</button><button data-prc="coach">Coach</button></div>
+    <div class="sz-prcsub" id="sz-prcsub"></div>
     <div class="brpill-row">
       ${SESSIONS.length ? '<button class="dzbtn" id="sz-back" style="background:#fc4c02;border-color:#fc4c02;color:#fff;font-weight:800;box-shadow:0 3px 9px rgba(252,76,2,.45);"><span style="color:#fff;">&#10005; Back to session</span></button>' : ''}
-      <button class="dzbtn dzbtn-sec" id="sz-trends"><span>Trends</span></button>
-      <button class="dzbtn dzbtn-sec" id="sz-coach"><img src="icons/Import.svg"><span>Coach Sessions</span></button>
-      <button class="dzbtn dzbtn-sec" id="sz-squad"><img src="icons/Import.svg"><span>From Squad</span></button>
-      <button class="dzbtn dzbtn-sec" id="sz-openfile"><img src="icons/Open.svg"><span>Open file</span></button>
-      <button class="dzbtn dzbtn-sec" id="sz-import" title="Add a session JSON someone else recorded for you to your own sessions"><img src="icons/Import.svg"><span>Import to my sessions</span></button>
-      <button class="dzbtn dzbtn-sec" id="sz-demo"><span>Demo session</span></button>
-      ${(localStorage.getItem('_ad_legacy_done') === '1' || localStorage.getItem('_ad_legacy_empty') === '1') ? '' : '<button class="dzbtn dzbtn-sec" id="sz-oldacct"><span>Import old sessions</span></button>'}
+      <button class="dzbtn dzbtn-sec" id="sz-trends" style="display:none;"><span>Trends</span></button>
+      <button class="dzbtn dzbtn-sec prc-row" id="sz-coach"><img src="icons/Import.svg"><span>Coach Sessions</span></button>
+      <button class="dzbtn dzbtn-sec prc-row" id="sz-squad"><img src="icons/Import.svg"><span>From Squad</span></button>
+      <button class="dzbtn dzbtn-sec prc-row" id="sz-openfile"><img src="icons/Open.svg"><span>Open file</span></button>
+      <button class="dzbtn dzbtn-sec prc-row" id="sz-import" title="Add a session JSON someone else recorded for you to your own sessions"><img src="icons/Import.svg"><span>Import to my sessions</span></button>
+      <button class="dzbtn dzbtn-sec prc-row" id="sz-demo"><span>Demo session</span></button>
+      ${(localStorage.getItem('_ad_legacy_done') === '1' || localStorage.getItem('_ad_legacy_empty') === '1') ? '' : '<button class="dzbtn dzbtn-sec prc-row" id="sz-oldacct"><span>Import old sessions</span></button>'}
     </div>
     <div class="sz-ntabs" id="sz-ntabs"><button class="sz-ntab sel" data-nt="sess">Sessions</button><button class="sz-ntab" data-nt="cal">Calendar</button><button class="sz-ntab" data-nt="course" style="display:none;">Course</button></div>
     <div class="sz-grid">
-    <div class="sz-sumwrap" data-ct="sec"><div class="sz-ctabs" id="sz-ctabs" style="display:none;"><button class="sz-ntab sel" data-ct="sec">Sectors</button><button class="sz-ntab" data-ct="nav">Navigation</button></div><div class="brpill" id="sz-sectors" style="display:none;"></div><div class="brpill" id="sz-nav" style="display:none;"></div><div class="brpill sz-sumcol"><div class="sz-lhd" style="margin-bottom:8px;">Summary</div><div id="sz-sumbody"></div></div></div>
+    <div class="sz-sumwrap" data-ct="sec"><div class="brpill prc-plan" id="sz-plancard"><div class="sz-lhd" style="margin-bottom:8px;">Workouts</div><div style="font-size:13px;line-height:1.5;margin-bottom:10px;">Build intervals and give them to a day on the calendar. Metrics offers the day\u2019s workout when you start.</div><button class="dzbtn dzbtn-sec" id="sz-plan-wkt"><span>Create / edit workouts</span></button></div><div class="sz-ctabs" id="sz-ctabs" style="display:none;"><button class="sz-ntab sel" data-ct="sec">Sectors</button><button class="sz-ntab" data-ct="nav">Navigation</button></div><div class="brpill" id="sz-sectors" style="display:none;"></div><div class="brpill" id="sz-nav" style="display:none;"></div><div class="brpill prc-row" id="sz-focus" style="display:none;"></div><div class="brpill sz-sumcol"><div class="sz-lhd" style="margin-bottom:8px;">Summary</div><div id="sz-sumbody"></div></div></div>
     <div class="sz-calcol"><div class="brpill" id="sz-cal"></div><div class="brpill" id="sz-calday" style="display:none;"></div></div>
     <div class="brpill" id="sz-sesspill">
       <div class="sz-lhd">Sessions<span class="sz-count" id="sz-count"></span><span class="sz-signout" id="sz-signout">Sign out</span></div>
@@ -11793,6 +11798,11 @@ async function showStartup(){
       <div id="sz-filterbar" style="display:flex;gap:6px;margin-bottom:10px;flex-wrap:wrap;"></div>
       <div id="sz-files" class="sz-loading">Loading…</div>
     </div>
+    </div>
+    <div id="sz-coachpane" class="prc-coach">
+      <div class="brpill-row"><button class="dzbtn dzbtn-sec" id="sz-compare"><span>Compare sessions</span></button></div>
+      <div id="sz-trhost"></div>
+      <div class="brpill" style="margin-top:14px;"><div class="sz-lhd" style="margin-bottom:8px;">Inside a session</div><div style="font-size:13px;line-height:1.5;margin-bottom:10px;">Video overlay, stroke templates and What drives pace for a selection are in the Coach tools bar of an open session.</div><button class="dzbtn dzbtn-sec" id="sz-gorow"><span>Go to sessions</span></button></div>
     </div>
   </div>`;
   {const hs=document.getElementById('hdrsearch'),ss=document.getElementById('sz-search');
@@ -11820,6 +11830,25 @@ async function showStartup(){
      try{const mo=new MutationObserver(sync);['sz-sectors','sz-nav'].forEach(id=>{const x=document.getElementById(id);if(x)mo.observe(x,{attributes:true,attributeFilter:['style']});});}catch(e){}
      sync();
    }}
+  /* 13 Nov: Plan / Row / Coach. Plan = calendar, workouts, course. Row = sessions,
+     summary, focus metrics. Coach = trends (what drives pace per boat), compare. */
+  {const lst=el.querySelector('.sz-list'),bar=document.getElementById('sz-prc'),sub=document.getElementById('sz-prcsub');
+   const SUB={plan:'Set up what you are going to row: calendar, workouts, courses and navigation lines',row:'Your sessions, and what to watch in the boat',coach:'Find what makes the boat faster'};
+   const setP=t=>{
+     lst.dataset.prc=t;
+     bar.querySelectorAll('button').forEach(b=>{const on=b.dataset.prc===t;b.classList.toggle('sel',on);b.setAttribute('aria-pressed',on?'true':'false');});
+     sub.textContent=SUB[t];
+     try{localStorage.setItem('_sz_prc',t);}catch(e){}
+     if(t==='coach'){const h=document.getElementById('sz-trhost');if(h&&!h.dataset.on){h.dataset.on='1';showTrendsModal(h);}else{try{window.dispatchEvent(new Event('resize'));}catch(e){}}}
+     if(t==='row'){try{szRenderFocus();}catch(e){}}
+   };
+   bar.onclick=e=>{const b=e.target.closest('button');if(b)setP(b.dataset.prc);};
+   document.getElementById('sz-plan-wkt').onclick=()=>{const w=document.getElementById('wktbtn');if(w)w.click();};
+   document.getElementById('sz-compare').onclick=()=>showAddComparePicker();
+   document.getElementById('sz-gorow').onclick=()=>setP('row');
+   window._szSetPrc=setP;
+   let p0='row';try{const v=localStorage.getItem('_sz_prc');if(v==='plan'||v==='coach'||v==='row')p0=v;}catch(e){}
+   setP(p0);}
   szWideSummary();
   renderStartSectors();
   try{renderStartNav();}catch(e){}
@@ -11842,6 +11871,7 @@ async function showStartup(){
     const files=cached||await AnalyserDrive.list();
     const container=document.getElementById('sz-files');
     if(!container)return;
+    try{szRenderFocus();}catch(e){}
     if(!files.length){container.innerHTML='<div class="sz-loading">No sessions on Drive</div>';return;}
     let fileList=[...files];
     let searchQuery='';
@@ -12954,6 +12984,76 @@ function trDigest(conv, size) {
   }
   return dg;
 }
+/* 13 Nov FOCUS METRICS: for a boat type, the three technique metrics that most
+   go with a faster boat, from the pooled drivers. Skips metrics built from speed
+   and the "pull harder" ones (impulse, drive accel). Needs 3+ analysed sessions. */
+const TR_FOCUS_SKIP = { pace: 1, rate: 1, hr: 1, impulse: 1, driveaccel: 1 }, TR_FOCUS_MIN_SES = 3;
+function trGroupOfName(n) { const bt = boatFromFilename(n); if (!bt) return 'none'; const mx = bt !== '1x' && boatMixedFromFilename(n), cs = boatCoastalFromFilename(n); return bt + (mx ? 'M' : '') + (cs ? 'C' : ''); }
+function trGroupOfSum(sum) { const bt = sum && sum.boat_type; if (!bt) return 'none'; return bt + (sum.boat_mixed && bt !== '1x' ? 'M' : '') + (sum.boat_coastal ? 'C' : ''); }
+function trGroupLabel(g) { if (g === 'none') return 'Untagged'; const bt = g.replace(/[MC]+$/, ''); return boatLabel(bt, /M/.test(g.slice(2)), /C$/.test(g)); }
+function trFocus(g) {
+  let files = null; try { files = AnalyserDrive.cachedList('RowSess_'); } catch (e) {}
+  const db = trDB(), out = {}; let ses = 0;
+  (files || []).forEach(f => {
+    if (/_ERG(?:_|\.)/.test(f.name) || trGroupOfName(f.name) !== g) return;
+    const d = db[f.id]; if (!d || d.v !== TREND_V || d.erg || !d.c) return;
+    let any = false;
+    Object.keys(d.c).forEach(k => { const c = d.c[k], o = out[k] || (out[k] = { sxx: 0, svv: 0, sxv: 0, dof: 0, ses: 0, neg: 0 }); o.sxx += c.sxx; o.svv += c.svv; o.sxv += c.sxv; o.dof += Math.max(0, c.n - c.k - 1); o.ses++; o.neg += c.neg ? 1 : 0; any = true; });
+    if (any) ses++;
+  });
+  const picks = [];
+  Object.keys(out).forEach(k => {
+    if (TR_FROM_SPEED[k] || TR_FOCUS_SKIP[k]) return;
+    const o = out[k]; if (o.ses < TR_FOCUS_MIN_SES || !(o.sxx > 0 && o.svv > 0)) return;
+    const r = o.sxv / Math.sqrt(o.sxx * o.svv), c = _pcCls(r, o.dof + 2, 0);
+    if (c.t === 'noise' || c.t === 'n/a') return;
+    const m = METRIC_DEFS.find(q => q.k === k); if (!m) return;
+    picks.push({ k, m, r, cls: c, neg: o.neg * 2 > o.ses });
+  });
+  picks.sort((a, b) => Math.abs(b.r) - Math.abs(a.r));
+  return { ses, picks: picks.slice(0, 3) };
+}
+const _trFocusWord = p => p.neg ? (p.r > 0 ? 'less negative' : 'more negative') : (p.r > 0 ? 'higher' : 'lower');
+/* Row tab: focus card for the boat last looked at in Trends, else the most-rowed boat. */
+function szRenderFocus() {
+  const box = document.getElementById('sz-focus'); if (!box) return;
+  let files = []; try { files = AnalyserDrive.cachedList('RowSess_') || []; } catch (e) {}
+  const cnt = {}; files.forEach(f => { if (/_ERG(?:_|\.)/.test(f.name)) return; const g = trGroupOfName(f.name); cnt[g] = (cnt[g] || 0) + 1; });
+  let g = null; try { g = (JSON.parse(localStorage.getItem(TREND_UI_KEY) || '{}') || {}).g; } catch (e) {}
+  if (!g || !cnt[g]) g = Object.keys(cnt).sort((a, b) => cnt[b] - cnt[a])[0];
+  if (!g) { box.style.display = 'none'; return; }
+  box.style.display = '';
+  const f = trFocus(g);
+  let h = '<div class="sz-lhd" style="margin-bottom:8px;">Focus metrics · ' + _secEsc(trGroupLabel(g)) + '</div>';
+  if (!f.picks.length) {
+    h += '<div style="font-size:13px;line-height:1.5;margin-bottom:10px;">The three technique metrics that most go with a faster boat. ' + (f.ses < TR_FOCUS_MIN_SES ? 'Needs ' + TR_FOCUS_MIN_SES + ' analysed sessions in this boat (' + f.ses + ' so far).' : 'Nothing stands out clearly yet.') + '</div><button class="dzbtn dzbtn-sec" id="sz-focus-go"><span>Analyse in Coach</span></button>';
+  } else {
+    h += '<div style="font-size:12px;line-height:1.45;margin-bottom:8px;">The technique metrics that most go with a faster boat, from ' + f.ses + ' sessions. They are outlined on the cards when you open a session.</div>';
+    f.picks.forEach(p => {
+      h += '<div style="display:flex;flex-wrap:wrap;align-items:center;gap:6px 10px;padding:9px 0;border-top:1px solid var(--ov-line,#e3e6eb);font-size:13px;"><b>' + _secEsc(p.m.l) + '</b><span style="padding:2px 7px;border-radius:9px;background:' + p.cls.c + ';color:#fff;font-size:10px;font-weight:700;">' + p.cls.t + '</span><span style="margin-left:auto;">faster with <b>' + _trFocusWord(p) + '</b></span></div>';
+    });
+  }
+  box.innerHTML = h;
+  const go = document.getElementById('sz-focus-go'); if (go) go.onclick = () => { try { window._szSetPrc('coach'); } catch (e) {} };
+}
+/* Open session: purple outline and FOCUS tag on the focus metrics' cards. */
+function applyFocusCards() {
+  const sess = SESSIONS[activeSessionIdx], d = sess && sess.d; if (!d || !d.sum || d.sum.session_mode === 'erg') return;
+  trFocus(trGroupOfSum(d.sum)).picks.forEach(p => {
+    const c = document.getElementById('card-' + p.k); if (!c) return;
+    c.style.outline = '2px solid #6a3fb0'; c.style.outlineOffset = '-2px';
+    const l = c.querySelector('.lbl');
+    if (l && !l.querySelector('.fcs')) l.insertAdjacentHTML('beforeend', ' <span class="fcs" style="background:#6a3fb0;color:#fff;border-radius:8px;padding:1px 6px;font-size:9px;font-weight:700;letter-spacing:.04em;">FOCUS</span>');
+  });
+}
+/* Open session: the Coach tools bar. */
+window.coachTool = function (k) {
+  const r = _selAbsRange();
+  if (k === 'pace') { if (!r || r[1] - r[0] + 1 < 40) { toast('Drag across the stroke chart to select 40 or more strokes first', 3500); return; } showPaceCorr(); }
+  else if (k === 'curves') { if (!r) { toast('Drag across the stroke chart to select strokes first', 3500); return; } pinSelection(); }
+  else if (k === 'tpl') openTemplateModal();
+  else if (k === 'video') { const v = document.getElementById('videosec'); if (!v || v.offsetParent === null) { toast('Video overlay is not available for this session'); return; } v.scrollIntoView({ behavior: 'smooth', block: 'start' }); toast('Tap ＋ Add video', 2500); }
+};
 /* Any own Drive session opened here is digested on the way in, for free. */
 function trNoteSession(d, fileId) {
   try {
@@ -12963,15 +13063,19 @@ function trNoteSession(d, fileId) {
     trSave();
   } catch (e) {}
 }
-async function showTrendsModal() {
-  if (!isPro()) { showPlanModal('Trends are a Pro feature.'); return; }
+async function showTrendsModal(host) {
+  if (!isPro()) {
+    if (host) { host.innerHTML = '<div class="brpill"><div class="sz-lhd" style="margin-bottom:8px;">Trends</div><div style="font-size:13px;line-height:1.5;margin-bottom:10px;">What makes each boat faster, pooled over all your sessions. Trends are a Pro feature.</div><button class="dzbtn dzbtn-sec" onclick="showPlanModal(\'Trends are a Pro feature.\')"><span>See plans</span></button></div>'; }
+    else showPlanModal('Trends are a Pro feature.');
+    return;
+  }
   if (!AnalyserDrive.isSignedIn()) { toast('Link Google Drive first'); return; }
   document.getElementById('_trend_modal')?.remove();
   const ov = document.createElement('div');
   ov.id = '_trend_modal';
-  ov.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,.72);display:flex;align-items:center;justify-content:center;z-index:9999;padding:12px;';
+  ov.style.cssText = host ? 'width:100%;' : 'position:fixed;inset:0;background:rgba(0,0,0,.72);display:flex;align-items:center;justify-content:center;z-index:9999;padding:12px;';
   const pn = document.createElement('div');
-  pn.style.cssText = 'background:var(--s1);border:1px solid var(--border);border-radius:10px;width:min(96vw,1000px);height:min(94vh,960px);display:flex;flex-direction:column;overflow:hidden;color:var(--text);font-family:-apple-system,BlinkMacSystemFont,Helvetica Neue,sans-serif;';
+  pn.style.cssText = 'background:var(--s1);border:1px solid var(--border);display:flex;flex-direction:column;overflow:hidden;color:var(--text);font-family:-apple-system,BlinkMacSystemFont,Helvetica Neue,sans-serif;' + (host ? 'border-radius:12px;width:100%;' : 'border-radius:10px;width:min(96vw,1000px);height:min(94vh,960px);');
   pn.innerHTML =
     '<div style="display:flex;align-items:center;gap:10px;padding:10px 14px;border-bottom:1px solid var(--border);flex-shrink:0;">'
     + '<div style="font-size:14px;font-weight:700;">Trends</div>'
@@ -12994,13 +13098,13 @@ async function showTrendsModal() {
     + '<div style="font-size:10.5px;color:var(--muted);line-height:1.4;margin-top:4px;">Each point is one session’s average in that rate band (10 strokes or more). Dashed lines are the trend.</div>'
     + '</div></div>';
   ov.appendChild(pn);
-  document.body.appendChild(ov);
+  if (host) { host.innerHTML = ''; host.appendChild(ov); } else document.body.appendChild(ov);
   const $ = id => document.getElementById(id);
   const alive = () => document.body.contains(ov);
   let stop = false, scanning = false, pts = [];
-  const close = () => { stop = true; window.removeEventListener('resize', drawChart); document.getElementById('_pc_def')?.remove(); ov.remove(); trSave(true); };
-  $('_tr_close').onclick = close;
-  ov.onclick = e => { if (e.target === ov) close(); };
+  const close = () => { stop = true; window.removeEventListener('resize', drawChart); document.getElementById('_pc_def')?.remove(); ov.remove(); if (host) delete host.dataset.on; trSave(true); };
+  if (host) $('_tr_close').style.display = 'none';
+  else { $('_tr_close').onclick = close; ov.onclick = e => { if (e.target === ov) close(); }; }
 
   $('_tr_status').textContent = 'Loading sessions…';
   let files = AnalyserDrive.cachedList('RowSess_');
@@ -18307,6 +18411,31 @@ body .hdr-tabs .hmenu,body.light .hdr-tabs .hmenu{background:#fff!important;bord
 .hdr-search input{flex:1;min-width:0;border:none;outline:none;background:transparent;color:#fff;font:400 13px Inter,-apple-system,sans-serif;}
 .hdr-search input::placeholder{color:#AEB8CA;}
 .hdr-search:focus-within{background:rgba(255,255,255,.16);box-shadow:0 0 0 2px rgba(255,255,255,.25);}
+/* 13 Nov: PLAN / ROW / COACH tabs on the start page */
+.sz-prc{display:flex;gap:4px;margin:0;}
+.sz-prc button{flex:1;min-height:48px;border:none;border-radius:10px 10px 0 0;background:var(--ov-line,#e3e6eb);color:var(--ov-text,#000);font:800 15px Inter,-apple-system,sans-serif;cursor:pointer;touch-action:manipulation;}
+.sz-prc button[data-prc="plan"].sel{background:#0b6e79;color:#fff;}
+.sz-prc button[data-prc="row"].sel{background:#1a5fd0;color:#fff;}
+.sz-prc button[data-prc="coach"].sel{background:#6a3fb0;color:#fff;}
+.sz-prcsub{margin:0 0 14px;padding:9px 14px;border-radius:0 0 10px 10px;color:#fff;font:600 13px Inter,-apple-system,sans-serif;}
+.sz-list[data-prc="plan"] .sz-prcsub{background:#0b6e79;}
+.sz-list[data-prc="row"] .sz-prcsub{background:#1a5fd0;}
+.sz-list[data-prc="coach"] .sz-prcsub{background:#6a3fb0;}
+#startup #sz-ntabs{display:none!important;}
+.sz-list:not([data-prc="row"]) .prc-row{display:none!important;}
+.sz-list:not([data-prc="plan"]) .prc-plan{display:none!important;}
+.sz-list:not([data-prc="coach"]) .prc-coach{display:none!important;}
+.sz-list[data-prc="coach"] .sz-grid{display:none!important;}
+.sz-list[data-prc="plan"] #sz-sesspill,.sz-list[data-prc="plan"] .sz-sumcol{display:none!important;}
+.sz-list[data-prc="row"] .sz-calcol,.sz-list[data-prc="row"] #sz-sectors,.sz-list[data-prc="row"] #sz-nav,.sz-list[data-prc="row"] #sz-ctabs{display:none!important;}
+#startup .sz-list[data-prc="plan"] .sz-grid{grid-template-columns:minmax(0,1fr) minmax(0,1.3fr)!important;grid-template-rows:auto!important;}
+#startup .sz-list[data-prc="plan"] .sz-sumwrap{grid-column:1!important;grid-row:1!important;}
+#startup .sz-list[data-prc="plan"] .sz-calcol{grid-column:2!important;grid-row:1!important;}
+#startup .sz-list[data-prc="row"] .sz-grid{grid-template-columns:340px minmax(0,1fr)!important;grid-template-rows:auto!important;}
+#startup .sz-list[data-prc="row"] .sz-sumwrap{grid-column:1!important;grid-row:1!important;}
+#startup .sz-list[data-prc="row"] #sz-sesspill{grid-column:2!important;grid-row:1!important;}
+#startup #sz-plancard,#startup #sz-focus{margin-bottom:14px;}
+.coachtool{min-height:36px;padding:0 14px;border:none;border-radius:8px;background:#6a3fb0;color:#fff;font:700 12px Inter,-apple-system,sans-serif;cursor:pointer;}
 body:has(#startup .sz-list) .hdr-search{display:flex;}
 body:has(#startup .sz-list) #sz-search{display:none!important;}
 @media (max-width:900px){.hdr-search{width:100%;order:9;}}
