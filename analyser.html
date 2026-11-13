@@ -8433,16 +8433,19 @@ window.showPaceCorr=function(){
   const bar=rv=>{const w=Math.round(Math.min(1,Math.abs(rv))*60);
     return'<div style="position:relative;width:130px;height:10px;background:#eee;border-radius:5px;"><div style="position:absolute;left:65px;top:-2px;width:1px;height:14px;background:#888;"></div><div style="position:absolute;top:0;height:10px;border-radius:5px;background:'+(rv>=0?'#27ae60':'#c0392b')+';'+(rv>=0?'left:65px;':'left:'+(65-w)+'px;')+'width:'+w+'px;"></div></div>';};
   const wtTxt=(windOk||curOk?'Speed is <b>water speed</b> ('+[windOk?'wind':null,curOk?'current':null].filter(Boolean).join(' + ')+' model). ':'No wind / current model, so ground speed. ')+'Boat heading and time are taken out for wind and tide. ';
-  let h='<div style="font-size:12px;color:#555;margin-bottom:10px;line-height:1.5;">'+strokes.length+' strokes, as 5-stroke averages, with stroke rate taken out. '+wtTxt+'<b>+</b> means a higher value goes with a <b>faster</b> boat, <b>&minus;</b> with a slower one. Correlation is not cause.</div>'
+  let h='<div style="font-size:12px;color:#555;margin-bottom:10px;line-height:1.5;">'+strokes.length+' strokes, as 5-stroke averages, with stroke rate taken out. '+wtTxt+'<b>+</b> means a higher value goes with a <b>faster</b> boat, <b>&minus;</b> with a slower one. Correlation is not cause. Tap a metric for its definition.</div>'
     +'<div style="display:flex;gap:8px;flex-wrap:wrap;font-size:10px;margin-bottom:10px;">'
     +[['noise','#9e9e9e','not significant or < 0.1'],['weak','#e0a800','0.1 – 0.3'],['medium','#e67e22','0.3 – 0.5'],['high','#27ae60','0.5+']].map(a=>'<span><span style="display:inline-block;padding:2px 6px;border-radius:9px;background:'+a[1]+';color:#fff;font-weight:700;">'+a[0]+'</span> '+a[2]+'</span>').join('')+'</div>'
     +'<table style="width:100%;border-collapse:collapse;font-size:12px;"><thead><tr style="text-align:left;border-bottom:2px solid #1a5276;"><th style="padding:6px 4px;">Metric</th><th style="text-align:center;">r</th><th></th><th>Higher value &rarr;</th></tr></thead><tbody>';
   for(const x of rows){
     const cl=_pcCls(x.rv,x.n,x.k);
     const dir=cl.t==='noise'?'<span style="color:#9e9e9e;">no clear effect</span>':(x.rv>0?'<span style="color:#27ae60;font-weight:700;">faster</span>':'<span style="color:#c0392b;font-weight:700;">slower</span>');
-    h+='<tr style="border-bottom:1px solid #eee;'+(FROM_SPEED[x.m.k]?'opacity:.6;':'')+'"><td style="padding:6px 4px;"><span style="display:inline-block;width:8px;height:8px;border-radius:4px;background:'+x.m.c+';margin-right:6px;"></span>'+x.m.l+(FROM_SPEED[x.m.k]?' <span style="font-size:9px;color:#888;">(built from speed)</span>':'')+'</td>'
+    h+='<tr class="_pc_row" data-k="'+x.m.k+'" title="Tap for definition" style="cursor:pointer;border-bottom:1px solid #eee;'+(FROM_SPEED[x.m.k]?'opacity:.6;':'')+'"><td style="padding:6px 4px;"><span style="display:inline-block;width:8px;height:8px;border-radius:4px;background:'+x.m.c+';margin-right:6px;"></span>'+x.m.l+(FROM_SPEED[x.m.k]?' <span style="font-size:9px;color:#888;">(built from speed)</span>':'')+'</td>'
       +'<td style="text-align:center;white-space:nowrap;"><b>'+(x.rv>=0?'+':'')+x.rv.toFixed(2)+'</b> <span style="display:inline-block;min-width:52px;padding:2px 6px;border-radius:9px;background:'+cl.c+';color:#fff;font-size:10px;font-weight:700;">'+cl.t+'</span></td>'
       +'<td>'+bar(x.rv)+'</td><td>'+dir+'</td></tr>';
+    /* 13 Nov: tap a metric for its definition (the same tip the cards use). */
+    const tip=String(x.m.tip||'No definition yet.').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+    h+='<tr class="_pc_def" data-k="'+x.m.k+'" style="display:none;background:#f5f8fb;"><td colspan="4" style="padding:8px 10px 10px 18px;font-size:11px;color:#333;line-height:1.45;border-bottom:1px solid #eee;">'+tip+'</td></tr>';
   }
   h+='</tbody></table>';
   document.getElementById('_pace_corr')?.remove();
@@ -8453,6 +8456,12 @@ window.showPaceCorr=function(){
   ov.addEventListener('click',e=>{if(e.target===ov)ov.remove();});
   document.body.appendChild(ov);
   ov.querySelector('#_pc_x').onclick=()=>ov.remove();
+  ov.querySelectorAll('tr._pc_row').forEach(tr=>tr.addEventListener('click',()=>{
+    const dfn=ov.querySelector('tr._pc_def[data-k="'+tr.dataset.k+'"]');if(!dfn)return;
+    const open=dfn.style.display==='none';
+    ov.querySelectorAll('tr._pc_def').forEach(x=>x.style.display='none');
+    if(open)dfn.style.display='';
+  }));
 };
 
 // ══════════════════════════════════════════════════════════════════════════
