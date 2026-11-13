@@ -12859,31 +12859,22 @@ let _sumOffsets={onwater:{m:0,w:0},erg:{m:0,w:0},combined:{m:0,w:0}};
 // "digest") kept in this browser; only sessions not yet digested are
 // downloaded, newest first, for the boat and period on screen.
 // ══════════════════════════════════════════════════════════════════════════
-const TREND_V = 1, TREND_KEY = 'br_trend_v1', TREND_UI_KEY = 'br_trend_ui';
+/* 13 Nov TRENDS v2 - "what drives pace" for a boat type, across sessions.
+   Each session is boiled down once (a digest kept in this browser):
+   - drivers: for every metric, 5-stroke blocks inside the session, adjusted for
+     stroke rate, time and boat heading (wind / stream), residual sums kept so
+     sessions pool into one within-session correlation per boat type. Day-to-day
+     differences (weather, rig, crew) never count, only stroke-to-stroke changes.
+   - bands: per 2-spm rate band trimmed means, for the "how has it moved" chart.
+   The table ranks the drivers; Trend says whether each metric has moved the
+   way that goes with a faster boat. Tap a row for its chart. */
+const TREND_V = 2, TREND_KEY = 'br_trend_v1', TREND_UI_KEY = 'br_trend_ui';
 const TREND_BAND_W = 2, TREND_BAND_MIN = 14, TREND_BAND_MAX = 40, TREND_MIN_STROKES = 10;
-/* No pure red or green - those mean worse / better in the legend. */
 const TREND_COLS = ['#2e86de', '#8e44ad', '#e67e22', '#00acc1', '#c2185b', '#3949ab', '#d4ac0d', '#5d6d7e', '#ff7043', '#6d4c41', '#26a69a', '#f06292', '#7e57c2'];
+const TR_FROM_SPEED = { dps: 1, epower: 1, watts: 1, cdelta: 1 };
+const TR_SKIP = { hr: 1 };
 const _trR = (v, d) => (v == null || !isFinite(v)) ? EM : (+v).toFixed(d);
-/* better: +1 higher is better, -1 lower is better, 0 neither. inv: draw the
-   axis upside down (pace), so up is always faster. */
-const TREND_METRICS = [
-  { k: 'spd', l: 'Pace', val: x => 500 / x, fmt: v => fmtPaceU(v), unit: () => paceULabel(), better: -1, inv: true },
-  { k: 'dps', l: 'Distance per stroke', val: x => x, fmt: v => fmtDPSU(v), unit: () => dpsULabelU(), better: 1 },
-  { k: 'slope', l: 'Positive catch slope', val: x => x, fmt: v => _trR(v, 0), unit: () => '', better: 1 },
-  { k: 'catchSlopeNeg', l: 'Negative catch slope', val: x => x, fmt: v => _trR(v, 0), unit: () => '', better: 0 },
-  { k: 'catchAccel', l: 'Catch accel', val: x => x, fmt: v => _trR(v, 1), unit: () => 'm/s²', better: 1 },
-  { k: 'catchDuration', l: 'Catch duration', val: x => x, fmt: v => _trR(v, 0), unit: () => 'ms', better: -1 },
-  { k: 'driveTimeMs', l: 'Drive time', val: x => x, fmt: v => _trR(v, 0), unit: () => 'ms', better: 0 },
-  { k: 'ratio', l: 'Stroke ratio', val: x => x, fmt: v => _trR(v, 2), unit: () => '', better: 0 },
-  { k: 'schar', l: 'Stroke Char', val: x => x, fmt: v => _trR(v, 0), unit: () => '%', better: 0 },
-  { k: 'impulse', l: 'Impulse', val: x => x, fmt: v => _trR(v, 0), unit: () => '', better: 0 },
-  { k: 'driveAccel', l: 'Drive accel', val: x => x, fmt: v => _trR(v, 1), unit: () => 'm/s²', better: 0 },
-  { k: 'recoveryAccel', l: 'Recovery accel', val: x => x, fmt: v => _trR(v, 1), unit: () => 'm/s²', better: 0 },
-  { k: 'rloss', l: 'Recovery run', val: x => x, fmt: v => _trR(v, 1), unit: () => '%', better: 1 },
-  { k: 'checkDelta', l: 'Vel efficiency', val: x => x, fmt: v => _trR(v, 1), unit: () => '%', better: 1 },
-  { k: 'consistency', l: 'Catch consistency', val: x => x, fmt: v => _trR(v, 1), unit: () => '', better: -1 },
-  { k: 'hr', l: 'Heart rate', val: x => x, fmt: v => _trR(v, 0), unit: () => 'bpm', better: 0 }
-];
+function trMetrics() { return METRIC_DEFS.filter(m => !TR_SKIP[m.k] && !ERG_ONLY_KEYS.includes(m.k)); }
 let _trDB = null, _trSaveT = null;
 function trDB() {
   if (!_trDB) { try { _trDB = JSON.parse(localStorage.getItem(TREND_KEY) || '{}') || {}; } catch { _trDB = {}; } }
@@ -12894,59 +12885,73 @@ function trSave(now) {
   const w = () => { try { localStorage.setItem(TREND_KEY, JSON.stringify(_trDB || {})); } catch (e) {} };
   if (now) w(); else _trSaveT = setTimeout(w, 1500);
 }
-/* One session (Analyser format) -> per-band trimmed means. Strokes count when
-   the rate is 14-40 spm and the pace is 1:00-5:30 /500m (no paddling or stops). */
+/* Steady rowing only: 14-40 spm, pace 1:00-5:30 /500m. */
 function trDigest(conv, size) {
   const sum = (conv && conv.sum) || {};
-  const dg = { v: TREND_V, sz: size != null ? String(size) : null, t: Date.parse(sum.start_time) || 0, b: {} };
+  const dg = { v: TREND_V, sz: size != null ? String(size) : null, t: Date.parse(sum.start_time) || 0, b: {}, c: {} };
   if (sum.session_mode === 'erg') { dg.erg = 1; return dg; }
-  const hr = (conv.hr || []).map(h => [Date.parse(h.ts), h.bpm]).filter(h => h[0] && h[1] > 40 && h[1] < 220).sort((a, b) => a[0] - b[0]);
-  const hrAt = ms => {
-    if (!hr.length) return null;
-    let lo = 0, hi = hr.length - 1;
-    while (lo < hi) { const mid = (lo + hi) >> 1; if (hr[mid][0] < ms) lo = mid + 1; else hi = mid; }
-    let best = hr[lo];
-    if (lo > 0 && Math.abs(hr[lo - 1][0] - ms) < Math.abs(best[0] - ms)) best = hr[lo - 1];
-    return Math.abs(best[0] - ms) <= 5000 ? best[1] : null;
-  };
+  const pm = METRIC_DEFS.find(m => m.k === 'pace'), rm = METRIC_DEFS.find(m => m.k === 'rate');
+  const good = s => { const r = s.rate, p = s.pace; return r >= TREND_BAND_MIN && r < TREND_BAND_MAX && p >= 60 && p <= 330; };
+  const st = (conv.strokes || []).filter(good);
+  const mets = trMetrics();
+  // ---- bands
   const acc = {};
-  const put = (a, k, v, ok) => { if (v == null || !isFinite(v) || (ok && !ok(v))) return; (a.v[k] || (a.v[k] = [])).push(v); };
-  for (const s of (conv.strokes || [])) {
-    const r = s.rate, p = s.pace;
-    if (!(r >= TREND_BAND_MIN && r < TREND_BAND_MAX) || !(p >= 60 && p <= 330)) continue;
-    const b = Math.floor(r / TREND_BAND_W) * TREND_BAND_W;
+  for (const s of st) {
+    const b = Math.floor(s.rate / TREND_BAND_W) * TREND_BAND_W;
     const a = acc[b] || (acc[b] = { n: 0, v: {} });
     a.n++;
-    put(a, 'spd', 500 / p);
-    put(a, 'dps', s.dps, v => v > 1 && v < 20);
-    put(a, 'slope', s.slope);
-    put(a, 'catchSlopeNeg', s.catchSlopeNeg);
-    put(a, 'catchAccel', s.catchAccel);
-    put(a, 'catchDuration', s.catchDuration, v => v > 0 && v < 1000);
-    put(a, 'driveTimeMs', s.driveTimeMs, v => v > 0 && v < 3000);
-    put(a, 'ratio', s.ratio, v => v > 0.3 && v < 6);
-    put(a, 'schar', s.schar, v => v >= 0 && v <= 100);
-    put(a, 'impulse', s.impulse);
-    put(a, 'driveAccel', s.driveAccel);
-    put(a, 'recoveryAccel', s.recoveryAccel);
-    put(a, 'rloss', s.rloss);
-    put(a, 'checkDelta', s.checkDelta, v => v > 50 && v <= 100);
-    put(a, 'consistency', s.consistency);
-    if (s.ms > 1e12) put(a, 'hr', hrAt(s.ms));
+    for (const m of mets) {
+      let v = NaN;
+      try { if (m.filter(s)) v = m.k === 'pace' ? 500 / m.val(s) : +m.val(s); } catch (e) {}
+      if (isFinite(v)) (a.v[m.k] || (a.v[m.k] = [])).push(v);
+    }
   }
-  const tmean = arr => {
-    arr.sort((x, y) => x - y);
-    const k = arr.length >= 10 ? Math.floor(arr.length * 0.1) : 0;
-    const t = arr.slice(k, arr.length - k);
-    return t.reduce((x, y) => x + y, 0) / t.length;
-  };
+  const tmean = arr => { arr.sort((x, y) => x - y); const k = arr.length >= 10 ? Math.floor(arr.length * 0.1) : 0; const t = arr.slice(k, arr.length - k); return t.reduce((x, y) => x + y, 0) / t.length; };
   Object.keys(acc).forEach(b => {
-    const a = acc[b];
-    if (a.n < TREND_MIN_STROKES) return;
+    const a = acc[b]; if (a.n < TREND_MIN_STROKES) return;
     const m = {};
     Object.keys(a.v).forEach(k => { if (a.v[k].length >= TREND_MIN_STROKES) m[k] = +tmean(a.v[k]).toPrecision(5); });
     dg.b[b] = { n: a.n, m };
   });
+  // ---- drivers
+  const G = (conv.gpsTrace || []).filter(p => p && p.lat != null && p.lon != null && p.t != null).sort((a, b) => a.t - b.t);
+  const Rm = 6371000, la0 = G.length ? G[0].lat * Math.PI / 180 : 0, T = G.map(p => p.t);
+  const PX = G.map(p => (p.lon - G[0].lon) * Math.PI / 180 * Rm * Math.cos(la0)), PY = G.map(p => (p.lat - G[0].lat) * Math.PI / 180 * Rm);
+  const bis = v => { let lo = 0, hi = T.length - 1; if (v <= T[0]) return 0; if (v >= T[hi]) return hi; while (hi - lo > 1) { const mm = (lo + hi) >> 1; if (T[mm] <= v) lo = mm; else hi = mm; } return lo; };
+  const hdg = s => { if (T.length < 5 || !(s.ms > 0)) return null; const a = bis(s.ms - 3000), b = bis(s.ms + 3000); if (b <= a || T[b] - T[a] < 2000) return null; const vx = PX[b] - PX[a], vy = PY[b] - PY[a], mm = Math.hypot(vx, vy); return mm < 3 ? null : [vx / mm, vy / mm]; };
+  const H = st.map(hdg);
+  for (const m of mets) {
+    if (m.k === 'pace') continue;
+    const rows = [];
+    st.forEach((s, i) => {
+      let x = NaN; try { if (m.filter(s)) x = +m.val(s); } catch (e) {}
+      if (!isFinite(x)) return;
+      rows.push({ x, v: 500 / pm.val(s), r: rm.val(s), t: s.elapsed || 0, h: H[i] });
+    });
+    // 5-stroke blocks, never across a gap of 10 s+
+    const B = { x: [], v: [], r: [], t: [], hx: [], hy: [] };
+    let cur = [];
+    const flush = () => {
+      if (cur.length === 5) {
+        const avg = f => cur.reduce((a, q) => a + f(q), 0) / 5;
+        const hs = cur.filter(q => q.h);
+        B.x.push(avg(q => q.x)); B.v.push(avg(q => q.v)); B.r.push(avg(q => q.r)); B.t.push(avg(q => q.t));
+        B.hx.push(hs.length ? hs.reduce((a, q) => a + q.h[0], 0) / hs.length : NaN); B.hy.push(hs.length ? hs.reduce((a, q) => a + q.h[1], 0) / hs.length : NaN);
+      }
+      cur = [];
+    };
+    rows.forEach(q => { if (cur.length && q.t - cur[cur.length - 1].t > 10) cur = []; cur.push(q); if (cur.length === 5) flush(); });
+    const n = B.x.length;
+    if (n < 8) continue;
+    const Z = [B.t];
+    if (B.hx.every(isFinite)) Z.push(B.hx, B.hy);
+    if (m.k !== 'rate') Z.push(B.r);
+    const rx = _pcResid(B.x, Z), rv = _pcResid(B.v, Z);
+    let sxx = 0, svv = 0, sxv = 0;
+    for (let i = 0; i < n; i++) { sxx += rx[i] * rx[i]; svv += rv[i] * rv[i]; sxv += rx[i] * rv[i]; }
+    const med = B.x.slice().sort((a, b) => a - b)[Math.floor(n / 2)];
+    dg.c[m.k] = { n, k: Z.length, sxx: +sxx.toPrecision(6), svv: +svv.toPrecision(6), sxv: +sxv.toPrecision(6), neg: med < 0 ? 1 : 0 };
+  }
   return dg;
 }
 /* Any own Drive session opened here is digested on the way in, for free. */
@@ -12966,8 +12971,7 @@ async function showTrendsModal() {
   ov.id = '_trend_modal';
   ov.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,.72);display:flex;align-items:center;justify-content:center;z-index:9999;padding:12px;';
   const pn = document.createElement('div');
-  pn.style.cssText = 'background:var(--s1);border:1px solid var(--border);border-radius:10px;width:min(96vw,1100px);height:min(92vh,900px);display:flex;flex-direction:column;overflow:hidden;color:var(--text);font-family:-apple-system,BlinkMacSystemFont,Helvetica Neue,sans-serif;';
-  const selCss = 'background:var(--s2);border:1px solid var(--border);color:var(--text);border-radius:6px;padding:7px 8px;font-size:12px;font-family:inherit;';
+  pn.style.cssText = 'background:var(--s1);border:1px solid var(--border);border-radius:10px;width:min(96vw,1000px);height:min(94vh,960px);display:flex;flex-direction:column;overflow:hidden;color:var(--text);font-family:-apple-system,BlinkMacSystemFont,Helvetica Neue,sans-serif;';
   pn.innerHTML =
     '<div style="display:flex;align-items:center;gap:10px;padding:10px 14px;border-bottom:1px solid var(--border);flex-shrink:0;">'
     + '<div style="font-size:14px;font-weight:700;">Trends</div>'
@@ -12976,22 +12980,25 @@ async function showTrendsModal() {
     + '<button id="_tr_close" style="background:var(--s3);border:1px solid var(--border);color:var(--muted);border-radius:6px;padding:4px 10px;font-size:11px;cursor:pointer;">Close</button></div>'
     + '<div style="padding:10px 14px 0;flex-shrink:0;">'
     + '<div id="_tr_boats" style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:8px;"></div>'
-    + '<div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-bottom:8px;">'
-    + '<select id="_tr_metric" style="' + selCss + '"></select>'
-    + '<div id="_tr_period" style="display:flex;gap:6px;flex-wrap:wrap;"></div></div>'
-    + '<div id="_tr_bands" style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:6px;align-items:center;"></div></div>'
-    + '<div id="_tr_wrap" style="position:relative;flex:1;min-height:200px;margin:0 14px;">'
+    + '<div id="_tr_period" style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:8px;"></div></div>'
+    + '<div style="flex:1;min-height:0;overflow-y:auto;padding:0 14px 12px;">'
+    + '<div id="_tr_rate"></div>'
+    + '<div id="_tr_table"></div>'
+    + '<div id="_tr_chartbox" style="margin-top:14px;border-top:1px solid var(--border);padding-top:10px;">'
+    + '<div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:6px;"><div id="_tr_ctitle" style="font-size:13px;font-weight:700;"></div><div id="_tr_bands" style="display:flex;gap:6px;flex-wrap:wrap;align-items:center;"></div></div>'
+    + '<div id="_tr_wrap" style="position:relative;height:300px;">'
     + '<canvas id="_tr_cv" style="position:absolute;inset:0;width:100%;height:100%;cursor:default;"></canvas>'
     + '<div id="_tr_tip" style="position:absolute;display:none;pointer-events:none;background:var(--s2);border:1px solid var(--border);border-radius:6px;padding:6px 8px;font-size:11px;line-height:1.45;white-space:nowrap;z-index:2;"></div>'
     + '<div id="_tr_empty" style="position:absolute;inset:0;display:none;align-items:center;justify-content:center;color:var(--muted);font-size:13px;text-align:center;padding:20px;"></div></div>'
-    + '<div id="_tr_legend" style="padding:8px 14px 4px;font-size:12px;flex-shrink:0;max-height:26%;overflow-y:auto;"></div>'
-    + '<div style="padding:0 14px 10px;font-size:10.5px;color:var(--muted);flex-shrink:0;line-height:1.4;">Each point is one session’s average over its strokes in that rate band (10 strokes or more). Dashed lines are the trend. Pace and DPS move with wind and tide; the stroke metrics don’t. Click a point to open that session.</div>';
+    + '<div id="_tr_legend" style="padding:8px 0 0;font-size:12px;"></div>'
+    + '<div style="font-size:10.5px;color:var(--muted);line-height:1.4;margin-top:4px;">Each point is one session’s average in that rate band (10 strokes or more). Dashed lines are the trend.</div>'
+    + '</div></div>';
   ov.appendChild(pn);
   document.body.appendChild(ov);
   const $ = id => document.getElementById(id);
   const alive = () => document.body.contains(ov);
   let stop = false, scanning = false, pts = [];
-  const close = () => { stop = true; window.removeEventListener('resize', draw); ov.remove(); trSave(true); };
+  const close = () => { stop = true; window.removeEventListener('resize', drawChart); document.getElementById('_pc_def')?.remove(); ov.remove(); trSave(true); };
   $('_tr_close').onclick = close;
   ov.onclick = e => { if (e.target === ov) close(); };
 
@@ -13010,12 +13017,12 @@ async function showTrendsModal() {
   const gCount = {};
   water.forEach(w => { gCount[w.g] = (gCount[w.g] || 0) + 1; });
   const groups = Object.keys(gCount).sort((a, b) => gRank(a) - gRank(b));
-  if (!groups.length) { $('_tr_status').textContent = ''; $('_tr_empty').style.display = 'flex'; $('_tr_empty').textContent = 'No on-water sessions on Drive yet.'; return; }
+  if (!groups.length) { $('_tr_status').textContent = 'No on-water sessions on Drive yet.'; return; }
 
   let ui = {};
   try { ui = JSON.parse(localStorage.getItem(TREND_UI_KEY) || '{}') || {}; } catch {}
   if (!groups.includes(ui.g)) ui.g = groups.slice().sort((a, b) => gCount[b] - gCount[a])[0];
-  if (!TREND_METRICS.some(m => m.k === ui.k)) ui.k = 'spd';
+  if (!METRIC_DEFS.some(m => m.k === ui.k)) ui.k = 'pace';
   const PERIODS = [['3M', 91], ['6M', 182], ['1Y', 365], ['All', 0]];
   if (!PERIODS.some(p => p[0] === ui.p)) ui.p = '6M';
   if (!Array.isArray(ui.bands)) ui.bands = null;
@@ -13025,10 +13032,7 @@ async function showTrendsModal() {
   const ok = f => { const d = db[f.id]; return !!(d && d.v === TREND_V && (!d.sz || !f.size || d.sz === String(f.size))); };
   const inView = () => water.filter(w => w.g === ui.g && (!cutoff() || w.ts >= cutoff()));
   const queue = () => inView().filter(w => !ok(w.f)).sort((a, b) => b.ts - a.ts);
-
-  $('_tr_metric').innerHTML = TREND_METRICS.map(m => '<option value="' + m.k + '">' + m.l + '</option>').join('');
-  $('_tr_metric').value = ui.k;
-  $('_tr_metric').onchange = e => { ui.k = e.target.value; saveUI(); draw(); };
+  const digs = () => inView().map(w => ({ w, d: db[w.f.id] })).filter(x => x.d && x.d.v === TREND_V && !x.d.erg);
 
   function renderBoats() {
     $('_tr_boats').innerHTML = groups.map(g => '<button class="filt-chip' + (g === ui.g ? ' on' : '') + '" data-g="' + g + '" style="text-transform:none;">' + gLabel(g) + ' <span style="opacity:.6;">' + gCount[g] + '</span></button>').join('');
@@ -13061,7 +13065,7 @@ async function showTrendsModal() {
         db[w.f.id] = trDigest(sessionToAnalyserFmt(s), w.f.size);
       } catch (e) {
         if (driveAuthExpired(e)) { stop = true; break; }
-        db[w.f.id] = { v: TREND_V, sz: w.f.size != null ? String(w.f.size) : null, t: w.ts, b: {}, fail: 1 };
+        db[w.f.id] = { v: TREND_V, sz: w.f.size != null ? String(w.f.size) : null, t: w.ts, b: {}, c: {}, fail: 1 };
       }
       trSave();
       if (++since >= 3) { since = 0; draw(); }
@@ -13082,40 +13086,134 @@ async function showTrendsModal() {
     const m = (n * sxy - sx * sy) / den, c = (sy - m * sx) / n;
     return t => m * (t / 86400000) + c;
   }
-  function draw() {
-    if (!alive()) return;
-    const met = TREND_METRICS.find(m => m.k === ui.k);
-    const cut = cutoff();
-    const byBand = {}, bandSess = {};
-    inView().forEach(w => {
-      const d = db[w.f.id];
-      if (!d || d.erg || !d.b) return;
-      const t = d.t || w.ts;
-      if (cut && t < cut) return;
-      Object.keys(d.b).forEach(b => {
-        const e = d.b[b], x = e.m && e.m[met.k];
+  // per-band session points for metric k (pace stored as speed)
+  function bandPoints(k) {
+    const byBand = {}, cut = cutoff();
+    digs().forEach(({ w, d }) => {
+      const t = d.t || w.ts; if (cut && t < cut) return;
+      Object.keys(d.b || {}).forEach(b => {
+        const e = d.b[b], x = e.m && e.m[k];
         if (x == null || !isFinite(x)) return;
-        const v = met.val(x);
-        if (!isFinite(v)) return;
-        (byBand[b] || (byBand[b] = [])).push({ t, v, n: e.n, w, b });
-        bandSess[b] = (bandSess[b] || 0) + 1;
+        (byBand[b] || (byBand[b] = [])).push({ t, v: x, n: e.n, w, b });
       });
     });
+    return byBand;
+  }
+  // standardised change over the period, pooled over rate bands (>= 3 sessions)
+  function trendOf(k) {
+    const byBand = bandPoints(k);
+    let num = 0, den = 0;
+    Object.values(byBand).forEach(arr => {
+      if (arr.length < 3) return;
+      arr.sort((a, b) => a.t - b.t);
+      const f = fit(arr); if (!f) return;
+      const mean = arr.reduce((a, p) => a + p.v, 0) / arr.length;
+      const sd = Math.sqrt(arr.reduce((a, p) => a + (p.v - mean) ** 2, 0) / (arr.length - 1));
+      if (!(sd > 0)) return;
+      num += (f(arr[arr.length - 1].t) - f(arr[0].t)) / sd * arr.length; den += arr.length;
+    });
+    return den ? num / den : NaN;
+  }
+  function drivers() {
+    const out = {};
+    digs().forEach(({ d }) => {
+      Object.keys(d.c || {}).forEach(k => {
+        const c = d.c[k], o = out[k] || (out[k] = { sxx: 0, svv: 0, sxv: 0, dof: 0, ses: 0, neg: 0 });
+        o.sxx += c.sxx; o.svv += c.svv; o.sxv += c.sxv; o.dof += Math.max(0, c.n - c.k - 1); o.ses++; o.neg += c.neg ? 1 : 0;
+      });
+    });
+    Object.values(out).forEach(o => { o.r = (o.sxx > 0 && o.svv > 0) ? o.sxv / Math.sqrt(o.sxx * o.svv) : NaN; o.neg = o.neg * 2 > o.ses; });
+    return out;
+  }
+  const esc = t => String(t).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+  let _drv = {};
+  function draw() {
+    if (!alive()) return;
+    _drv = drivers();
+    const mets = trMetrics();
+    // stroke rate box
+    const rr = _drv.rate;
+    if (rr && isFinite(rr.r)) {
+      const c = _pcCls(rr.r, rr.dof + 2, 0);
+      const msg = c.t === 'high' ? 'In this boat, most of the speed change comes from changing the rate.' : c.t === 'medium' ? 'Part of the speed change in this boat comes from changing the rate.' : c.t === 'weak' ? 'Changing the rate makes only a small difference to speed in this boat.' : 'Rate makes no clear difference to speed in this boat.';
+      $('_tr_rate').innerHTML = '<div style="display:flex;align-items:center;gap:10px;background:var(--s2);border-left:4px solid ' + c.c + ';border-radius:8px;padding:9px 12px;margin-bottom:10px;font-size:12px;line-height:1.45;">'
+        + '<div style="white-space:nowrap;"><b>Stroke rate</b><br><b>' + Math.abs(rr.r).toFixed(2) + '</b> <span style="display:inline-block;padding:2px 6px;border-radius:9px;background:' + c.c + ';color:#fff;font-size:10px;font-weight:700;">' + c.t + '</span></div>'
+        + '<div>' + msg + ' Everything below is compared at the same rate.</div></div>';
+    } else $('_tr_rate').innerHTML = '';
+    // drivers table
+    const rows = [];
+    const sp = trendOf('pace');
+    rows.push({ m: METRIC_DEFS.find(m => m.k === 'pace'), pace: 1, tr: sp });
+    mets.forEach(m => { if (m.k === 'pace' || m.k === 'rate') return; const o = _drv[m.k]; if (!o || !isFinite(o.r) || o.ses < 1) return; rows.push({ m, o, tr: trendOf(m.k) }); });
+    if (rows.length <= 1) {
+      $('_tr_table').innerHTML = '<div style="color:var(--muted);font-size:13px;padding:16px 0;">' + (scanning ? 'Analysing sessions…' : (inView().length ? 'Not enough steady rowing analysed yet.' : 'No ' + gLabel(ui.g) + ' sessions in this period.')) + '</div>';
+    } else {
+      const head = rows.shift();
+      rows.sort((a, b) => (TR_FROM_SPEED[a.m.k] ? 1 : 0) - (TR_FROM_SPEED[b.m.k] ? 1 : 0) || Math.abs(b.o.r) - Math.abs(a.o.r));
+      rows.unshift(head);
+      const trTxt = (x) => {
+        if (!isFinite(x.tr)) return '<span style="color:var(--muted);">—</span>';
+        if (Math.abs(x.tr) < 0.5) return '<span style="color:var(--muted);">steady</span>';
+        let goodDir = null;   // +1: rising goes with faster
+        if (x.pace) goodDir = 1;
+        else { const c = _pcCls(x.o.r, x.o.dof + 2, 0); if (c.t !== 'noise' && c.t !== 'n/a') goodDir = x.o.r > 0 ? 1 : -1; }
+        const up = x.tr > 0, word = x.pace ? (up ? 'faster' : 'slower') : (x.o.neg ? (up ? 'less negative' : 'more negative') : (up ? 'higher' : 'lower'));
+        if (goodDir == null) return '<span style="color:var(--muted);">' + (up ? '▲' : '▼') + ' ' + word + '</span>';
+        const better = (up ? 1 : -1) === goodDir;
+        return '<span style="color:' + (better ? '#27ae60' : '#e74c3c') + ';font-weight:700;">' + (up ? '▲' : '▼') + ' ' + (better ? 'improving' : 'slipping') + '</span><div style="font-size:9px;color:var(--muted);">' + word + '</div>';
+      };
+      const bar = (rv, col) => { const w = Math.round(Math.min(1, Math.abs(rv)) * 90); return '<div style="width:90px;height:9px;background:var(--s3);border-radius:5px;overflow:hidden;"><div style="height:9px;background:' + col + ';width:' + w + 'px;"></div></div>'; };
+      let h = '<div style="font-size:11.5px;color:var(--muted);line-height:1.45;margin-bottom:8px;">What makes this boat go faster, pooled over the steady rowing in every analysed session: 5-stroke averages compared <b>within each session</b>, adjusted for stroke rate, boat heading and time (wind and tide). <b>Trend</b> says whether each metric has moved the way that goes with a faster boat. Tap a metric for its chart; tap the name for its definition.</div>'
+        + '<table style="width:100%;border-collapse:collapse;font-size:12px;"><thead><tr style="text-align:left;border-bottom:2px solid var(--border);"><th style="padding:6px 4px;">Metric</th><th style="text-align:center;">r</th><th>Strength</th><th>Faster with</th><th>Trend</th></tr></thead><tbody>';
+      rows.forEach(x => {
+        const on = ui.k === x.m.k, fs = TR_FROM_SPEED[x.m.k];
+        let rC = '<td></td>', sC = '<td></td>', fC = '<td style="color:var(--muted);font-size:11px;">the result</td>';
+        if (!x.pace) {
+          const c = _pcCls(x.o.r, x.o.dof + 2, 0);
+          rC = '<td style="text-align:center;white-space:nowrap;"><b>' + Math.abs(x.o.r).toFixed(2) + '</b> <span style="display:inline-block;min-width:48px;padding:2px 6px;border-radius:9px;background:' + c.c + ';color:#fff;font-size:10px;font-weight:700;">' + c.t + '</span></td>';
+          sC = '<td>' + bar(x.o.r, c.c) + '</td>';
+          fC = '<td>' + (c.t === 'noise' || c.t === 'n/a' ? '<span style="color:var(--muted);">no clear effect</span>' : '<b>' + (x.o.neg ? (x.o.r > 0 ? 'less negative' : 'more negative') : (x.o.r > 0 ? 'higher' : 'lower')) + '</b>') + '</td>';
+        }
+        h += '<tr data-k="' + x.m.k + '" style="cursor:pointer;border-bottom:1px solid var(--border);' + (on ? 'background:var(--s2);' : '') + (fs ? 'opacity:.6;' : '') + '">'
+          + '<td style="padding:6px 4px;"><span style="display:inline-block;width:8px;height:8px;border-radius:4px;background:' + x.m.c + ';margin-right:6px;"></span><span class="_tr_name" data-k="' + x.m.k + '" style="text-decoration:underline dotted;">' + esc(x.m.l) + '</span>' + (fs ? ' <span style="font-size:9px;color:var(--muted);">(built from speed)</span>' : '') + (x.o ? '<div style="font-size:9px;color:var(--muted);">' + x.o.ses + ' session' + (x.o.ses === 1 ? '' : 's') + '</div>' : '') + '</td>'
+          + rC + sC + fC + '<td>' + trTxt(x) + '</td></tr>';
+      });
+      h += '</tbody></table>';
+      $('_tr_table').innerHTML = h;
+      $('_tr_table').querySelectorAll('tr[data-k]').forEach(tr => tr.addEventListener('click', e => {
+        const nm = e.target.closest('._tr_name');
+        if (nm) { e.stopPropagation(); showDef(nm.dataset.k); return; }
+        ui.k = tr.dataset.k; saveUI(); draw(); $('_tr_chartbox').scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+      }));
+    }
+    drawChart();
+  }
+  function showDef(k) {
+    const m = METRIC_DEFS.find(q => q.k === k); if (!m) return;
+    document.getElementById('_pc_def')?.remove();
+    const pp = document.createElement('div'); pp.id = '_pc_def';
+    pp.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,.35);z-index:10001;display:flex;align-items:center;justify-content:center;padding:20px;';
+    pp.innerHTML = '<div style="background:#fff;color:#111;border-radius:14px;max-width:420px;width:100%;padding:16px 18px;box-shadow:0 10px 30px rgba(0,0,0,.4);border-top:4px solid ' + m.c + ';">'
+      + '<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px;"><div style="font-size:15px;font-weight:800;">' + esc(m.l) + '</div><button style="border:none;background:#eee;border-radius:12px;padding:5px 11px;font-weight:700;cursor:pointer;">✕</button></div>'
+      + '<div style="font-size:13px;line-height:1.5;color:#333;">' + esc(m.tip || 'No definition yet.') + '</div></div>';
+    pp.addEventListener('click', e => { if (e.target === pp || e.target.tagName === 'BUTTON') pp.remove(); });
+    document.body.appendChild(pp);
+  }
+  function drawChart() {
+    if (!alive()) return;
+    const met = METRIC_DEFS.find(m => m.k === ui.k) || METRIC_DEFS.find(m => m.k === 'pace');
+    const isP = met.k === 'pace';
+    const fmtV = v => isP ? fmtPaceU(500 / v) : met.fmtAvg(v);
+    $('_tr_ctitle').textContent = met.l + (isP ? ' (↑ faster)' : '');
+    const byBand = bandPoints(met.k), bandSess = {};
+    Object.keys(byBand).forEach(b => { bandSess[b] = byBand[b].length; });
     const avail = Object.keys(byBand).sort((a, b) => a - b);
     if (!ui.bands || !ui.bands.some(b => avail.includes(String(b)))) ui.bands = avail.slice().sort((a, b) => bandSess[b] - bandSess[a]).slice(0, 3).map(String);
     const sel = ui.bands.map(String).filter(b => avail.includes(b));
     $('_tr_bands').innerHTML = (avail.length ? '<span style="font-size:10px;font-weight:700;letter-spacing:.06em;color:var(--muted);margin-right:2px;">SPM</span>' : '')
-      + avail.map(b => {
-        const on = sel.includes(b), c = bandCol(b);
-        return '<button class="filt-chip" data-b="' + b + '" style="text-transform:none;' + (on ? 'background:' + c + ';color:#fff;' : '') + '">' + bandLbl(b) + ' <span style="opacity:.7;">' + bandSess[b] + '</span></button>';
-      }).join('');
+      + avail.map(b => { const on = sel.includes(b), c = bandCol(b); return '<button class="filt-chip" data-b="' + b + '" style="text-transform:none;' + (on ? 'background:' + c + ';color:#fff;' : '') + '">' + bandLbl(b) + ' <span style="opacity:.7;">' + bandSess[b] + '</span></button>'; }).join('');
     $('_tr_bands').querySelectorAll('[data-b]').forEach(el => {
-      el.onclick = () => {
-        const b = el.dataset.b, cur = ui.bands.map(String);
-        ui.bands = cur.includes(b) ? cur.filter(x => x !== b) : cur.concat([b]);
-        if (!ui.bands.length) ui.bands = [b];
-        saveUI(); draw();
-      };
+      el.onclick = () => { const b = el.dataset.b, cur = ui.bands.map(String); ui.bands = cur.includes(b) ? cur.filter(x => x !== b) : cur.concat([b]); if (!ui.bands.length) ui.bands = [b]; saveUI(); drawChart(); };
     });
     pts = [];
     sel.forEach(b => byBand[b].forEach(p => pts.push(p)));
@@ -13126,13 +13224,12 @@ async function showTrendsModal() {
     ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
     ctx.clearRect(0, 0, W, H);
     const legend = $('_tr_legend');
-    if (!pts.length) {
-      emp.style.display = 'flex';
-      emp.textContent = scanning ? 'Analysing sessions…' : (inView().length ? 'No ' + met.l.toLowerCase() + ' data for these sessions yet.' : 'No ' + gLabel(ui.g) + ' sessions in this period.');
-      legend.innerHTML = '';
-      return;
-    }
+    if (!pts.length) { emp.style.display = 'flex'; emp.textContent = scanning ? 'Analysing sessions…' : 'No ' + met.l.toLowerCase() + ' data for these sessions yet.'; legend.innerHTML = ''; return; }
     emp.style.display = 'none';
+    // good direction from the drivers table (pace: faster is better)
+    let goodDir = null;
+    if (isP) goodDir = 1;
+    else { const o = _drv[met.k]; if (o && isFinite(o.r)) { const c = _pcCls(o.r, o.dof + 2, 0); if (c.t !== 'noise' && c.t !== 'n/a') goodDir = o.r > 0 ? 1 : -1; } }
     const C = pal();
     let t0 = Infinity, t1 = -Infinity, v0 = Infinity, v1 = -Infinity;
     pts.forEach(p => { t0 = Math.min(t0, p.t); t1 = Math.max(t1, p.t); v0 = Math.min(v0, p.v); v1 = Math.max(v1, p.v); });
@@ -13140,38 +13237,27 @@ async function showTrendsModal() {
     const tp = (t1 - t0) * 0.03; t0 -= tp; t1 += tp;
     let vr = v1 - v0; if (!vr) vr = Math.abs(v0) * 0.05 || 1;
     v0 -= vr * 0.1; v1 += vr * 0.1;
-    const PL = 70, PR = 14, PT = 10, PB = 26, pw = W - PL - PR, ph = H - PT - PB;
+    const PL = 64, PR = 12, PT = 10, PB = 24, pw = W - PL - PR, ph = H - PT - PB;
     const X = t => PL + (t - t0) / (t1 - t0) * pw;
-    const Y = v => met.inv ? PT + (v - v0) / (v1 - v0) * ph : PT + ph - (v - v0) / (v1 - v0) * ph;
+    const Y = v => PT + ph - (v - v0) / (v1 - v0) * ph;   // speed up = faster, so no flip
     ctx.font = '10px -apple-system,BlinkMacSystemFont,Helvetica Neue,sans-serif';
-    // y grid
     const raw = (v1 - v0) / 5, mag = Math.pow(10, Math.floor(Math.log10(raw))), nm = raw / mag;
     const step = (nm < 1.5 ? 1 : nm < 3 ? 2 : nm < 7 ? 5 : 10) * mag;
     ctx.strokeStyle = C.gridLn || 'rgba(128,128,128,.2)'; ctx.fillStyle = C.gridLb || C.muted; ctx.lineWidth = 1;
     ctx.textAlign = 'right'; ctx.textBaseline = 'middle';
-    for (let v = Math.ceil(v0 / step) * step; v <= v1; v += step) {
-      const y = Y(v);
-      ctx.beginPath(); ctx.moveTo(PL, y); ctx.lineTo(PL + pw, y); ctx.stroke();
-      ctx.fillText(met.fmt(v), PL - 6, y);
-    }
-    ctx.save(); ctx.translate(12, PT + ph / 2); ctx.rotate(-Math.PI / 2); ctx.textAlign = 'center';
-    ctx.fillText(met.l + (met.unit() ? ' (' + met.unit() + ')' : '') + (met.inv ? '  ↑ faster' : ''), 0, 0); ctx.restore();
-    // x ticks: weeks for short spans, months otherwise
+    for (let v = Math.ceil(v0 / step) * step; v <= v1; v += step) { const y = Y(v); ctx.beginPath(); ctx.moveTo(PL, y); ctx.lineTo(PL + pw, y); ctx.stroke(); ctx.fillText(fmtV(v), PL - 6, y); }
     ctx.textAlign = 'center'; ctx.textBaseline = 'top';
     const span = (t1 - t0) / 86400000;
     const d = new Date(t0); d.setHours(0, 0, 0, 0);
-    if (span <= 70) { d.setDate(d.getDate() + ((8 - d.getDay()) % 7)); }
-    else { d.setDate(1); d.setMonth(d.getMonth() + 1); }
+    if (span <= 70) { d.setDate(d.getDate() + ((8 - d.getDay()) % 7)); } else { d.setDate(1); d.setMonth(d.getMonth() + 1); }
     const mStep = span > 500 ? 3 : span > 240 ? 2 : 1;
     while (d.getTime() <= t1) {
       const x = X(d.getTime());
-      ctx.strokeStyle = C.gridLn || 'rgba(128,128,128,.2)';
-      ctx.beginPath(); ctx.moveTo(x, PT); ctx.lineTo(x, PT + ph); ctx.stroke();
+      ctx.strokeStyle = C.gridLn || 'rgba(128,128,128,.2)'; ctx.beginPath(); ctx.moveTo(x, PT); ctx.lineTo(x, PT + ph); ctx.stroke();
       ctx.fillText(d.toLocaleDateString('en-AU', span <= 70 ? { day: 'numeric', month: 'short' } : { month: 'short', year: '2-digit' }), x, PT + ph + 6);
       if (span <= 70) d.setDate(d.getDate() + 7); else d.setMonth(d.getMonth() + mStep);
     }
     ctx.strokeStyle = C.frameLn || C.muted; ctx.strokeRect(PL, PT, pw, ph);
-    // bands: thin joining line, points, dashed trend
     const rows = [];
     sel.forEach(b => {
       const arr = byBand[b].slice().sort((a, c) => a.t - c.t), col = bandCol(b);
@@ -13186,21 +13272,18 @@ async function showTrendsModal() {
         ctx.save(); ctx.setLineDash([7, 5]); ctx.strokeStyle = col; ctx.lineWidth = 2.5;
         ctx.beginPath(); ctx.moveTo(X(ta), Y(fa)); ctx.lineTo(X(tb), Y(fb)); ctx.stroke(); ctx.restore();
         const ch = fb - fa, rel = Math.abs(ch) / (Math.abs(fa) || 1);
-        const wk = Math.max(1, Math.round((tb - ta) / (7 * 86400000)));
         let verdict = '<span style="color:var(--muted);">steady</span>';
         if (rel >= 0.005) {
-          const good = met.better ? (met.better * ch > 0) : null;
-          const arrow = (met.inv ? ch < 0 : ch > 0) ? '▲' : '▼';
-          verdict = good == null ? '<span style="color:var(--muted);">' + arrow + '</span>'
-            : '<span style="color:' + (good ? '#27ae60' : '#e74c3c') + ';font-weight:700;">' + arrow + ' ' + (good ? 'better' : 'worse') + '</span>';
+          const arrow = ch > 0 ? '▲' : '▼';
+          verdict = goodDir == null ? '<span style="color:var(--muted);">' + arrow + '</span>'
+            : ((ch > 0 ? 1 : -1) === goodDir ? '<span style="color:#27ae60;font-weight:700;">' + arrow + ' improving</span>' : '<span style="color:#e74c3c;font-weight:700;">' + arrow + ' slipping</span>');
         }
-        txt += ' · trend <b>' + met.fmt(fa) + '</b> → <b>' + met.fmt(fb) + '</b>' + (met.unit() ? ' ' + met.unit() : '') + ' over ' + wk + ' week' + (wk === 1 ? '' : 's') + ' · ' + verdict;
+        txt += ' · <b>' + fmtV(fa) + '</b> → <b>' + fmtV(fb) + '</b> · ' + verdict;
       }
-      rows.push('<div style="display:flex;align-items:center;gap:8px;margin-bottom:4px;"><span style="width:12px;height:12px;border-radius:3px;background:' + col + ';flex-shrink:0;"></span><b style="min-width:72px;">' + bandLbl(b) + ' spm</b><span>' + txt + '</span></div>');
+      rows.push('<div style="display:flex;align-items:center;gap:8px;margin-bottom:4px;"><span style="width:12px;height:12px;border-radius:3px;background:' + col + ';flex-shrink:0;"></span><b style="min-width:64px;">' + bandLbl(b) + ' spm</b><span>' + txt + '</span></div>');
     });
     legend.innerHTML = rows.join('');
   }
-  // tooltip + click to open
   const near = e => {
     const r = $('_tr_cv').getBoundingClientRect(), mx = e.clientX - r.left, my = e.clientY - r.top;
     let best = null, bd = 100;
@@ -13211,10 +13294,11 @@ async function showTrendsModal() {
     const { p, mx, my } = near(e), tip = $('_tr_tip');
     $('_tr_cv').style.cursor = p ? 'pointer' : 'default';
     if (!p) { tip.style.display = 'none'; return; }
-    const met = TREND_METRICS.find(m => m.k === ui.k);
+    const met = METRIC_DEFS.find(m => m.k === ui.k) || METRIC_DEFS.find(m => m.k === 'pace');
+    const val = met.k === 'pace' ? fmtPaceU(500 / p.v) : met.fmtAvg(p.v);
     const nm = nameFromFilename(p.w.f.name);
     tip.innerHTML = '<b>' + new Date(p.t).toLocaleDateString('en-AU', { weekday: 'short', day: 'numeric', month: 'short', year: 'numeric' }) + '</b>' + (nm ? ' · ' + _secEsc(nm) : '')
-      + '<br>' + bandLbl(p.b) + ' spm · ' + p.n + ' strokes<br><b>' + met.fmt(p.v) + '</b> ' + met.unit();
+      + '<br>' + bandLbl(p.b) + ' spm · ' + p.n + ' strokes<br><b>' + val + '</b>';
     tip.style.display = 'block';
     const wW = $('_tr_wrap').clientWidth;
     tip.style.left = Math.min(mx + 12, wW - tip.offsetWidth - 4) + 'px';
@@ -13229,7 +13313,7 @@ async function showTrendsModal() {
     try { const session = await AnalyserDrive.fetchSession(f.id); applySessionUnits(session); addSessionFromData(sessionToAnalyserFmt(session), label, true, f.id); }
     catch (err) { if (!driveAuthExpired(err)) toast('Load failed: ' + err.message); }
   });
-  window.addEventListener('resize', draw);
+  window.addEventListener('resize', drawChart);
   renderBoats(); renderPeriods(); draw(); status();
   scan();
 }
