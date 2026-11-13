@@ -8435,28 +8435,27 @@ window.showPaceCorr=function(){
      It gets its own box on top saying how much of the speed change came from rate. */
   const rateRow=rows.find(x=>x.m.k==='rate');
   const tRows=rows.filter(x=>x.m.k!=='rate');
-  const bar=rv=>{const w=Math.round(Math.min(1,Math.abs(rv))*60);
-    return'<div style="position:relative;width:130px;height:10px;background:#eee;border-radius:5px;"><div style="position:absolute;left:65px;top:-2px;width:1px;height:14px;background:#888;"></div><div style="position:absolute;top:0;height:10px;border-radius:5px;background:'+(rv>=0?'#27ae60':'#c0392b')+';'+(rv>=0?'left:65px;':'left:'+(65-w)+'px;')+'width:'+w+'px;"></div></div>';};
+  /* 13 Nov: bars show strength only (0 to 1), coloured by the strength label. */
+  const bar=(rv,col)=>{const w=Math.round(Math.min(1,Math.abs(rv))*120);
+    return'<div style="width:120px;height:10px;background:#eee;border-radius:5px;overflow:hidden;"><div style="height:10px;border-radius:5px;background:'+col+';width:'+w+'px;"></div></div>';};
   const wtTxt=(windOk||curOk?'Speed is <b>water speed</b> ('+[windOk?'wind':null,curOk?'current':null].filter(Boolean).join(' + ')+' model). ':'No wind / current model, so ground speed. ')+'Also adjusted for boat heading and time, for wind and tide. ';
   let rateBox='';
   if(rateRow){const c=_pcCls(rateRow.rv,rateRow.n,rateRow.k);
     const msg=c.t==='high'?'Most of the speed change in this selection came from changing the rate.':c.t==='medium'?'Part of the speed change in this selection came from changing the rate.':c.t==='weak'?'Changing the rate made only a small difference to speed here.':'Rate made no clear difference to speed here, so the list below is the best guide.';
     rateBox='<div style="display:flex;align-items:center;gap:10px;background:#f5f8fb;border-left:4px solid '+c.c+';border-radius:8px;padding:9px 12px;margin-bottom:12px;font-size:12px;line-height:1.45;">'
-      +'<div style="white-space:nowrap;"><b>Stroke rate</b><br><b>'+(rateRow.rv>=0?'+':'')+rateRow.rv.toFixed(2)+'</b> <span style="display:inline-block;padding:2px 6px;border-radius:9px;background:'+c.c+';color:#fff;font-size:10px;font-weight:700;">'+c.t+'</span></div>'
+      +'<div style="white-space:nowrap;"><b>Stroke rate</b><br><b>'+Math.abs(rateRow.rv).toFixed(2)+'</b> <span style="display:inline-block;padding:2px 6px;border-radius:9px;background:'+c.c+';color:#fff;font-size:10px;font-weight:700;">'+c.t+'</span></div>'
       +'<div style="color:#333;">'+msg+' Everything below is compared at the same rate.</div></div>';}
-  let h=rateBox+'<div style="font-size:12px;color:#555;margin-bottom:10px;line-height:1.5;">'+strokes.length+' strokes, as 5-stroke averages, <b>adjusted for stroke rate</b>. '+wtTxt+'<b>+</b> means a higher value goes with a <b>faster</b> boat, <b>&minus;</b> with a slower one. Correlation is not cause. Tap a metric for its definition.</div>'
+  let h=rateBox+'<div style="font-size:12px;color:#555;margin-bottom:10px;line-height:1.5;">'+strokes.length+' strokes, as 5-stroke averages, <b>adjusted for stroke rate</b>. '+wtTxt+'<b>Faster with</b> says which way each metric goes when the boat is faster. Correlation is not cause. Tap a metric for its definition.</div>'
     +'<div style="display:flex;gap:8px;flex-wrap:wrap;font-size:10px;margin-bottom:10px;">'
     +[['noise','#9e9e9e','not significant or < 0.1'],['weak','#e0a800','0.1 – 0.3'],['medium','#e67e22','0.3 – 0.5'],['high','#27ae60','0.5+']].map(a=>'<span><span style="display:inline-block;padding:2px 6px;border-radius:9px;background:'+a[1]+';color:#fff;font-weight:700;">'+a[0]+'</span> '+a[2]+'</span>').join('')+'</div>'
-    +'<table style="width:100%;border-collapse:collapse;font-size:12px;"><thead><tr style="text-align:left;border-bottom:2px solid #1a5276;"><th style="padding:6px 4px;">Metric</th><th style="text-align:center;">r</th><th></th><th>Higher value &rarr;</th></tr></thead><tbody>';
+    +'<table style="width:100%;border-collapse:collapse;font-size:12px;"><thead><tr style="text-align:left;border-bottom:2px solid #1a5276;"><th style="padding:6px 4px;">Metric</th><th style="text-align:center;">r</th><th>Strength</th><th>Faster with</th></tr></thead><tbody>';
   for(const x of tRows){
     const cl=_pcCls(x.rv,x.n,x.k);
     /* 13 Nov: metrics that are negative numbers (e.g. Catch Accel) say less / more negative, since "higher" was ambiguous. */
-    const dir=cl.t==='noise'?'<span style="color:#9e9e9e;">no clear effect</span>':(x.neg
-      ?(x.rv>0?'less negative = <span style="color:#27ae60;font-weight:700;">faster</span>':'more negative = <span style="color:#27ae60;font-weight:700;">faster</span>')
-      :(x.rv>0?'<span style="color:#27ae60;font-weight:700;">faster</span>':'<span style="color:#c0392b;font-weight:700;">slower</span>'));
+    const dir=cl.t==='noise'?'<span style="color:#9e9e9e;">no clear effect</span>':'<b>'+(x.neg?(x.rv>0?'less negative':'more negative'):(x.rv>0?'higher':'lower'))+'</b>';
     h+='<tr class="_pc_row" data-k="'+x.m.k+'" title="Tap for definition" style="cursor:pointer;border-bottom:1px solid #eee;'+(FROM_SPEED[x.m.k]?'opacity:.6;':'')+'"><td style="padding:6px 4px;"><span style="display:inline-block;width:8px;height:8px;border-radius:4px;background:'+x.m.c+';margin-right:6px;"></span>'+x.m.l+(FROM_SPEED[x.m.k]?' <span style="font-size:9px;color:#888;">(built from speed)</span>':'')+'</td>'
-      +'<td style="text-align:center;white-space:nowrap;"><b>'+(x.rv>=0?'+':'')+x.rv.toFixed(2)+'</b> <span style="display:inline-block;min-width:52px;padding:2px 6px;border-radius:9px;background:'+cl.c+';color:#fff;font-size:10px;font-weight:700;">'+cl.t+'</span></td>'
-      +'<td>'+bar(x.rv)+'</td><td>'+dir+'</td></tr>';
+      +'<td style="text-align:center;white-space:nowrap;"><b>'+Math.abs(x.rv).toFixed(2)+'</b> <span style="display:inline-block;min-width:52px;padding:2px 6px;border-radius:9px;background:'+cl.c+';color:#fff;font-size:10px;font-weight:700;">'+cl.t+'</span></td>'
+      +'<td>'+bar(x.rv,cl.c)+'</td><td>'+dir+'</td></tr>';
   }
   h+='</tbody></table>';
   document.getElementById('_pace_corr')?.remove();
