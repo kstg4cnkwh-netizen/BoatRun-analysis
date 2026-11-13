@@ -2502,9 +2502,9 @@ let currentView=[];
 let viewS=0,viewE=0;
 let selS=-1,selE=-1;
 let activeLapTypes=new Set(); // lap types currently shown in the laps table filter (empty = All)
-let vis={pace:true,rate:true,slope:false,slopeneg:false,caccel:false,dps:false,impulse:false,rloss:false,schar:false,ratio:false,angle:false,cdelta:false,cdur:false,drivetime:false,driveaccel:false,recoveryaccel:false,hr:false,peakforce:false,drivelength:false,epower:false};
+let vis={pace:true,rate:true,slope:false,slopeneg:false,caccel:false,dps:false,impulse:false,rloss:false,schar:false,ratio:false,angle:false,cdelta:false,cdur:false,drivetime:false,driveaccel:false,recoveryaccel:false,hr:false,peakforce:false,drivelength:false,epower:false,swing:false};
 try{const sv=JSON.parse(localStorage.getItem('br_tile_vis')||'null');if(sv&&typeof sv==='object')Object.assign(vis,sv);}catch{}
-let hid={pace:false,rate:false,slope:false,slopeneg:false,caccel:false,dps:false,impulse:false,rloss:false,schar:false,ratio:false,angle:false,cdelta:false,cdur:false,drivetime:false,driveaccel:false,recoveryaccel:false,hr:false,peakforce:false,drivelength:false,epower:false};
+let hid={pace:false,rate:false,slope:false,slopeneg:false,caccel:false,dps:false,impulse:false,rloss:false,schar:false,ratio:false,angle:false,cdelta:false,cdur:false,drivetime:false,driveaccel:false,recoveryaccel:false,hr:false,peakforce:false,drivelength:false,epower:false,swing:false};
 try{const sh=JSON.parse(localStorage.getItem('br_tile_hidden')||'null');if(sh&&typeof sh==='object')Object.assign(hid,sh);}catch{}
 hid.pace=false; hid.rate=false;
 vis=new Proxy(vis,{get(t,k){return hid[k]?false:t[k];},set(t,k,v){t[k]=v;return true;}});
@@ -7517,7 +7517,7 @@ function buildCards(sum) {
     },
     rate:()=>vals.rate?card('c-rate','Rate',f1(vals.rate.mean),'spm · max '+f0(vals.rate.max),'rate',tipOf('rate')):'',
     dps:()=>vals.dps?card('c-dps','DPS'+_cwS(),fmtDPSU(vals.dps.mean),dpsULabelU()+'/stroke','dps',tipOf('dps')):'',
-    swing:()=>vals.swing?card('c-swing','Speed Swing',f2(vals.swing.mean)+' m/s','lower = steadier hull',null,tipOf('swing')):'',
+    swing:()=>vals.swing?card('c-swing','Speed Swing',f2(vals.swing.mean)+' m/s','fastest − slowest in stroke','swing',tipOf('swing')):'',
     cdelta:()=>vals.cdelta?`<div class="card clickable${!vis.cdelta?' dim':''}" id="card-cdelta" data-vis="cdelta" style="border-top:2px solid var(--mc-cdelta)" title="${tipOf('cdelta')}"><div class="lbl">Vel Efficiency</div><div class="val" style="color:var(--mc-cdelta)">${f1(vals.cdelta.mean)}%</div><div class="sub">vs steady hull</div></div>`:'',
     rloss:()=>vals.rloss?card('c-rloss','Recovery Run',fmtRunLossU(vals.rloss.mean),'avg/stroke','rloss',tipOf('rloss')):'',
     epower:()=>vals.epower?`<div class="card clickable${!vis.epower?' dim':''}" id="card-epower" data-vis="epower" style="border-top:2px solid var(--mc-epower)" title="${tipOf('epower')}"><div class="lbl">Eff Power${_cwS()}</div><div class="val" style="color:var(--mc-epower)">${f0(vals.epower.mean)} W</div><div class="sub">per rower · peak ${f0(vals.epower.max)} W</div></div>`:'',
@@ -7691,7 +7691,7 @@ window.panSlide=function(val){
 function emaSmooth(view,alpha){
   if(alpha>=1)return view;
   const out=view.map(s=>Object.assign({},s));
-  const fields=['pace','rate','slope','catchSlopeNeg','catchAccel','dps','impulse','rloss','schar','ratio','checkDelta','catchDuration','driveAccel','recoveryAccel','driveTimeMs','peakforceN','drivelength','epower'];
+  const fields=['pace','rate','slope','catchSlopeNeg','catchAccel','dps','impulse','rloss','schar','ratio','checkDelta','speedSwing','catchDuration','driveAccel','recoveryAccel','driveTimeMs','peakforceN','drivelength','epower'];
   for(const f of fields){let ema=NaN;for(let i=0;i<out.length;i++){const v=out[i][f];if(isNaN(v)||v==null){ema=NaN;continue;}ema=isNaN(ema)?v:alpha*v+(1-alpha)*ema;out[i][f]=ema;}}
   return out;
 }
@@ -7820,7 +7820,7 @@ function drawMain(){
   const xRng=xMax-xMin||1;
   const toX=v=>PL+(v-xMin)/xRng*pw;
 
-  const pv=[],rv=[],jv=[],jnv=[],cav=[],dv=[],iv=[],rlv=[],scv=[],ratv=[],cdv=[],cdurv=[],dtv=[],daccv=[],raccv=[],hrv=[],pfv=[],slv=[],epv=[];
+  const pv=[],rv=[],jv=[],jnv=[],cav=[],dv=[],iv=[],rlv=[],scv=[],ratv=[],cdv=[],cdurv=[],dtv=[],daccv=[],raccv=[],hrv=[],pfv=[],slv=[],epv=[],swv=[];
   for(let i=0;i<N;i++){const s=sv[i];
     if(vis.pace&&s.pace>50&&s.pace<500)pv.push(s.pace);
     if(vis.rate&&s.rate>5&&s.rate<50)rv.push(s.rate);
@@ -7833,6 +7833,7 @@ function drawMain(){
     if(vis.schar&&!isNaN(s.schar)&&s.schar>=0&&s.schar<=100)scv.push(s.schar);
     if(vis.ratio&&!isNaN(s.ratio)&&s.ratio>0.5&&s.ratio<5)ratv.push(s.ratio);
     if(vis.cdelta&&!isNaN(s.checkDelta)&&s.checkDelta>=50&&s.checkDelta<=100)cdv.push(s.checkDelta);
+    if(vis.swing&&!isNaN(s.speedSwing)&&s.speedSwing>0.05&&s.speedSwing<5)swv.push(s.speedSwing);
     if(vis.cdur&&!isNaN(s.catchDuration)&&s.catchDuration>0&&s.catchDuration<1500)cdurv.push(s.catchDuration);
     if(vis.drivetime&&!isNaN(s.driveTimeMs)&&s.driveTimeMs>50&&s.driveTimeMs<1500)dtv.push(s.driveTimeMs);
     if(vis.driveaccel&&!isNaN(s.driveAccel)&&s.driveAccel>0&&s.driveAccel<20)daccv.push(s.driveAccel);
@@ -7871,6 +7872,9 @@ function drawMain(){
   let yCDMin=85,yCDMax=100;
   if(cdv.length){const[lo,hi]=pctBounds(cdv,0.03,0.97,0.10);yCDMin=Math.max(50,lo);yCDMax=Math.min(100,hi);}
   const toYCD=v=>PT+ph-(v-yCDMin)/(yCDMax-yCDMin||1)*ph;
+  let ySwMin=0,ySwMax=2.5;
+  if(swv.length){const[lo,hi]=pctBounds(swv,0.03,0.97,0.10);ySwMin=Math.max(0,lo);ySwMax=Math.min(5,hi);}
+  const toYSw=v=>PT+ph-(v-ySwMin)/(ySwMax-ySwMin||1)*ph;
   let yCDurMin=0,yCDurMax=300;
   const cdurAll=[...cdurv,...dtv];
   if(cdurAll.length){const[lo,hi]=pctBounds(cdurAll,0.03,0.97,0.10);yCDurMin=0;yCDurMax=Math.min(1500,hi);}
@@ -7937,6 +7941,7 @@ function drawMain(){
   if(vis.schar&&scv.length){ctx.fillStyle=C.mc_schar;for(let i=0;i<N;i++){const v=sv[i].schar;if(isNaN(v)||v<0||v>100)continue;ctx.beginPath();ctx.arc(toX(xs[i]),toYSC(v),2.2,0,6.283);ctx.fill();}}
   if(vis.ratio&&ratv.length){ctx.fillStyle=C.mc_ratio;for(let i=0;i<N;i++){const v=sv[i].ratio;if(isNaN(v)||v<0.5||v>5)continue;ctx.beginPath();ctx.arc(toX(xs[i]),toYRatio(v),2.2,0,6.283);ctx.fill();}}
   if(vis.cdelta&&cdv.length){ctx.fillStyle=C.mc_cdelta;for(let i=0;i<N;i++){const v=sv[i].checkDelta;if(isNaN(v)||v<50||v>100)continue;ctx.beginPath();ctx.arc(toX(xs[i]),toYCD(v),2.2,0,6.283);ctx.fill();}}
+  if(vis.swing&&swv.length){ctx.fillStyle='#8e44ad';for(let i=0;i<N;i++){const v=sv[i].speedSwing;if(isNaN(v)||v<=0.05||v>=5)continue;ctx.beginPath();ctx.arc(toX(xs[i]),toYSw(v),2.2,0,6.283);ctx.fill();}}
   if(vis.cdur&&cdurv.length){ctx.fillStyle=C.mc_cdur;for(let i=0;i<N;i++){const v=sv[i].catchDuration;if(isNaN(v)||v<=0||v>=1500)continue;ctx.beginPath();ctx.arc(toX(xs[i]),toYCDur(v),2.2,0,6.283);ctx.fill();}}
   if(vis.drivetime&&dtv.length){ctx.fillStyle=C.mc_oar;for(let i=0;i<N;i++){const v=sv[i].driveTimeMs;if(isNaN(v)||v<=50||v>=1500)continue;ctx.beginPath();ctx.arc(toX(xs[i]),toYCDur(v),2.2,0,6.283);ctx.fill();}}
   if(vis.driveaccel&&daccv.length){ctx.fillStyle=C.mc_driveaccel;for(let i=0;i<N;i++){const v=sv[i].driveAccel;if(isNaN(v)||v<=0||v>=20)continue;ctx.beginPath();ctx.arc(toX(xs[i]),toYAcc(v),2.2,0,6.283);ctx.fill();}}
@@ -8059,6 +8064,7 @@ function showTooltipAt(clientX, clientY, force, above){
     pace:()=>(isErgSession()&&unitSettings.ergUnit==='watts')?ttRow('Power',isNaN(s.watts)||s.watts<=0?EM:f0(s.watts)+' W',C.mc_pace):ttRow('Pace'+_cwS(),fmtPaceU(s.pace),C.mc_pace),
     rate:()=>ttRow('Rate',isNaN(s.rate)||s.rate<1?EM:f1(s.rate)+' spm',C.mc_rate),
     dps:()=>ttRow('DPS'+_cwS(),isNaN(s.dps)||s.dps<1?EM:fmtDPSU(s.dps)+dpsULabelU(),C.mc_dps),
+    swing:()=>ttRow('Speed Swing',(!isNaN(s.speedSwing)&&s.speedSwing>0.05)?f2(s.speedSwing)+' m/s':EM,'#8e44ad'),
     cdelta:()=>ttRow('Vel Efficiency',(!isNaN(s.checkDelta)&&s.checkDelta>=50)?f1(s.checkDelta)+'%':EM,C.mc_cdelta),
     driveaccel:()=>ttRow('Drive Accel',isNaN(s.driveAccel)||s.driveAccel<=0?EM:f1(s.driveAccel)+' m/s²',C.mc_driveaccel),
     caccel:()=>ttRow('Catch Accel',isNaN(s.catchAccel)||s.catchAccel>=0?EM:f1(s.catchAccel)+' m/s²',C.mc_catchaccel),
