@@ -2724,7 +2724,7 @@ function _fixOldPpPace(s) {
     (s.strokes || []).forEach(st => { if (!st || st.t == null) return; const v = V(st.t); if (v != null && v >= 0.5) st.pace = +(500 / v).toFixed(2); });
     if (Array.isArray(s.paceTrace) && Array.isArray(s.paceTimes)) {
       s.paceTrace = s.paceTrace.map((p, i) => { const v = V(s.paceTimes[i]); return (v != null && v >= 0.5) ? +(500 / v).toFixed(2) : p; });
-      if (s.paceTrace.length) s.avgMovingPace = +(s.paceTrace.length / s.paceTrace.reduce((a, b) => a + 1 / b, 0)).toFixed(1);
+      if (s.paceTrace.length) { const _mp = movingPaceOf(s.paceTrace, s.paceTimes); if (_mp > 0) s.avgMovingPace = _mp; }
     }
     s._ppv4 = 1;
   } catch (e) {}
@@ -2770,8 +2770,24 @@ function _retimeStrokeRates(s, strokes){
     s._rateRetimed=n;
   }catch(e){}
 }
+/* 13 Nov: MOVING PACE = time-weighted pace over the pace samples at 1 m/s or
+   faster (gaps capped at 3 s). The old figure was a plain average of every
+   sample above 0.7 m/s, which counted drifting and read slow (13 Nov row:
+   Android 2:46.9 vs Garmin 2:41.4 at 1 m/s; this method gives 2:41.6). */
+function movingPaceOf(pt, tm) {
+    if (!Array.isArray(pt) || !Array.isArray(tm) || pt.length !== tm.length || pt.length < 10) return 0;
+    let T = 0, D = 0;
+    for (let i = 0; i < pt.length; i++) {
+        const p = pt[i]; if (!(p > 0)) continue;
+        const v = 500 / p; if (v < 1.0) continue;
+        const dt = i + 1 < tm.length ? Math.min(3, Math.max(0, (tm[i + 1] - tm[i]) / 1000)) : 1;
+        T += dt; D += v * dt;
+    }
+    return D > 50 ? +((T / D) * 500).toFixed(1) : 0;
+}
 function sessionToAnalyserFmt(s) {
   _fixOldPpPace(s);
+  if (s && s.sessionMode !== 'erg') { const _mp = movingPaceOf(s.paceTrace, s.paceTimes); if (_mp > 0) s.avgMovingPace = _mp; }
   const sum = {
     note: s.note || '',
     start_time: new Date(s.startTime).toISOString(),
@@ -7476,6 +7492,8 @@ function buildCards(sum) {
   const _wd=_wLaps.reduce((a,l)=>a+(+l.distance_m||0),0),_wt=_wLaps.reduce((a,l)=>a+(+l.time_s||0),0);
   const workPace=(_wd>5&&_wt>0)?(_wt/_wd)*500:0;
   const avgPace=+sum.avg_pace_s_per_500m||0;
+  /* 13 Nov: recovered sessions have no saved avg pace - use distance over duration, not the stroke-pace mean (2:36 shown for a 2:59 row). */
+  const _sessP=avgPace>0?avgPace:((+sum.distance_m>5&&+sum.duration_s>0)?(+sum.duration_s/+sum.distance_m)*500:0);
   // Session-level per-metric averages
   const vals={};
   const _rST=rowOnly(ST);
@@ -7493,7 +7511,7 @@ function buildCards(sum) {
         const cal=(sum.erg&&sum.erg.calories!=null)?sum.erg.calories:null;
         return cal!=null?card('c-pace','Calories',Math.round(cal),'total kcal','pace',tipOf('watts')):'';
       }
-      return vals.pace?card('c-pace',(_curCorrOn&&_curOk())?'Pace (water)':'Pace',fmtPaceU(avgPace>0?avgPace/_curSpeedRatio():vals.pace.mean),workPace>0?'work '+fmtPaceU(workPace,false,true):(movPace>0?'mov '+fmtPaceU(movPace):paceULabel()),'pace',tipOf('pace')):'';
+      return vals.pace?card('c-pace',(_curCorrOn&&_curOk())?'Pace (water)':'Pace',fmtPaceU(_sessP>0?_sessP/_curSpeedRatio():vals.pace.mean),workPace>0?'work '+fmtPaceU(workPace,false,true):(movPace>0?'mov '+fmtPaceU(movPace):paceULabel()),'pace',tipOf('pace')):'';
     },
     rate:()=>vals.rate?card('c-rate','Rate',f1(vals.rate.mean),'spm · max '+f0(vals.rate.max),'rate',tipOf('rate')):'',
     dps:()=>vals.dps?card('c-dps','DPS'+_cwS(),fmtDPSU(vals.dps.mean),dpsULabelU()+'/stroke','dps',tipOf('dps')):'',
