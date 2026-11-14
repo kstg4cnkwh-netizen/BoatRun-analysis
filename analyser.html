@@ -772,7 +772,7 @@ body.light .hdrname{color:#fff;}
   <div id="topBlock" class="secpill" data-pane="topBlock"><div class="pane-grip" title="Drag to move this pane"><span></span></div>
   <div id="unitsbar" class="brsettings"></div>
   <!-- 13 Nov: Coach tools for the open session -->
-  <div id="coachbar" style="display:flex;flex-wrap:wrap;align-items:center;gap:8px;margin:0 0 10px;padding:9px 12px;border:2px solid #6a3fb0;border-radius:12px;"><span style="font:800 12px Inter,-apple-system,sans-serif;letter-spacing:.05em;">COACH TOOLS</span><button class="coachtool" onclick="coachTool('pace')">What drives pace</button><button class="coachtool" onclick="coachTool('video')">Video overlay</button><button class="coachtool" onclick="coachTool('tpl')">Stroke template</button><button class="coachtool" onclick="coachTool('curves')">Add to curves</button><span style="font-size:11px;">Select strokes on the chart first</span></div>
+  <div id="coachbar" style="display:flex;flex-wrap:wrap;align-items:center;gap:8px;margin:0 0 10px;padding:9px 12px;border:2px solid #6a3fb0;border-radius:12px;"><span style="font:800 12px Inter,-apple-system,sans-serif;letter-spacing:.05em;">COACH TOOLS</span><button class="coachtool" onclick="coachTool('pace')">What drives pace</button><button class="coachtool" onclick="coachTool('video')">Video overlay</button><button class="coachtool" onclick="coachTool('tpl')">Stroke template</button><button class="coachtool" onclick="coachTool('curves')">Curve comparison</button><button class="coachtool" onclick="coachTool('replay')">Export replay video</button><span style="font-size:11px;">Select strokes on the chart first</span></div>
   <!-- Summary cards -->
   <div id="cards"></div>
   </div>
@@ -8333,7 +8333,7 @@ function updateStatsStrip(){
     const _tr=tplSelRate(strokes);
     html+='<button id="tpladdselbtn" onclick="tplAddSelection()" style="background:#ffc947;color:#000;border:none;border-radius:14px;padding:7px 15px;font-size:10px;font-weight:700;cursor:pointer;box-shadow:0 2px 5px rgba(0,0,0,.22);">＋ Add to template'+(_tr?' · '+_tr.toFixed(1)+' spm':'')+'</button>';
   }else if(curveGroups.length<MAX_GROUPS){
-    html+='<button id="addcurvebtn" onclick="pinSelection()">＋ Add to curves</button>';
+    html+='<button id="addcurvebtn" onclick="pinSelection()">＋ Add to comparison</button>';
   }
   if(strokes.length>1){
     html+='<button id="zoomselbtn" onclick="zoomToSelection()">⤢ Zoom to selection</button>';
@@ -8342,7 +8342,7 @@ function updateStatsStrip(){
     html+='<button id="pacecorrbtn" onclick="showPaceCorr()" style="background:#1a5276;color:#fff;border:none;border-radius:14px;padding:7px 15px;font-size:10px;font-weight:700;cursor:pointer;margin-left:6px;box-shadow:0 2px 5px rgba(0,0,0,.22);">&#128200; What drives pace</button>';
   }
   if(strokes.length>2&&GPSTRACE.length>1&&!isErgSession()){
-    html+='<button id="rvexpbtn" onclick="window.rvOpenExport()" style="background:var(--acc);color:#fff;border:none;border-radius:14px;padding:7px 15px;font-size:10px;font-weight:700;cursor:pointer;margin-left:6px;box-shadow:0 2px 5px rgba(0,0,0,.22);">&#127916; Replay video</button>';
+    html+='<button id="rvexpbtn" onclick="window.rvOpenExport()" style="background:#6a3fb0;color:#fff;border:none;border-radius:14px;padding:7px 15px;font-size:10px;font-weight:700;cursor:pointer;margin-left:6px;box-shadow:0 2px 5px rgba(0,0,0,.22);">&#127916; Export replay video</button>';
   }
     if(strokes.length){
     const dur=strokes[strokes.length-1].elapsed-strokes[0].elapsed;
@@ -10397,7 +10397,7 @@ function buildLaps(){
     `<button class="laptypebtn" data-type="" style="--btc:var(--b);border-color:var(--b);color:var(--b);margin-left:8px;" onclick="editLapTypes()" title="Change lap types, join laps, or restore the original laps">✎ Edit laps</button>`;
   const lapCurveBtns=_lapEditMode?'':
     `<button class="laptypebtn" id="lapMakeBtn" data-type="" style="--btc:var(--o);border-color:var(--o);color:var(--o);display:none;" onclick="makeLapFromSelection()" title="Turn the strokes selected on the chart into their own lap">✂ Make lap from selection</button>`+
-    `<button class="laptypebtn" id="lapAddCurveBtn" data-type="" style="--btc:var(--g);border-color:var(--g);color:var(--g);display:none;" onclick="addLapToCurves()" title="Add the selected lap to the curve comparison">＋ Add to curves</button>`+
+    `<button class="laptypebtn" id="lapAddCurveBtn" data-type="" style="--btc:var(--g);border-color:var(--g);color:var(--g);display:none;" onclick="addLapToCurves()" title="Add the selected lap to the curve comparison">＋ Add to comparison</button>`+
     (hasWorkLaps?`<button class="laptypebtn" data-type="" style="--btc:var(--g);border-color:var(--g);color:var(--g);" onclick="addWorkLapsToCurves()" title="Add every work interval as its own curve group">＋ Add all work intervals to curves</button>`:'');
   document.getElementById('laptypebar').innerHTML=((hasType&&barTypes.length)?
     '<span style="font-size:10px;color:var(--muted);margin-right:2px;">Show:</span>'+
@@ -11798,7 +11798,7 @@ async function showStartup(){
     <div class="sz-sumwrap" data-ct="sec"><div class="brpill prc-plan" id="sz-plancard"><div class="sz-lhd" style="margin-bottom:8px;">Workouts</div><div style="font-size:13px;line-height:1.5;margin-bottom:10px;">Build intervals and give them to a day on the calendar. Metrics offers the day\u2019s workout when you start.</div><button class="dzbtn dzbtn-sec" id="sz-plan-wkt"><span>Create / edit workouts</span></button></div><div class="sz-ctabs" id="sz-ctabs" style="display:none;"><button class="sz-ntab sel" data-ct="sec">Sectors</button><button class="sz-ntab" data-ct="nav">Navigation</button></div><div class="brpill" id="sz-sectors" style="display:none;"></div><div class="brpill" id="sz-nav" style="display:none;"></div><div class="brpill prc-row" id="sz-focus" style="display:none;"></div><div class="brpill sz-sumcol"><div class="sz-lhd" style="margin-bottom:8px;">Summary</div><div id="sz-sumbody"></div></div></div>
     <div class="sz-calcol"><div class="brpill" id="sz-cal"></div><div class="brpill" id="sz-calday" style="display:none;"></div></div>
     <div class="brpill" id="sz-sesspill">
-      <div class="sz-lhd">Sessions<span class="sz-count" id="sz-count"></span><span class="sz-signout" id="sz-signout">Sign out</span></div>
+      <div class="sz-lhd">Sessions<span class="sz-count" id="sz-count"></span><button type="button" id="sz-refresh" title="Fetch the session list from Drive again" style="margin-left:10px;min-height:30px;padding:0 12px;border:0;border-radius:8px;background:#0d2b5e;color:#fff;font:700 12px Inter,-apple-system,sans-serif;letter-spacing:0;text-transform:none;cursor:pointer;vertical-align:middle;">&#8635; Refresh list</button><span class="sz-signout" id="sz-signout">Sign out</span></div>
       <input type="text" id="sz-search" class="brsearch" placeholder="Search sessions…" autocomplete="off">
       <div id="sz-filterbar" style="display:flex;gap:6px;margin-bottom:10px;flex-wrap:wrap;"></div>
       <div id="sz-files" class="sz-loading">Loading…</div>
@@ -11866,6 +11866,12 @@ async function showStartup(){
   document.getElementById('sz-squad').onclick=loadFromSquad;
   document.getElementById('sz-openfile').onclick=()=>document.getElementById('fin').click();
   document.getElementById('sz-import').onclick=importOwnSessionsPick;
+  /* 14 Nov: Refresh list - ask Drive again (skips the cached list), then redraw. */
+  {const rb=document.getElementById('sz-refresh');if(rb)rb.onclick=async()=>{
+    if(rb.disabled)return;rb.disabled=true;rb.style.opacity='.6';rb.innerHTML='&#8635; Refreshing\u2026';
+    try{AnalyserDrive._folderCache=null;await AnalyserDrive.list();toast('Session list updated');await showStartup();}
+    catch(e){if(!driveAuthExpired(e))toast('Could not refresh: '+(e&&e.message||e));rb.disabled=false;rb.style.opacity='';rb.innerHTML='&#8635; Refresh list';}
+  };}
   document.getElementById('sz-demo').onclick=()=>{ location.href = location.pathname + '?demo=demo1'; };
   const _backBtn=document.getElementById('sz-back'); if(_backBtn) _backBtn.onclick=()=>{el.style.display='none';el.innerHTML='';document.getElementById('app').style.display='block';document.getElementById('summarybtn').style.display='';};
   leaveSquadCalendar(true);
@@ -13079,7 +13085,8 @@ function applyFocusCards() {
 window.coachTool = function (k) {
   const r = _selAbsRange();
   if (k === 'pace') { if (!r || r[1] - r[0] + 1 < 40) { toast('Drag across the stroke chart to select 40 or more strokes first', 3500); return; } showPaceCorr(); }
-  else if (k === 'curves') { if (!r) { toast('Drag across the stroke chart to select strokes first', 3500); return; } pinSelection(); }
+  else if (k === 'curves') { if (r) pinSelection(); const c = document.getElementById('curvesec'); if (c) c.scrollIntoView({ behavior: 'smooth', block: 'start' }); if (!r && !curveGroups.length) toast('Select strokes on the chart, then Add to comparison', 3500); }
+  else if (k === 'replay') { if (!r) { toast('Drag across the stroke chart to select the section first', 3500); return; } window.rvOpenExport(); }
   else if (k === 'tpl') openTemplateModal();
   else if (k === 'video') { const v = document.getElementById('videosec'); if (!v || v.offsetParent === null) { toast('Video overlay is not available for this session'); return; } v.scrollIntoView({ behavior: 'smooth', block: 'start' }); toast('Tap ＋ Add video', 2500); }
 };
@@ -18348,6 +18355,49 @@ window.rvOpenExport=function(){
 };
 })();
 </script>
+<script>
+/* 14 Nov: NEW VERSION AVAILABLE. Asks the server for this page's ETag /
+   Last-Modified (a HEAD request, a few hundred bytes) when the page loads,
+   every 5 minutes and whenever the tab comes back into view. If they change,
+   a bar offers a refresh. No version number to keep up to date. Web only
+   (does nothing when opened as a local file). */
+(function(){
+  if(!/^https?:$/.test(location.protocol))return;
+  const url=location.origin+location.pathname;
+  let base=null,shown=false,busy=false;
+  async function stamp(){
+    try{
+      const r=await fetch(url+'?_v='+Date.now(),{method:'HEAD',cache:'no-store'});
+      if(!r.ok)return null;
+      return r.headers.get('etag')||r.headers.get('last-modified')||null;
+    }catch(e){return null;}
+  }
+  function show(){
+    if(shown)return;shown=true;
+    const b=document.createElement('div');
+    b.id='br-update';
+    b.setAttribute('role','status');
+    b.style.cssText='position:fixed;left:50%;bottom:calc(16px + env(safe-area-inset-bottom));transform:translateX(-50%);z-index:100000;display:flex;align-items:center;gap:12px;padding:10px 12px 10px 16px;border-radius:14px;background:#081226;color:#fff;box-shadow:0 6px 20px rgba(0,0,0,.35);font:600 14px Inter,-apple-system,sans-serif;max-width:calc(100vw - 24px);';
+    b.innerHTML='<span>A new version of the Analyser is available</span>'
+      +'<button type="button" id="br-update-go" style="min-height:40px;padding:0 16px;border:0;border-radius:10px;background:#2FD3C6;color:#062B28;font:800 14px Inter,-apple-system,sans-serif;cursor:pointer;">Refresh</button>'
+      +'<button type="button" id="br-update-x" aria-label="Later" style="min-height:40px;min-width:40px;border:0;border-radius:10px;background:rgba(255,255,255,.12);color:#fff;font:700 16px Inter,sans-serif;cursor:pointer;">&times;</button>';
+    document.body.appendChild(b);
+    b.querySelector('#br-update-go').onclick=()=>{location.reload();};
+    b.querySelector('#br-update-x').onclick=()=>{b.remove();};
+  }
+  async function check(){
+    if(busy||shown)return;busy=true;
+    const s=await stamp();busy=false;
+    if(!s)return;
+    if(base==null){base=s;return;}
+    if(s!==base)show();
+  }
+  check();
+  setInterval(check,5*60*1000);
+  document.addEventListener('visibilitychange',()=>{if(document.visibilityState==='visible')check();});
+  window.addEventListener('focus',check);
+})();
+</script>
 </body>
 </html>
 <style>
@@ -18409,7 +18459,7 @@ body{font-size:14px;}
 .sec-hd .hbtn{--bc:#007aff;padding:6px 12px;font-size:10px;}
 .filt-chip{font-weight:800;}
 .filt-chip.on,.segbtn.on,.sess-tab.on{background:#007aff;color:#fff;}
-#addcurvebtn{background:#007aff;color:#fff;font-weight:800;}
+#addcurvebtn{background:#0b6e79;color:#fff;font-weight:800;}
 #selclear,#clearcurvebtn{background:#fff;color:#ff3b30;border:2px solid #ff3b30!important;font-weight:800;}
 #selclear:hover,#clearcurvebtn:hover{background:#ff3b30;color:#fff;}
 #tplbtn,#tplloadbtn,#tplfocusclose{background:#fff;color:#8e44ad;border:2px solid #8e44ad!important;font-weight:800;}
