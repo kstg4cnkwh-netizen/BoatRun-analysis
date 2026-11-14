@@ -18446,6 +18446,13 @@ body .hdr-tabs .hmenu,body.light .hdr-tabs .hmenu{background:#fff!important;bord
 .sz-list[data-prc="plan"] .sz-prcsub{background:#0b6e79;}
 .sz-list[data-prc="row"] .sz-prcsub{background:#1a5fd0;}
 .sz-list[data-prc="coach"] .sz-prcsub{background:#6a3fb0;}
+/* 14 Nov: the tab colour runs down both sides and along the bottom of the pane. */
+.sz-list[data-prc]{border:6px solid transparent;border-top:0;border-radius:0 0 14px 14px;padding:0 10px 14px;box-sizing:border-box;}
+.sz-list[data-prc] .sz-prc{margin:0 -10px;}
+.sz-list[data-prc] .sz-prcsub{margin-left:-10px;margin-right:-10px;border-radius:0;}
+.sz-list[data-prc="plan"]{border-color:#0b6e79;}
+.sz-list[data-prc="row"]{border-color:#1a5fd0;}
+.sz-list[data-prc="coach"]{border-color:#6a3fb0;}
 #startup #sz-ntabs{display:none!important;}
 .sz-list:not([data-prc="row"]) .prc-row{display:none!important;}
 .sz-list:not([data-prc="plan"]) .prc-plan{display:none!important;}
@@ -18598,6 +18605,13 @@ body:has(#startup .sz-list) #sz-search{display:none!important;}
   #startup .asc,#startup .asc:hover,#startup .asc.erg,#startup .asc.erg:hover{grid-template-columns:22px 32px minmax(0,1fr)!important;grid-template-areas:"star ven name" "star ven date" "star ven stats" "star ven note"!important;}
   #startup .asc>.asc-vcol{align-self:start;}
   #startup .asc-vcol>.asc-venue{width:32px;height:32px;}
+}
+/* 14 Nov: narrow cards - four stat columns ran into each other (1:03:23 over 3:40).
+   Two columns below 420px; values never wrap or spill. */
+#startup .asc>.asc-stats>div{min-width:0;overflow:hidden;}
+#startup .asc>.asc-stats .asc-v{white-space:nowrap;}
+@container sess (max-width:420px){
+  #startup .asc>.asc-stats{grid-template-columns:repeat(2,minmax(0,1fr))!important;row-gap:8px;}
 }
 
 #startup{--ov-bg:#F6F7F9;--ov-card:#fff;--ov-soft:#F6F7F9;--ov-line:#E3E6EB;--ov-line2:#EEF0F3;--ov-line3:#B9C0CB;--ov-hover:#FAFBFC;--ov-text:#0E1420;--ov-muted:#5B6474;--ov-sel:#081226;--ov-sel-t:#fff;--ov-wbg:#E3EEFC;--ov-wfg:#1556A6;--ov-ebg:#FBE4E2;--ov-efg:#A3241B;--ov-kbg:#F1EEFB;--ov-kfg:#5B3FB0;--ov-bin:#b3261e;}
