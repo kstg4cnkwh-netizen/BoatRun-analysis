@@ -18447,12 +18447,14 @@ body .hdr-tabs .hmenu,body.light .hdr-tabs .hmenu{background:#fff!important;bord
 .sz-list[data-prc="row"] .sz-prcsub{background:#1a5fd0;}
 .sz-list[data-prc="coach"] .sz-prcsub{background:#6a3fb0;}
 /* 14 Nov: the tab colour runs down both sides and along the bottom of the pane. */
-.sz-list[data-prc]{border:6px solid transparent;border-top:0;border-radius:0 0 14px 14px;padding:0 10px 14px;box-sizing:border-box;}
-.sz-list[data-prc] .sz-prc{margin:0 -10px;}
-.sz-list[data-prc] .sz-prcsub{margin-left:-10px;margin-right:-10px;border-radius:0;}
-.sz-list[data-prc="plan"]{border-color:#0b6e79;}
-.sz-list[data-prc="row"]{border-color:#1a5fd0;}
-.sz-list[data-prc="coach"]{border-color:#6a3fb0;}
+.sz-list[data-prc]{position:relative;padding:0 16px 20px;box-sizing:border-box;}
+.sz-list[data-prc] .sz-prc{margin:0 -16px;}
+.sz-list[data-prc] .sz-prcsub{margin-left:-16px;margin-right:-16px;border-radius:0;}
+/* the frame starts at the bottom of the tabs (48px), not the top */
+.sz-list[data-prc]::before{content:'';position:absolute;top:48px;left:0;right:0;bottom:0;border:6px solid transparent;border-top:0;border-radius:0 0 14px 14px;pointer-events:none;}
+.sz-list[data-prc="plan"]::before{border-color:#0b6e79;}
+.sz-list[data-prc="row"]::before{border-color:#1a5fd0;}
+.sz-list[data-prc="coach"]::before{border-color:#6a3fb0;}
 #startup #sz-ntabs{display:none!important;}
 .sz-list:not([data-prc="row"]) .prc-row{display:none!important;}
 .sz-list:not([data-prc="plan"]) .prc-plan{display:none!important;}
