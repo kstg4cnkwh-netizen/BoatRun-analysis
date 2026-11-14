@@ -2828,6 +2828,7 @@ function sessionToAnalyserFmt(s) {
        existing curve routine works unchanged, and flag it so the axis and
        readouts can be labelled as force rather than acceleration. */
     curve: r.curve || resampleForceCurve(fcFix[i]),
+    roll: (Array.isArray(r.roll) && r.roll.length >= 8) ? r.roll.map(v => v / 10) : null,   // 14 Nov: boat roll through the stroke, deg, + = stroke side down
     curveDriveFrac: r.curveDriveFrac || (fcFix[i] && !r.curve ? 1 : null),
     forceCurve: fcFix[i] || null,
     curveIsForce: !!(fcFix[i] && !r.curve),
@@ -8692,6 +8693,12 @@ function computeGroupCurve(strokes){
     if(_row&&s.schar>0&&s.schar<=100){chSum+=s.schar;chN++;}
   }
   for(let i=0;i<CURVE_POINTS;i++)avg[i]/=valid.length;
+  /* 14 Nov: average roll through the stroke (strokes that carry one). */
+  let avgRoll=null,rollN=0;
+  {const rs=valid.filter(s=>Array.isArray(s.roll));
+   if(rs.length){const L=rs[0].roll.length,a=new Array(L).fill(0);let n=0;
+     rs.forEach(s=>{if(s.roll.length!==L)return;for(let i=0;i<L;i++)a[i]+=s.roll[i];n++;});
+     if(n){avgRoll=a.map(v=>v/n);rollN=n;}}}
   let df=dfSum/valid.length;
   let pk=0,pki=-1;
   const pkEnd=Math.round(CURVE_POINTS*0.70);
@@ -8710,7 +8717,7 @@ function computeGroupCurve(strokes){
     const rt=retimeCatchDuration(avg,60/avgRate,avgCatchMs,df);
     avg=rt.data;df=rt.driveFrac;
   }
-  return{data:avg,driveFrac:df,n:valid.length,total:strokes.length,
+  return{data:avg,driveFrac:df,n:valid.length,total:strokes.length,avgRoll,rollN,
     avgRate:avgRate,avgDPS:dpsN?dpsSum/dpsN:null,avgPace:paceN?paceSum/paceN:null,
     avgDriveMs:drvN?drvSum/drvN:null,avgCatchMs:avgCatchMs,avgLen:lenN?lenSum/lenN:null,avgPeakF:pfN?pfSum/pfN:null,avgChar:chN?chSum/chN:null};
 }
@@ -9384,7 +9391,10 @@ function drawCurvePanel(){
   const C=pal();
   const dpr=window.devicePixelRatio||1;
   const W=Math.floor(canvas.parentElement.clientWidth-22);
-  const H=curveH;
+  /* 14 Nov: a ROLL panel goes under the curves when any group has roll data. */
+  const _rollAny=!curvesAreForce();   // 15 Nov: always shown for on-water curves, with a note when the strokes carry no roll
+  const RH=_rollAny?140:0,HB=curveH;
+  const H=curveH+RH;
   canvas.width=W*dpr;canvas.height=H*dpr;
   canvas.style.width=W+'px';canvas.style.height=H+'px';
   const ctx=canvas.getContext('2d');ctx.scale(dpr,dpr);ctx.clearRect(0,0,W,H);
@@ -9446,7 +9456,7 @@ function drawCurvePanel(){
 
   const PL=58,PR=40,PT=16,PB=60,GAP=FORCE?4:26;
   const pw=W-PL-PR;
-  const ph1=FORCE?(H-PT-PB-GAP):Math.round((H-PT-PB-GAP)*0.547),ph2=FORCE?0:(H-PT-ph1-GAP-PB);
+  const ph1=FORCE?(HB-PT-PB-GAP):Math.round((HB-PT-PB-GAP)*0.547),ph2=FORCE?0:(HB-PT-ph1-GAP-PB);
   const accelTop=PT,speedTop=PT+ph1+GAP;
   const toPx=t=>PL+(t/maxT)*pw;
 
@@ -9656,6 +9666,40 @@ function drawCurvePanel(){
     ctx.fillStyle=C.muted;ctx.font='11px -apple-system, BlinkMacSystemFont, Helvetica Neue, sans-serif';ctx.textAlign='center';
     ctx.fillText(curveYZoom===1?'Y auto':'Y ×'+curveYZoom.toFixed(1),sx,accelTop-4);
     ctx.restore();
+  }
+  // 14 Nov: ROLL panel - average roll through the stroke per group, on the
+  // same time axis. Stroke side down (red half), bow side up (green half).
+  if(RH){
+    const rTop=HB+4,rH=RH-24,mid=rTop+rH/2;
+    let mx=2;enriched.forEach(c=>{if(c.avgRoll)c.avgRoll.forEach(v=>{mx=Math.max(mx,Math.abs(v));});});
+    mx=Math.ceil(mx);
+    const toRY=v=>mid+(v/mx)*(rH/2);
+    ctx.save();
+    ctx.fillStyle='rgba(22,163,74,.07)';ctx.fillRect(PL,rTop,pw,rH/2);
+    ctx.fillStyle='rgba(220,38,38,.07)';ctx.fillRect(PL,mid,pw,rH/2);
+    ctx.strokeStyle=C.gridLn;ctx.lineWidth=1;
+    [-mx,0,mx].forEach(v=>{const y=toRY(v);ctx.beginPath();ctx.moveTo(PL,y);ctx.lineTo(PL+pw,y);ctx.stroke();});
+    ctx.strokeStyle=C.gridLb;ctx.beginPath();ctx.moveTo(PL,mid);ctx.lineTo(PL+pw,mid);ctx.stroke();
+    const F='-apple-system, BlinkMacSystemFont, Helvetica Neue, sans-serif';
+    ctx.fillStyle=C.gridLb;ctx.font='12px '+F;ctx.textAlign='right';
+    ctx.fillText(mx+'°',PL-5,toRY(-mx)+4);ctx.fillText('0',PL-5,mid+4);ctx.fillText(mx+'°',PL-5,toRY(mx)+4);
+    ctx.save();ctx.translate(11,mid);ctx.rotate(-Math.PI/2);ctx.textAlign='center';ctx.fillStyle=C.muted;ctx.font='700 11px '+F;ctx.fillText('ROLL',0,0);ctx.restore();
+    ctx.textAlign='left';ctx.font='700 11px '+F;
+    ctx.fillStyle='#16a34a';ctx.fillText('BOW SIDE ↑',PL+6,rTop+13);
+    ctx.fillStyle='#dc2626';ctx.fillText('STROKE SIDE ↓',PL+6,rTop+rH-6);
+    ctx.beginPath();ctx.rect(PL,rTop,pw,rH);ctx.clip();
+    let any=false;
+    enriched.forEach(c=>{
+      if(!c.avgRoll||!c.T)return;any=true;
+      const L=c.avgRoll.length;
+      if(c.driveFrac>0){ctx.strokeStyle=c.color;ctx.globalAlpha=.35;ctx.setLineDash([4,4]);const xd=toPx(c.driveFrac*c.T);ctx.beginPath();ctx.moveTo(xd,rTop);ctx.lineTo(xd,rTop+rH);ctx.stroke();ctx.setLineDash([]);ctx.globalAlpha=1;}
+      ctx.strokeStyle=c.color;ctx.lineWidth=2.5;ctx.beginPath();
+      c.avgRoll.forEach((v,i)=>{const x=toPx(i/(L-1)*c.T),y=toRY(v);i?ctx.lineTo(x,y):ctx.moveTo(x,y);});
+      ctx.stroke();
+    });
+    ctx.restore();
+    ctx.strokeStyle=C.frameLn;ctx.lineWidth=1;ctx.strokeRect(PL,rTop,pw,rH);
+    if(!any){ctx.fillStyle=C.muted;ctx.font='12px '+F;ctx.textAlign='center';ctx.fillText('No roll in these strokes - needs a session recorded with Metrics 1.2.10 or later',PL+pw/2,mid+4);}
   }
   // Bottom grip: drag down / up to make the panel taller / shorter
   {
