@@ -7914,9 +7914,9 @@ function drawMain(){
   if(swv.length){const[lo,hi]=pctBounds(swv,0.03,0.97,0.10);ySwMin=Math.max(0,lo);ySwMax=Math.min(5,hi);}
   const toYSw=v=>PT+ph-(v-ySwMin)/(ySwMax-ySwMin||1)*ph;
   // 17 Nov: drive and recovery roll share one axis, centred on zero
-  const rollAll=[...rdv,...rrv];let yRoMax=3;
-  if(rollAll.length){const[lo,hi]=pctBounds(rollAll,0.03,0.97,0.10);yRoMax=Math.min(15,Math.max(1,Math.abs(lo),Math.abs(hi)));}
-  const toYRo=v=>PT+ph/2-(v/yRoMax)*(ph/2);
+  // 17 Nov: fixed +-10 deg, stroke side down = down (as in the curve comparison)
+  const yRoMax=10;
+  const toYRo=v=>PT+ph/2+(Math.max(-yRoMax,Math.min(yRoMax,v))/yRoMax)*(ph/2);
   let yCDurMin=0,yCDurMax=300;
   const cdurAll=[...cdurv,...dtv];
   if(cdurAll.length){const[lo,hi]=pctBounds(cdurAll,0.03,0.97,0.10);yCDurMin=0;yCDurMax=Math.min(1500,hi);}
@@ -7984,6 +7984,15 @@ function drawMain(){
   if(vis.ratio&&ratv.length){ctx.fillStyle=C.mc_ratio;for(let i=0;i<N;i++){const v=sv[i].ratio;if(isNaN(v)||v<0.5||v>5)continue;ctx.beginPath();ctx.arc(toX(xs[i]),toYRatio(v),2.2,0,6.283);ctx.fill();}}
   if(vis.cdelta&&cdv.length){ctx.fillStyle=C.mc_cdelta;for(let i=0;i<N;i++){const v=sv[i].checkDelta;if(isNaN(v)||v<50||v>100)continue;ctx.beginPath();ctx.arc(toX(xs[i]),toYCD(v),2.2,0,6.283);ctx.fill();}}
   if(vis.swing&&swv.length){ctx.fillStyle='#8e44ad';for(let i=0;i<N;i++){const v=sv[i].speedSwing;if(isNaN(v)||v<=0.05||v>=5)continue;ctx.beginPath();ctx.arc(toX(xs[i]),toYSw(v),2.2,0,6.283);ctx.fill();}}
+  if((vis.rolldrive&&rdv.length)||(vis.rollrec&&rrv.length)){   // level line and scale for roll
+    ctx.save();ctx.strokeStyle=C.gridLb;ctx.lineWidth=1.5;ctx.setLineDash([5,4]);ctx.beginPath();ctx.moveTo(PL,toYRo(0));ctx.lineTo(PL+pw,toYRo(0));ctx.stroke();ctx.setLineDash([]);
+    ctx.strokeStyle=C.gridLn;ctx.lineWidth=1;[-5,5].forEach(v=>{ctx.beginPath();ctx.moveTo(PL,toYRo(v));ctx.lineTo(PL+pw,toYRo(v));ctx.stroke();});
+    ctx.font='bold 10px -apple-system,BlinkMacSystemFont,Helvetica Neue,sans-serif';ctx.textAlign='right';
+    ctx.fillStyle='#16a34a';ctx.fillText('10\u00b0 bow \u2191',PL+pw-4,toYRo(-10)+12);ctx.fillText('5\u00b0',PL+pw-4,toYRo(-5)-3);
+    ctx.fillStyle=C.gridLb;ctx.fillText('ROLL 0\u00b0',PL+pw-4,toYRo(0)-3);
+    ctx.fillStyle='#dc2626';ctx.fillText('5\u00b0',PL+pw-4,toYRo(5)-3);ctx.fillText('10\u00b0 stroke \u2193',PL+pw-4,toYRo(10)-4);
+    ctx.restore();
+  }
   if(vis.rolldrive&&rdv.length){ctx.fillStyle='#d35400';for(let i=0;i<N;i++){const v=sv[i].rollDrive;if(isNaN(v)||Math.abs(v)>=15)continue;ctx.beginPath();ctx.arc(toX(xs[i]),toYRo(v),2.2,0,6.283);ctx.fill();}}
   if(vis.rollrec&&rrv.length){ctx.fillStyle='#16a085';for(let i=0;i<N;i++){const v=sv[i].rollRec;if(isNaN(v)||Math.abs(v)>=15)continue;ctx.beginPath();ctx.arc(toX(xs[i]),toYRo(v),2.2,0,6.283);ctx.fill();}}
   if(vis.cdur&&cdurv.length){ctx.fillStyle=C.mc_cdur;for(let i=0;i<N;i++){const v=sv[i].catchDuration;if(isNaN(v)||v<=0||v>=1500)continue;ctx.beginPath();ctx.arc(toX(xs[i]),toYCDur(v),2.2,0,6.283);ctx.fill();}}
