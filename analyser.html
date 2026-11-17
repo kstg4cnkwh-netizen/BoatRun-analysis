@@ -4699,6 +4699,8 @@ function navCleanPts(l){return (l&&Array.isArray(l.pts)?l.pts:[]).filter(p=>Arra
 function navClean(l){const o={id:String(l.id),name:String(l.name||'Line').slice(0,60),mode:navMode(l),pts:navCleanPts(l),upd:l.upd||Date.now()};
   /* Hazards carry their default warning (on unless set off); rowers can still change it on their phone. */
   if(o.mode==='hazard')o.warn=l.warn!==false;
+  /* 17 Nov: lanes and dividers can be hidden by default (rowers can still show them on their phone). */
+  else if(l.hidden===true)o.hidden=true;
   return o;}
 function navLenM(pts){return _secDrawLen(pts||[]);}
 function navSaveLocal(){try{localStorage.setItem(NAV_LS_KEY,JSON.stringify(NAV_LINES));}catch(e){}}
@@ -4997,7 +4999,7 @@ document.addEventListener('visibilitychange',()=>{try{if(!document.hidden)navClu
 /* ── Start page pane ── */
 /* Hazard default warning tag: orange WARN ON / grey WARN OFF. */
 function navWarnTag(l){
-  if(navMode(l)!=='hazard')return '';
+  if(navMode(l)!=='hazard')return l.hidden===true?'<span title="Hidden on rowers\u2019 phones until they choose to show it" style="font-size:10px;font-weight:800;letter-spacing:.04em;padding:2px 7px;border-radius:10px;white-space:nowrap;background:transparent;color:var(--muted);border:1px solid var(--border);">HIDDEN BY DEFAULT</span>':'';
   const on=l.warn!==false;
   return '<span title="Default for rowers; each rower can change it on their phone" style="font-size:10px;font-weight:800;letter-spacing:.04em;padding:2px 7px;border-radius:10px;white-space:nowrap;'+(on?'background:#ff9500;color:#000;':'background:transparent;color:var(--muted);border:1px solid var(--border);')+'">'+(on?'\u26a0 WARN ON':'WARN OFF')+'</span>';
 }
@@ -5357,6 +5359,7 @@ window.navDraw=function(editId,newMode,clubCode,keep){
   const clubs=navClubsLive().filter(c=>!c.gone);
   let mode=edit?navMode(edit):(newMode==='divider'||newMode==='hazard'?newMode:'lane');
   let hzWarn=edit?edit.warn!==false:(keep&&keep.warn===false?false:true);
+  let ndHidden=edit?edit.hidden===true:!!(keep&&keep.hidden===true);   // 17 Nov: lane / divider hidden by default
   document.getElementById('_navdraw_modal')?.remove();
   const overlay=document.createElement('div');
   overlay.id='_navdraw_modal';
@@ -5370,6 +5373,7 @@ window.navDraw=function(editId,newMode,clubCode,keep){
     +'<div style="display:flex;gap:6px;align-items:center;flex-wrap:wrap;"><button class="hbtn" id="_navdraw_undo" style="font-size:11px;">↶ Undo</button><button class="hbtn" id="_navdraw_clear" style="font-size:11px;">Clear</button>'
     +'<button class="hbtn" id="_navdraw_rev" style="font-size:11px;">⇄ Reverse</button>'
     +'<button class="hbtn" id="_navdraw_warn" style="font-size:11px;" title="Whether rowers are warned about this hazard by default. Each rower can still change it on their phone."></button>'
+    +'<button class="hbtn" id="_navdraw_hide" style="font-size:11px;" title="Whether this line shows on rowers\u2019 phones by default. Each rower can still show or hide it."></button>'
     +((typeof leafletMap!=='undefined'&&leafletMap&&typeof mapBaseLine!=='undefined'&&mapBaseLine)?'<button class="hbtn" id="_navdraw_trk" style="font-size:11px;">From session track</button>':'')
     +'<input type="text" id="_navdraw_name" class="brsearch" placeholder="Name" style="flex:1;min-width:140px;box-sizing:border-box;" value="'+(edit?_secEsc(edit.name):'')+'">'
     +(clubs.length?'<select id="_navdraw_to" class="brsearch" style="font-size:11px;max-width:200px;"'+(club0?' disabled':'')+'><option value="">Save to: my lines</option>'+clubs.map(c=>'<option value="'+c.code+'"'+((club0?club0.code:(keep&&keep.to))===c.code?' selected':'')+'>Save to club: '+_secEsc(c.name||c.code)+'</option>').join('')+'</select>':'')
@@ -5410,6 +5414,8 @@ window.navDraw=function(editId,newMode,clubCode,keep){
     panel.querySelectorAll('[data-nd-mode]').forEach(b=>{const on=b.dataset.ndMode===mode,c=navColor({mode:b.dataset.ndMode});b.style.background=on?c:'#000';b.style.color=on?(b.dataset.ndMode==='divider'?'#fff':'#000'):c;b.style.borderColor=c;});
     const rv=document.getElementById('_navdraw_rev');if(rv)rv.style.display=mode==='lane'?'':'none';
     const wv=document.getElementById('_navdraw_warn');
+    const hv=document.getElementById('_navdraw_hide');
+    if(hv){hv.style.display=mode==='hazard'?'none':'';hv.textContent=ndHidden?'Hidden by default':'\u{1F441} Shown by default';hv.style.background=ndHidden?'':navColor({mode});hv.style.color=ndHidden?'':(mode==='divider'?'#fff':'#000');hv.style.borderColor=ndHidden?'':navColor({mode});}
     if(wv){wv.style.display=mode==='hazard'?'':'none';wv.textContent=hzWarn?'\u26a0 Warn ON by default':'Warn OFF by default';wv.style.background=hzWarn?'#ff9500':'';wv.style.color=hzWarn?'#000':'';wv.style.borderColor=hzWarn?'#ff9500':'';}
   };
   const updLen=()=>{
@@ -5497,6 +5503,7 @@ window.navDraw=function(editId,newMode,clubCode,keep){
   document.getElementById('_navdraw_undo').onclick=()=>{if(!hist.length)return;const h=hist.pop();pts.length=0;h.forEach(p=>pts.push(p));redraw();};
   document.getElementById('_navdraw_clear').onclick=()=>{snap();pts.length=0;redraw();};
   document.getElementById('_navdraw_warn').onclick=()=>{hzWarn=!hzWarn;updHead();};
+  document.getElementById('_navdraw_hide').onclick=()=>{ndHidden=!ndHidden;updHead();};
   document.getElementById('_navdraw_rev').onclick=()=>{if(pts.length<2)return;snap();pts.reverse();redraw();};
   const trk=document.getElementById('_navdraw_trk');
   if(trk)trk.onclick=()=>{
@@ -5518,7 +5525,7 @@ window.navDraw=function(editId,newMode,clubCode,keep){
     const name=((inp&&inp.value)||'').trim();
     if(!name){toast('Enter a name');if(inp)inp.focus();return;}
     if(pts.length<navMinPts({mode})){toast(mode==='hazard'?'Tap the hazard on the map':'Tap at least two points');return;}
-    const rec=navClean({id:edit?edit.id:navNewId(),name,mode,pts,warn:hzWarn,upd:Date.now()});
+    const rec=navClean({id:edit?edit.id:navNewId(),name,mode,pts,warn:hzWarn,hidden:ndHidden,upd:Date.now()});
     const to=club0||navClubByCode((document.getElementById('_navdraw_to')||{}).value||'');
     if(to){
       saving=true;const sb=document.getElementById('_navdraw_save');if(sb)sb.textContent='Saving\u2026';
@@ -5526,7 +5533,7 @@ window.navDraw=function(editId,newMode,clubCode,keep){
       saving=false;if(sb)sb.textContent='Save';
       if(!ok)return;
       if(edit&&!club0){const ix=NAV_LINES.findIndex(l=>l.id===edit.id);if(ix>=0){NAV_LINES[ix]={id:edit.id,name:edit.name,deleted:true,upd:Date.now()};navChanged();}}
-      const kv={view:[map.getCenter().lat,map.getCenter().lng,map.getZoom()],to:to.code,warn:hzWarn};
+      const kv={view:[map.getCenter().lat,map.getCenter().lng,map.getZoom()],to:to.code,warn:hzWarn,hidden:ndHidden};
       navRefreshViews();close();
       if(again===true)setTimeout(()=>window.navDraw(null,mode,null,kv),0);
       toast(NAV_LBL[mode]+' saved to '+(to.name||to.code));
@@ -5534,7 +5541,7 @@ window.navDraw=function(editId,newMode,clubCode,keep){
     }
     if(edit){const ix=NAV_LINES.findIndex(l=>l.id===edit.id);if(ix>=0)NAV_LINES[ix]={...NAV_LINES[ix],...rec};else NAV_LINES.push(rec);}
     else NAV_LINES.push(rec);
-    const kv={view:[map.getCenter().lat,map.getCenter().lng,map.getZoom()],to:'',warn:hzWarn};
+    const kv={view:[map.getCenter().lat,map.getCenter().lng,map.getZoom()],to:'',warn:hzWarn,hidden:ndHidden};
     navChanged();close();
     if(again===true)setTimeout(()=>window.navDraw(null,mode,null,kv),0);
     toast(NAV_LBL[mode]+' saved');
