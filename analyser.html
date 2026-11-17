@@ -11865,7 +11865,7 @@ async function showStartup(){
   if(adPeekPendingOpen())setTimeout(adRunPendingOpen,400);
   document.getElementById('app').style.display='none';
   el.innerHTML=`<div class="sz-list" data-ntab="prc" data-prc="row">
-    <div class="sz-prc" id="sz-prc"><button data-prc="plan">Plan</button><button data-prc="row" class="sel">Row</button><button data-prc="coach">Coach</button></div>
+    <div class="sz-prc" id="sz-prc"><button data-prc="plan">Planning</button><button data-prc="row" class="sel">Results</button><button data-prc="coach">Trends</button></div>
     <div class="sz-prcsub" id="sz-prcsub"></div>
     <div class="brpill-row">
       ${SESSIONS.length ? '<button class="dzbtn" id="sz-back" style="background:#fc4c02;border-color:#fc4c02;color:#fff;font-weight:800;box-shadow:0 3px 9px rgba(252,76,2,.45);"><span style="color:#fff;">&#10005; Back to session</span></button>' : ''}
@@ -11880,7 +11880,7 @@ async function showStartup(){
     <div class="sz-ntabs" id="sz-ntabs"><button class="sz-ntab sel" data-nt="sess">Sessions</button><button class="sz-ntab" data-nt="cal">Calendar</button><button class="sz-ntab" data-nt="course" style="display:none;">Course</button></div>
     <div class="sz-grid">
     <div class="sz-sumwrap" data-ct="sec"><div class="brpill prc-plan" id="sz-plancard"><div class="sz-lhd" style="margin-bottom:8px;">Workouts</div><div style="font-size:13px;line-height:1.5;margin-bottom:10px;">Build intervals and give them to a day on the calendar. Metrics offers the day\u2019s workout when you start.</div><button class="dzbtn dzbtn-sec" id="sz-plan-wkt"><span>Create / edit workouts</span></button></div><div class="sz-ctabs" id="sz-ctabs" style="display:none;"><button class="sz-ntab sel" data-ct="sec">Sectors</button><button class="sz-ntab" data-ct="nav">Navigation</button></div><div class="brpill" id="sz-sectors" style="display:none;"></div><div class="brpill" id="sz-nav" style="display:none;"></div><div class="brpill prc-row" id="sz-focus" style="display:none;"></div><div class="brpill sz-sumcol"><div class="sz-lhd" style="margin-bottom:8px;">Summary</div><div id="sz-sumbody"></div></div></div>
-    <div class="sz-calcol"><div class="brpill" id="sz-cal"></div><div class="brpill" id="sz-calday" style="display:none;"></div><div class="brpill" id="sz-load" style="display:none;"></div></div>
+    <div class="sz-calcol"><div class="brpill" id="sz-cal"></div><div class="brpill" id="sz-calday" style="display:none;"></div><div class="brpill" id="sz-sqload" style="display:none;"></div><div class="brpill" id="sz-load" style="display:none;"></div></div>
     <div class="brpill" id="sz-sesspill">
       <div class="sz-lhd">Sessions<span class="sz-count" id="sz-count"></span><button type="button" id="sz-refresh" title="Fetch the session list from Drive again" style="margin-left:10px;min-height:30px;padding:0 12px;border:0;border-radius:8px;background:#0d2b5e;color:#fff;font:700 12px Inter,-apple-system,sans-serif;letter-spacing:0;text-transform:none;cursor:pointer;vertical-align:middle;">&#8635; Refresh list</button><span class="sz-signout" id="sz-signout">Sign out</span></div>
       <input type="text" id="sz-search" class="brsearch" placeholder="Search sessions…" autocomplete="off">
@@ -14878,6 +14878,8 @@ let _tlPushT=null,_tlRenderT=null;
 function tlMerge(a,b){const o={...(a||{})};Object.keys(b||{}).forEach(k=>{const x=b[k];if(!x||typeof x!=='object')return;if(!o[k]||(x.rev||0)>(o[k].rev||0))o[k]=x;});return o;}
 function tlFromPrefs(p){
   if(!p||typeof p!=='object')return;
+  try{btpFromPrefs(p);}catch(e){}
+  try{sqlFromPrefs(p);}catch(e){}
   if(p.sessLoad&&typeof p.sessLoad==='object'&&!Array.isArray(p.sessLoad)){SESS_LOAD=tlMerge(SESS_LOAD,p.sessLoad);try{localStorage.setItem('br_sess_load',JSON.stringify(SESS_LOAD));}catch(e){}}
   if(p.wellness&&typeof p.wellness==='object'&&!Array.isArray(p.wellness)){WELLNESS=tlMerge(WELLNESS,p.wellness);try{localStorage.setItem('br_wellness',JSON.stringify(WELLNESS));}catch(e){}}
   tlRenderSoon();
@@ -14950,7 +14952,7 @@ function tlStepMin(s){
   return s.type==='warmup'?10:(s.type==='cooldown'?5:0);
 }
 function tlWktLoad(w,rpe){
-  const e=rpe||w.rpe||TL_PLAN_RPE;let load=0,min=0;
+  const e=rpe||rpeOf(w);let load=0,min=0;
   const walk=(steps,mult)=>(steps||[]).forEach(s=>{
     if(!s)return;
     if(s.type==='repeat'){walk(s.steps,mult*(s.count||1));return;}
@@ -14967,7 +14969,7 @@ function tlPlanFor(day){
   return ids.map(id=>{
     const w=(W||[]).find(x=>x&&x.id===id&&!x.deleted);if(!w)return null;
     const key='p'+day+'_'+id,ov=+((SESS_LOAD[key]||{}).rpe)||0,r=tlWktLoad(w,ov);
-    return{w,key,ov,rpe:ov||w.rpe||TL_PLAN_RPE,load:r.load,min:r.min};
+    return{w,key,ov,rpe:ov||rpeOf(w),load:r.load,min:r.min};
   }).filter(Boolean);
 }
 function tlRaces(){
@@ -15069,7 +15071,7 @@ function tlSuggest(D,M){
   const T={race:'Race. Warm up well and go.',easy:'Recovery: easy row or rest',steady:'Steady endurance',hard:'Hard session',sharp:'Short and sharp'}[type];
   const HINT={easy:'No easy workout in your library: 30 to 45 min at effort 3, or a day off.',steady:'No steady workout in your library: 60 to 80 min at effort 4 to 5.',hard:'No hard workout in your library: e.g. 4 x 2 km at race pace, effort 8.',sharp:'No short hard workout in your library: e.g. 6 x 250 m at race pace with full rest.',race:''}[type];
   let W;try{W=_pW();}catch(e){W=WORKOUTS_DB;}
-  const lib=(W||[]).filter(w=>w&&!w.deleted&&Array.isArray(w.steps)).map(w=>{const r=tlWktLoad(w,0);return{w,e:w.rpe||TL_PLAN_RPE,load:r.load,min:r.min};}).filter(x=>x.min>0);
+  const lib=(W||[]).filter(w=>w&&!w.deleted&&Array.isArray(w.steps)).map(w=>{const r=tlWktLoad(w,0);return{w,e:rpeOf(w),load:r.load,min:r.min};}).filter(x=>x.min>0);
   let picks=[];
   if(type==='easy')picks=lib.filter(x=>x.e<=4).sort((p,q)=>p.load-q.load);
   else if(type==='steady')picks=lib.filter(x=>x.e>=4&&x.e<=6).sort((p,q)=>q.min-p.min);
@@ -15096,6 +15098,7 @@ function tlTE(man){const p=[];if(man&&man.ate!=null)p.push('aerobic TE '+(+man.a
 function tlSetSess(key,patch){SESS_LOAD[key]={...(SESS_LOAD[key]||{}),...patch,rev:Date.now()};tlSaveSess();renderLoadPanel();}
 function tlRenderSoon(){clearTimeout(_tlRenderT);_tlRenderT=setTimeout(()=>{try{renderLoadPanel();}catch(e){console.error(e);}},60);}
 function renderLoadPanel(){
+  try{sqlRender();}catch(e){}
   const el=document.getElementById('sz-load');if(!el)return;
   const D=tlDaily(),n=D.ti+1,todayK=_dayKey(Date.now());
   if(!D.n&&!D.planned&&!D.races.length){el.style.display='none';return;}
@@ -15103,7 +15106,7 @@ function renderLoadPanel(){
   const M=tlMuscles(),SG=tlSuggest(D,M);
   const fit=D.fit[n-1],fat=D.fat[n-1],form=D.form[n-1],fw=tlFormWord(form,fit);
   const box=(l,v,c,t)=>'<div title="'+t+'" style="flex:1;min-width:0;padding:8px 10px;border-radius:8px;background:var(--s2);border:1px solid var(--border);border-top:3px solid '+c+';"><div style="font-size:10px;color:var(--muted);letter-spacing:.05em;text-transform:uppercase;">'+l+'</div><div style="font-size:20px;font-weight:800;color:'+c+';">'+v+'</div></div>';
-  let h='<div class="sz-lhd" style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;">Training load<span style="font-size:12px;font-weight:700;color:'+fw[1]+';">'+fw[0]+'</span><button id="tl-hist" class="filt-chip" style="margin-left:auto;font-size:13px;padding:7px 14px;" title="Type the Garmin load for past sessions">Enter Garmin loads</button></div>'
+  let h='<div class="sz-lhd" style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;">Training load<span style="font-size:12px;font-weight:700;color:'+fw[1]+';">'+fw[0]+'</span><span style="margin-left:auto;display:flex;gap:6px;flex-wrap:wrap;">'+(_wktCtx?'':'<button id="tl-btp" class="filt-chip" style="font-size:13px;padding:7px 14px;" title="Template weeks for each block, filled back from your race">Block templates</button>')+'<button id="tl-hist" class="filt-chip" style="font-size:13px;padding:7px 14px;" title="Type the Garmin load for past sessions">Enter Garmin loads</button></span></div>'
     +'<div style="display:flex;gap:8px;margin-bottom:8px;">'
     +box('Acute load',Math.round(fat),'#E53935','Load over the last 7 days (weighted to recent days)')
     +box('Chronic load',Math.round(fit),'#1E88E5','Your normal week: 6-week average weekly load')
@@ -15167,23 +15170,29 @@ function renderLoadPanel(){
   /* planned workouts, today and ahead: effort can be changed for this day only */
   const pl=day>=todayK?tlPlanFor(day):[];
   pl.forEach(p=>{
-    let opts='';for(let i=1;i<=10;i++)opts+='<option value="'+i+'"'+(p.rpe===i?' selected':'')+'>Effort '+i+(i===(p.w.rpe||TL_PLAN_RPE)?' (plan)':'')+'</option>';
+    let opts='';for(let i=1;i<=10;i++)opts+='<option value="'+i+'"'+(p.rpe===i?' selected':'')+'>Effort '+i+(i===rpeOf(p.w)?' (plan)':'')+'</option>';
     h+='<div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap;font-size:12px;padding:5px 0;border-top:1px solid var(--border);">'
       +'<span style="flex:1;min-width:120px;"><span style="font-size:10px;font-weight:800;letter-spacing:.06em;opacity:.7;">PLANNED</span> '+_secEsc(_wktDispName(p.w))+' &middot; '+p.min+' min</span>'
-      +'<select data-tl-prpe="'+p.key+'" data-tl-def="'+(p.w.rpe||TL_PLAN_RPE)+'" style="'+IN+'">'+opts+'</select>'
-      +'<span style="min-width:96px;text-align:right;"><b>'+p.load+'</b> <span style="color:var(--muted);">'+(p.ov&&p.ov!==(p.w.rpe||TL_PLAN_RPE)?'adjusted':'planned')+'</span></span></div>';
+      +'<select data-tl-prpe="'+p.key+'" data-tl-def="'+rpeOf(p.w)+'" style="'+IN+'">'+opts+'</select>'
+      +'<span style="min-width:96px;text-align:right;"><b>'+p.load+'</b> <span style="color:var(--muted);">'+(p.ov&&p.ov!==rpeOf(p.w)?'adjusted':'planned')+'</span></span></div>';
   });
   const it=tlItems()[day];
   ((it&&it.list)||[]).filter(x=>x.type==='other').forEach(x=>{const L=tlOtherLoad(x);
     h+='<div style="display:flex;align-items:center;gap:6px;font-size:12px;padding:5px 0;border-top:1px solid var(--border);"><span style="flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">'+_secEsc(x.text||'Other workout')+(TL_KINDS[x.kind]?' <span style="color:var(--muted);">&middot; '+TL_KINDS[x.kind][0]+'</span>':'')+'</span><span style="text-align:right;">'+(L?'<b>'+L+'</b> <span style="color:var(--muted);">'+(x.load>0?'entered':x.min+' min, effort '+x.rpe)+'</span>':'<span style="color:var(--muted);">no load - edit it to add minutes and effort</span>')+'</span></div>';});
   if(!ss.length&&!pl.length&&!((it&&it.list)||[]).some(x=>x.type==='other'))h+='<div style="font-size:11px;color:var(--muted);">No sessions this day.</div>';
   h+='<div style="font-size:10px;color:var(--muted);margin-top:8px;line-height:1.4;">Loads are on the Garmin scale (an easy hour is about 50-70, a hard hour 200+). Sessions with heart rate use HR zones once opened here; others are estimated at effort '+TL_DEF_RPE+' until you set an effort or type the Garmin number. Chronic load needs about 6 weeks of history to settle.'
-    +(()=>{const L={hr:'HR sessions',est:'estimated sessions',eff:'effort sessions'},p=Object.keys(_tlCal).map(k=>L[k]+' x'+_tlCal[k].k.toFixed(2)+' (from '+_tlCal[k].n+')');return p.length?'<br>Calibrated to your Garmin numbers: '+p.join(', ')+'.':'<br>Type the Garmin load for 3 or more past sessions and the rest are scaled to match your watch.';})()+'</div>';
+    +(()=>{const L={hr:'HR sessions',est:'estimated sessions',eff:'effort sessions'},p=Object.keys(_tlCal).map(k=>L[k]+' x'+_tlCal[k].k.toFixed(2)+' (from '+_tlCal[k].n+')');return p.length?'<br>Calibrated to your Garmin numbers: '+p.join(', ')+'.':'<br>Type the Garmin load for 3 or more past sessions and the rest are scaled to match your watch.';})()
+    +(()=>{const n=_wktCtx?0:rpeMissing().length;return n?'<br>'+n+' workout'+(n===1?' has':'s have')+' no planned effort, so a guess is used. <a href="#" id="tl-rpe" style="color:#8e44ad;font-weight:700;">Set efforts</a>':'';})()+'</div>';
+  h+=sqlShareHtml();
   el.innerHTML=h;
+  try{sqlBindShare(el);}catch(e){}
+  try{sqlPublishSoon(D);}catch(e){}
   el.querySelectorAll('[data-tl-rpe]').forEach(s=>{s.onchange=()=>tlSetSess(s.dataset.tlRpe,{rpe:s.value?+s.value:0});});
   el.querySelectorAll('[data-tl-load]').forEach(s=>{s.onchange=()=>{const v=Math.max(0,Math.min(3000,Math.round(+s.value||0)));tlSetSess(s.dataset.tlLoad,{load:v});};});
   el.querySelectorAll('[data-tl-prpe]').forEach(s=>{s.onchange=()=>tlSetSess(s.dataset.tlPrpe,{rpe:(+s.value===+s.dataset.tlDef)?0:+s.value});});
   el.querySelectorAll('[data-tl-plan]').forEach(b=>{b.onclick=()=>{try{planAdd(todayK,b.dataset.tlPlan);}catch(e){}try{renderStartupCalendar();}catch(e){}renderLoadPanel();};});
+  const tb=document.getElementById('tl-btp');if(tb)tb.onclick=btpOpen;
+  const rb=document.getElementById('tl-rpe');if(rb)rb.onclick=e=>{e.preventDefault();rpeOpen();};
   const hb=document.getElementById('tl-hist');if(hb)hb.onclick=tlHistoryOpen;
   tlDrawChart(D);
 }
@@ -15269,6 +15278,325 @@ function tlDrawChart(D){
   D.races.forEach(r=>{const i=D.days.indexOf(r.day)-o;if(i<0||i>=N)return;const xx=x(i),col=r.pri==='A'?'#c0392b':(r.pri==='B'?'#e67e22':'#7f8c8d');
     ctx.strokeStyle=col;ctx.lineWidth=2;ctx.beginPath();ctx.moveTo(xx,T1);ctx.lineTo(xx,B2);ctx.stroke();
     ctx.fillStyle=col;ctx.beginPath();ctx.arc(xx,T1+8,8,0,6.283);ctx.fill();ctx.fillStyle='#fff';ctx.fillText(r.pri,xx,T1+8.5);});
+}
+/* ══════════════════════════════════════════════════════════════════════════
+   BLOCK TEMPLATES (17 Nov). One template week (Mon-Sun) per training block:
+   Base, Build, Peak, Taper. "Fill plan" puts them on the calendar from a start
+   date up to the day before the target race, choosing each day's block by
+   days to go (taper 10, peak 14, build 42, base before - the same blocks the
+   Training load chart draws). It fills empty days only unless asked to
+   replace, shows the projected race day before applying, and keeps one Undo.
+   Synced as prefs.planTpl { base:{days:[[ids]x7],rev}, ... }.
+   ══════════════════════════════════════════════════════════════════════════ */
+const BTP_BLOCKS=[['base','Base','#1E88E5'],['build','Build','#e6a100'],['peak','Peak','#E53935'],['taper','Taper','#27ae60']];
+const BTP_DOW=['Mon','Tue','Wed','Thu','Fri','Sat','Sun'];
+let BTP_PLAN=(()=>{try{const v=JSON.parse(localStorage.getItem('br_plan_tpl')||'{}');return v&&typeof v==='object'&&!Array.isArray(v)?v:{};}catch(e){return {};}})();
+let _btpPushT=null,_btpUndo=null,_btpTab='base';
+function btpFromPrefs(p){if(p&&p.planTpl&&typeof p.planTpl==='object'&&!Array.isArray(p.planTpl)){BTP_PLAN=tlMerge(BTP_PLAN,p.planTpl);try{localStorage.setItem('br_plan_tpl',JSON.stringify(BTP_PLAN));}catch(e){}}}
+function btpGet(b){const t=BTP_PLAN[b];const d=(t&&Array.isArray(t.days)&&t.days.length===7)?t.days.map(x=>Array.isArray(x)?x.slice():[]):[[],[],[],[],[],[],[]];return d;}
+function btpSet(b,days){
+  BTP_PLAN[b]={days,rev:Date.now()};
+  try{localStorage.setItem('br_plan_tpl',JSON.stringify(BTP_PLAN));}catch(e){}
+  try{if(!AnalyserDrive.isSignedIn())return;}catch(e){return;}
+  clearTimeout(_btpPushT);
+  _btpPushT=setTimeout(()=>{AnalyserDrive.pullPrefs().then(cur=>{if(cur)btpFromPrefs(cur);return AnalyserDrive.pushPrefs({planTpl:BTP_PLAN});}).catch(()=>{});},1500);
+}
+function btpBlockFor(dd){return dd<=10?'taper':dd<=24?'peak':dd<=66?'build':'base';}
+function btpWkt(id){return (WORKOUTS_DB||[]).find(w=>w&&w.id===id&&!w.deleted)||null;}
+function btpWeekLoad(days){let L=0;days.forEach(ids=>ids.forEach(id=>{const w=btpWkt(id);if(w)L+=tlWktLoad(w,0).load;}));return L;}
+/* The day-by-day changes a fill would make, as {day:[ids]}. */
+function btpFillChanges(startK,raceK,replace){
+  const out={},blocks={};let n=0,skipped=0;
+  for(let k=startK;k<raceK;k=tlAddDays(k,1)){
+    const dd=Math.round((new Date(raceK+'T12:00:00')-new Date(k+'T12:00:00'))/86400000);
+    const dow=(new Date(k+'T12:00:00').getDay()+6)%7,ids=btpGet(btpBlockFor(dd))[dow].filter(id=>btpWkt(id));
+    blocks[btpBlockFor(dd)]=1;
+    const cur=planIds(k);
+    if(cur.length&&!replace){skipped++;continue;}
+    if(!ids.length&&!cur.length)continue;
+    out[k]=ids;n++;
+  }
+  return{changes:out,n,skipped,blocks};
+}
+function btpProject(changes){
+  const save=WKT_PLAN,tmp={...WKT_PLAN};
+  Object.keys(changes).forEach(k=>{tmp[k]={ids:changes[k],rev:1};});
+  WKT_PLAN=tmp;let D;try{D=tlDaily();}finally{WKT_PLAN=save;}
+  const i=D.target?D.days.indexOf(D.target.day):-1;
+  return i<0?null:{ac:D.fat[i],ch:D.fit[i],ra:D.form[i]};
+}
+function btpOpen(){
+  if(_wktCtx){toast('Templates are for your own plan, not the squad plan');return;}
+  document.getElementById('_btp_modal')?.remove();
+  const ov=document.createElement('div');ov.id='_btp_modal';
+  ov.style.cssText='position:fixed;inset:0;background:rgba(0,0,0,.72);display:flex;align-items:center;justify-content:center;z-index:9000;padding:16px;';
+  document.body.appendChild(ov);
+  ov.onclick=e=>{if(e.target===ov)btpClose();};
+  btpDraw();
+}
+function btpClose(){document.getElementById('_btp_modal')?.remove();try{renderStartupCalendar();}catch(e){}try{renderLoadPanel();}catch(e){}}
+function btpDraw(){
+  const ov=document.getElementById('_btp_modal');if(!ov)return;
+  const IN='padding:6px 8px;background:var(--s2);border:1px solid var(--border);border-radius:6px;color:var(--text);font-size:13px;font-family:inherit;';
+  const lib=(WORKOUTS_DB||[]).filter(w=>w&&!w.deleted&&Array.isArray(w.steps)).sort((a,b)=>String(_wktDispName(a)).localeCompare(String(_wktDispName(b))));
+  const days=btpGet(_btpTab),todayK=_dayKey(Date.now());
+  const races=tlRaces().filter(r=>r.day>todayK),tgt=races.find(r=>r.pri==='A')||races[0]||null;
+  const tab=BTP_BLOCKS.find(b=>b[0]===_btpTab);
+  let h='<div style="background:var(--s1);border:1px solid var(--border);border-top:6px solid '+tab[2]+';border-radius:12px;padding:16px;max-width:620px;width:100%;max-height:90vh;overflow-y:auto;color:var(--text);font-family:-apple-system,BlinkMacSystemFont,Helvetica Neue,sans-serif;">'
+    +'<div style="font-size:1rem;font-weight:800;margin-bottom:2px;">Block templates</div>'
+    +'<div style="font-size:12px;opacity:.75;margin-bottom:10px;line-height:1.4;">Set a typical week for each training block, then fill the calendar back from your race in one go.</div>'
+    +(()=>{const n=rpeMissing().length;return n?'<div style="font-size:12px;margin-bottom:10px;padding:6px 10px;border-radius:8px;border-left:4px solid #8e44ad;background:var(--s2);">'+n+' workout'+(n===1?' has':'s have')+' no planned effort (shown with ?), so loads use a guess. <a href="#" id="btp-rpe" style="color:#8e44ad;font-weight:700;">Set efforts</a></div>':'';})()
+    +'<div style="display:flex;gap:6px;margin-bottom:10px;">'+BTP_BLOCKS.map(b=>{const on=b[0]===_btpTab,n=btpGet(b[0]).reduce((s,x)=>s+x.length,0);return '<button data-btp-tab="'+b[0]+'" style="flex:1;padding:8px 4px;border-radius:8px;border:2px solid '+b[2]+';background:'+(on?b[2]:'transparent')+';color:'+(on?'#fff':b[2])+';font-weight:800;font-size:13px;cursor:pointer;font-family:inherit;">'+b[1]+(n?' ('+n+')':'')+'</button>';}).join('')+'</div>';
+  days.forEach((ids,di)=>{
+    h+='<div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap;padding:6px 0;border-top:1px solid var(--border);font-size:13px;"><span style="width:34px;font-weight:800;">'+BTP_DOW[di]+'</span>';
+    ids.forEach((id,j)=>{const w=btpWkt(id);h+='<span style="display:inline-flex;align-items:center;gap:4px;padding:3px 4px 3px 8px;border-radius:12px;background:var(--s2);border:1px solid var(--border);'+(w?'':'opacity:.5;')+'">'+(w?_secEsc(_wktDispName(w)):'(deleted)')+'<button data-btp-rm="'+di+'_'+j+'" title="Remove" style="border:none;background:none;color:var(--muted);cursor:pointer;font-size:14px;padding:0 4px;">&times;</button></span>';});
+    h+='<select data-btp-add="'+di+'" style="'+IN+'margin-left:auto;max-width:170px;"><option value="">'+(ids.length?'+ add':'Rest day &middot; + add')+'</option>'+lib.map(w=>'<option value="'+_secEsc(w.id)+'">'+_secEsc(_wktDispName(w))+' (effort '+rpeOf(w)+(w.rpe?'':'?')+')'+'</option>').join('')+'</select></div>';
+  });
+  const wl=btpWeekLoad(days);
+  h+='<div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;font-size:12px;padding:8px 0;border-top:1px solid var(--border);"><span style="flex:1;">Week load about <b>'+wl+'</b> (Garmin scale)</span>'
+    +'<button id="btp-copy" class="filt-chip" style="font-size:12px;padding:5px 10px;" title="Copy the Mon-Sun week containing the selected calendar day">Copy selected week</button>'
+    +'<button id="btp-clear" class="filt-chip" style="font-size:12px;padding:5px 10px;">Clear</button></div>';
+  /* fill */
+  const nextMon=(()=>{const d=new Date(todayK+'T12:00:00');const dw=(d.getDay()+6)%7;d.setDate(d.getDate()+(dw?7-dw:0));return _dayKey(d.getTime());})();
+  h+='<div style="margin-top:6px;padding:10px;border-radius:8px;background:var(--s2);border:1px solid var(--border);">'
+    +'<div style="font-size:13px;font-weight:800;margin-bottom:6px;">Fill plan</div>';
+  if(!tgt)h+='<div style="font-size:12px;color:var(--muted);">No race ahead. Add a calendar event and mark it as an A race first.</div>';
+  else{
+    const dd=Math.round((new Date(tgt.day+'T12:00:00')-new Date(todayK+'T12:00:00'))/86400000);
+    h+='<div style="font-size:12px;margin-bottom:8px;">Towards <b>'+tgt.pri+' race: '+_secEsc(tgt.text)+'</b>, '+new Date(tgt.day+'T12:00:00').toLocaleDateString('en-AU',{weekday:'short',day:'numeric',month:'short',year:'numeric'})+' ('+dd+' days)</div>'
+      +'<div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;font-size:12px;margin-bottom:8px;"><label>From <input id="btp-start" type="date" value="'+(window._btpStart||todayK)+'" min="'+todayK+'" max="'+tlAddDays(tgt.day,-1)+'" style="'+IN+'"></label>'
+      +'<button id="btp-mon" class="filt-chip" style="font-size:11px;padding:4px 8px;">Next Monday</button>'
+      +'<label style="display:flex;align-items:center;gap:5px;"><input id="btp-rep" type="checkbox"'+(window._btpRep?' checked':'')+'> Replace days already planned</label></div>';
+    const startK=window._btpStart||todayK,F=btpFillChanges(startK,tgt.day,!!window._btpRep),P=btpProject(F.changes);
+    const cnt={};Object.keys(F.changes).forEach(k=>{const dd2=Math.round((new Date(tgt.day+'T12:00:00')-new Date(k+'T12:00:00'))/86400000);const b=btpBlockFor(dd2);cnt[b]=(cnt[b]||0)+1;});
+    const empty=BTP_BLOCKS.filter(b=>F.blocks[b[0]]&&!btpGet(b[0]).some(x=>x.length)).map(b=>b[1]);
+    h+='<div style="font-size:12px;line-height:1.5;margin-bottom:8px;">'+F.n+' day'+(F.n===1?'':'s')+' to fill'+(F.skipped?', '+F.skipped+' already planned day'+(F.skipped===1?'':'s')+' left alone':'')+'.'
+      +(Object.keys(cnt).length?'<br>'+BTP_BLOCKS.filter(b=>cnt[b[0]]).map(b=>'<span style="color:'+b[2]+';font-weight:700;">'+b[1]+' '+cnt[b[0]]+'</span>').join(' &middot; '):'')
+      +(empty.length?'<br><span style="color:#e67e22;font-weight:700;">'+empty.join(', ')+' template'+(empty.length===1?' is':'s are')+' empty, so '+(empty.length===1?'that block is':'those blocks are')+' left unplanned.</span>':'')
+      +(P?'<br>Projected race day after filling: acute '+Math.round(P.ac)+', chronic '+Math.round(P.ch)+', ratio '+(P.ch>=30?P.ra.toFixed(2):'&ndash;'):'')+'</div>'
+      +'<div style="display:flex;gap:8px;"><button id="btp-fill"'+(F.n?'':' disabled')+' style="flex:2;padding:10px 0;background:#27ae60;border:none;color:#fff;border-radius:8px;font-weight:800;cursor:pointer;font-family:inherit;'+(F.n?'':'opacity:.4;')+'">Fill '+F.n+' day'+(F.n===1?'':'s')+'</button>'
+      +(_btpUndo?'<button id="btp-undo" style="flex:1;padding:10px 0;background:transparent;border:2px solid #e67e22;color:#e67e22;border-radius:8px;font-weight:800;cursor:pointer;font-family:inherit;">Undo last fill</button>':'')+'</div>';
+  }
+  h+='</div><button id="btp-done" style="width:100%;margin-top:12px;padding:10px 0;background:#1E88E5;border:1px solid #1E88E5;color:#fff;border-radius:8px;font-weight:800;cursor:pointer;font-family:inherit;">Done</button></div>';
+  ov.innerHTML=h;
+  ov.querySelectorAll('[data-btp-tab]').forEach(b=>{b.onclick=()=>{_btpTab=b.dataset.btpTab;btpDraw();};});
+  ov.querySelectorAll('[data-btp-rm]').forEach(b=>{b.onclick=()=>{const [di,j]=b.dataset.btpRm.split('_').map(Number);const d=btpGet(_btpTab);d[di].splice(j,1);btpSet(_btpTab,d);btpDraw();};});
+  ov.querySelectorAll('[data-btp-add]').forEach(s=>{s.onchange=()=>{if(!s.value)return;const d=btpGet(_btpTab);d[+s.dataset.btpAdd].push(s.value);btpSet(_btpTab,d);btpDraw();};});
+  const g=id=>document.getElementById(id);
+  g('btp-clear').onclick=()=>{if(!confirm('Clear the '+tab[1]+' template?'))return;btpSet(_btpTab,[[],[],[],[],[],[],[]]);btpDraw();};
+  g('btp-copy').onclick=()=>{
+    const sel=(typeof _calSel!=='undefined'&&_calSel)?_calSel:todayK,d=new Date(sel+'T12:00:00');d.setDate(d.getDate()-(d.getDay()+6)%7);
+    const mon=_dayKey(d.getTime()),wk=[0,1,2,3,4,5,6].map(i=>planIds(tlAddDays(mon,i)).filter(id=>btpWkt(id)));
+    if(!wk.some(x=>x.length)){toast('No workouts planned in the week of '+new Date(mon+'T12:00:00').toLocaleDateString('en-AU',{day:'numeric',month:'short'}));return;}
+    if(btpGet(_btpTab).some(x=>x.length)&&!confirm('Replace the '+tab[1]+' template with the week of '+new Date(mon+'T12:00:00').toLocaleDateString('en-AU',{day:'numeric',month:'short'})+'?'))return;
+    btpSet(_btpTab,wk);btpDraw();
+  };
+  g('btp-done').onclick=btpClose;
+  if(g('btp-rpe'))g('btp-rpe').onclick=e=>{e.preventDefault();rpeOpen();};
+  if(g('btp-start')){
+    g('btp-start').onchange=()=>{window._btpStart=g('btp-start').value||null;btpDraw();};
+    g('btp-mon').onclick=()=>{window._btpStart=nextMon<tgt.day?nextMon:null;btpDraw();};
+    g('btp-rep').onchange=()=>{window._btpRep=g('btp-rep').checked;btpDraw();};
+    g('btp-fill').onclick=()=>{
+      const F=btpFillChanges(window._btpStart||todayK,tgt.day,!!window._btpRep);if(!F.n)return;
+      if(window._btpRep&&!confirm('This replaces the workouts already planned on '+F.n+' days. Continue?'))return;
+      const undo={};Object.keys(F.changes).forEach(k=>{undo[k]=planIds(k);WKT_PLAN[k]={ids:F.changes[k],rev:Date.now()};});
+      _btpUndo=undo;savePlan();toast('Filled '+F.n+' days');btpDraw();
+    };
+    if(g('btp-undo'))g('btp-undo').onclick=()=>{const u=_btpUndo;if(!u)return;Object.keys(u).forEach(k=>{WKT_PLAN[k]={ids:u[k],rev:Date.now()};});_btpUndo=null;savePlan();toast('Fill undone');btpDraw();};
+  }
+}
+/* ══════════════════════════════════════════════════════════════════════════
+   WORKOUT EFFORT GUESS (17 Nov). A workout with no planned effort uses a
+   guess instead of a flat 7: the built-in workouts have set values, others
+   are read from the name (race / test 9, easy 3, steady / UT2 4, UT1 5,
+   threshold 6) or from the pieces (one long piece 4, 25-50 min 5, shorter 7;
+   repeats of 2 min or less 8, to 5 min 8, to 10 min 7, longer 6). "Set
+   efforts" lists every workout without one, with the guess picked, to save.
+   ══════════════════════════════════════════════════════════════════════════ */
+const RPE_DEFAULTS={default_race1000:9,default_baseline_ladder_v2:6,default_erg_8x500:8};
+function rpeGuess(w){
+  if(!w)return TL_PLAN_RPE;
+  if(RPE_DEFAULTS[w.id])return RPE_DEFAULTS[w.id];
+  const n=String(w.name||'').toLowerCase();
+  if(/\b(race|test|time ?trial|tt|max|all ?out)\b/.test(n))return 9;
+  if(/\b(easy|recovery|recover|light|paddle|technique|drills?|warm ?down)\b/.test(n))return 3;
+  if(/\b(steady|ut2|long|aerobic|base|endurance)\b/.test(n))return 4;
+  if(/\but1\b/.test(n))return 5;
+  if(/\b(at|threshold|tempo)\b/.test(n))return 6;
+  const pieces=[];
+  const walk=(steps,mult)=>(steps||[]).forEach(s=>{if(!s)return;if(s.type==='repeat'){walk(s.steps,mult*(s.count||1));return;}if(s.type==='work'){const m=tlStepMin(s);for(let i=0;i<mult;i++)pieces.push(m);}});
+  walk(w.steps,1);
+  const tot=pieces.reduce((a,b)=>a+b,0);
+  if(!pieces.length||!tot)return TL_PLAN_RPE;
+  if(pieces.length===1)return tot>=50?4:tot>=25?5:7;
+  const avg=tot/pieces.length;
+  return avg<=5?8:avg<=10?7:6;
+}
+function rpeOf(w){return (w&&w.rpe)||rpeGuess(w);}
+function rpeMissing(){let W;try{W=_pW();}catch(e){W=WORKOUTS_DB;}return (W||[]).filter(w=>w&&!w.deleted&&Array.isArray(w.steps)&&!w.rpe);}
+function rpeOpen(){
+  document.getElementById('_rpe_modal')?.remove();
+  const list=rpeMissing().sort((a,b)=>String(_wktDispName(a)).localeCompare(String(_wktDispName(b))));
+  const ov=document.createElement('div');ov.id='_rpe_modal';
+  ov.style.cssText='position:fixed;inset:0;background:rgba(0,0,0,.72);display:flex;align-items:center;justify-content:center;z-index:9100;padding:16px;';
+  const IN='padding:6px 8px;background:var(--s2);border:1px solid var(--border);border-radius:6px;color:var(--text);font-size:13px;font-family:inherit;';
+  const rows=list.map(w=>{const g=rpeGuess(w),r=tlWktLoad({...w,rpe:g},0);
+    return '<div style="display:flex;align-items:center;gap:8px;padding:6px 0;border-top:1px solid var(--border);font-size:13px;"><span style="flex:1;min-width:0;">'+_secEsc(_wktDispName(w))+' <span style="color:var(--muted);font-size:11px;">&middot; '+(w.venue==='erg'?'erg':'water')+' &middot; '+r.min+' min</span></span>'
+      +'<select data-rpe-w="'+_secEsc(w.id)+'" style="'+IN+'">'+[1,2,3,4,5,6,7,8,9,10].map(n=>'<option value="'+n+'"'+(n===g?' selected':'')+'>Effort '+n+(n===g?' (guess)':'')+'</option>').join('')+'</select></div>';}).join('');
+  ov.innerHTML='<div style="background:var(--s1);border:1px solid var(--border);border-top:6px solid #8e44ad;border-radius:12px;padding:16px;max-width:560px;width:100%;max-height:86vh;display:flex;flex-direction:column;color:var(--text);font-family:-apple-system,BlinkMacSystemFont,Helvetica Neue,sans-serif;">'
+    +'<div style="font-size:1rem;font-weight:800;margin-bottom:2px;">Set workout efforts</div>'
+    +'<div style="font-size:12px;opacity:.75;margin-bottom:8px;line-height:1.4;">Planned effort of the work pieces, 1 easy to 10 flat out. Each one starts on a guess from its name and pieces; change any that are wrong, then save. Until saved, the guess is used for projected load.</div>'
+    +'<div style="overflow-y:auto;flex:1;min-height:0;padding-right:4px;">'+(rows||'<div style="font-size:13px;color:var(--muted);">Every workout already has an effort.</div>')+'</div>'
+    +'<div style="display:flex;gap:8px;margin-top:12px;"><button id="rpe-cancel" style="flex:1;padding:10px 0;background:transparent;border:1px solid var(--border);color:var(--text);border-radius:8px;font-weight:700;cursor:pointer;font-family:inherit;">Cancel</button>'
+    +(list.length?'<button id="rpe-save" style="flex:2;padding:10px 0;background:#8e44ad;border:none;color:#fff;border-radius:8px;font-weight:800;cursor:pointer;font-family:inherit;">Save '+list.length+'</button>':'')+'</div></div>';
+  document.body.appendChild(ov);
+  const close=()=>{ov.remove();try{renderLoadPanel();}catch(e){}try{if(document.getElementById('_btp_modal'))btpDraw();}catch(e){}};
+  ov.onclick=e=>{if(e.target===ov)close();};
+  document.getElementById('rpe-cancel').onclick=close;
+  const sv=document.getElementById('rpe-save');
+  if(sv)sv.onclick=()=>{
+    let W;try{W=_pW();}catch(e){W=WORKOUTS_DB;}const now=Date.now();let n=0;
+    ov.querySelectorAll('[data-rpe-w]').forEach(s=>{const w=(W||[]).find(x=>x&&x.id===s.dataset.rpeW);if(w){w.rpe=+s.value;w.rev=now;n++;}});
+    try{saveWorkoutsDB();}catch(e){}
+    try{toast('Effort set on '+n+' workout'+(n===1?'':'s'));}catch(e){}
+    close();
+  };
+}
+/* ══════════════════════════════════════════════════════════════════════════
+   SQUAD LOAD (17 Nov).
+   Athlete: "Share with squad coach" in the Training load panel, off by
+   default, per squad. When on, a summary is written to
+   /squads/<CODE>/load/<firebase uid>: name, last 56 days of daily load,
+   acute / chronic per day, today's ratio, last 14 check-ins, next race.
+   Rewritten when it changes; deleted when sharing is turned off.
+   Coach: in a squad's view, the Squad load table reads it back through the
+   squad worker (password checked) - one row per athlete, riskiest first.
+   ══════════════════════════════════════════════════════════════════════════ */
+let LOAD_SHARE=(()=>{try{const v=JSON.parse(localStorage.getItem('br_load_share')||'{}');return v&&typeof v==='object'&&!Array.isArray(v)?v:{};}catch(e){return {};}})();   // {codes:{CODE:1}, name, rev}
+let _sqlPubT=null,_sqlCache={},_sqlOpen=null;
+function sqlUid(){try{const u=fbAuth.currentUser;return u?u.uid:null;}catch(e){return null;}}
+function sqlName(){if(LOAD_SHARE.name)return LOAD_SHARE.name;try{const u=fbAuth.currentUser;if(u&&u.displayName)return u.displayName;}catch(e){}return 'Rower';}
+function sqlFromPrefs(p){if(p&&p.loadShare&&typeof p.loadShare==='object'&&(p.loadShare.rev||0)>(LOAD_SHARE.rev||0)){LOAD_SHARE=p.loadShare;try{localStorage.setItem('br_load_share',JSON.stringify(LOAD_SHARE));}catch(e){}}}
+function sqlSaveShare(){
+  LOAD_SHARE.rev=Date.now();try{localStorage.setItem('br_load_share',JSON.stringify(LOAD_SHARE));}catch(e){}
+  try{if(AnalyserDrive.isSignedIn())AnalyserDrive.pullPrefs().then(()=>AnalyserDrive.pushPrefs({loadShare:LOAD_SHARE})).catch(()=>{});}catch(e){}
+}
+function sqlSummary(D){
+  const ti=D.ti,o=Math.max(0,ti-55),todayK=_dayKey(Date.now());
+  const sl=a=>a.slice(o,ti+1).map(v=>Math.round(v));
+  const well={};for(let i=0;i<14;i++){const k=tlAddDays(todayK,-i),w=WELLNESS[k];if(w)well[k]={s:w.sleep||0,so:w.sore||0,e:w.energy||0,rhr:w.rhr||0,hrv:w.hrv||0};}
+  const r=D.target?{day:D.target.day,pri:D.target.pri,text:String(D.target.text||'').slice(0,60)}:null;
+  return{name:sqlName().slice(0,40),from:D.days[o],load:sl(D.load),ac:sl(D.fat),ch:sl(D.fit),ra:D.fit[ti]>=30?+D.form[ti].toFixed(2):null,well,race:r};
+}
+function sqlPublishSoon(D){
+  if(_wktCtx)return;
+  const codes=Object.keys((LOAD_SHARE.codes)||{}).filter(c=>LOAD_SHARE.codes[c]);
+  const uid=sqlUid();if(!codes.length||!uid)return;
+  clearTimeout(_sqlPubT);
+  _sqlPubT=setTimeout(()=>{
+    const s=sqlSummary(D),sig=JSON.stringify(s);
+    const todo=codes.filter(c=>{let last='';try{last=localStorage.getItem('br_sql_sig_'+c)||'';}catch(e){}return last!==sig;});
+    if(!todo.length)return;
+    navFbAuth().then(a=>{if(!a)return;todo.forEach(c=>{
+      fetch(SQ_FB_BASE+'/squads/'+c+'/load/'+a.uid+'.json?auth='+encodeURIComponent(a.tok),{method:'PUT',body:JSON.stringify({...s,t:Date.now()})})
+        .then(r=>{if(r.ok){try{localStorage.setItem('br_sql_sig_'+c,sig);}catch(e){}}}).catch(()=>{});
+    });}).catch(()=>{});
+  },4000);
+}
+function sqlSetShare(code,on){
+  LOAD_SHARE.codes=LOAD_SHARE.codes||{};
+  if(on)LOAD_SHARE.codes[code]=1;else delete LOAD_SHARE.codes[code];
+  try{localStorage.removeItem('br_sql_sig_'+code);}catch(e){}
+  if(!on)navFbAuth().then(a=>{if(a)fetch(SQ_FB_BASE+'/squads/'+code+'/load/'+a.uid+'.json?auth='+encodeURIComponent(a.tok),{method:'DELETE'}).catch(()=>{});}).catch(()=>{});
+  sqlSaveShare();renderLoadPanel();
+}
+/* Athlete's share row, at the foot of the Training load panel. */
+function sqlShareHtml(){
+  if(_wktCtx)return '';
+  let sqs=[];try{sqs=pvSquads();}catch(e){}
+  if(!sqs.length)return '';
+  const uid=sqlUid(),on=LOAD_SHARE.codes||{};
+  let h='<div style="margin-top:10px;padding-top:8px;border-top:1px solid var(--border);font-size:12px;"><b>Share with squad coach</b> <span style="color:var(--muted);">(load, ratio and check-ins; off until you turn it on)</span><div style="display:flex;gap:6px;flex-wrap:wrap;align-items:center;margin-top:6px;">';
+  if(!uid)h+='<span style="color:var(--muted);">Sign in to share.</span>';
+  else{
+    sqs.forEach(s=>{const o=!!on[s.code];h+='<button data-sql-code="'+_secEsc(s.code)+'" class="filt-chip'+(o?' on':'')+'" style="font-size:12px;padding:5px 11px;">'+(o?'&#10003; ':'')+_secEsc(s.name||s.code)+'</button>';});
+    h+='<input id="sql-name" type="text" maxlength="40" placeholder="Name shown to coach" value="'+_secEsc(LOAD_SHARE.name||'')+'" style="padding:5px 8px;background:var(--s2);border:1px solid var(--border);border-radius:6px;color:var(--text);font-size:12px;font-family:inherit;width:150px;">';
+  }
+  return h+'</div></div>';
+}
+function sqlBindShare(el){
+  el.querySelectorAll('[data-sql-code]').forEach(b=>{b.onclick=()=>{const c=b.dataset.sqlCode,on=!((LOAD_SHARE.codes||{})[c]);
+    if(on&&!confirm('Share your training load, load ratio and daily check-ins (sleep, soreness, energy, resting HR, HRV) with the coach of squad '+c+'?\n\nAnyone with the squad password can see it. You can turn it off at any time, which removes it.'))return;
+    sqlSetShare(c,on);};});
+  const nm=el.querySelector('#sql-name');if(nm)nm.onchange=()=>{LOAD_SHARE.name=nm.value.trim().slice(0,40);Object.keys(LOAD_SHARE.codes||{}).forEach(c=>{try{localStorage.removeItem('br_sql_sig_'+c);}catch(e){}});sqlSaveShare();renderLoadPanel();};
+}
+/* ── coach view ─────────────────────────────────────────────────────────── */
+async function sqlFetch(code,force){
+  const c=_sqlCache[code];
+  if(c&&!force&&Date.now()-c.t<60000)return c;
+  const out={t:Date.now(),data:null,err:null};
+  try{const r=await fetch(sqProxy(code,'load'));if(r.status===403)out.err='worker';else if(r.status===401)out.err='password';else if(!r.ok)out.err='HTTP '+r.status;else out.data=(await r.json())||{};}catch(e){out.err='offline';}
+  _sqlCache[code]=out;return out;
+}
+function sqlSpark(arr,w,h,col){
+  if(!arr||!arr.length)return '';
+  const mx=Math.max(1,...arr),bw=w/arr.length;
+  return '<svg width="'+w+'" height="'+h+'" style="display:block;">'+arr.map((v,i)=>{const bh=v/mx*h;return v>0?'<rect x="'+(i*bw).toFixed(1)+'" y="'+(h-bh).toFixed(1)+'" width="'+Math.max(1,bw-0.6).toFixed(1)+'" height="'+bh.toFixed(1)+'" style="fill:'+col+';opacity:.75"/>':'';}).join('')+'</svg>';
+}
+function sqlDetail(a){
+  const n=a.load.length,W=560,H=150,mx=Math.max(1,...a.load,...a.ac,...a.ch)*1.1,x=i=>i/(Math.max(1,n-1))*W,y=v=>H-v/mx*H;
+  const path=arr=>arr.map((v,i)=>(i?'L':'M')+x(i).toFixed(1)+' '+y(v).toFixed(1)).join(' ');
+  let s='<svg viewBox="0 0 '+W+' '+(H+14)+'" style="width:100%;height:auto;display:block;">';
+  a.load.forEach((v,i)=>{if(v>0)s+='<rect x="'+(x(i)-3).toFixed(1)+'" y="'+y(v).toFixed(1)+'" width="5" height="'+(H-y(v)).toFixed(1)+'" style="fill:var(--muted);opacity:.35"/>';});
+  s+='<path d="'+path(a.ch)+'" fill="none" stroke="#1E88E5" stroke-width="2.5"/><path d="'+path(a.ac)+'" fill="none" stroke="#E53935" stroke-width="1.8"/>';
+  const d0=new Date(a.from+'T12:00:00');
+  for(let i=0;i<n;i++){const d=new Date(d0);d.setDate(d.getDate()+i);if(d.getDate()===1)s+='<text x="'+(x(i)+3).toFixed(1)+'" y="'+(H+11)+'" font-size="9" style="fill:var(--muted)">'+d.toLocaleDateString('en-AU',{month:'short'})+'</text>';}
+  s+='</svg>';
+  const todayK=_dayKey(Date.now());let wl='';
+  for(let i=13;i>=0;i--){const k=tlAddDays(todayK,-i),w=(a.well||{})[k];const r=w?tlReady({sleep:w.s,sore:w.so,energy:w.e}):null;
+    wl+='<span title="'+k+(w?': sleep '+w.s+', soreness '+w.so+', energy '+w.e+(w.rhr?', RHR '+w.rhr:'')+(w.hrv?', HRV '+w.hrv:''):': no check-in')+'" style="flex:1;height:10px;border-radius:2px;background:'+(r!=null?tlReadyCol(r):'var(--s2)')+';border:1px solid var(--border);"></span>';}
+  return '<div style="padding:8px 0 10px;">'+s
+    +'<div style="font-size:10px;color:var(--muted);margin:2px 0 4px;"><span style="color:#E53935;">&#9473; acute</span> &nbsp;<span style="color:#1E88E5;">&#9473; chronic</span> &nbsp;bars = daily load, last 8 weeks</div>'
+    +'<div style="font-size:11px;font-weight:700;margin-top:6px;">Check-ins, last 14 days</div><div style="display:flex;gap:2px;margin-top:3px;">'+wl+'</div>'
+    +(a.race?'<div style="font-size:12px;margin-top:6px;">Next race: <b>'+a.race.pri+' &middot; '+_secEsc(a.race.text)+'</b>, '+new Date(a.race.day+'T12:00:00').toLocaleDateString('en-AU',{day:'numeric',month:'short'})+'</div>':'')+'</div>';
+}
+async function sqlRender(){
+  const el=document.getElementById('sz-sqload');if(!el)return;
+  const code=_wktCtx;
+  if(!code){el.style.display='none';return;}
+  el.style.display='';
+  if(!_sqlCache[code])el.innerHTML='<div class="sz-lhd">Squad load</div><div style="font-size:12px;color:var(--muted);">Loading&hellip;</div>';
+  const res=await sqlFetch(code);if(_wktCtx!==code)return;
+  let h='<div class="sz-lhd" style="display:flex;align-items:center;gap:8px;">Squad load<button id="sql-refresh" class="filt-chip" style="margin-left:auto;font-size:12px;padding:5px 12px;">Refresh</button></div>';
+  if(res.err){
+    h+='<div style="font-size:12px;color:#e74c3c;">'+(res.err==='worker'?'The squad server does not allow reading load yet (update the boatrun-squad worker).':res.err==='password'?'Squad password needed.':'Could not load ('+_secEsc(res.err)+').')+'</div>';
+  }else{
+    const now=Date.now(),todayK=_dayKey(now);
+    const rows=Object.keys(res.data||{}).map(id=>({id,...res.data[id]})).filter(a=>a&&Array.isArray(a.load)&&Array.isArray(a.ac)&&Array.isArray(a.ch));
+    if(!rows.length)h+='<div style="font-size:12px;color:var(--muted);line-height:1.5;">No athletes are sharing yet. Each athlete turns on "Share with squad coach" for this squad in their own Analyser Training load panel.</div>';
+    else{
+      const risk=a=>(a.ra!=null&&a.ra>1.4?3:0)+((()=>{const w=(a.well||{})[todayK];const r=w?tlReady({sleep:w.s,sore:w.so,energy:w.e}):null;return r!=null&&r<2.7?2:0;})())+(a.ra!=null&&a.ra<0.8?1:0);
+      rows.sort((p,q)=>risk(q)-risk(p)||String(p.name).localeCompare(String(q.name)));
+      const TH='text-align:left;font-size:10px;font-weight:700;letter-spacing:.05em;text-transform:uppercase;color:var(--muted);padding:4px 6px;border-bottom:1px solid var(--border);';
+      h+='<div style="overflow-x:auto;"><table style="width:100%;border-collapse:collapse;font-size:13px;"><tr><th style="'+TH+'">Athlete</th><th style="'+TH+'text-align:right;">Acute</th><th style="'+TH+'text-align:right;">Chronic</th><th style="'+TH+'text-align:right;">Ratio</th><th style="'+TH+'">Today</th><th style="'+TH+'">8 weeks</th><th style="'+TH+'text-align:right;">Updated</th></tr>';
+      rows.forEach(a=>{
+        const n=a.load.length,ac=a.ac[n-1]||0,ch=a.ch[n-1]||0,fw=tlFormWord(a.ra||0,ch),w=(a.well||{})[todayK],rd=w?tlReady({sleep:w.s,sore:w.so,energy:w.e}):null;
+        const age=a.t?Math.floor((now-a.t)/86400000):null,stale=age==null||age>=3;
+        const TD='padding:6px;border-bottom:1px solid var(--border);'+(stale?'opacity:.55;':'');
+        h+='<tr data-sql-row="'+_secEsc(a.id)+'" style="cursor:pointer;"><td style="'+TD+'font-weight:700;">'+_secEsc(a.name||'Rower')+'</td><td style="'+TD+'text-align:right;">'+ac+'</td><td style="'+TD+'text-align:right;">'+ch+'</td>'
+          +'<td style="'+TD+'text-align:right;font-weight:800;color:'+(fw[1]==='var(--muted)'?'var(--text)':fw[1])+';">'+(a.ra!=null?a.ra.toFixed(2):'&ndash;')+'</td>'
+          +'<td style="'+TD+'">'+(rd!=null?'<span title="sleep '+w.s+', soreness '+w.so+', energy '+w.e+'" style="display:inline-block;width:12px;height:12px;border-radius:50%;background:'+tlReadyCol(rd)+';vertical-align:middle;"></span>':'<span style="color:var(--muted);">&ndash;</span>')+'</td>'
+          +'<td style="'+TD+'">'+sqlSpark(a.load,110,22,'var(--muted)')+'</td>'
+          +'<td style="'+TD+'text-align:right;white-space:nowrap;color:'+(stale?'#e67e22':'var(--muted)')+';">'+(age==null?'?':age===0?'today':age+'d ago')+'</td></tr>';
+        if(_sqlOpen===a.id)h+='<tr><td colspan="7" style="border-bottom:1px solid var(--border);">'+sqlDetail(a)+'</td></tr>';
+      });
+      h+='</table></div><div style="font-size:10px;color:var(--muted);margin-top:6px;">Riskiest first: high ratio, then a poor check-in today, then low ratio. Faded rows have not updated for 3 days or more. Tap a row for the athlete’s chart.</div>';
+    }
+  }
+  el.innerHTML=h;
+  const rf=document.getElementById('sql-refresh');if(rf)rf.onclick=()=>{sqlFetch(code,true).then(sqlRender);};
+  el.querySelectorAll('[data-sql-row]').forEach(r=>{r.onclick=()=>{_sqlOpen=_sqlOpen===r.dataset.sqlRow?null:r.dataset.sqlRow;sqlRender();};});
 }
 function renderStartupCalendar(){
   tlRenderSoon();   // 17 Nov: training load panel follows the calendar
