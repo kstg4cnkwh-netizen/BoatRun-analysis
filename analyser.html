@@ -9714,18 +9714,17 @@ function drawCurvePanel(){
   let _rBot=null;
   if(RH){
     const rTop=HB+4,rH=RH-24,mid=rTop+rH/2;_rBot=rTop+rH;
-    let mx=2;enriched.forEach(c=>{if(c.avgRoll)c.avgRoll.forEach(v=>{mx=Math.max(mx,Math.abs(v));});});
-    mx=Math.ceil(mx);
-    const toRY=v=>mid+(v/mx)*(rH/2);
+    const mx=10;   // 17 Nov: fixed +-10 deg (auto-scaling blew small noise up to full height)
+    const toRY=v=>mid+(Math.max(-mx,Math.min(mx,v))/mx)*(rH/2);
     ctx.save();
     ctx.fillStyle='rgba(22,163,74,.07)';ctx.fillRect(PL,rTop,pw,rH/2);
     ctx.fillStyle='rgba(220,38,38,.07)';ctx.fillRect(PL,mid,pw,rH/2);
     ctx.strokeStyle=C.gridLn;ctx.lineWidth=1;
-    [-mx,0,mx].forEach(v=>{const y=toRY(v);ctx.beginPath();ctx.moveTo(PL,y);ctx.lineTo(PL+pw,y);ctx.stroke();});
-    ctx.strokeStyle=C.gridLb;ctx.beginPath();ctx.moveTo(PL,mid);ctx.lineTo(PL+pw,mid);ctx.stroke();
+    [-10,-5,5,10].forEach(v=>{const y=toRY(v);ctx.beginPath();ctx.moveTo(PL,y);ctx.lineTo(PL+pw,y);ctx.stroke();});
+    ctx.strokeStyle=C.gridLb;ctx.lineWidth=1.5;ctx.setLineDash([5,4]);ctx.beginPath();ctx.moveTo(PL,mid);ctx.lineTo(PL+pw,mid);ctx.stroke();ctx.setLineDash([]);ctx.lineWidth=1;   // level
     const F='-apple-system, BlinkMacSystemFont, Helvetica Neue, sans-serif';
     ctx.fillStyle=C.gridLb;ctx.font='12px '+F;ctx.textAlign='right';
-    ctx.fillText(mx+'°',PL-5,toRY(-mx)+4);ctx.fillText('0',PL-5,mid+4);ctx.fillText(mx+'°',PL-5,toRY(mx)+4);
+    [-10,-5,0,5,10].forEach(v=>ctx.fillText(Math.abs(v)+'°',PL-5,toRY(v)+4));
     ctx.save();ctx.translate(11,mid);ctx.rotate(-Math.PI/2);ctx.textAlign='center';ctx.fillStyle=C.muted;ctx.font='700 11px '+F;ctx.fillText('ROLL',0,0);ctx.restore();
     ctx.textAlign='left';ctx.font='700 11px '+F;
     ctx.fillStyle='#16a34a';ctx.fillText('BOW SIDE ↑',PL+6,rTop+13);
@@ -9737,7 +9736,8 @@ function drawCurvePanel(){
       const L=c.avgRoll.length;
       if(c.driveFrac>0){ctx.strokeStyle=c.color;ctx.globalAlpha=.35;ctx.setLineDash([4,4]);const xd=toPx(c.driveFrac*c.T);ctx.beginPath();ctx.moveTo(xd,rTop);ctx.lineTo(xd,rTop+rH);ctx.stroke();ctx.setLineDash([]);ctx.globalAlpha=1;}
       ctx.strokeStyle=c.color;ctx.lineWidth=2.5;ctx.beginPath();
-      c.avgRoll.forEach((v,i)=>{const x=toPx(i/(L-1)*c.T),y=toRY(v);i?ctx.lineTo(x,y):ctx.moveTo(x,y);});
+      const sm=c.avgRoll.map((v,i,a)=>{let s=0,n=0;for(let j=Math.max(0,i-2);j<=Math.min(a.length-1,i+2);j++){s+=a[j];n++;}return s/n;});   // 17 Nov: 5-point smoothing
+      sm.forEach((v,i)=>{const x=toPx(i/(L-1)*c.T),y=toRY(v);i?ctx.lineTo(x,y):ctx.moveTo(x,y);});
       ctx.stroke();
     });
     ctx.restore();
