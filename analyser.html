@@ -14983,6 +14983,7 @@ function tlRaces(){
   Object.keys(it).forEach(k=>{const e=it[k];if(e&&Array.isArray(e.list))e.list.forEach(x=>{if(x.type==='event'&&x.race)out.push({day:k,pri:x.race,text:x.text||'Race'});});});
   return out.sort((p,q)=>p.day<q.day?-1:(p.day>q.day?1:0));
 }
+function tlItemTs(k,x){const m=/^(\d{1,2}):(\d{2})/.exec(String(x&&x.time||''));return new Date(k+'T'+(m?String(m[1]).padStart(2,'0')+':'+m[2]:'12:00')+':00').getTime();}   // other workouts: their time, else midday
 function tlAddDays(k,n){const d=new Date(k+'T12:00:00');d.setDate(d.getDate()+n);return _dayKey(d.getTime());}
 function tlDaily(){
   tlCalibrate();
@@ -14990,8 +14991,8 @@ function tlDaily(){
   const add=(k,v)=>{if(!(v>0))return;by[k]=(by[k]||0)+v;if(k<first)first=k;};
   const sessDays={};
   const items={},push=(k,o)=>{if(o.load>0)(items[k]=items[k]||[]).push(o);};   // 17 Nov: per-day pieces for the stacked bars
-  tlFiles().forEach(x=>{if(!x.p.approxTs)return;const k=_dayKey(x.p.approxTs);if(k>todayK)return;sessDays[k]=1;const r=tlSessLoad(x);add(k,r.load);push(k,{load:r.load,c:x.p.erg?'erg':'water',x,src:r.src});});
-  const it=tlItems();Object.keys(it).forEach(k=>{const e=it[k];if(e&&Array.isArray(e.list))e.list.forEach(x=>{const L=tlOtherLoad(x);add(k,L);if(k<=todayK)push(k,{load:L,c:'other',o:x});});});
+  tlFiles().forEach(x=>{if(!x.p.approxTs)return;const k=_dayKey(x.p.approxTs);if(k>todayK)return;sessDays[k]=1;const r=tlSessLoad(x);add(k,r.load);push(k,{load:r.load,c:x.p.erg?'erg':'water',x,src:r.src,ts:x.p.approxTs});});
+  const it=tlItems();Object.keys(it).forEach(k=>{const e=it[k];if(e&&Array.isArray(e.list))e.list.forEach(x=>{const L=tlOtherLoad(x);add(k,L);if(k<=todayK)push(k,{load:L,c:'other',o:x,ts:tlItemTs(k,x)});});});
   const nPast=Object.keys(by).filter(k=>k<=todayK).length;
   /* ahead: to the next A race (else the next race), at least 4 weeks, at most 26 */
   const races=tlRaces(),ahead=races.filter(r=>r.day>=todayK),target=ahead.find(r=>r.pri==='A')||ahead[0]||null;
@@ -15001,10 +15002,11 @@ function tlDaily(){
   let planned=0;
   for(let k=todayK;k<=endK;k=tlAddDays(k,1)){
     if(k===todayK&&sessDays[k])continue;            // today already rowed: the session counts, not the plan
-    tlPlanFor(k).forEach(p=>{add(k,p.load);push(k,{load:p.load,c:'plan',erg:p.w.venue==='erg',p});planned++;});
+    tlPlanFor(k).forEach(p=>{add(k,p.load);push(k,{load:p.load,c:'plan',erg:p.w.venue==='erg',p,ts:new Date(k+'T23:00:00').getTime()});planned++;});
   }
   const d=new Date(first+'T12:00:00'),end=new Date(endK+'T12:00:00');
   const lim=new Date(todayK+'T12:00:00');lim.setDate(lim.getDate()-400);if(d<lim)d.setTime(lim.getTime());
+  Object.keys(items).forEach(k=>items[k].sort((a,b)=>a.ts-b.ts));   // 17 Nov: first of the day at the bottom of the bar
   const out={days:[],load:[],fit:[],fat:[],form:[],n:nPast,ti:0,races,target,planned,items};
   let fit=0,fat=0;
   while(d<=end){
