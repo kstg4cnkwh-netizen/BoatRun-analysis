@@ -15487,7 +15487,7 @@ function sqlSummary(D){
   const sl=a=>a.slice(o,ti+1).map(v=>Math.round(v));
   const well={};for(let i=0;i<14;i++){const k=tlAddDays(todayK,-i),w=WELLNESS[k];if(w)well[k]={s:w.sleep||0,so:w.sore||0,e:w.energy||0,rhr:w.rhr||0,hrv:w.hrv||0};}
   const r=D.target?{day:D.target.day,pri:D.target.pri,text:String(D.target.text||'').slice(0,60)}:null;
-  return{name:sqlName().slice(0,40),from:D.days[o],load:sl(D.load),ac:sl(D.fat),ch:sl(D.fit),ra:D.fit[ti]>=30?+D.form[ti].toFixed(2):null,well,race:r};
+  return{name:sqlName().slice(0,40),from:D.days[o],load:sl(D.load),ac:sl(D.fat),ch:sl(D.fit),ra:D.fit[ti]>=30?+D.form[ti].toFixed(2):null,well,race:r,src:'analyser'};
 }
 function sqlPublishSoon(D){
   if(_wktCtx)return;
@@ -15523,7 +15523,7 @@ function sqlShareHtml(){
     sqs.forEach(s=>{const o=!!on[s.code];h+='<button data-sql-code="'+_secEsc(s.code)+'" class="filt-chip'+(o?' on':'')+'" style="font-size:12px;padding:5px 11px;">'+(o?'&#10003; ':'')+_secEsc(s.name||s.code)+'</button>';});
     h+='<input id="sql-name" type="text" maxlength="40" placeholder="Name shown to coach" value="'+_secEsc(LOAD_SHARE.name||'')+'" style="padding:5px 8px;background:var(--s2);border:1px solid var(--border);border-radius:6px;color:var(--text);font-size:12px;font-family:inherit;width:150px;">';
   }
-  return h+'</div></div>';
+  return h+'</div><div style="font-size:10px;color:var(--muted);margin-top:4px;">Athletes who only use Metrics can share from Metrics: Settings &gt; Connect squad &gt; Share training load with coach.</div></div>';
 }
 function sqlBindShare(el){
   el.querySelectorAll('[data-sql-code]').forEach(b=>{b.onclick=()=>{const c=b.dataset.sqlCode,on=!((LOAD_SHARE.codes||{})[c]);
@@ -15574,7 +15574,7 @@ async function sqlRender(){
   }else{
     const now=Date.now(),todayK=_dayKey(now);
     const rows=Object.keys(res.data||{}).map(id=>({id,...res.data[id]})).filter(a=>a&&Array.isArray(a.load)&&Array.isArray(a.ac)&&Array.isArray(a.ch));
-    if(!rows.length)h+='<div style="font-size:12px;color:var(--muted);line-height:1.5;">No athletes are sharing yet. Each athlete turns on "Share with squad coach" for this squad in their own Analyser Training load panel.</div>';
+    if(!rows.length)h+='<div style="font-size:12px;color:var(--muted);line-height:1.5;">No athletes are sharing yet. Each athlete turns it on for this squad, either in Metrics (Settings &gt; Connect squad &gt; Share training load with coach) or in their Analyser Training load panel.</div>';
     else{
       const risk=a=>(a.ra!=null&&a.ra>1.4?3:0)+((()=>{const w=(a.well||{})[todayK];const r=w?tlReady({sleep:w.s,sore:w.so,energy:w.e}):null;return r!=null&&r<2.7?2:0;})())+(a.ra!=null&&a.ra<0.8?1:0);
       rows.sort((p,q)=>risk(q)-risk(p)||String(p.name).localeCompare(String(q.name)));
@@ -15588,7 +15588,7 @@ async function sqlRender(){
           +'<td style="'+TD+'text-align:right;font-weight:800;color:'+(fw[1]==='var(--muted)'?'var(--text)':fw[1])+';">'+(a.ra!=null?a.ra.toFixed(2):'&ndash;')+'</td>'
           +'<td style="'+TD+'">'+(rd!=null?'<span title="sleep '+w.s+', soreness '+w.so+', energy '+w.e+'" style="display:inline-block;width:12px;height:12px;border-radius:50%;background:'+tlReadyCol(rd)+';vertical-align:middle;"></span>':'<span style="color:var(--muted);">&ndash;</span>')+'</td>'
           +'<td style="'+TD+'">'+sqlSpark(a.load,110,22,'var(--muted)')+'</td>'
-          +'<td style="'+TD+'text-align:right;white-space:nowrap;color:'+(stale?'#e67e22':'var(--muted)')+';">'+(age==null?'?':age===0?'today':age+'d ago')+'</td></tr>';
+          +'<td style="'+TD+'text-align:right;white-space:nowrap;color:'+(stale?'#e67e22':'var(--muted)')+';">'+(age==null?'?':age===0?'today':age+'d ago')+'<br><span style="font-size:10px;color:var(--muted);">'+(a.src==='metrics'?'from Metrics':'from Analyser')+'</span></td></tr>';
         if(_sqlOpen===a.id)h+='<tr><td colspan="7" style="border-bottom:1px solid var(--border);">'+sqlDetail(a)+'</td></tr>';
       });
       h+='</table></div><div style="font-size:10px;color:var(--muted);margin-top:6px;">Riskiest first: high ratio, then a poor check-in today, then low ratio. Faded rows have not updated for 3 days or more. Tap a row for the athlete’s chart.</div>';
