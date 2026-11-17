@@ -698,7 +698,7 @@ body.light .hdrname{color:#fff;}
   .ms-pill>.pane-grip,.info-row>.pane-grip{flex:none;width:100%;}
   .info-row{flex-wrap:wrap;}
   .info-row>.inpill,.info-row>.info-col{min-width:0;}
-  .pane-grip{display:flex;justify-content:center;align-items:center;height:14px;margin:-6px 0 6px;cursor:grab;touch-action:none;-webkit-user-select:none;user-select:none;}
+  .pane-grip{display:none!important;}   /* 17 Nov: dragging moved panes while scrolling on touch - order is set in View > Pane order */
   .pane-grip span{display:block;width:44px;height:5px;border-radius:3px;background:var(--text);opacity:.35;}
   .pane-grip:hover span{opacity:.7;}
   .pane-drop-before{box-shadow:0 -4px 0 #0a84ff,var(--pill-sh)!important;}
@@ -754,10 +754,16 @@ body.light .hdrname{color:#fff;}
   <button class="hbtn hicon-btn" id="summarybtn" style="display:none;" title="Summary and personal bests"><img class="hicon-img" src="icons/Win.svg"><span class="hicon-txt">Summary</span></button>
   <button class="hbtn hicon-btn" id="wktbtn" title="Create and edit workouts for BoatRun Metrics"><svg class="hicon-img" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M4 6h10M4 12h16M4 18h7"/></svg><span class="hicon-txt">Workouts</span></button>
   <button class="hbtn hicon-btn" id="gdrivebtn" title="Step 1 of 2: sign in to your BoatRun account"><span id="gdrivedot" style="display:inline-block;width:8px;height:8px;border-radius:50%;background:#e67e22;margin-right:5px;"></span><span class="hicon-txt" id="gdrivelabel">Sign in</span></button>
-  <button class="hbtn hicon-btn" id="reorderbtn" title="Reorder and show/hide tiles"><img class="hicon-img" src="icons/Tiles.svg"><span class="hicon-txt">Tiles</span></button>
+  <div class="hmenu-wrap">
+    <button class="hbtn hicon-btn" id="viewmenubtn" title="Tiles, dark or light mode, pane order"><img class="hicon-img" src="icons/Tiles.svg"><span class="hicon-txt">View ▾</span></button>
+    <div class="hmenu" id="viewmenu">
+      <button class="hbtn" id="reorderbtn" title="Reorder and show/hide tiles"><img class="hmenu-icon" src="icons/Tiles.svg"><span>Tiles</span></button>
+      <button class="hbtn" id="hdrThemeBtn"><img class="hmenu-icon" id="hdrThemeIcon" src="icons/Dark.svg"><span id="hdrThemeLabel">Dark Mode</span></button>
+      <button class="hbtn" id="paneorderbtn" title="Change the order of the session panes"><img class="hmenu-icon" src="icons/Tiles.svg"><span>Pane order</span></button>
+    </div>
+  </div>
   <button class="hbtn hicon-btn" id="infobtn" title="What the metrics mean"><img class="hicon-img" src="icons/Metrics.svg"><span class="hicon-txt">Metrics</span></button>
   <a class="hbtn hicon-btn" href="./stroke-curve.html" target="_blank" rel="noopener" title="How to read your stroke curve"><img class="hicon-img" src="icons/Curve.svg"><span class="hicon-txt">Explanation</span></a>
-  <button class="hbtn hicon-btn" id="hdrThemeBtn"><img class="hicon-img" id="hdrThemeIcon" src="icons/Dark.svg"><span class="hicon-txt" id="hdrThemeLabel">Dark Mode</span></button>
   <button class="hbtn hicon-btn" id="planbtn" title="Basic / Pro plan"><img class="hicon-img" src="icons/Lock.svg"><span class="hicon-txt">Subscription</span></button>
   <button class="hbtn hicon-btn" id="aboutbtn" title="How to use BoatRun, and send feedback"><img class="hicon-img" src="icons/About.svg"><span class="hicon-txt">About</span></button>
   </div>
@@ -2240,7 +2246,7 @@ function toggleTheme() {
   try { if (curveGroups.length) drawCurvePanel(); } catch {}
 }
 try { if (localStorage.getItem('br_theme') === 'dark') applyTheme(false); } catch {}
-document.getElementById('hdrThemeBtn').addEventListener('click', toggleTheme);
+document.getElementById('hdrThemeBtn').addEventListener('click', ()=>{ try{document.getElementById('viewmenu').classList.remove('open');}catch{} toggleTheme(); });
 
 // ── Utilities ──────────────────────────────────────────────────────────────
 function arrMin(a){let m=Infinity;for(let i=0;i<a.length;i++)if(a[i]<m)m=a[i];return m;}
@@ -11889,9 +11895,7 @@ async function showStartup(){
     </div>
     </div>
     <div id="sz-coachpane" class="prc-coach">
-      <div class="brpill-row"><button class="dzbtn dzbtn-sec" id="sz-compare"><span>Compare sessions</span></button></div>
       <div id="sz-trhost"></div>
-      <div class="brpill" style="margin-top:14px;"><div class="sz-lhd" style="margin-bottom:8px;">Inside a session</div><div style="font-size:13px;line-height:1.5;margin-bottom:10px;">Video overlay, stroke templates and What drives pace for a selection are in the Coach tools bar of an open session.</div><button class="dzbtn dzbtn-sec" id="sz-gorow"><span>Go to sessions</span></button></div>
     </div>
   </div>`;
   {const hs=document.getElementById('hdrsearch'),ss=document.getElementById('sz-search');
@@ -11933,8 +11937,6 @@ async function showStartup(){
    };
    bar.onclick=e=>{const b=e.target.closest('button');if(b)setP(b.dataset.prc);};
    document.getElementById('sz-plan-wkt').onclick=()=>{const w=document.getElementById('wktbtn');if(w)w.click();};
-   document.getElementById('sz-compare').onclick=()=>showAddComparePicker();
-   document.getElementById('sz-gorow').onclick=()=>setP('row');
    window._szSetPrc=setP;
    let p0='row';try{const v=localStorage.getItem('_sz_prc');if(v==='plan'||v==='coach'||v==='row')p0=v;}catch(e){}
    setP(p0);}
@@ -16533,7 +16535,11 @@ document.getElementById('jsonbtn').onclick=exportJSON;
 document.getElementById('sharelinkbtn').onclick=shareCurrentSessionLink;
 document.getElementById('openbtn').onclick=()=>{const s=document.getElementById('startup');if(s.innerHTML&&s.style.display!=='none'){s.style.display='none';s.innerHTML='';if(SESSIONS.length){document.getElementById('app').style.display='block';document.getElementById('summarybtn').style.display='';}}else{showStartup();}};
 document.getElementById('infobtn').onclick=showInfoModal;
-document.getElementById('reorderbtn').onclick=showReorderModal;
+document.getElementById('reorderbtn').onclick=()=>{document.getElementById('viewmenu').classList.remove('open');showReorderModal();};
+/* 17 Nov: View menu - Tiles, dark/light mode, pane order */
+document.getElementById('viewmenubtn').onclick=(e)=>{e.stopPropagation();const m=document.getElementById('viewmenu');const willOpen=!m.classList.contains('open');if(willOpen){const r=e.currentTarget.getBoundingClientRect();const mw=Math.min(215,window.innerWidth-24);let left=r.right-mw;if(left<12)left=12;if(left+mw>window.innerWidth-12)left=window.innerWidth-12-mw;m.style.left=left+'px';m.style.top=(r.bottom+4)+'px';}m.classList.toggle('open');};
+document.addEventListener('click',()=>{document.getElementById('viewmenu').classList.remove('open');});
+document.getElementById('paneorderbtn').onclick=()=>{document.getElementById('viewmenu').classList.remove('open');paneOrderOpen();};
 document.getElementById('summarybtn').onclick=showSummaryModal;
 document.getElementById('aboutbtn').onclick=showAboutModal;
 document.getElementById('planbtn').onclick=()=>showPlanModal();
@@ -18905,6 +18911,28 @@ function paneOrderAfterMove(){
     },{autoScroll:true});
   });
 })();
+/* 17 Nov: pane order set with up / down buttons in View > Pane order (no dragging). */
+const PANE_NAMES={topBlock:'Coach tools',chartBlock:'Chart',curvesec:'Curve comparison',videosec:'Video overlay',paneInfo:'Laps',paneMap:'Route map'};
+function paneOrderOpen(){
+  document.getElementById('_pane_modal')?.remove();
+  const ov=document.createElement('div');ov.id='_pane_modal';
+  ov.style.cssText='position:fixed;inset:0;background:rgba(0,0,0,.72);display:flex;align-items:center;justify-content:center;z-index:9000;padding:16px;';
+  const draw=()=>{
+    const o=paneOrderGet(),B='width:44px;height:40px;border-radius:8px;border:1px solid var(--border);background:var(--s2);color:var(--text);font-size:18px;font-weight:800;cursor:pointer;font-family:inherit;';
+    ov.innerHTML='<div style="background:var(--s1);border:1px solid var(--border);border-top:6px solid #fc4c02;border-radius:12px;padding:16px;max-width:400px;width:100%;color:var(--text);font-family:-apple-system,BlinkMacSystemFont,Helvetica Neue,sans-serif;">'
+      +'<div style="font-size:1rem;font-weight:800;margin-bottom:2px;">Pane order</div><div style="font-size:12px;opacity:.75;margin-bottom:10px;">Order of the panes on a session page, top first.</div>'
+      +o.map((id,i)=>'<div style="display:flex;align-items:center;gap:8px;padding:6px 0;border-top:1px solid var(--border);"><span style="flex:1;font-size:14px;font-weight:700;">'+(i+1)+'. '+(PANE_NAMES[id]||id)+'</span>'
+        +'<button data-po-up="'+i+'" style="'+B+(i?'':'opacity:.3;')+'"'+(i?'':' disabled')+' title="Move up">&uarr;</button><button data-po-dn="'+i+'" style="'+B+(i<o.length-1?'':'opacity:.3;')+'"'+(i<o.length-1?'':' disabled')+' title="Move down">&darr;</button></div>').join('')
+      +'<div style="display:flex;gap:8px;margin-top:12px;"><button id="_po_reset" style="flex:1;padding:10px 0;background:transparent;border:1px solid var(--border);color:var(--text);border-radius:8px;font-weight:700;cursor:pointer;font-family:inherit;">Reset</button><button id="_po_done" style="flex:2;padding:10px 0;background:#fc4c02;border:none;color:#fff;border-radius:8px;font-weight:800;cursor:pointer;font-family:inherit;">Done</button></div></div>';
+    const save=o2=>{try{localStorage.setItem('an_pane_order',JSON.stringify(o2));}catch{}paneOrderApply();paneOrderAfterMove();draw();};
+    ov.querySelectorAll('[data-po-up]').forEach(b=>{b.onclick=()=>{const i=+b.dataset.poUp,o2=paneOrderGet();if(i<1)return;[o2[i-1],o2[i]]=[o2[i],o2[i-1]];save(o2);};});
+    ov.querySelectorAll('[data-po-dn]').forEach(b=>{b.onclick=()=>{const i=+b.dataset.poDn,o2=paneOrderGet();if(i>=o2.length-1)return;[o2[i+1],o2[i]]=[o2[i],o2[i+1]];save(o2);};});
+    ov.querySelector('#_po_reset').onclick=()=>save(PANE_IDS.slice());
+    ov.querySelector('#_po_done').onclick=()=>ov.remove();
+  };
+  ov.onclick=e=>{if(e.target===ov)ov.remove();};
+  document.body.appendChild(ov);draw();
+}
 paneOrderApply();
 AnalyserDrive.init();
 if(AnalyserDrive.isSignedIn()) pullPrefsAndApply().catch(()=>{});
