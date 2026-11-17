@@ -14804,9 +14804,7 @@ function calItemEditor(day,type,id,onDone){
         +'<select id="ci-race" style="'+IN+'"><option value="">Not a race</option><option value="A">A race - the one to peak for</option><option value="B">B race - important</option><option value="C">C race - training race</option></select>'
        :'<textarea id="ci-text" rows="4" maxlength="1000" placeholder="'+(oth?'Other workout (e.g. Gym, 10 km run, Bike 45 min)':'Note')+'" style="'+IN+'resize:vertical;"></textarea>')
     +(oth?'<label style="display:block;font-size:12px;opacity:.75;margin-bottom:4px;">Training load: minutes and effort (1 easy - 10 flat out), or the Garmin load number</label>'
-        +'<div style="display:flex;gap:8px;"><input id="ci-min" type="number" min="0" max="900" placeholder="Minutes" style="'+IN+'flex:1;min-width:0;"><select id="ci-rpe" style="'+IN+'flex:1;min-width:0;"><option value="">Effort</option>'+[1,2,3,4,5,6,7,8,9,10].map(n=>'<option value="'+n+'">'+n+'</option>').join('')+'</select><input id="ci-load" type="number" min="0" max="3000" placeholder="or load" style="'+IN+'flex:1;min-width:0;"></div>'
-        +'<label style="display:block;font-size:12px;opacity:.75;margin-bottom:4px;">Kind (sets which muscles it loads)</label>'
-        +'<select id="ci-kind" style="'+IN+'"><option value="">Not set</option>'+Object.keys(TL_KINDS).map(k=>'<option value="'+k+'">'+TL_KINDS[k][0]+'</option>').join('')+'</select>':'')
+        +'<div style="display:flex;gap:8px;"><input id="ci-min" type="number" min="0" max="900" placeholder="Minutes" style="'+IN+'flex:1;min-width:0;"><select id="ci-rpe" style="'+IN+'flex:1;min-width:0;"><option value="">Effort</option>'+[1,2,3,4,5,6,7,8,9,10].map(n=>'<option value="'+n+'">'+n+'</option>').join('')+'</select><input id="ci-load" type="number" min="0" max="3000" placeholder="or load" style="'+IN+'flex:1;min-width:0;"></div>':'')
     +'<div style="display:flex;gap:8px;">'
     +(cur?'<button id="ci-del" style="flex:1;padding:10px 0;background:none;border:1px solid #ff3b30;color:#ff3b30;border-radius:8px;font-weight:700;cursor:pointer;font-family:inherit;">Delete</button>':'')
     +'<button id="ci-cancel" style="flex:1;padding:10px 0;background:var(--s2);border:1px solid var(--border);color:var(--text);border-radius:8px;cursor:pointer;font-family:inherit;">Cancel</button>'
@@ -14817,7 +14815,6 @@ function calItemEditor(day,type,id,onDone){
   if(cur){tx.value=cur.text||'';if(tm)tm.value=cur.time||'';}
   const _crc=document.getElementById('ci-race');if(_crc&&cur&&cur.race)_crc.value=cur.race;
   const _cmn=document.getElementById('ci-min'),_crp=document.getElementById('ci-rpe'),_cld=document.getElementById('ci-load');
-  const _ckd=document.getElementById('ci-kind');if(cur&&_ckd&&cur.kind)_ckd.value=cur.kind;
   if(cur&&_cmn){if(cur.min>0)_cmn.value=cur.min;if(cur.rpe>0)_crp.value=cur.rpe;if(cur.load>0)_cld.value=cur.load;}
   const tc=document.getElementById('ci-time-clr');if(tc&&tm)tc.onclick=()=>{tm.value='';};
   setTimeout(()=>tx.focus(),50);
@@ -14829,7 +14826,6 @@ function calItemEditor(day,type,id,onDone){
     const text=tx.value.trim();if(!text){tx.focus();return;}
     const item={...(cur||{}),id:cur?cur.id:('ci'+Date.now()+Math.floor(Math.random()*1000)),type,text,time:tm?(tm.value||''):''};
     if(_crc){if(_crc.value)item.race=_crc.value;else delete item.race;}
-    if(_ckd){if(_ckd.value)item.kind=_ckd.value;else delete item.kind;}
     if(_cmn){item.min=Math.max(0,Math.min(900,Math.round(+_cmn.value||0)));item.rpe=+_crp.value||0;item.load=Math.max(0,Math.min(3000,Math.round(+_cld.value||0)));}
     const nl=list.filter(x=>x.id!==item.id);nl.push(item);
     calItemsSet(day,nl);done();
@@ -14858,15 +14854,12 @@ function calItemEditor(day,type,id,onDone){
    in this panel), rests at 2, warmup / cooldown at 3. Distance steps are
    timed at 3.8 m/s. Blocks back from the A race: taper 10 days, peak 14,
    build 42, base before that.
-   MUSCLE MAP + SUGGESTED WORKOUT (17 Nov): every session spreads its load
-   over muscle groups (rowing has one fixed mix; an "other workout" is tagged
-   with a kind - gym legs, run, core... - that sets its mix, and strength
-   work counts 2-2.5x locally). Each group's fatigue fades with a 2-day time
-   constant and is compared with that group's own 4-week normal: under 0.8
-   fresh, to 1.6 recovering, over 1.6 overloaded. The suggestion for today
-   comes from the check-in, load ratio, muscle state, training block and
-   whether yesterday was hard, and picks from the workout library by each
-   workout's planned effort.
+   SUGGESTED WORKOUT (17 Nov): from the check-in, load ratio, training block
+   and whether yesterday was hard; picks from the workout library by each
+   workout's planned effort. (Muscle map removed 17 Nov.)
+   SHARED WITH METRICS (17 Nov): the calibration factors are pushed as
+   prefs.loadCal, and HR loads Metrics works out arrive in prefs.sessLoad as
+   'h' entries - so both apps give every session the same load.
    Synced: prefs.sessLoad { key:{rpe,load,hr,t,rev} }, prefs.wellness (daily
    check-in from Metrics) { 'YYYY-MM-DD':{sleep,sore,energy,rhr,hrv,rev} }.
    ══════════════════════════════════════════════════════════════════════════ */
@@ -14920,8 +14913,10 @@ function tlSessKey(x){return 's'+Math.round((x.p.approxTs||0)/60000);}
 function tlModel(x){
   const ts=x.p.approxTs||0,min=(x.p.durS||0)/60,man=SESS_LOAD[tlSessKey(x)]||{};
   if(man.rpe>0)return{load:min*tlW(man.rpe),kind:'eff',src:'effort '+man.rpe};
-  let best=null,bd=45*60000;
-  for(const k in SESS_LOAD){const e=SESS_LOAD[k];if(!e||!(e.hg>0)||!e.t)continue;const d=Math.abs(e.t-ts);if(d<bd){bd=d;best=e;}}
+  /* nearest HR load within 45 min; one worked out here beats one from Metrics */
+  let best=null,bd=45*60000,bm=null,bdm=45*60000;
+  for(const k in SESS_LOAD){const e=SESS_LOAD[k];if(!e||!(e.hg>0)||!e.t)continue;const d=Math.abs(e.t-ts);if(e.src==='metrics'){if(d<bdm){bdm=d;bm=e;}}else if(d<bd){bd=d;best=e;}}
+  best=best||bm;
   if(best)return{load:best.hg,kind:'hr',src:'HR'};
   return{load:min*tlW(TL_DEF_RPE),kind:'est',src:'estimate'};
 }
@@ -14934,7 +14929,16 @@ function tlCalibrate(){
   tlFiles().forEach(x=>{const man=SESS_LOAD[tlSessKey(x)]||{};if(!(man.load>0))return;const m=tlModel(x);if(m.load>5)r[m.kind].push(man.load/m.load);});
   const out={};
   Object.keys(r).forEach(k=>{const v=r[k].sort((p,q)=>p-q);if(v.length>=3){const md=v.length%2?v[(v.length-1)/2]:(v[v.length/2-1]+v[v.length/2])/2;out[k]={k:Math.max(0.3,Math.min(3,md)),n:v.length};}});
-  _tlCal=out;return out;
+  _tlCal=out;tlPushCal(out);return out;
+}
+let _tlCalPushT=null;
+function tlPushCal(c){
+  if(_wktCtx)return;
+  const sig=JSON.stringify(c);let last='';try{last=localStorage.getItem('br_load_cal_sig')||'';}catch(e){}
+  if(sig===last)return;
+  try{if(!AnalyserDrive.isSignedIn())return;}catch(e){return;}
+  clearTimeout(_tlCalPushT);
+  _tlCalPushT=setTimeout(()=>{AnalyserDrive.pullPrefs().then(()=>AnalyserDrive.pushPrefs({loadCal:{...c,rev:Date.now()}})).then(()=>{try{localStorage.setItem('br_load_cal_sig',sig);}catch(e){}}).catch(()=>{});},3000);
 }
 function tlSessLoad(x){
   const man=SESS_LOAD[tlSessKey(x)]||{};
@@ -15024,33 +15028,9 @@ const TL_KINDS={
   mob:['Mobility / yoga',{core:.30,post:.20,lowback:.20,shoulders:.15,quads:.15},0.5]
 };
 const TL_GYM=['legs','pull','push','full','core'], TL_MTAU=2, TL_MSTEADY=1/(1-Math.exp(-1/TL_MTAU));
-function tlMuscles(){
-  const todayK=_dayKey(Date.now()),t0=new Date(todayK+'T12:00:00').getTime(),by={};
-  const ago=k=>Math.round((t0-new Date(k+'T12:00:00').getTime())/86400000);
-  const add=(k,mix,load)=>{const d=ago(k);if(d<0||d>42||!(load>0))return;for(const m in mix){(by[m]=by[m]||{})[d]=((by[m]||{})[d]||0)+load*mix[m];}};
-  tlFiles().forEach(x=>{if(x.p.approxTs)add(_dayKey(x.p.approxTs),TL_ROW_MIX,tlSessLoad(x).load);});
-  const it=tlItems();let lastGym=null,untagged=0;
-  Object.keys(it).forEach(k=>{const e=it[k];if(!e||!Array.isArray(e.list))return;e.list.forEach(x=>{
-    const L=tlOtherLoad(x);if(!L||k>todayK)return;const K=TL_KINDS[x.kind];
-    if(!K){if(ago(k)<=28)untagged++;return;}
-    const mix={};for(const m in K[1])mix[m]=K[1][m]*K[2];add(k,mix,L);
-    if(TL_GYM.indexOf(x.kind)>=0){const d=ago(k);if(d>=0&&(lastGym==null||d<lastGym))lastGym=d;}
-  });});
-  const raw=TL_MUSCLES.map(m=>{
-    const c=by[m[0]]||{};let cur=0,sum28=0;
-    for(const d in c){cur+=c[d]*Math.exp(-d/TL_MTAU);if(+d>=1&&+d<=28)sum28+=c[d];}
-    return{k:m[0],name:m[1],cur,base:sum28/28*TL_MSTEADY};
-  });
-  /* a group that is rarely trained is judged against 30% of the busiest group's normal, not its own tiny one */
-  const floor=Math.max(6,0.3*Math.max.apply(null,raw.map(x=>x.base)));
-  const out=raw.map(x=>{const r=x.cur/Math.max(floor,x.base);return{k:x.k,name:x.name,cur:x.cur,r,st:x.cur<1?'none':(r<0.8?'fresh':(r<=1.6?'rec':'over'))};});
-  return{list:out,lastGym,untagged};
-}
-const TL_MST={none:['No recent load','var(--muted)'],fresh:['Fresh','#27ae60'],rec:['Recovering','#e6a100'],over:['Overloaded','#e74c3c']};
 /* What to do today, and which library workouts fit. */
-function tlSuggest(D,M){
+function tlSuggest(D){
   const todayK=_dayKey(Date.now()),ti=D.ti,ch=D.fit[ti],ratio=ch>=30?D.form[ti]:null,ready=tlReady(WELLNESS[todayK]);
-  const over=M.list.filter(m=>m.st==='over'&&TL_ROW_MUSCLES.indexOf(m.k)>=0).map(m=>m.name.toLowerCase());
   const yHard=ti>0&&ch>=30&&D.load[ti-1]>=1.5*ch/7;
   const dd=D.target?D.days.indexOf(D.target.day)-ti:null;
   const phase=dd==null?'general':dd<=10?'taper':dd<=24?'peak':dd<=66?'build':'base';
@@ -15058,7 +15038,6 @@ function tlSuggest(D,M){
   if(dd===0){type='race';why.push('Race day: '+D.target.text);}
   else if(ready!=null&&ready<2.7){type='easy';why.push('this morning’s check-in is poor');}
   else if(ratio!=null&&ratio>1.4){type='easy';why.push('load ratio is high ('+ratio.toFixed(2)+')');}
-  else if(over.length){type='easy';why.push(over.join(' and ')+' overloaded');}
   else{
     if(phase==='taper'){type=(dd<=2||yHard)?'easy':'sharp';why.push('taper: '+dd+' day'+(dd===1?'':'s')+' to the '+D.target.pri+' race');}
     else if(phase==='peak'){type=yHard?'easy':'hard';why.push('peak block: '+dd+' days to the '+D.target.pri+' race');}
@@ -15077,12 +15056,7 @@ function tlSuggest(D,M){
   else if(type==='steady')picks=lib.filter(x=>x.e>=4&&x.e<=6).sort((p,q)=>q.min-p.min);
   else if(type==='hard')picks=lib.filter(x=>x.e>=7).sort((p,q)=>q.load-p.load);
   else if(type==='sharp')picks=lib.filter(x=>x.e>=7).sort((p,q)=>p.load-q.load);
-  let gym='';
-  if(type!=='race'&&phase!=='taper'&&type!=='easy'&&(M.lastGym==null||M.lastGym>4)){
-    const fr=M.list.filter(m=>m.st==='fresh'||m.st==='none').map(m=>m.name.toLowerCase());
-    gym=(M.lastGym==null?'No tagged strength work in the last 6 weeks':'No strength work for '+M.lastGym+' days')+(fr.length?': '+fr.slice(0,3).join(', ')+' are fresh.':'.');
-  }
-  return{type,title:T,why,picks:picks.slice(0,3),hint:HINT,gym};
+  return{type,title:T,why,picks:picks.slice(0,3),hint:HINT};
 }
 function tlReady(w){
   if(!w)return null;const v=[];
@@ -15103,7 +15077,7 @@ function renderLoadPanel(){
   const D=tlDaily(),n=D.ti+1,todayK=_dayKey(Date.now());
   if(!D.n&&!D.planned&&!D.races.length){el.style.display='none';return;}
   el.style.display='';
-  const M=tlMuscles(),SG=tlSuggest(D,M);
+  const SG=tlSuggest(D);
   const fit=D.fit[n-1],fat=D.fat[n-1],form=D.form[n-1],fw=tlFormWord(form,fit);
   const box=(l,v,c,t)=>'<div title="'+t+'" style="flex:1;min-width:0;padding:8px 10px;border-radius:8px;background:var(--s2);border:1px solid var(--border);border-top:3px solid '+c+';"><div style="font-size:10px;color:var(--muted);letter-spacing:.05em;text-transform:uppercase;">'+l+'</div><div style="font-size:20px;font-weight:800;color:'+c+';">'+v+'</div></div>';
   let h='<div class="sz-lhd" style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;">Training load<span style="font-size:12px;font-weight:700;color:'+fw[1]+';">'+fw[0]+'</span><span style="margin-left:auto;display:flex;gap:6px;flex-wrap:wrap;">'+(_wktCtx?'':'<button id="tl-btp" class="filt-chip" style="font-size:13px;padding:7px 14px;" title="Template weeks for each block, filled back from your race">Block templates</button>')+'<button id="tl-hist" class="filt-chip" style="font-size:13px;padding:7px 14px;" title="Type the Garmin load for past sessions">Enter Garmin loads</button></span></div>'
@@ -15129,7 +15103,6 @@ function renderLoadPanel(){
       SG.picks.forEach(p=>{s+='<div style="display:flex;align-items:center;gap:8px;margin-top:6px;"><span style="flex:1;min-width:0;">'+_secEsc(_wktDispName(p.w))+' <span style="color:var(--muted);">&middot; '+p.min+' min &middot; effort '+p.e+' &middot; load '+p.load+'</span></span>'
         +(planned.indexOf(p.w.id)>=0?'<span style="color:var(--muted);font-weight:700;">planned</span>':(_wktCtx?'':'<button data-tl-plan="'+_secEsc(p.w.id)+'" class="filt-chip" style="font-size:12px;padding:5px 12px;">Plan today</button>'))+'</div>';});
       if(!SG.picks.length&&SG.hint)s+='<div style="margin-top:4px;">'+SG.hint+'</div>';
-      if(SG.gym)s+='<div style="margin-top:6px;color:var(--muted);">Strength: '+_secEsc(SG.gym)+'</div>';
       return s+'</div>';
     })()
     +'<canvas id="tl-chart" style="display:block;width:100%;height:210px;"></canvas>'
@@ -15137,16 +15110,6 @@ function renderLoadPanel(){
     +'<span><span style="display:inline-block;width:10px;height:8px;background:var(--muted);opacity:.45;vertical-align:middle;"></span> daily load</span>'
     +'<span>&#9482; dashed = planned</span><span style="color:#E53935;">&#9473; acute</span><span style="color:#1E88E5;">&#9473; chronic</span><span style="color:#27ae60;">&#9473; ratio (band = 0.8-1.4)</span>'
     +'<span>&#9632; check-in: <span style="color:#27ae60;">good</span> / <span style="color:#e6a100;">ok</span> / <span style="color:#e74c3c;">poor</span></span></div>';
-  /* muscle map */
-  {
-    const tomorrow=tlAddDays(todayK,1),hardSoon=[todayK,tomorrow].some(k=>!(k===todayK&&D.load[D.ti]>0&&!tlPlanFor(k).length)&&tlPlanFor(k).some(p=>p.rpe>=7));
-    const ov=M.list.filter(m=>m.st==='over'&&TL_ROW_MUSCLES.indexOf(m.k)>=0);
-    h+='<div style="font-size:12px;font-weight:700;margin:4px 0;">Muscles</div>';
-    if(ov.length&&hardSoon)h+='<div style="font-size:12px;font-weight:700;color:#fff;background:#e74c3c;border-radius:8px;padding:6px 10px;margin-bottom:6px;">Clash: '+ov.map(m=>m.name.toLowerCase()).join(' and ')+' overloaded with a hard row planned today or tomorrow</div>';
-    h+='<div style="display:grid;grid-template-columns:auto 1fr auto;gap:4px 8px;align-items:center;font-size:12px;margin-bottom:6px;">';
-    M.list.forEach(m=>{const s=TL_MST[m.st];h+='<span>'+m.name+'</span><span style="height:9px;border-radius:5px;background:var(--s2);border:1px solid var(--border);overflow:hidden;position:relative;"><span style="position:absolute;left:0;top:0;bottom:0;width:'+Math.round(Math.min(1,m.r/2.4)*100)+'%;background:'+(m.st==='none'?'transparent':s[1])+';"></span><span style="position:absolute;left:41.7%;top:0;bottom:0;width:1px;background:var(--text);opacity:.45;" title="Your normal"></span></span><span style="font-weight:700;color:'+s[1]+';min-width:84px;text-align:right;">'+s[0]+'</span>';});
-    h+='</div><div style="font-size:10px;color:var(--muted);margin-bottom:10px;">Bar = current fatigue against your own 4-week normal (the marker line).'+(M.untagged?' '+M.untagged+' other workout'+(M.untagged===1?' has':'s have')+' no kind set, so '+(M.untagged===1?'it is':'they are')+' missing from this map: edit '+(M.untagged===1?'it':'them')+' to add one.':'')+'</div>';
-  }
   /* selected day (or today) */
   const day=(typeof _calSel!=='undefined'&&_calSel)?_calSel:todayK;
   const dl=new Date(day+'T12:00:00').toLocaleDateString('en-AU',{weekday:'short',day:'numeric',month:'short'});
@@ -15178,7 +15141,7 @@ function renderLoadPanel(){
   });
   const it=tlItems()[day];
   ((it&&it.list)||[]).filter(x=>x.type==='other').forEach(x=>{const L=tlOtherLoad(x);
-    h+='<div style="display:flex;align-items:center;gap:6px;font-size:12px;padding:5px 0;border-top:1px solid var(--border);"><span style="flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">'+_secEsc(x.text||'Other workout')+(TL_KINDS[x.kind]?' <span style="color:var(--muted);">&middot; '+TL_KINDS[x.kind][0]+'</span>':'')+'</span><span style="text-align:right;">'+(L?'<b>'+L+'</b> <span style="color:var(--muted);">'+(x.load>0?'entered':x.min+' min, effort '+x.rpe)+'</span>':'<span style="color:var(--muted);">no load - edit it to add minutes and effort</span>')+'</span></div>';});
+    h+='<div style="display:flex;align-items:center;gap:6px;font-size:12px;padding:5px 0;border-top:1px solid var(--border);"><span style="flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">'+_secEsc(x.text||'Other workout')+'</span><span style="text-align:right;">'+(L?'<b>'+L+'</b> <span style="color:var(--muted);">'+(x.load>0?'entered':x.min+' min, effort '+x.rpe)+'</span>':'<span style="color:var(--muted);">no load - edit it to add minutes and effort</span>')+'</span></div>';});
   if(!ss.length&&!pl.length&&!((it&&it.list)||[]).some(x=>x.type==='other'))h+='<div style="font-size:11px;color:var(--muted);">No sessions this day.</div>';
   h+='<div style="font-size:10px;color:var(--muted);margin-top:8px;line-height:1.4;">Loads are on the Garmin scale (an easy hour is about 50-70, a hard hour 200+). Sessions with heart rate use HR zones once opened here; others are estimated at effort '+TL_DEF_RPE+' until you set an effort or type the Garmin number. Chronic load needs about 6 weeks of history to settle.'
     +(()=>{const L={hr:'HR sessions',est:'estimated sessions',eff:'effort sessions'},p=Object.keys(_tlCal).map(k=>L[k]+' x'+_tlCal[k].k.toFixed(2)+' (from '+_tlCal[k].n+')');return p.length?'<br>Calibrated to your Garmin numbers: '+p.join(', ')+'.':'<br>Type the Garmin load for 3 or more past sessions and the rest are scaled to match your watch.';})()
