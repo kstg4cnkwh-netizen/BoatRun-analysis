@@ -322,7 +322,7 @@ function adClearPendingOpen(){try{sessionStorage.removeItem('_ad_open');}catch(e
 .sz-ctabs{display:flex;gap:4px;margin:0 0 12px;padding:3px;border-radius:10px;background:var(--ov-line,#e3e6eb);}
 .sz-ctabs .sz-ntab{flex:1;min-width:0;border:none;background:transparent;padding:10px 4px;border-radius:8px;font:700 13px Inter,-apple-system,sans-serif;color:var(--ov-muted,#555);cursor:pointer;touch-action:manipulation;}
 .sz-ctabs .sz-ntab.sel{background:var(--ov-card,#fff);color:var(--ov-text,#000);box-shadow:0 1px 3px rgba(0,0,0,.15);}
-.sz-sumwrap[data-ct="sec"] #sz-nav,.sz-sumwrap[data-ct="nav"] #sz-sectors{display:none!important;}
+#sz-ctabs{display:none!important;}   /* 19 Nov: Sectors and Navigation are separate panes in the Navigation tab */
 @media (max-width:1199px){
   .sz-grid{display:flex;flex-direction:column;}
   .sz-calcol{order:-1;}
@@ -5093,6 +5093,130 @@ window.navImportFile=function(){
   inp.click();
 };
 
+
+/* ── COURSES FROM BOATRUN.AU (19 Nov) ────────────────────────────────────
+   The same ready-made courses as the app's SECTORS > COURSES: boatrun.au/
+   courses.json lists course files (normal BoatRun sector files, which may
+   also carry "lines" - the lanes, dividers and hazards for that water).
+   DOWNLOAD adds a course to your sectors (and its area's lines); ADD adds an
+   area's lines to your Navigation. Both sync to the phone through Drive. */
+const CRS_BASE='https://boatrun.au/',CRS_INDEX=CRS_BASE+'courses.json',CRS_CACHE='br_courses_cache';
+let _crsA=(()=>{try{const v=JSON.parse(localStorage.getItem(CRS_CACHE)||'null');return v&&Array.isArray(v.items)?v:{items:[],lines:[]};}catch(e){return {items:[],lines:[]};}})();
+let _crsABusy=false,_crsAErr='',_crsAArea='all',_crsAMap=null,_crsAFg=null;
+function crsAValid(x){return !!(x&&x.id&&x.origin&&isFinite(+x.origin.lat)&&isFinite(+x.origin.lon)&&Array.isArray(x.ref)&&x.ref.length>=2&&+x.distance>0);}
+async function crsAJson(url){const r=await fetch(url+(url.indexOf('?')<0?'?':'&')+'t='+Date.now(),{cache:'no-store'});if(!r.ok)throw new Error('HTTP '+r.status);return r.json();}
+async function crsALoad(){
+  if(_crsABusy)return;_crsABusy=true;_crsAErr='';crsADraw();
+  try{
+    const idx=await crsAJson(CRS_INDEX);
+    const list=Array.isArray(idx)?idx:(idx&&Array.isArray(idx.courses)?idx.courses:[]);
+    const got=await Promise.all(list.map(async e=>{
+      if(!e||!e.file)return {s:[],l:[]};
+      try{
+        const d=await crsAJson(new URL(e.file,CRS_BASE).href),area=String(e.area||'Other'),file=String(e.file);
+        const s=(d&&d.type==='boatrun-sectors'&&Array.isArray(d.sectors))?d.sectors.filter(crsAValid).map(x=>({sec:x,area,note:String(e.note||''),file})):[];
+        const l=(d&&Array.isArray(d.lines))?d.lines.filter(r=>navCleanPts(r).length>=navMinPts(r)).map(r=>({line:r,area,file})):[];
+        return {s,l};
+      }catch(err){return {s:[],l:[]};}
+    }));
+    _crsA={items:got.flatMap(g=>g.s),lines:got.flatMap(g=>g.l),t:Date.now()};
+    try{localStorage.setItem(CRS_CACHE,JSON.stringify(_crsA));}catch(e){}
+  }catch(e){_crsAErr='Could not reach boatrun.au';}
+  _crsABusy=false;crsADraw();
+}
+function crsASaved(x){return SECTORS_DB.some(l=>l&&!l.deleted&&(l.id===x.id||(String(l.name)===String(x.name)&&Math.abs((+l.distance||0)-(+x.distance||0))<5)));}
+function crsALineKey(r){const p=navCleanPts(r)[0]||[0,0];return navMode(r)+'|'+String(r.name||'Line').slice(0,60)+'|'+(+p[0]).toFixed(5)+','+(+p[1]).toFixed(5);}
+function crsAHasLine(r){const k=crsALineKey(r);return NAV_LINES.some(l=>!l.deleted&&crsALineKey(l)===k);}
+function crsAAddLines(pick,quiet){
+  if(!isPro()){showPlanModal('Navigation is a Pro feature.');return 0;}
+  let added=0;
+  (_crsA.lines||[]).filter(pick).forEach(c=>{if(crsAHasLine(c.line))return;NAV_LINES.push(navClean({...c.line,id:navNewId(),upd:Date.now()}));added++;});
+  if(added)navChanged();
+  if(!quiet||added)toast(added?('Added '+added+' lane'+(added===1?'':'s')+' / hazard'+(added===1?'':'s')+' to Navigation'):'Already in your Navigation',3500);
+  crsADraw();return added;
+}
+function crsADownload(i){
+  const it=(_crsA.items||[])[i];if(!it)return;
+  if(!isPro()){showPlanModal('Sectors are a Pro feature.');return;}
+  const x=it.sec;
+  if(crsASaved(x)){toast('Already in your sectors');return;}
+  const cur=SECTORS_DB.find(s=>s.id===x.id),id=cur?('sec_'+Date.now().toString(36)+Math.random().toString(36).slice(2,6)):x.id;
+  SECTORS_DB.push({id,name:String(x.name||'Course').slice(0,60),created:new Date().toISOString(),origin:x.origin,finish:x.finish||null,bearing:x.bearing,distance:x.distance,corridor:x.corridor||SECTOR_CORRIDOR_M,ref:x.ref,best:null,results:[],rev:Date.now()});
+  saveSectors();try{if(SESSIONS.length)renderSectors();}catch(e){}try{renderStartSectors();}catch(e){}
+  toast('Added to your sectors · '+(x.name||'Course')+' — tap Scan all for past results',4000);
+  if(it.file&&(_crsA.lines||[]).some(c=>c.file===it.file))crsAAddLines(c=>c.file===it.file,true);
+  crsADraw();
+}
+function crsAPts(x){return x.ref.map(p=>sectorLatLon(p[0],p[1],x.origin));}
+window.openCourses=function(){
+  document.getElementById('_crs_modal')?.remove();
+  const ov=document.createElement('div');ov.id='_crs_modal';
+  ov.style.cssText='position:fixed;inset:0;background:rgba(0,0,0,.72);display:flex;align-items:center;justify-content:center;z-index:9000;padding:12px;';
+  ov.innerHTML='<div style="background:var(--s1);color:var(--text);border:1px solid var(--border);border-radius:12px;width:100%;max-width:880px;max-height:92vh;display:flex;flex-direction:column;overflow:hidden;">'
+    +'<div style="display:flex;align-items:center;gap:10px;padding:12px 14px;border-bottom:1px solid var(--border);"><b style="font-size:1rem;flex:1;">Courses from boatrun.au</b><button class="hbtn" id="_crs_ref">↻ Refresh</button><button class="hbtn" id="_crs_x">Close</button></div>'
+    +'<div id="_crs_map" style="height:300px;flex-shrink:0;background:#030d1e;"></div>'
+    +'<div id="_crs_body" style="padding:12px 14px;overflow-y:auto;flex:1;"></div></div>';
+  document.body.appendChild(ov);
+  const close=()=>{try{_crsAMap&&_crsAMap.remove();}catch(e){}_crsAMap=null;ov.remove();};
+  ov.querySelector('#_crs_x').onclick=close;
+  ov.onclick=e=>{if(e.target===ov)close();};
+  ov.querySelector('#_crs_ref').onclick=()=>crsALoad();
+  try{_crsAMap=L.map('_crs_map',{zoomControl:true,attributionControl:true});_crsAMap.attributionControl.setPrefix('');addSatLayers(_crsAMap);_crsAFg=L.featureGroup().addTo(_crsAMap);_crsAMap.setView([-25,134],4);}catch(e){_crsAMap=null;}
+  crsADraw();crsALoad();
+};
+function crsADraw(){
+  const body=document.getElementById('_crs_body');if(!body)return;
+  const items=_crsA.items||[],lines=_crsA.lines||[];
+  const areas=[...new Set(items.map(i=>i.area).concat(lines.map(c=>c.area)))].sort((a,b)=>a.localeCompare(b));
+  if(_crsAArea!=='all'&&areas.indexOf(_crsAArea)<0)_crsAArea='all';
+  const B='padding:6px 10px;border-radius:8px;font-size:12px;font-weight:800;letter-spacing:.03em;cursor:pointer;font-family:inherit;flex-shrink:0;';
+  let h='';
+  if(_crsABusy&&!items.length&&!lines.length)h+='<div style="font-size:13px;color:var(--muted);">Loading courses…</div>';
+  else if(!items.length&&!lines.length)h+='<div style="font-size:13px;color:var(--muted);">'+(_crsAErr||'No courses listed yet.')+'</div>';
+  else{
+    if(_crsAErr)h+='<div style="font-size:12px;color:#c0392b;margin-bottom:8px;">'+_secEsc(_crsAErr)+' — showing the last list downloaded.</div>';
+    if(areas.length>1)h+='<div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:10px;">'+['all'].concat(areas).map(a=>'<button data-crsa-area="'+_secEsc(a)+'" class="filt-chip'+(a===_crsAArea?' on':'')+'" style="font-size:12px;padding:6px 12px;">'+(a==='all'?'All areas':_secEsc(a))+'</button>').join('')+'</div>';
+    areas.filter(a=>_crsAArea==='all'||a===_crsAArea).forEach(area=>{
+      h+='<div class="sz-lhd" style="margin:12px 0 6px;">'+_secEsc(area)+'</div>';
+      const al=lines.filter(c=>c.area===area);
+      if(al.length){
+        const nh=al.filter(c=>navMode(c.line)==='hazard').length,nl=al.length-nh,have=al.every(c=>crsAHasLine(c.line));
+        h+='<div style="display:flex;align-items:center;gap:10px;padding:10px 12px;margin-bottom:6px;border-radius:10px;background:var(--s2);border:1px solid var(--border);border-left:5px solid #ff9500;">'
+          +'<div style="flex:1;min-width:0;"><div style="font-weight:700;">Lanes &amp; hazards</div><div style="font-size:12px;color:var(--muted);">'+(nl?nl+' line'+(nl===1?'':'s'):'')+(nl&&nh?' · ':'')+(nh?nh+' hazard'+(nh===1?'':'s'):'')+'</div></div>'
+          +(have?'<span style="'+B+'background:#e8f5e9;border:1px solid #27ae60;color:#1b5e20;">ADDED ✓</span>':'<button data-crsa-lines="'+_secEsc(area)+'" style="'+B+'background:#ff9500;border:1px solid #ff9500;color:#000;">ADD</button>')+'</div>';
+      }
+      items.map((it,i)=>({it,i})).filter(x=>x.it.area===area).sort((a,b)=>String(a.it.sec.name).localeCompare(String(b.it.sec.name))).forEach(({it,i})=>{
+        const x=it.sec,saved=crsASaved(x),m=Math.round(+x.distance||0);
+        h+='<div style="display:flex;align-items:center;gap:10px;padding:10px 12px;margin-bottom:6px;border-radius:10px;background:var(--s2);border:1px solid var(--border);border-left:5px solid #ff2fd0;">'
+          +'<div data-crsa-map="'+i+'" style="flex:1;min-width:0;cursor:pointer;"><div style="font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">'+_secEsc(x.name||'Course')+'</div>'
+          +'<div style="font-size:12px;color:var(--muted);">'+(m>=1000?(m/1000).toFixed(m%1000?2:0)+' km':m+' m')+(it.note?' · '+_secEsc(it.note):'')+'</div></div>'
+          +'<button data-crsa-map="'+i+'" style="'+B+'background:transparent;border:1px solid var(--border);color:var(--text);">MAP</button>'
+          +(saved?'<span style="'+B+'background:#e8f5e9;border:1px solid #27ae60;color:#1b5e20;">SAVED</span>':'<button data-crsa-dl="'+i+'" style="'+B+'background:#fc4c02;border:1px solid #fc4c02;color:#fff;">DOWNLOAD</button>')+'</div>';
+      });
+    });
+    h+='<div style="font-size:12px;color:var(--muted);margin-top:12px;line-height:1.45;">Download a course to add it to your Sectors (its area’s lanes and hazards come with it), or ADD an area’s lanes and hazards on their own. They sync to the app, are timed every time you row through, and race you against your PB. Browse them at <a href="https://boatrun.au/courses.html" target="_blank" rel="noopener">boatrun.au/courses</a>.</div>';
+  }
+  body.innerHTML=h;
+  body.querySelectorAll('[data-crsa-area]').forEach(b=>{b.onclick=()=>{_crsAArea=b.dataset.crsaArea;crsADraw();};});
+  body.querySelectorAll('[data-crsa-dl]').forEach(b=>{b.onclick=()=>crsADownload(+b.dataset.crsaDl);});
+  body.querySelectorAll('[data-crsa-lines]').forEach(b=>{b.onclick=()=>crsAAddLines(c=>c.area===b.dataset.crsaLines);});
+  body.querySelectorAll('[data-crsa-map]').forEach(b=>{b.onclick=()=>{const it=items[+b.dataset.crsaMap];if(it&&_crsAMap){try{_crsAMap.fitBounds(L.latLngBounds(crsAPts(it.sec)),{padding:[30,30],maxZoom:16});}catch(e){}}};});
+  /* map */
+  if(_crsAMap&&_crsAFg){
+    try{
+      _crsAFg.clearLayers();const all=[];
+      items.filter(it=>_crsAArea==='all'||it.area===_crsAArea).forEach(it=>{const p=crsAPts(it.sec);p.forEach(q=>all.push(q));
+        L.polyline(p,{color:'#ff2fd0',weight:4,opacity:.9}).bindTooltip(String(it.sec.name||'Course')).addTo(_crsAFg);
+        L.circleMarker(p[0],{radius:7,color:'#fff',weight:2,fillColor:crsASaved(it.sec)?'#27ae60':'#fc4c02',fillOpacity:1}).bindTooltip(String(it.sec.name||'Course')).addTo(_crsAFg);});
+      lines.filter(c=>_crsAArea==='all'||c.area===_crsAArea).forEach(c=>{const p=navCleanPts(c.line);p.forEach(q=>all.push(q));
+        if(navMode(c.line)==='hazard'){p.length===1?L.circleMarker(p[0],{radius:6,color:'#ff9500',weight:2,fillColor:'#ff9500',fillOpacity:.7}).addTo(_crsAFg):L.polyline(p,{color:'#ff9500',weight:4}).addTo(_crsAFg);}
+        else L.polyline(p,{color:navColor(c.line),weight:3,opacity:.9,dashArray:navMode(c.line)==='lane'?null:'10 7'}).addTo(_crsAFg);});
+      if(all.length){const b=L.latLngBounds(all);if(b.isValid())_crsAMap.fitBounds(b,{padding:[24,24],maxZoom:14});}
+      setTimeout(()=>{try{_crsAMap.invalidateSize();}catch(e){}},80);
+    }catch(e){}
+  }
+}
+
 /* ── Course file for boatrun.au/courses ── */
 window.navCourseFile=function(){
   if(!isPro()){showPlanModal('Course files are a Pro feature.');return;}
@@ -5566,12 +5690,13 @@ function renderStartSectors(){
   if(!isPro()){box.style.display='none';box.innerHTML='';return;}
   box.style.display='';
   const list=SECTORS_DB.filter(x=>!x.deleted).sort((a,b)=>String(a.name).localeCompare(String(b.name)));
-  let h='<div class="sz-lhd" style="margin-bottom:8px;">Sectors<span style="display:flex;gap:6px;"><button class="hbtn" id="sz-sec-import" style="font-size:10px;">Import</button><button class="hbtn" id="sz-sec-draw" style="font-size:10px;">\u270E Draw</button></span></div>';
-  if(!list.length)h+='<div class="sz-loading">No sectors yet. Tap \u270E Draw to draw one on the map.</div>';
+  let h='<div class="sz-lhd" style="margin-bottom:8px;">Sectors<span style="display:flex;gap:6px;"><button class="hbtn" id="sz-sec-courses" style="font-size:10px;" title="Ready-made courses from boatrun.au">Courses</button><button class="hbtn" id="sz-sec-import" style="font-size:10px;">Import</button><button class="hbtn" id="sz-sec-draw" style="font-size:10px;">\u270E Draw</button></span></div>';
+  if(!list.length)h+='<div class="sz-loading">No sectors yet. Tap \u270E Draw to draw one on the map, or Courses for ready-made ones.</div>';
   else h+='<div style="max-height:420px;overflow-y:auto;">'+list.map(secTileHtml).join('')+'</div>';
   box.innerHTML=h;
   document.getElementById('sz-sec-draw').onclick=()=>window.drawSector();
   document.getElementById('sz-sec-import').onclick=()=>window.importSectorsFile(renderStartSectors);
+  document.getElementById('sz-sec-courses').onclick=()=>window.openCourses();
   secTilesWire(box,false);
 }
 window.showSectorOnMap=function(id){
@@ -20118,6 +20243,9 @@ body .hdr-tabs .hmenu,body.light .hdr-tabs .hmenu{background:#fff!important;bord
 .sz-list[data-prc="plan"]::before{border-color:#0b6e79;}
 .sz-list[data-prc="row"]::before{border-color:#1a5fd0;}
 .sz-list[data-prc="coach"]::before{border-color:#6a3fb0;}
+.sz-list[data-prc="load"]::before{border-color:#b5531c;}   /* 19 Nov: after the base rule, so the colour sticks */
+.sz-list[data-prc="nav"]::before{border-color:#1e7f4f;}
+@media (min-width:1100px){#startup .sz-list[data-prc="nav"] .sz-sumwrap{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:16px;align-items:start;max-width:none;}#startup .sz-list[data-prc="nav"] #sz-navempty{grid-column:1/-1;}}
 #startup #sz-ntabs{display:none!important;}
 .sz-list:not([data-prc="row"]) .prc-row{display:none!important;}
 .sz-list:not([data-prc="plan"]) .prc-plan{display:none!important;}
