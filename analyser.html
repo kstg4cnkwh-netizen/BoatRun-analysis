@@ -356,6 +356,14 @@ function adClearPendingOpen(){try{sessionStorage.removeItem('_ad_open');}catch(e
 #_navdraw_modal .leaflet-control-zoom a{width:44px;height:44px;line-height:44px;font-size:24px;font-weight:800;}
 #_navdraw_modal #_navdraw_name,#_navdraw_modal #_navdraw_to{font-size:14px!important;padding:10px 12px;}
 #sz-sectors .hbtn:hover,#sz-nav .hbtn:hover{background:var(--acc,#1a5276);color:#fff;border:none;}
+.crs-card{position:relative;border-radius:12px;overflow:hidden;border:2px solid #fc4c02;background:#030d1e;margin-bottom:12px;cursor:pointer;box-shadow:0 6px 18px -8px rgba(252,76,2,.55);}
+.crs-card:hover{box-shadow:0 8px 24px -6px rgba(252,76,2,.75);}
+.crs-mini{height:150px;pointer-events:none;background:#030d1e;}
+.crs-badge{position:absolute;top:8px;left:8px;z-index:800;background:rgba(3,13,30,.86);color:#fff;border-radius:9px;padding:6px 10px;font-size:12px;font-weight:600;line-height:1.35;pointer-events:none;}
+.crs-badge b{color:#ff5fe0;font-size:18px;font-weight:800;}
+.crs-badge span{display:block;font-size:11px;color:rgba(255,255,255,.7);font-weight:500;}
+.crs-cta{display:flex;width:100%;align-items:center;justify-content:center;gap:8px;padding:12px;border:none;background:#fc4c02;color:#fff;font-weight:800;font-size:13.5px;letter-spacing:.04em;cursor:pointer;font-family:inherit;}
+.crs-card .leaflet-control-attribution{font-size:8px;}
 .sz-lhd{font-size:.75rem;font-weight:600;letter-spacing:.1em;color:var(--muted);text-transform:uppercase;margin-bottom:2px;display:flex;align-items:center;justify-content:space-between;}
 .sz-signout{font-size:.75rem;color:var(--b);cursor:pointer;font-weight:400;text-transform:none;letter-spacing:0;}
 .sz-signout:hover{text-decoration:underline;}
@@ -5122,7 +5130,7 @@ async function crsALoad(){
     _crsA={items:got.flatMap(g=>g.s),lines:got.flatMap(g=>g.l),t:Date.now()};
     try{localStorage.setItem(CRS_CACHE,JSON.stringify(_crsA));}catch(e){}
   }catch(e){_crsAErr='Could not reach boatrun.au';}
-  _crsABusy=false;crsADraw();
+  _crsABusy=false;crsADraw();try{crsMiniDraw();}catch(e){}
 }
 function crsASaved(x){return SECTORS_DB.some(l=>l&&!l.deleted&&(l.id===x.id||(String(l.name)===String(x.name)&&Math.abs((+l.distance||0)-(+x.distance||0))<5)));}
 function crsALineKey(r){const p=navCleanPts(r)[0]||[0,0];return navMode(r)+'|'+String(r.name||'Line').slice(0,60)+'|'+(+p[0]).toFixed(5)+','+(+p[1]).toFixed(5);}
@@ -5684,20 +5692,71 @@ window.navDraw=function(editId,newMode,clubCode,keep){
   updHead();redraw();
   setTimeout(()=>{try{map.invalidateSize();if(pts.length>1)map.fitBounds(L.latLngBounds(pts),{padding:[40,40]});}catch{}},150);
 };
-/* Start page: Sectors pane above the Summary, one tile per sector. */
+/* Start page: Sectors pane above the Summary, one tile per sector.
+   19 Nov: a big Courses card leads the pane - a mini-map of every ready-made
+   course on boatrun.au with the count, and one large button. Shown to Basic
+   users too (downloading still asks for Pro). */
+let _crsMini=null,_crsMiniFg=null,_crsMiniTried=false;
+function crsCounts(){
+  const items=_crsA.items||[],lines=_crsA.lines||[];
+  const areas=new Set(items.map(i=>i.area).concat(lines.map(c=>c.area)));
+  return {n:items.length,a:areas.size,l:new Set(lines.map(c=>c.area)).size};
+}
+function crsCardHtml(){
+  return '<div class="crs-card" id="sz-crs-card" title="Ready-made courses from boatrun.au">'
+    +'<div class="crs-mini" id="sz-crs-map"></div>'
+    +'<div class="crs-badge" id="sz-crs-badge"></div>'
+    +'<button class="crs-cta" id="sz-crs-go" type="button"></button></div>';
+}
+function crsMiniDraw(){
+  const badge=document.getElementById('sz-crs-badge'),go=document.getElementById('sz-crs-go'),el=document.getElementById('sz-crs-map');
+  if(!badge||!go||!el)return;
+  const c=crsCounts();
+  badge.innerHTML=c.n
+    ?'<b>'+c.n+'</b> course'+(c.n===1?'':'s')+' ready to row<span>'+c.a+' area'+(c.a===1?'':'s')+(c.l?' \u00b7 '+c.l+' with lanes &amp; hazards':'')+'</span>'
+    :(_crsABusy?'Loading courses\u2026':'Ready-made courses<span>Head races and timed stretches</span>');
+  go.innerHTML='\uD83D\uDDFA\uFE0F BROWSE '+(c.n?c.n+' ':'')+'COURSES \u2192';
+  try{
+    if(!_crsMini||_crsMini.getContainer()!==el){
+      try{_crsMini&&_crsMini.remove();}catch(e){}
+      _crsMini=L.map(el,{zoomControl:false,attributionControl:true,dragging:false,scrollWheelZoom:false,doubleClickZoom:false,boxZoom:false,keyboard:false,touchZoom:false,tap:false});
+      _crsMini.attributionControl.setPrefix('');
+      L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}',{maxZoom:19,attribution:'Esri'}).addTo(_crsMini);
+      _crsMiniFg=L.featureGroup().addTo(_crsMini);
+      _crsMini.setView([-31,146],4);
+    }
+    _crsMiniFg.clearLayers();
+    const pts=[];
+    (_crsA.items||[]).forEach(it=>{
+      try{const p=crsAPts(it.sec);if(!p.length)return;pts.push(p[0]);
+        L.polyline(p,{color:'#ff2fd0',weight:3,opacity:.9}).addTo(_crsMiniFg);
+        L.circleMarker(p[0],{radius:6,color:'#fff',weight:2,fillColor:'#fc4c02',fillOpacity:1}).addTo(_crsMiniFg);}catch(e){}
+    });
+    if(pts.length){const b=L.latLngBounds(pts);if(b.isValid())_crsMini.fitBounds(b,{padding:[28,28],maxZoom:11});}
+    setTimeout(()=>{try{_crsMini.invalidateSize();if(pts.length)_crsMini.fitBounds(L.latLngBounds(pts),{padding:[28,28],maxZoom:11});}catch(e){}},120);
+  }catch(e){}
+}
 function renderStartSectors(){
   const box=document.getElementById('sz-sectors'); if(!box)return;
-  if(!isPro()){box.style.display='none';box.innerHTML='';return;}
   box.style.display='';
-  const list=SECTORS_DB.filter(x=>!x.deleted).sort((a,b)=>String(a.name).localeCompare(String(b.name)));
-  let h='<div class="sz-lhd" style="margin-bottom:8px;">Sectors<span style="display:flex;gap:6px;"><button class="hbtn" id="sz-sec-courses" style="font-size:10px;" title="Ready-made courses from boatrun.au">Courses</button><button class="hbtn" id="sz-sec-import" style="font-size:10px;">Import</button><button class="hbtn" id="sz-sec-draw" style="font-size:10px;">\u270E Draw</button></span></div>';
-  if(!list.length)h+='<div class="sz-loading">No sectors yet. Tap \u270E Draw to draw one on the map, or Courses for ready-made ones.</div>';
+  const pro=isPro();
+  const list=pro?SECTORS_DB.filter(x=>!x.deleted).sort((a,b)=>String(a.name).localeCompare(String(b.name))):[];
+  let h='<div class="sz-lhd" style="margin-bottom:8px;">Sectors'+(pro?'<span style="display:flex;gap:6px;"><button class="hbtn" id="sz-sec-import" style="font-size:10px;">Import</button><button class="hbtn" id="sz-sec-draw" style="font-size:10px;">\u270E Draw</button></span>':'')+'</div>';
+  h+=crsCardHtml();
+  if(!pro)h+='<div class="sz-loading">Sectors and courses are part of Pro: automatic timing, live PB racing and sector history.</div>';
+  else if(!list.length)h+='<div class="sz-loading">No sectors yet. Download a course above, or tap \u270E Draw to draw your own on the map.</div>';
   else h+='<div class="sz-panelist" style="max-height:420px;overflow-y:auto;">'+list.map(secTileHtml).join('')+'</div>';
+  try{_crsMini&&_crsMini.remove();}catch(e){}_crsMini=null;
   box.innerHTML=h;
-  document.getElementById('sz-sec-draw').onclick=()=>window.drawSector();
-  document.getElementById('sz-sec-import').onclick=()=>window.importSectorsFile(renderStartSectors);
-  document.getElementById('sz-sec-courses').onclick=()=>window.openCourses();
-  secTilesWire(box,false);
+  if(pro){
+    document.getElementById('sz-sec-draw').onclick=()=>window.drawSector();
+    document.getElementById('sz-sec-import').onclick=()=>window.importSectorsFile(renderStartSectors);
+  }
+  document.getElementById('sz-crs-card').onclick=()=>window.openCourses();
+  crsMiniDraw();
+  const stale=!_crsA.t||Date.now()-_crsA.t>86400000;
+  if(stale&&!_crsMiniTried&&!_crsABusy){_crsMiniTried=true;crsALoad();}
+  if(pro)secTilesWire(box,false);
 }
 window.showSectorOnMap=function(id){
   if(!isPro()){showPlanModal('Sectors are a Pro feature.');return;}
