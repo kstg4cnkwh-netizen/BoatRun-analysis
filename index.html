@@ -122,6 +122,9 @@ h1.hero-h em{font-style:normal;color:var(--coral);}
 .store-badge img{height:48px;width:143px;object-fit:contain;display:block;}
 .store-badge-sm{margin-top:8px;}
 .store-badge-sm img{height:42px;width:125px;}
+/* Google's badge image has built-in padding: size it up so the visible badge matches Apple's */
+.gp-badge img{height:70px;width:auto;margin:-11px -10px;}
+.store-badge-sm.gp-badge img{height:61px;width:auto;margin:-9px -9px;}
 .hero-stats{display:flex;gap:30px;}
 .hstat b{display:block;font-family:'Space Grotesk',sans-serif;font-size:22px;font-weight:700;}
 .hstat span{font-size:12px;color:var(--ink-faint);letter-spacing:.03em;}
@@ -384,7 +387,7 @@ footer{background:var(--navy);color:var(--ink-faint);border-top:1px solid rgba(2
       <p class="hero-sub">Real-time rowing metrics built for rowers, coxes and coaches who want raw data, honest precision, and tactical confidence on the water. Coaching is free.</p>
       <div class="hero-ctas">
         <a class="store-badge" href="https://apps.apple.com/au/app/boatrun/id6792436401?itscg=30200&amp;itsct=apps_box_badge&amp;mttnsubad=6792436401" target="_blank" rel="noopener"><img src="https://toolbox.marketingtools.apple.com/api/v2/badges/download-on-the-app-store/black/en-us?releaseDate=1787702400" alt="Download on the App Store"></a>
-        <a class="btn btn-coral" aria-disabled="true">Android — Coming Soon</a>
+        <a class="store-badge gp-badge" href="https://play.google.com/store/apps/details?id=com.davidmacready74.boatrunmetrics" target="_blank" rel="noopener"><img src="https://play.google.com/intl/en_us/badges/static/images/badges/en_badge_web_generic.png" alt="Get it on Google Play"></a>
       </div>
       <div class="hero-analyser">
         <a class="btn btn-teal" href="https://boatrun.au/analyser.html">Open Web Analyser</a>
@@ -604,9 +607,9 @@ footer{background:var(--navy);color:var(--ink-faint);border-top:1px solid rgba(2
       </ul>
     </div>
     <div class="fr-media">
-      <div class="shot-pair">
-        <div class="shot"><img src="screenshot-erg-squad.png" alt="BoatRun squad erg view — live pace and race track"></div>
+      <div style="display:flex;flex-direction:column;gap:12px;">
         <div class="shot"><img src="screenshot-erg-curve.png" alt="BoatRun erg stroke curve view"></div>
+        <div class="shot"><img src="screenshot-erg-squad.png" alt="BoatRun squad erg view — live pace and race track"></div>
       </div>
     </div>
   </div>
@@ -692,7 +695,7 @@ footer{background:var(--navy);color:var(--ink-faint);border-top:1px solid rgba(2
         <h3>BoatRun App</h3>
         <p>Row, Cox or Coach — one native app for iPhone and Android. Live metrics, squad sync, lanes and hazards, training calendar and load, video and Strava export.</p>
         <a class="store-badge store-badge-sm" href="https://apps.apple.com/au/app/boatrun/id6792436401?itscg=30200&amp;itsct=apps_box_badge&amp;mttnsubad=6792436401" target="_blank" rel="noopener"><img src="https://toolbox.marketingtools.apple.com/api/v2/badges/download-on-the-app-store/black/en-us?releaseDate=1787702400" alt="Download on the App Store"></a>
-        <span class="app-tag">Android — coming soon</span>
+        <a class="store-badge store-badge-sm gp-badge" href="https://play.google.com/store/apps/details?id=com.davidmacready74.boatrunmetrics" target="_blank" rel="noopener"><img src="https://play.google.com/intl/en_us/badges/static/images/badges/en_badge_web_generic.png" alt="Get it on Google Play"></a>
       </div>
       <div class="app-card">
         <span class="app-tag">Post-session</span>
@@ -851,10 +854,10 @@ footer{background:var(--navy);color:var(--ink-faint);border-top:1px solid rgba(2
   <div class="wrap">
     <span class="eyebrow" style="color:var(--coral);border-color:rgba(255,90,60,.35);background:var(--coral-dim);">Get BoatRun</span>
     <h2>Ready to see every stroke?</h2>
-    <p>BoatRun is live on the App Store for iPhone and iPad. Android is coming soon to Google Play. Coaches: it's free.</p>
+    <p>BoatRun is live on the App Store for iPhone and iPad, and on Google Play for Android. Coaches: it's free.</p>
     <div class="hero-ctas">
       <a class="store-badge" href="https://apps.apple.com/au/app/boatrun/id6792436401?itscg=30200&amp;itsct=apps_box_badge&amp;mttnsubad=6792436401" target="_blank" rel="noopener"><img src="https://toolbox.marketingtools.apple.com/api/v2/badges/download-on-the-app-store/black/en-us?releaseDate=1787702400" alt="Download on the App Store"></a>
-      <a class="btn btn-coral" aria-disabled="true">BoatRun for Android — Coming Soon</a>
+      <a class="store-badge gp-badge" href="https://play.google.com/store/apps/details?id=com.davidmacready74.boatrunmetrics" target="_blank" rel="noopener"><img src="https://play.google.com/intl/en_us/badges/static/images/badges/en_badge_web_generic.png" alt="Get it on Google Play"></a>
       <a class="btn btn-ghost" href="https://boatrun.au/analyser.html">Try the Web Analyser free</a>
     </div>
   </div>
