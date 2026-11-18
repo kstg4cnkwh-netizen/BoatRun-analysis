@@ -15945,9 +15945,16 @@ function renderStartupCalendar(){
      - A week's type can be changed (tap its label); Auto goes back to the
        recommended one. "Fill empty days" puts the block's template week (or
        the Recovery week template, for a recovery week) on the empty days.
-   Synced as prefs.season {cyc,base,rev} and prefs.seasonWeeks {weekStart:{t,rev}}.
+   19 Nov: EVERY race shows (flags with A / B / C on its week). Each A race
+   anchors its own build-up (taper week, race week, a recovery week after);
+   a B race week becomes a lighter "B race" week (x0.85); a C race is trained
+   through. "Set up week loads" sets the % of the base week for each week
+   type and the growth per cycle, and a single week's target can be typed in.
+   On a race day the day shows the regatta, not "Rest".
+   Synced as prefs.season {cyc,base,f:{type:factor},grow,rev} and
+   prefs.seasonWeeks {weekStart:{t,tgt,rev}}.
    ══════════════════════════════════════════════════════════════════════════ */
-const SZN_T={med:['Medium',1.0,'#1E88E5'],hard:['Hard',1.15,'#E53935'],hardp:['Hard+',1.25,'#8e1b1b'],rec:['Recovery',0.65,'#27ae60'],taper:['Taper',0.7,'#16a085'],race:['Race',0.45,'#c0392b']};
+const SZN_T={med:['Medium',1.0,'#1E88E5'],hard:['Hard',1.15,'#E53935'],hardp:['Hard+',1.25,'#8e1b1b'],rec:['Recovery',0.65,'#27ae60'],taper:['Taper',0.7,'#16a085'],bwk:['B race',0.85,'#d35400'],race:['Race',0.45,'#c0392b']};
 const SZN_ORDER={2:['rec','hard'],3:['rec','med','hard'],4:['rec','med','hard','hardp']};   // ends on the hardest week (before the taper)
 const SZN_FWD={2:['hard','rec'],3:['med','hard','rec'],4:['med','hard','hardp','rec']};
 const SZN_BLK={base:['Base','#1E88E5'],build:['Build','#e6a100'],peak:['Peak','#E53935'],taper:['Taper','#27ae60'],race:['Race','#c0392b'],post:['After race','#8e8e93'],general:['General','#7f8c8d']};
@@ -15983,33 +15990,42 @@ function sznPlanned(k,map,todayK){
   if(k>todayK){const e=tlItems()[k];if(e&&Array.isArray(e.list))e.list.forEach(x=>{L+=tlOtherLoad(x);});}
   return L;
 }
-function sznBlockOf(k,T){if(!T)return 'general';if(k===T.day)return 'race';if(k>T.day)return 'post';return btpBlockFor(sznDays(k,T.day));}
+function sznFac(t){const f=SZN.f&&+SZN.f[t];return (f>0&&f<=3)?f:SZN_T[t][1];}
+function sznGrowPct(){const g=SZN.grow;return (g!=null&&g!==''&&+g>=0&&+g<=15)?+g:4;}
+/* the races that anchor build-ups: every A race (or, with none, the next race of any kind) */
+function sznAnchors(all,todayK){const A=all.filter(r=>r.pri==='A');return (A.length?A:all.filter(r=>r.day>=todayK).slice(0,1)).map(r=>({r,w:sznWkStart(r.day)}));}
+function sznBlockAt(k,anc){const nx=anc.find(a=>a.r.day>=k);if(!nx)return anc.some(a=>a.r.day<k)?'post':'general';return k===nx.r.day?'race':btpBlockFor(sznDays(k,nx.r.day));}
 function sznModel(){
-  const D=sznD(),todayK=_dayKey(Date.now()),W0=sznWkStart(todayK),T=sznRace(),rW=T?sznWkStart(T.day):null;
-  let endW=tlAddDays(W0,7*16);if(rW){const e=tlAddDays(rW,14);if(e>endW)endW=e;}
+  const D=sznD(),todayK=_dayKey(Date.now()),W0=sznWkStart(todayK),all=tlRaces(),anc=sznAnchors(all,todayK);
+  let endW=tlAddDays(W0,7*16);all.forEach(r=>{if(r.day<todayK)return;const e=tlAddDays(sznWkStart(r.day),14);if(e>endW)endW=e;});
   const cap=tlAddDays(W0,7*52);if(endW>cap)endW=cap;
   const startW=tlAddDays(W0,-7*8),map=sznDayMap(D);
   const iW=D.days.indexOf(tlAddDays(W0,-1)),chW=iW>=0?D.fit[iW]:(D.fit[D.ti]||0);
-  const B=SZN.base>0?Math.round(+SZN.base):Math.max(150,Math.round(chW)),L=sznCyc(),grow=1.04;
-  const preLast=rW?tlAddDays(rW,-14):null;
+  const B=SZN.base>0?Math.round(+SZN.base):Math.max(150,Math.round(chW)),L=sznCyc(),grow=1+sznGrowPct()/100;
   const weeks=[];let gF=1;
   for(let w=startW;w<=endW;w=tlAddDays(w,7)){
     const days=[0,1,2,3,4,5,6].map(i=>tlAddDays(w,i));
     let act=0,pl=0;days.forEach(k=>{if(k<=todayK)act+=map.a[k]||0;if(k>=todayK)pl+=sznPlanned(k,map,todayK);});
-    let blk='general';
-    if(T){if(w===rW)blk='race';else if(w>rW)blk='post';else blk=btpBlockFor(sznDays(tlAddDays(w,3),T.day));}
+    const nx=anc.find(a=>a.w>=w)||null,pv=anc.filter(a=>a.w<w).pop()||null,races=all.filter(r=>r.day>=days[0]&&r.day<=days[6]);
+    let blk;
+    if(nx&&w===nx.w)blk='race';
+    else if(pv&&w===tlAddDays(pv.w,7))blk='post';
+    else if(nx)blk=btpBlockFor(sznDays(tlAddDays(w,3),nx.r.day));
+    else blk=pv?'post':'general';
     let rt;
-    if(T&&w===rW)rt='race';
-    else if(T&&w===tlAddDays(rW,-7))rt='taper';
-    else if(T&&w<rW){const O=SZN_ORDER[L],j=Math.round(sznDays(w,preLast)/7);rt=O[(O.length-1-(j%O.length)+O.length)%O.length];}
-    else if(T&&w===tlAddDays(rW,7))rt='rec';
+    if(nx&&w===nx.w)rt='race';
+    else if(nx&&w===tlAddDays(nx.w,-7))rt='taper';
+    else if(pv&&w===tlAddDays(pv.w,7))rt='rec';
+    else if(nx){const O=SZN_ORDER[L],j=Math.round(sznDays(w,tlAddDays(nx.w,-14))/7);rt=O[(O.length-1-(j%O.length)+O.length)%O.length];}
     else{const F=SZN_FWD[L],e=Math.floor(new Date(w+'T12:00:00').getTime()/604800000);rt=F[((e%F.length)+F.length)%F.length];}
-    const o=SZN_WK[w],ov=(o&&SZN_T[o.t])?o.t:null,t=ov||rt;
-    const tgt=w>=W0?Math.round(B*gF*SZN_T[t][1]):null;
-    weeks.push({w,days,act:Math.round(act),pl:Math.round(pl),blk,t,rt,ov:!!ov,tgt,cur:w===W0,past:w<W0,race:T&&w===rW?T:null});
+    if(rt!=='race'&&rt!=='taper'&&races.some(r=>r.pri==='B'))rt='bwk';
+    const o=SZN_WK[w]||{},ov=SZN_T[o.t]?o.t:null,t=ov||rt;
+    const auto=w>=W0?Math.round(B*gF*sznFac(t)):null,tov=w>=W0&&o.tgt>0?Math.round(+o.tgt):0;
+    weeks.push({w,days,act:Math.round(act),pl:Math.round(pl),blk,t,rt,ov:!!ov,tgt:tov||auto,auto,tov:!!tov,cur:w===W0,past:w<W0,races,nx:nx?nx.r:null});
     if(w>=W0&&t==='rec'&&(blk==='base'||blk==='build'||blk==='general'))gF=Math.min(1.3,gF*grow);
+    if(w>=W0&&nx&&w===nx.w)gF=Math.max(1,gF*0.92);   // after an A race the next build-up starts a little lower
   }
-  return{weeks,T,B,chW,L,W0,todayK,D,map};
+  return{weeks,T:sznRace(),B,chW,L,W0,todayK,D,map,all,anc};
 }
 function sznStat(wk){
   const tot=wk.act+wk.pl;if(!wk.tgt)return{col:'var(--muted)',txt:''};
@@ -16031,15 +16047,22 @@ function sznRender(){
     +'<label style="display:flex;align-items:center;gap:6px;max-width:100%;">Loading cycle <select id="szn-cyc" style="'+IN+'max-width:100%;min-width:0;">'
     +[[3,'3 weeks: Medium, Hard, Recovery (best for masters)'],[4,'4 weeks: Medium, Hard, Hard+, Recovery'],[2,'2 weeks: Hard, Recovery']].map(o=>'<option value="'+o[0]+'"'+(o[0]===M.L?' selected':'')+'>'+o[1]+'</option>').join('')+'</select></label>'
     +'<label style="display:flex;align-items:center;gap:6px;" title="Your normal week. Auto = your chronic load now">Base week load <input id="szn-base" type="number" inputmode="numeric" min="0" max="5000" placeholder="auto '+Math.max(150,Math.round(M.chW))+'" value="'+(SZN.base>0?SZN.base:'')+'" style="'+IN+'width:96px;"></label>'
-    +'<button id="szn-btp" class="filt-chip" style="font-size:13px;padding:7px 14px;margin-left:auto;">Block templates</button></div>';
+    +'<button id="szn-btp" class="filt-chip" style="font-size:13px;padding:7px 14px;margin-left:auto;">Block templates</button></div>'
+    +'<details id="szn-setup"'+(window._sznSetupOpen?' open':'')+' style="margin:-4px 0 10px;font-size:12px;"><summary style="cursor:pointer;font-weight:700;padding:4px 0;">Set up week loads</summary>'
+    +'<div style="padding:8px 0 4px;line-height:1.5;color:var(--muted);">Each week\u2019s target = base week load \u00d7 the % for its type. Base week now: <b style="color:var(--text);">'+M.B+'</b>.</div>'
+    +'<div style="display:flex;gap:8px;flex-wrap:wrap;">'+Object.keys(SZN_T).map(k=>'<label style="display:flex;flex-direction:column;align-items:center;gap:3px;"><span style="font-size:10px;font-weight:800;color:#fff;background:'+SZN_T[k][2]+';border-radius:8px;padding:1px 8px;">'+SZN_T[k][0]+'</span><span style="display:flex;align-items:center;gap:2px;"><input data-szf="'+k+'" type="number" inputmode="numeric" min="10" max="300" value="'+Math.round(sznFac(k)*100)+'" style="'+IN+'width:62px;text-align:right;">%</span><span style="font-size:10px;color:var(--muted);">\u2248 '+Math.round(M.B*sznFac(k))+'</span></label>').join('')
+    +'<label style="display:flex;flex-direction:column;align-items:center;gap:3px;"><span style="font-size:10px;font-weight:800;">Growth / cycle</span><span style="display:flex;align-items:center;gap:2px;"><input id="szn-grow" type="number" inputmode="decimal" min="0" max="15" step="0.5" value="'+sznGrowPct()+'" style="'+IN+'width:62px;text-align:right;">%</span><span style="font-size:10px;color:var(--muted);">Base &amp; Build</span></label></div>'
+    +'<div style="margin-top:8px;"><button id="szn-fdef" class="filt-chip" style="font-size:12px;padding:5px 10px;">Back to defaults</button> <span style="color:var(--muted);">To set one week\u2019s target, tap the week and type it in.</span></div></details>';
   /* this week */
-  {const st=sznStat(cur),nx=W[W.indexOf(cur)+1],T=M.T,wks=T?Math.max(0,Math.round(sznDays(cur.w,sznWkStart(T.day))/7)):null;
+  {const st=sznStat(cur),nx=W[W.indexOf(cur)+1],T=cur.nx||M.T,wks=T?Math.max(0,Math.round(sznDays(cur.w,sznWkStart(T.day))/7)):null;
+   const up=M.all.filter(r=>r.day>=M.todayK).slice(0,6);
    h+='<div style="font-size:13px;line-height:1.5;margin-bottom:10px;padding:8px 10px;border-radius:8px;background:var(--s2);border:1px solid var(--border);border-left:5px solid '+SZN_T[cur.t][2]+';">'
      +'<b>This week: '+SZN_T[cur.t][0]+' week</b>'+(cur.ov?' <span style="color:var(--muted);">(you set this; recommended '+SZN_T[cur.rt][0]+')</span>':'')
      +' &middot; <span style="color:'+SZN_BLK[cur.blk][1]+';font-weight:700;">'+SZN_BLK[cur.blk][0]+'</span>'+(T?' &middot; '+(wks===0?'race week':wks+' week'+(wks===1?'':'s')+' to the '+T.pri+' race ('+_secEsc(T.text)+')'):' &middot; no race set')
      +'<br>Target about <b>'+cur.tgt+'</b> &middot; done '+cur.act+' &middot; still planned '+cur.pl+' &middot; <b style="color:'+st.col+';">'+st.txt+'</b>'
      +(st.gap>0&&cur.tgt&&(cur.act+cur.pl)/cur.tgt<0.85?' <span style="color:var(--muted);">(add a session or lift an effort)</span>':st.gap<0&&(cur.act+cur.pl)/cur.tgt>1.15?' <span style="color:var(--muted);">(drop or ease a session)</span>':'')
      +(nx?'<br><span style="color:var(--muted);">Next week: '+SZN_T[nx.t][0]+', target about '+nx.tgt+'.</span>':'')
+     +(up.length?'<br>Coming up: '+up.map(r=>'<span style="white-space:nowrap;">\u{1F3C1}<b style="color:'+(r.pri==='A'?'#c0392b':r.pri==='B'?'#d35400':'#7f8c8d')+';">'+r.pri+'</b> '+_secEsc(r.text)+' <span style="color:var(--muted);">'+sznFmtD(r.day)+'</span></span>').join(' &middot; '):'')
      +(T?'':'<br><span style="color:var(--muted);">Add a calendar event and mark it as an A race to line the cycles and blocks up with it.</span>')
      +'</div>';}
   /* timeline */
@@ -16060,20 +16083,21 @@ function sznRender(){
       +(ht?'<div title="Target '+x.tgt+'" style="position:absolute;left:6px;right:6px;bottom:0;height:'+ht+'px;border:2px dashed '+tc+';border-radius:4px;box-sizing:border-box;"></div>':'')
       +(ha?'<div title="Done '+x.act+'" style="position:absolute;left:13px;right:13px;bottom:0;height:'+ha+'px;background:'+tc+';border-radius:3px 3px 0 0;"></div>':'')
       +(hp?'<div title="Planned '+x.pl+'" style="position:absolute;left:13px;right:13px;bottom:'+ha+'px;height:'+hp+'px;background:'+tc+';opacity:.38;border-radius:3px 3px 0 0;"></div>':'')
-      +(x.race?'<div style="position:absolute;top:0;left:0;right:0;text-align:center;font-size:14px;">\u{1F3C1}</div>':'')
+      +(x.races.length?'<div title="'+_secEsc(x.races.map(r=>r.pri+' race: '+r.text).join(', '))+'" style="position:absolute;top:0;left:0;right:0;text-align:center;font-size:12px;line-height:1.1;font-weight:800;">'+x.races.map(r=>'\u{1F3C1}<span style="color:'+(r.pri==='A'?'#c0392b':r.pri==='B'?'#d35400':'#7f8c8d')+';">'+r.pri+'</span>').join('<br>')+'</div>':'')
       +'</div>'
       +'<div style="font-size:12px;font-weight:800;text-align:center;color:'+(x.tgt?st.col:'var(--text)')+';">'+(x.act+x.pl)+'</div>'
-      +'<div style="font-size:9px;text-align:center;color:var(--muted);">'+(x.tgt?'of '+x.tgt:'done')+'</div>'
+      +'<div style="font-size:9px;text-align:center;color:var(--muted);">'+(x.tgt?'of '+x.tgt+(x.tov?' \u270E':''):'done')+'</div>'
       +'</div>';
   });
   h+='</div></div>'
     +'<div style="display:flex;gap:12px;flex-wrap:wrap;font-size:10px;color:var(--muted);margin:4px 0 2px;"><span>solid = done</span><span>faded = planned</span><span>dashed box = target</span><span>number = done + planned (<span style="color:#27ae60;">on target</span> / <span style="color:#e67e22;">under</span> / <span style="color:#e74c3c;">over</span>)</span><span>top bar = block</span><span>tap a week for its days</span></div>'
     +'<div style="font-size:11px;color:var(--muted);line-height:1.45;margin-bottom:8px;">Load climbs through the loading weeks and drops in the recovery week, so the body absorbs the work; each cycle starts about 4% higher until Peak. 3-week cycles suit masters rowers, who take longer to recover; 4-week cycles suit younger athletes with a long training history.</div>';
   /* selected week */
-  {const x=sel,st=sznStat(x),T=M.T;
+  {const x=sel,st=sznStat(x);
    h+='<div style="padding:10px;border-radius:8px;background:var(--s2);border:1px solid var(--border);border-left:5px solid '+SZN_T[x.t][2]+';">'
      +'<div style="font-size:13px;font-weight:800;margin-bottom:2px;">Week of '+sznFmtD(x.w,{weekday:'short',day:'numeric',month:'short'})+' &middot; '+SZN_T[x.t][0]+' week &middot; <span style="color:'+SZN_BLK[x.blk][1]+';">'+SZN_BLK[x.blk][0]+'</span></div>'
-     +'<div style="font-size:12px;margin-bottom:6px;">'+(x.tgt?'Target about <b>'+x.tgt+'</b> &middot; ':'')+'done '+x.act+(x.pl?' &middot; planned '+x.pl:'')+(x.tgt?' &middot; <b style="color:'+st.col+';">'+st.txt+'</b>':'')+'</div>';
+     +(x.races.length?'<div style="font-size:12px;font-weight:700;margin-bottom:4px;">'+x.races.map(r=>'\u{1F3C1} '+r.pri+' race: '+_secEsc(r.text)+' ('+sznFmtD(r.day,{weekday:'short',day:'numeric',month:'short'})+')').join(' &middot; ')+'</div>':'')
+     +'<div style="font-size:12px;margin-bottom:6px;display:flex;align-items:center;gap:6px;flex-wrap:wrap;">'+(x.tgt!=null?'<label style="display:flex;align-items:center;gap:5px;">Target <input id="szn-tgt" type="number" inputmode="numeric" min="0" max="5000" value="'+(x.tov?x.tgt:'')+'" placeholder="'+x.auto+'" style="'+IN+'width:80px;"></label>'+(x.tov?'<span style="color:var(--muted);">(auto '+x.auto+')</span>':'<span style="color:var(--muted);">(auto)</span>')+' &middot; ':'')+'done '+x.act+(x.pl?' &middot; planned '+x.pl:'')+(x.tgt?' &middot; <b style="color:'+st.col+';">'+st.txt+'</b>':'')+'</div>';
    const CHP=(col,lbl,txt,L)=>'<span style="display:inline-flex;align-items:center;gap:4px;padding:2px 6px;border-radius:10px;background:var(--s1);border:1px solid var(--border);border-left:4px solid '+col+';font-size:11px;margin:2px 4px 2px 0;"><span style="font-size:9px;font-weight:800;color:'+col+';">'+lbl+'</span>'+txt+(L?' <span style="color:var(--muted);">'+L+'</span>':'')+'</span>';
    x.days.forEach(k=>{
      const items=[];let dayL=0;
@@ -16082,10 +16106,11 @@ function sznRender(){
        if(!(k===M.todayK&&M.map.a[k]>0))tlPlanFor(k).forEach(p=>{dayL+=p.load;items.push(CHP(p.w.venue==='erg'?CAL_ERG_COL:CAL_WATER_COL,p.w.venue==='erg'?'ERG':'WATER',_secEsc(_wktDispName(p.w)),p.load));});
        if(k>M.todayK){const e=tlItems()[k];((e&&e.list)||[]).filter(o=>o.type==='other').forEach(o=>{const L=tlOtherLoad(o);dayL+=L;items.push(CHP(CI_OTHER_COL,'OTHER',_secEsc(o.text||'Other'),L||''));});}
      }
-     const ev=(()=>{const e=tlItems()[k];return ((e&&e.list)||[]).filter(o=>o.type==='event').map(o=>(o.race?'\u{1F3C1} ':'')+_secEsc(o.text||'')).join(', ');})();
+     const evs=(()=>{const e=tlItems()[k];return ((e&&e.list)||[]).filter(o=>o.type==='event');})();
+     const ev=evs.map(o=>'<span style="display:inline-flex;align-items:center;gap:4px;padding:2px 8px;border-radius:10px;background:'+(o.race?'#c0392b':CI_EVENT_COL)+';color:#fff;font-size:11px;font-weight:800;margin:2px 4px 2px 0;">'+(o.race?'\u{1F3C1} '+o.race+' race: ':'')+(o.time?_secEsc(o.time)+' ':'')+_secEsc(o.text||'Event')+'</span>').join('');
      h+='<div style="display:flex;align-items:flex-start;gap:8px;padding:4px 0;border-top:1px solid var(--border);font-size:12px;'+(k===M.todayK?'font-weight:700;':'')+(k<M.todayK?'opacity:.75;':'')+'">'
        +'<span style="width:58px;flex-shrink:0;padding-top:3px;">'+sznFmtD(k,{weekday:'short',day:'numeric'})+'</span>'
-       +'<span style="flex:1;min-width:0;">'+(items.join('')||'<span style="color:var(--muted);display:inline-block;padding-top:3px;">Rest</span>')+(ev?'<div style="font-size:11px;color:#27ae60;font-weight:700;">'+ev+'</div>':'')+'</span>'
+       +'<span style="flex:1;min-width:0;">'+ev+items.join('')+((!items.length&&!ev)?'<span style="color:var(--muted);display:inline-block;padding-top:3px;">Rest</span>':'')+'</span>'
        +'<span style="width:40px;text-align:right;padding-top:3px;font-weight:800;">'+(dayL?Math.round(dayL):'')+'</span></div>';
    });
    const canFill=x.days.some(k=>k>=M.todayK);
@@ -16101,9 +16126,14 @@ function sznRender(){
   g('szn-cyc').onchange=()=>{SZN={...SZN,cyc:+g('szn-cyc').value,rev:Date.now()};sznSave();renderStartupCalendar();};
   g('szn-base').onchange=()=>{const v=Math.max(0,Math.min(5000,Math.round(+g('szn-base').value||0)));SZN={...SZN,base:v,rev:Date.now()};sznSave();renderStartupCalendar();};
   g('szn-btp').onclick=btpOpen;
-  el.querySelectorAll('[data-szt]').forEach(s=>{s.onclick=e=>e.stopPropagation();s.onchange=()=>{SZN_WK[s.dataset.szt]={t:s.value||'',rev:Date.now()};_sznSel=s.dataset.szt;sznSave();renderStartupCalendar();};});
+  {const d=g('szn-setup');if(d)d.ontoggle=()=>{window._sznSetupOpen=d.open;};}
+  el.querySelectorAll('[data-szf]').forEach(i=>{i.onchange=()=>{const v=Math.max(10,Math.min(300,Math.round(+i.value||0)));SZN={...SZN,f:{...(SZN.f||{}),[i.dataset.szf]:v/100},rev:Date.now()};sznSave();renderStartupCalendar();};});
+  if(g('szn-grow'))g('szn-grow').onchange=()=>{const v=Math.max(0,Math.min(15,+g('szn-grow').value||0));SZN={...SZN,grow:v,rev:Date.now()};sznSave();renderStartupCalendar();};
+  if(g('szn-fdef'))g('szn-fdef').onclick=()=>{SZN={...SZN,f:{},grow:4,rev:Date.now()};sznSave();renderStartupCalendar();};
+  if(g('szn-tgt'))g('szn-tgt').onchange=()=>{const v=Math.max(0,Math.min(5000,Math.round(+g('szn-tgt').value||0)));SZN_WK[sel.w]={...(SZN_WK[sel.w]||{}),tgt:v,rev:Date.now()};sznSave();renderStartupCalendar();};
+  el.querySelectorAll('[data-szt]').forEach(s=>{s.onclick=e=>e.stopPropagation();s.onchange=()=>{SZN_WK[s.dataset.szt]={...(SZN_WK[s.dataset.szt]||{}),t:s.value||'',rev:Date.now()};_sznSel=s.dataset.szt;sznSave();renderStartupCalendar();};});
   el.querySelectorAll('[data-szw]').forEach(c=>{c.onclick=()=>{_sznSel=c.dataset.szw;sznRender();};});
-  if(g('szn-auto'))g('szn-auto').onclick=()=>{SZN_WK[sel.w]={t:'',rev:Date.now()};sznSave();renderStartupCalendar();};
+  if(g('szn-auto'))g('szn-auto').onclick=()=>{SZN_WK[sel.w]={...(SZN_WK[sel.w]||{}),t:'',rev:Date.now()};sznSave();renderStartupCalendar();};
   if(g('szn-fill'))g('szn-fill').onclick=()=>sznFillWeek(sel,M);
   g('szn-cal').onclick=()=>{
     const k=sel.days.find(d=>d>=M.todayK)||sel.days[0];_calSel=k;
@@ -16113,7 +16143,7 @@ function sznRender(){
   };
 }
 function sznFillWeek(x,M){
-  const ch={},T=M.T;let n=0;
+  const ch={},T=x.nx;let n=0;
   x.days.forEach(k=>{
     if(k<M.todayK||btpDayBusy(k))return;
     let b;
@@ -16136,10 +16166,10 @@ function sznCalCtx(){
   const no={top:()=>'',cell:()=>''};
   if(_wktCtx)return no;
   let D;try{D=sznD();}catch(e){return no;}
-  const todayK=_dayKey(Date.now()),map=sznDayMap(D),T=sznRace(),pc={};
+  const todayK=_dayKey(Date.now()),map=sznDayMap(D),anc=sznAnchors(tlRaces(),todayK),pc={};
   const pl=k=>{if(!(k in pc))pc[k]=sznPlanned(k,map,todayK);return pc[k];};
   return{
-    top:k=>{if(!T||k<todayK||k>T.day)return '';return 'border-top:3px solid '+SZN_BLK[sznBlockOf(k,T)][1]+';';},
+    top:k=>{if(k<todayK||!anc.some(a=>a.r.day>=k))return '';return 'border-top:3px solid '+SZN_BLK[sznBlockAt(k,anc)][1]+';';},
     cell:(k,big)=>{const a=k<=todayK?Math.round(map.a[k]||0):0,p=k>=todayK?Math.round(pl(k)):0;if(!a&&!p)return '';
       return '<div title="Training load: done'+(p?' + planned':'')+'" style="font-size:'+(big?10:9)+'px;font-weight:700;text-align:right;margin-top:2px;color:var(--muted);line-height:1.2;">'+(a?'<span style="color:var(--text);">'+a+'</span>':'')+(a&&p?' + ':'')+(p?'~'+p:'')+'</div>';}
   };
@@ -19813,7 +19843,6 @@ body .hdr-tabs .hmenu,body.light .hdr-tabs .hmenu{background:#fff!important;bord
 #startup #sz-ntabs{display:none!important;}
 .sz-list:not([data-prc="row"]) .prc-row{display:none!important;}
 .sz-list:not([data-prc="plan"]) .prc-plan{display:none!important;}
-@media (min-width:1100px){.sz-list[data-prc="plan"] #sz-plancard{position:sticky;top:70px;z-index:2;}}   /* 18 Nov: workout list stays on screen while scrolling the calendar */
 .sz-list:not([data-prc="coach"]) .prc-coach{display:none!important;}
 .sz-list[data-prc="coach"] .sz-grid{display:none!important;}
 .sz-list[data-prc="plan"] #sz-sesspill,.sz-list[data-prc="plan"] .sz-sumcol{display:none!important;}
