@@ -7,7 +7,7 @@
 <meta name="color-scheme" content="light"/>
 <title>BoatRun — Club Packs</title>
 <link rel="icon" type="image/png" href="icons/icon-192.png">
-<meta name="description" content="Buy BoatRun Coach and Pro seats for your whole squad in one go. One invoice, one payment, a code for every rower."/>
+<meta name="description" content="Buy BoatRun Pro seats for your whole squad in one go. One invoice, one payment, a code for every rower. Coaching is free."/>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&family=Inter:wght@400;500;600;700&family=Roboto+Mono:wght@500;600&display=swap" rel="stylesheet">
@@ -52,6 +52,7 @@ header{position:sticky;top:0;z-index:40;background:rgba(8,18,38,.86);backdrop-fi
 h1.hero-h{font-family:'Space Grotesk',sans-serif;font-weight:700;font-size:clamp(32px,4.6vw,50px);line-height:1.05;letter-spacing:-.02em;margin:18px 0 16px;}
 h1.hero-h em{font-style:normal;color:var(--coral);}
 .hero-sub{font-size:16.5px;color:var(--ink-dim);}
+.free-pill{display:inline-flex;align-items:center;gap:8px;margin-top:20px;font-size:14px;font-weight:600;color:var(--teal);background:rgba(47,211,198,.12);border:1px solid rgba(47,211,198,.35);border-radius:100px;padding:8px 14px;}
 
 section{padding:64px 0;}
 .section-h{font-family:'Space Grotesk',sans-serif;font-size:clamp(24px,3.2vw,34px);font-weight:700;letter-spacing:-.015em;margin-bottom:10px;}
@@ -71,6 +72,8 @@ section{padding:64px 0;}
 .seat-row:last-of-type{border-bottom:none;}
 .seat-info h4{font-family:'Space Grotesk',sans-serif;font-size:16px;margin-bottom:2px;}
 .seat-info span{font-size:12.5px;color:var(--ink-faint);}
+.coach-free{margin-top:6px;padding:12px 14px;border-radius:11px;background:rgba(47,211,198,.10);border:1px solid rgba(47,211,198,.32);font-size:13.5px;line-height:1.5;color:var(--ink);}
+.coach-free b{color:var(--teal);}
 .stepper{display:flex;align-items:center;gap:0;border:1px solid rgba(255,255,255,.2);border-radius:10px;overflow:hidden;flex:0 0 auto;}
 .stepper button{width:38px;height:40px;background:rgba(255,255,255,.06);border:none;color:var(--ink);font-size:19px;font-weight:600;cursor:pointer;font-family:inherit;line-height:1;}
 .stepper button:hover{background:rgba(255,255,255,.14);}
@@ -137,7 +140,8 @@ footer{background:var(--navy);color:var(--ink);padding:44px 0 30px;}
   <div class="wrap inner">
     <span class="eyebrow hero-eyebrow">Clubs &amp; Schools</span>
     <h1 class="hero-h">Kit out the <em>whole squad</em> in one go.</h1>
-    <p class="hero-sub">One payment, one invoice, and a redemption code for every rower and coach. No app store accounts to chase, no reimbursement forms, and it works the same on iPhone and Android.</p>
+    <p class="hero-sub">One payment, one invoice, and a Pro redemption code for every rower. No app store accounts to chase, no reimbursement forms, and it works the same on iPhone and Android.</p>
+    <span class="free-pill">✓ Coaching is free &mdash; coaches don't need a seat</span>
   </div>
 </div>
 
@@ -149,7 +153,7 @@ footer{background:var(--navy);color:var(--ink);padding:44px 0 30px;}
       <div class="step">
         <div class="n">STEP 01</div>
         <h4>Pick your seats</h4>
-        <p>Choose how many Coach seats and how many Pro seats you need, then pay by card. You get a receipt you can hand straight to your treasurer.</p>
+        <p>Choose how many Pro seats your rowers need, then pay by card. You get a receipt you can hand straight to your treasurer.</p>
       </div>
       <div class="step">
         <div class="n">STEP 02</div>
@@ -159,7 +163,7 @@ footer{background:var(--navy);color:var(--ink);padding:44px 0 30px;}
       <div class="step">
         <div class="n">STEP 03</div>
         <h4>Send them out</h4>
-        <p>Each person opens the redeem page, signs in with the same account they use in the app, and pastes their code. Their plan appears next time they open BoatRun.</p>
+        <p>Each rower opens the redeem page, signs in with the same account they use in the app, and pastes their code. Pro appears next time they open BoatRun.</p>
       </div>
     </div>
   </div>
@@ -169,14 +173,14 @@ footer{background:var(--navy);color:var(--ink);padding:44px 0 30px;}
   <div class="wrap">
     <h2 class="section-h">Build your pack</h2>
     <p class="section-p" style="margin-bottom:8px;">Every seat runs for 12 months from the day that individual redeems their code, not from the day you buy. Nobody loses time waiting for a rower to get around to it.</p>
-    <p class="section-p" style="margin-bottom:26px;">Seats are the same price you'd pay in the App Store, with a club rate that kicks in once you're buying for more than a handful of people. The discount is set by how many Pro seats you take, and it applies to your Coach seats too.</p>
+    <p class="section-p" style="margin-bottom:26px;">Seats are the same price you'd pay in the App Store, with a club rate that kicks in once you're buying for more than a handful of rowers.</p>
 
     <table class="tiers" id="tier-table">
-      <tr><th>Pro seats</th><th>Club rate</th><th>Pro each</th><th>Coach each</th></tr>
-      <tr data-min="0"><td>1 &ndash; 5</td><td>List price</td><td class="p">$89.99</td><td class="p">$134.99</td></tr>
-      <tr data-min="6"><td>6 &ndash; 10</td><td>5% off</td><td class="p">$85.49</td><td class="p">$128.24</td></tr>
-      <tr data-min="11"><td>11 &ndash; 25</td><td>10% off</td><td class="p">$80.99</td><td class="p">$121.49</td></tr>
-      <tr data-min="26"><td>26 or more</td><td>15% off</td><td class="p">$76.49</td><td class="p">$114.74</td></tr>
+      <tr><th>Pro seats</th><th>Club rate</th><th>Pro each</th></tr>
+      <tr data-min="0"><td>1 &ndash; 5</td><td>List price</td><td class="p">$89.99</td></tr>
+      <tr data-min="6"><td>6 &ndash; 10</td><td>5% off</td><td class="p">$85.49</td></tr>
+      <tr data-min="11"><td>11 &ndash; 25</td><td>10% off</td><td class="p">$80.99</td></tr>
+      <tr data-min="26"><td>26 or more</td><td>15% off</td><td class="p">$76.49</td></tr>
     </table>
     <p class="section-p" style="font-size:13px;margin:12px 0 28px;">All prices in AUD and include GST. You'll get a tax invoice with our ABN on it the moment payment clears.</p>
 
@@ -185,19 +189,8 @@ footer{background:var(--navy);color:var(--ink);padding:44px 0 30px;}
         <div>
           <div class="seat-row">
             <div class="seat-info">
-              <h4>Coach seats</h4>
-              <span>Squad monitoring, erg racing, video, workouts. Includes Pro.</span>
-            </div>
-            <div class="stepper">
-              <button type="button" id="coach-minus">&minus;</button>
-              <input id="coach-n" class="mono" type="text" inputmode="numeric" value="1">
-              <button type="button" id="coach-plus">+</button>
-            </div>
-          </div>
-          <div class="seat-row">
-            <div class="seat-info">
               <h4>Pro seats</h4>
-              <span>Unlimited recording, full metrics, stroke curve, Strava.</span>
+              <span>Unlimited recording, full metrics, stroke curve, workouts, Strava, and the full live link to the coach.</span>
             </div>
             <div class="stepper">
               <button type="button" id="pro-minus">&minus;</button>
@@ -205,6 +198,7 @@ footer{background:var(--navy);color:var(--ink);padding:44px 0 30px;}
               <button type="button" id="pro-plus">+</button>
             </div>
           </div>
+          <div class="coach-free"><b>Coaches are free.</b> Squad map, live crew detail, workouts, erg races, video and the squad training calendar cost nothing &mdash; just download BoatRun and create your squad. Rowers on Pro send you everything; rowers on the free Basic plan share their position only.</div>
 
           <label class="fld" for="email">Where should we send the receipt?</label>
           <input class="txt" id="email" type="email" autocomplete="email" placeholder="treasurer@yourclub.org.au">
@@ -215,12 +209,11 @@ footer{background:var(--navy);color:var(--ink);padding:44px 0 30px;}
           <div class="total">
             <h4>Your pack</h4>
             <span class="band" id="v-band">5% club rate</span>
-            <div class="tot-line"><span id="l-coach">Coach × 1 @ $128.24</span><b id="v-coach">$128.24</b></div>
             <div class="tot-line"><span id="l-pro">Pro × 10 @ $85.49</span><b id="v-pro">$854.90</b></div>
-            <div class="tot-line save" id="row-save"><span>You save</span><b id="v-save">$51.75</b></div>
+            <div class="tot-line save" id="row-save"><span>You save</span><b id="v-save">$45.00</b></div>
             <div class="tot-sum">
               <span>Total, 12 months, incl. GST</span>
-              <b id="v-total">$983.14</b>
+              <b id="v-total">$854.90</b>
             </div>
             <div class="nudge" id="nudge">
               <p id="nudge-text"></p>
@@ -240,6 +233,10 @@ footer{background:var(--navy);color:var(--ink);padding:44px 0 30px;}
   <div class="wrap" style="max-width:760px;">
     <h2 class="section-h" style="margin-bottom:22px;">Questions clubs actually ask</h2>
 
+    <div class="faq">
+      <h4>Do coaches need a seat?</h4>
+      <p>No. Coaching is free for everyone. A coach downloads BoatRun, signs in and creates the squad &mdash; they become its owner and can approve other coaches. What the coach sees from each rower depends on the rower's plan: Pro rowers send live metrics, stroke curves, intervals, sessions and (if they choose) their training load; rowers on the free Basic plan share their position only.</p>
+    </div>
     <div class="faq">
       <h4>Do the rowers need their own accounts?</h4>
       <p>Yes, and that's deliberate. Each rower's sessions save to their own Google Drive, their own Strava links to their own account, and the coach view needs to tell people apart. A shared login would have everyone overwriting each other.</p>
@@ -262,6 +259,10 @@ footer{background:var(--navy);color:var(--ink);padding:44px 0 30px;}
       <p style="margin-top:8px;">One catch worth knowing up front: the seats you keep get repriced to the discount band those seats qualify for on their own. Buy 30 to reach the 15% rate, redeem 25 and return 5, and the 25 you kept are charged at the 10% rate that 25 seats earns &mdash; the refund is whatever's left. Your codes page shows the exact figure at any time, so there's no guesswork.</p>
     </div>
     <div class="faq">
+      <h4>We bought Coach seats before. What happens to them?</h4>
+      <p>They keep working until they run out, and give the full Pro plan. Coaching itself is now free, so you won't need to renew them &mdash; just buy Pro seats for your rowers.</p>
+    </div>
+    <div class="faq">
       <h4>Does this replace an App Store subscription?</h4>
       <p>It's an alternative to it. If someone already subscribes through the App Store or Google Play they should cancel there before redeeming a club code, otherwise they'll be paying twice for the same thing.</p>
     </div>
@@ -281,7 +282,6 @@ footer{background:var(--navy);color:var(--ink);padding:44px 0 30px;}
       <a href="./privacy.html">Privacy</a>
       <a href="./terms.html">Terms</a>
       <a href="./support.html">Support</a>
-      <a href="./pack.html">Redeem a code</a>
       <a href="mailto:bigwig.91mash@icloud.com?subject=BoatRun%20club%20pack%20enquiry">Email us</a>
     </div>
     <div class="foot-bottom">
@@ -297,11 +297,11 @@ footer{background:var(--navy);color:var(--ink);padding:44px 0 30px;}
    page reads its prices from the constants directly below, which
    must be kept in step with the same constants in worker.js.
    ============================================================ */
-const API = 'https://boatrun-packs.davidmacready74.workers.dev';
+const API = 'https://boatrun-packs.YOUR-SUBDOMAIN.workers.dev';
 
-const PRICE_COACH = 13499; // cents, must match PRICE_COACH_12M in worker.js
-const PRICE_PRO   =  8999; // cents, must match PRICE_PRO_12M   in worker.js
-const MAX_COACH   = 5;
+/* 18 Nov: coaching is free, so packs are Pro seats only. coachSeats is still
+   sent to the Worker, always 0, so the existing Worker keeps working. */
+const PRICE_PRO   =  8999; // cents, must match PRICE_PRO_12M in worker.js
 const MAX_PRO     = 60;
 
 /* Must match VOLUME_TIERS in worker.js exactly, including the rounding in
@@ -317,15 +317,10 @@ const VOLUME_TIERS = [
 function unitPrices(proSeats){
   let off = 0;
   for(const t of VOLUME_TIERS) if(proSeats >= t.minPro) off = t.off;
-  return {
-    coach: Math.round(PRICE_COACH * (1 - off)),
-    pro:   Math.round(PRICE_PRO   * (1 - off)),
-    off
-  };
+  return { pro: Math.round(PRICE_PRO * (1 - off)), off };
 }
 
-let coachSeats = 1;
-let proSeats   = 10;
+let proSeats = 10;
 
 function money(cents){
   return '$' + (cents / 100).toFixed(2).replace(/\B(?=(\d{3})+(?!\d))/g, ',');
@@ -336,10 +331,7 @@ function nextBandMin(proSeats){
   for(const t of VOLUME_TIERS) if(proSeats >= t.minPro) m = t.minPro;
   return m;
 }
-function packTotal(coach, pro){
-  const p = unitPrices(pro);
-  return coach * p.coach + pro * p.pro;
-}
+function packTotal(pro){ return pro * unitPrices(pro).pro; }
 /* Banded pricing means the total can actually FALL as you add seats - at the
    boundary, 26 Pro seats cost less than 25. Rather than hide that, point it
    out. A treasurer who spots it on their own assumes the page is broken; one
@@ -349,12 +341,12 @@ function packTotal(coach, pro){
    or the extra seats come in under 70% of what they would normally cost, which
    is a real enough saving to mention without nagging about every single seat. */
 function bandNudge(){
-  const here = packTotal(coachSeats, proSeats);
+  const here = packTotal(proSeats);
   const next = VOLUME_TIERS.filter(t => t.minPro > proSeats)[0];
   if(!next || next.minPro > MAX_PRO) return null;
 
   const extraSeats = next.minPro - proSeats;
-  const there = packTotal(coachSeats, next.minPro);
+  const there = packTotal(next.minPro);
   const delta = there - here;
   const seatWord = extraSeats === 1 ? 'seat' : 'seats';
 
@@ -371,7 +363,7 @@ function bandNudge(){
     return {
       to: next.minPro,
       html: extraSeats + ' more Pro ' + seatWord + ' would only add <b>' + money(delta) +
-            '</b> \u2014 that\'s ' + money(Math.round(delta / extraSeats)) +
+            '</b> — that\'s ' + money(Math.round(delta / extraSeats)) +
             ' each instead of ' + money(PRICE_PRO) + ', and it drops the whole pack to the ' +
             Math.round(next.off * 100) + '% club rate.',
       btn: 'Add ' + extraSeats + ' ' + seatWord
@@ -382,16 +374,13 @@ function bandNudge(){
 
 function render(){
   const p = unitPrices(proSeats);
-  const total = coachSeats * p.coach + proSeats * p.pro;
-  const list  = coachSeats * PRICE_COACH + proSeats * PRICE_PRO;
+  const total = proSeats * p.pro;
+  const list  = proSeats * PRICE_PRO;
   const saved = list - total;
 
-  document.getElementById('coach-n').value = coachSeats;
-  document.getElementById('pro-n').value   = proSeats;
-  document.getElementById('l-coach').textContent = 'Coach \u00d7 ' + coachSeats + ' @ ' + money(p.coach);
-  document.getElementById('l-pro').textContent   = 'Pro \u00d7 ' + proSeats + ' @ ' + money(p.pro);
-  document.getElementById('v-coach').textContent = money(coachSeats * p.coach);
-  document.getElementById('v-pro').textContent   = money(proSeats * p.pro);
+  document.getElementById('pro-n').value = proSeats;
+  document.getElementById('l-pro').textContent = 'Pro × ' + proSeats + ' @ ' + money(p.pro);
+  document.getElementById('v-pro').textContent = money(total);
   document.getElementById('v-total').textContent = money(total);
 
   /* Hide the savings row entirely at list price rather than showing "$0.00",
@@ -419,11 +408,9 @@ function render(){
   }else{
     box.style.display = 'none';
   }
-  document.getElementById('coach-minus').disabled = (coachSeats <= 0);
-  document.getElementById('coach-plus').disabled  = (coachSeats >= MAX_COACH);
-  document.getElementById('pro-minus').disabled   = (proSeats <= 0);
-  document.getElementById('pro-plus').disabled    = (proSeats >= MAX_PRO);
-  document.getElementById('go').disabled = (coachSeats + proSeats < 1);
+  document.getElementById('pro-minus').disabled = (proSeats <= 1);
+  document.getElementById('pro-plus').disabled  = (proSeats >= MAX_PRO);
+  document.getElementById('go').disabled = (proSeats < 1);
 }
 
 function showErr(msg){
@@ -432,15 +419,12 @@ function showErr(msg){
   el.style.display = msg ? 'block' : 'none';
 }
 
-document.getElementById('coach-minus').addEventListener('click', () => { coachSeats = clamp(coachSeats - 1, 0, MAX_COACH); render(); });
-document.getElementById('coach-plus').addEventListener('click',  () => { coachSeats = clamp(coachSeats + 1, 0, MAX_COACH); render(); });
-document.getElementById('pro-minus').addEventListener('click',   () => { proSeats   = clamp(proSeats   - 1, 0, MAX_PRO);   render(); });
-document.getElementById('pro-plus').addEventListener('click',    () => { proSeats   = clamp(proSeats   + 1, 0, MAX_PRO);   render(); });
-document.getElementById('coach-n').addEventListener('change', e => { coachSeats = clamp(e.target.value, 0, MAX_COACH); render(); });
-document.getElementById('pro-n').addEventListener('change',   e => { proSeats   = clamp(e.target.value, 0, MAX_PRO);   render(); });
+document.getElementById('pro-minus').addEventListener('click', () => { proSeats = clamp(proSeats - 1, 1, MAX_PRO); render(); });
+document.getElementById('pro-plus').addEventListener('click',  () => { proSeats = clamp(proSeats + 1, 1, MAX_PRO); render(); });
+document.getElementById('pro-n').addEventListener('change', e => { proSeats = clamp(e.target.value, 1, MAX_PRO); render(); });
 
 document.getElementById('nudge-go').addEventListener('click', e => {
-  proSeats = clamp(e.target.dataset.to, 0, MAX_PRO);
+  proSeats = clamp(e.target.dataset.to, 1, MAX_PRO);
   render();
 });
 
@@ -454,12 +438,12 @@ document.getElementById('go').addEventListener('click', async () => {
     return;
   }
   btn.disabled = true;
-  btn.textContent = 'Opening Stripe\u2026';
+  btn.textContent = 'Opening Stripe…';
   try{
     const r = await fetch(API + '/checkout', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ coachSeats, proSeats, email })
+      body: JSON.stringify({ coachSeats: 0, proSeats, email })
     });
     const data = await r.json();
     if(!r.ok || !data.url) throw new Error(data.error || 'Could not start checkout');
