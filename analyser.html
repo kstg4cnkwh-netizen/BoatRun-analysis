@@ -932,7 +932,7 @@ function setTier(t) {
     try { localStorage.setItem(TIER_SETTINGS_KEY, JSON.stringify(v)); } catch {}
 }
 function isPro() { const t = getTier(); return t === 'pro' || t === 'coach'; }
-function isCoach() { return getTier() === 'coach'; }
+function isCoach() { return true; }   // 19 Nov: coach is free; squad rights come from owner / approved coach access (sqIsCoach)
 const ANALYSER_TRIAL_DAYS = 30;
 let _trialUntil = 0;
 function trialDaysLeft() { return _trialUntil > Date.now() ? Math.ceil((_trialUntil - Date.now()) / 86400000) : 0; }
@@ -15644,7 +15644,7 @@ async function sqlFetch(code,force){
   const c=_sqlCache[code];
   if(c&&!force&&Date.now()-c.t<60000)return c;
   const out={t:Date.now(),data:null,err:null};
-  try{const r=await fetch(sqProxy(code,'load'));if(r.status===403)out.err='worker';else if(r.status===401)out.err='password';else if(!r.ok)out.err='HTTP '+r.status;else out.data=(await r.json())||{};}catch(e){out.err='offline';}
+  try{const au=await shareAuth();if(!au){out.err='signin';}else{const r=await fetch(SQ_FB_BASE+'/squads/'+code+'/load.json?auth='+encodeURIComponent(au.tok));if(r.status===401||r.status===403)out.err='access';else if(!r.ok)out.err='HTTP '+r.status;else out.data=(await r.json())||{};}}catch(e){out.err='offline';}   // 19 Nov: read by account - coaches of the squad only
   _sqlCache[code]=out;return out;
 }
 function sqlSpark(arr,w,h,col){
@@ -15669,16 +15669,17 @@ function sqlDetail(a){
     +'<div style="font-size:11px;font-weight:700;margin-top:6px;">Check-ins, last 14 days</div><div style="display:flex;gap:2px;margin-top:3px;">'+wl+'</div>'
     +(a.race?'<div style="font-size:12px;margin-top:6px;">Next race: <b>'+a.race.pri+' &middot; '+_secEsc(a.race.text)+'</b>, '+new Date(a.race.day+'T12:00:00').toLocaleDateString('en-AU',{day:'numeric',month:'short'})+'</div>':'')+'</div>';
 }
+function sqlCoachCode(){if(_wktCtx)return sqIsCoach(_wktCtx)?_wktCtx:null;try{return calSqOn().find(sqIsCoach)||null;}catch(e){return null;}}
 async function sqlRender(){
   const el=document.getElementById('sz-sqload');if(!el)return;
-  const code=_wktCtx;
+  const code=sqlCoachCode();   // 19 Nov: a squad on the calendar you coach
   if(!code){el.style.display='none';return;}
   el.style.display='';
   if(!_sqlCache[code])el.innerHTML='<div class="sz-lhd">Squad load</div><div style="font-size:12px;color:var(--muted);">Loading&hellip;</div>';
-  const res=await sqlFetch(code);if(_wktCtx!==code)return;
+  const res=await sqlFetch(code);if(sqlCoachCode()!==code)return;
   let h='<div class="sz-lhd" style="display:flex;align-items:center;gap:8px;">Squad load<button id="sql-refresh" class="filt-chip" style="margin-left:auto;font-size:12px;padding:5px 12px;">Refresh</button></div>';
   if(res.err){
-    h+='<div style="font-size:12px;color:#e74c3c;">'+(res.err==='worker'?'The squad server does not allow reading load yet (update the boatrun-squad worker).':res.err==='password'?'Squad password needed.':'Could not load ('+_secEsc(res.err)+').')+'</div>';
+    h+='<div style="font-size:12px;color:#e74c3c;">'+(res.err==='access'?'You need coach access to this squad (the database rules may also need updating).':res.err==='signin'?'Sign in to see the squad load.':'Could not load ('+_secEsc(res.err)+').')+'</div>';
   }else{
     const now=Date.now(),todayK=_dayKey(now);
     const rows=Object.keys(res.data||{}).map(id=>({id,...res.data[id]})).filter(a=>a&&Array.isArray(a.load)&&Array.isArray(a.ac)&&Array.isArray(a.ch));
@@ -15753,21 +15754,22 @@ function renderStartupCalendar(){
             ?'<div data-cichip="'+_secEsc(q.x.id)+'" title="'+_secEsc(q.x.text||'')+'" style="font-size:9px;line-height:1.3;background:'+CI_OTHER_COL+';color:#fff;border-radius:3px;padding:0 3px;margin-top:1px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;box-shadow:0 1px 2px rgba(0,0,0,.25);">'+(q.x.done?'&#10003; ':'')+_secEsc(q.x.text||'')+'</div>'
             :'<div style="font-size:9px;line-height:1.3;background:'+(wById[q.id].venue==='erg'?CAL_ERG_COL:CAL_WATER_COL)+';color:#fff;border-radius:3px;padding:0 3px;margin-top:1px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">'+_coachMark(q.id,false)+_secEsc(_wktDispName(wById[q.id]))+'</div>').join('')
             +(sq.length>2?'<div style="font-size:9px;color:var(--muted);">+'+(sq.length-2)+'</div>':'');})()
+        +calSqCellHtml(k)
         +_szc.cell(k,false)
         +'</div>';
     }
     return g+'</div>';
   };
   const mLabel=(y,m)=>new Date(y,m,1).toLocaleDateString('en-AU',{month:'long',year:'numeric'});
-  const sqBar=_wktCtx?'<div style="display:flex;align-items:center;gap:8px;margin:-2px 0 8px;font-size:11px;color:var(--muted);"><span style="font-weight:700;color:var(--text);">'+_secEsc((_sqStore&&_sqStore.desc)||('Squad '+_wktCtx))+'</span><span>'+(sqCanEdit()?'Coach — you can plan workouts':'View only — import workouts to your calendar')+'</span><a href="#" id="cal-sqchange" style="margin-left:auto;color:var(--b);">Change squad</a></div>':'';
+  const sqBar=calSqBarHtml()+(_wktCtx?'<div style="display:flex;align-items:center;gap:8px;margin:-2px 0 8px;font-size:11px;color:var(--muted);"><span style="font-weight:700;color:var(--text);">'+_secEsc((_sqStore&&_sqStore.desc)||('Squad '+_wktCtx))+'</span><span>'+(sqCanEdit()?'Coach — you can plan workouts':'View only — import workouts to your calendar')+'</span><a href="#" id="cal-sqchange" style="margin-left:auto;color:var(--b);">Change squad</a></div>':'');
   let h;
   if(wide){
     /* Wide screens: one scrolling strip of months, from the first session
        (at most 3 years back) to 3 months ahead. */
     const back=isFinite(firstTs)?Math.min(36,Math.max(1,(now.getFullYear()-new Date(firstTs).getFullYear())*12+now.getMonth()-new Date(firstTs).getMonth())):6;
-    h='<div class="sz-lhd" style="display:flex;align-items:center;gap:6px;flex-wrap:wrap;">Calendar'+'<span style="display:flex;gap:4px;margin-left:8px;"><button id="cal-mine" class="filt-chip'+(!_wktCtx?' on':'')+'" style="'+CH+'">Mine</button><button id="cal-squad" class="filt-chip'+(_wktCtx?' on':'')+'" style="'+CH+'">'+'<span style="display:inline-block;flex-shrink:0;width:8px;height:8px;border-radius:50%;background:'+CAL_COACH_COL+';box-shadow:0 0 0 1px rgba(0,0,0,.35);margin-right:5px;vertical-align:middle;"></span>'+'Squad'+(_wktCtx?' '+_wktCtx:'')+'</button></span>'
+    h='<div class="sz-lhd" style="display:flex;align-items:center;gap:6px;flex-wrap:wrap;">Calendar'+calSqChipsHtml(CH)
       +'<span style="margin-left:auto;display:flex;align-items:center;gap:6px;">'+((!_wktCtx&&WKT_ENABLED)?'<button id="cal-sqsync" class="filt-chip" style="'+CH+'" title="Copy the squad plan into your calendar">&#x21BB; From squad</button>':'')
-      +'<button id="sz-phonesync" class="filt-chip" style="'+CH+'" title="Fetch new sessions, workouts and calendar items from the app"><span>&#x21BB; Sync with app</span></button>'+'<button id="cal-plan" class="filt-chip" style="'+CH+'" title="Opens the planning calendar in its own window">&#x1F5D3; Planning</button>'+'<button id="cal-today" class="filt-chip" style="'+CH+'">Today</button></span></div>'+sqBar
+      +'<button id="sz-phonesync" class="filt-chip" style="'+CH+'" title="Fetch new sessions, workouts and calendar items from the app"><span>&#x21BB; Sync with app</span></button>'+'<button id="cal-today" class="filt-chip" style="'+CH+'">Today</button></span></div>'+sqBar
       +'<div id="cal-scroll" style="height:min(440px,62vh);overflow-y:auto;padding-right:4px;position:relative;">';
     for(let o=-back;o<=3;o++){
       const b=new Date(now.getFullYear(),now.getMonth()+o,1);
@@ -15776,13 +15778,13 @@ function renderStartupCalendar(){
     h+='</div>';
   }else{
     const base=new Date(now.getFullYear(),now.getMonth()+_calMonthOff,1);
-    h='<div class="sz-lhd" style="display:flex;align-items:center;gap:6px;flex-wrap:wrap;">Calendar'+'<span style="display:flex;gap:4px;margin-left:8px;"><button id="cal-mine" class="filt-chip'+(!_wktCtx?' on':'')+'" style="'+CH+'">Mine</button><button id="cal-squad" class="filt-chip'+(_wktCtx?' on':'')+'" style="'+CH+'">'+'<span style="display:inline-block;flex-shrink:0;width:8px;height:8px;border-radius:50%;background:'+CAL_COACH_COL+';box-shadow:0 0 0 1px rgba(0,0,0,.35);margin-right:5px;vertical-align:middle;"></span>'+'Squad'+(_wktCtx?' '+_wktCtx:'')+'</button></span>'
+    h='<div class="sz-lhd" style="display:flex;align-items:center;gap:6px;flex-wrap:wrap;">Calendar'+calSqChipsHtml(CH)
       +'<span style="margin-left:auto;display:flex;align-items:center;gap:6px;flex-wrap:wrap;justify-content:flex-end;min-width:0;max-width:100%;">'
       +'<button id="cal-prev" class="filt-chip" style="'+CH+'">‹</button>'
       +'<span style="font-size:.8rem;font-weight:600;min-width:110px;text-align:center;">'+mLabel(base.getFullYear(),base.getMonth())+'</span>'
       +'<button id="cal-next" class="filt-chip" style="'+CH+'">›</button>'
       +((!_wktCtx&&WKT_ENABLED)?'<button id="cal-sqsync" class="filt-chip" style="'+CH+'" title="Copy the squad plan into your calendar">&#x21BB; From squad</button>':'')
-      +'<button id="sz-phonesync" class="filt-chip" style="'+CH+'" title="Fetch new sessions, workouts and calendar items from the app"><span>&#x21BB; Sync with app</span></button>'+'<button id="cal-plan" class="filt-chip" style="'+CH+'" title="Opens the planning calendar in its own window">&#x1F5D3; Planning</button>'+'<button id="cal-today" class="filt-chip" style="'+CH+'">Today</button></span></div>'+sqBar
+      +'<button id="sz-phonesync" class="filt-chip" style="'+CH+'" title="Fetch new sessions, workouts and calendar items from the app"><span>&#x21BB; Sync with app</span></button>'+'<button id="cal-today" class="filt-chip" style="'+CH+'">Today</button></span></div>'+sqBar
       +monthGrid(base.getFullYear(),base.getMonth());
   }
   const hCal=h;h='';
@@ -15842,6 +15844,7 @@ function renderStartupCalendar(){
       +'</div>';}
     }
     if(!_seqShown)h+=_othRows;
+    h+=calSqDayHtml(_calSel);   // 19 Nov: squad plans for this day
     if(!_wktCtx&&!WKT_ENABLED&&_calSel>=todayK)h+='<div style="font-size:12px;color:var(--muted);margin:10px 0 4px;line-height:1.5;">To plan workouts here, open BoatRun on your phone signed in with Google Drive linked. Planning switches on by itself.</div>';
     if(!_calBtnsShown&&_ciEd){
       const BB='flex:1 1 0;min-width:0;min-height:48px;line-height:1.2;padding:10px 6px;border-radius:10px;border:none;box-shadow:0 2px 8px rgba(0,0,0,.22);font-family:-apple-system,Roboto,sans-serif;font-size:11px;font-weight:700;letter-spacing:.06em;cursor:pointer;color:#fff;';
@@ -15890,6 +15893,8 @@ function renderStartupCalendar(){
   const cn=document.getElementById('cal-next');if(cn)cn.onclick=()=>{_calMonthOff++;renderStartupCalendar();};
   const cm=document.getElementById('cal-mine');if(cm)cm.onclick=()=>{if(_wktCtx)leaveSquadCalendar();};
   const cq=document.getElementById('cal-squad');if(cq)cq.onclick=()=>{if(!_wktCtx)enterSquadCalendar(false);};
+  try{calSqWire(el);calSqBarWire(el);}catch(e){}
+  setTimeout(()=>{try{calSqAutoLoad();}catch(e){}},0);
   const cs=document.getElementById('cal-sqsync');if(cs)cs.onclick=()=>syncFromSquad();
   const cc=document.getElementById('cal-sqchange');if(cc)cc.onclick=e=>{e.preventDefault();enterSquadCalendar(true);};
   const cpl=document.getElementById('cal-plan');if(cpl)cpl.onclick=()=>openPlanningView();
@@ -15912,6 +15917,7 @@ function renderStartupCalendar(){
     dRoot.querySelectorAll('[data-calrm]').forEach(b=>{b.onclick=e=>{e.stopPropagation();planRemove(_calSel,+b.dataset.calrm);renderStartupCalendar();};});
     makeSortable(dRoot.querySelector('#cal-seq'),(f,t)=>{daySeqMove(_calSel,f,t);renderStartupCalendar();});
     dRoot.querySelectorAll('[data-caldet]').forEach(b=>{b.onclick=()=>window.showWorkoutsModal({viewId:b.dataset.caldet});});
+    try{calSqDayWire(dRoot,_calSel);}catch(e){}
     dRoot.querySelectorAll('[data-calimp]').forEach(b=>{b.onclick=e=>{e.stopPropagation();sqImportWorkout(b.dataset.calimp,_calSel);};});
     const aw=document.getElementById('cal-add-water');
     if(aw)aw.onclick=()=>showPlanPicker(_calSel,'water');
@@ -15928,6 +15934,239 @@ function renderStartupCalendar(){
     dRoot.querySelectorAll('[data-cidone]').forEach(b=>{b.onclick=e=>{e.stopPropagation();calItemToggleDone(day,b.dataset.cidone);};});
   }
 }
+/* ══════════════════════════════════════════════════════════════════════════
+   SQUAD ROLES AND COACH ACCESS (19 Nov). Coach rights are per squad:
+     - the person who creates a squad is its owner (/squads/CODE/owner {uid,name});
+       an older squad with no owner can be claimed once, with its password,
+     - anyone else asks for coach access (/coachReq/UID) and the owner
+       approves it (/coaches/UID),
+     - on the calendar each squad asks once for your role (Athlete / Coach).
+   Only someone who picked Coach AND has access (owner or approved) can add
+   or remove squad workouts and see each athlete's load. The database rules
+   check the same thing for the plan and the load, by account.
+   ══════════════════════════════════════════════════════════════════════════ */
+const _sqAcc={};let _sqAsking=false;
+function sqRoleAll(){try{const v=JSON.parse(localStorage.getItem('br_sq_role')||'{}');return v&&typeof v==='object'?v:{};}catch(e){return {};}}
+function sqRole(c){return (sqRoleAll()[c]||{}).r||'';}
+function sqRoleSet(c,r){const a=sqRoleAll();a[c]={r,t:Date.now()};try{localStorage.setItem('br_sq_role',JSON.stringify(a));}catch(e){}}
+function sqIsCoach(c){const a=_sqAcc[c];return !!c&&sqRole(c)==='coach'&&!!a&&(a.me||a.coach);}
+function sqMyName(){const ok=v=>typeof v==='string'&&v.trim()?v.trim():'';try{const n=ok(sqlName());if(n&&n!=='Rower')return n;}catch(e){}try{const u=fbAuth.currentUser;if(u)return ok(u.displayName)||ok(u.email)||'Coach';}catch(e){}return 'Coach';}
+async function sqFb(path,au,opt){return fetch(SQ_FB_BASE+'/squads/'+path+'.json'+(au?'?auth='+encodeURIComponent(au.tok):''),opt||{});}
+async function sqAccFetch(c,force){
+  const old=_sqAcc[c];if(!force&&old&&Date.now()-old.t<120000)return old;
+  const au=await shareAuth();
+  const o={owner:null,ownerName:'',me:false,coach:false,pending:false,reqs:{},coaches:{},t:Date.now(),signed:!!au};
+  try{const r=await sqFb(c+'/owner/uid');if(r.ok)o.owner=await r.json();}catch(e){}
+  try{const r=await sqFb(c+'/owner/name');if(r.ok)o.ownerName=(await r.json())||'';}catch(e){}
+  if(au){
+    o.me=!!o.owner&&o.owner===au.uid;
+    if(o.me){
+      o.coach=true;
+      try{const r=await sqFb(c+'/coachReq',au);if(r.ok)o.reqs=(await r.json())||{};}catch(e){}
+      try{const r=await sqFb(c+'/coaches',au);if(r.ok)o.coaches=(await r.json())||{};}catch(e){}
+    }else{
+      try{const r=await sqFb(c+'/coaches/'+au.uid,au);if(r.ok)o.coach=!!(await r.json());}catch(e){}
+      if(!o.coach){try{const r=await sqFb(c+'/coachReq/'+au.uid,au);if(r.ok)o.pending=!!(await r.json());}catch(e){}}
+    }
+  }
+  _sqAcc[c]=o;return o;
+}
+/* refresh access for the squads on the calendar, then redraw if anything changed */
+async function sqAccRefreshAll(){
+  let ch=false;
+  for(const c of calSqOn()){const b=JSON.stringify(_sqAcc[c]||null);await sqAccFetch(c);if(JSON.stringify(Object.assign({},_sqAcc[c],{t:0}))!==JSON.stringify(Object.assign({},JSON.parse(b)||{},{t:0})))ch=true;}
+  if(ch)renderStartupCalendar();
+  const need=calSqOn().find(c=>!sqRole(c));if(need&&!_sqAsking)sqRoleAsk(need);
+}
+function sqModal(html){
+  document.getElementById('_sq_role_modal')?.remove();
+  const ov=document.createElement('div');ov.id='_sq_role_modal';
+  ov.style.cssText='position:fixed;inset:0;background:rgba(0,0,0,.72);display:flex;align-items:center;justify-content:center;z-index:9200;padding:16px;';
+  ov.innerHTML='<div style="background:var(--s1);color:var(--text);border:1px solid var(--border);border-radius:12px;padding:16px;max-width:460px;width:100%;max-height:88vh;overflow-y:auto;font-family:-apple-system,BlinkMacSystemFont,Helvetica Neue,sans-serif;">'+html+'</div>';
+  document.body.appendChild(ov);return ov;
+}
+const SQ_BTN='flex:1;padding:12px 0;border:none;border-radius:8px;font-weight:800;font-size:14px;cursor:pointer;font-family:inherit;color:#fff;';
+function sqRoleAsk(c){
+  _sqAsking=true;
+  const ov=sqModal('<div style="display:flex;align-items:center;font-size:1rem;font-weight:800;margin-bottom:4px;">'+pvMarker(pvCol(c),10)+_secEsc(pvSqName(c))+'</div>'
+    +'<div style="font-size:13px;opacity:.8;margin-bottom:14px;line-height:1.4;">What is your role in this squad? Athletes see the squad plan and can import workouts. Coaches plan the squad and see each athlete’s load (coach access comes from the squad owner).</div>'
+    +'<div style="display:flex;gap:8px;"><button id="sqr-ath" style="'+SQ_BTN+'background:#1E88E5;">Athlete</button><button id="sqr-coach" style="'+SQ_BTN+'background:#6a3fb0;">Coach</button></div>'
+    +'<button id="sqr-later" style="width:100%;margin-top:8px;padding:8px 0;border:1px solid var(--border);border-radius:8px;background:transparent;color:var(--text);cursor:pointer;font-family:inherit;">Ask me later</button>');
+  const done=()=>{ov.remove();_sqAsking=false;renderStartupCalendar();};
+  ov.querySelector('#sqr-ath').onclick=()=>{sqRoleSet(c,'athlete');if(_calTgt===c)_calTgt='mine';done();};
+  ov.querySelector('#sqr-later').onclick=()=>{sqRoleSet(c,'later');done();};
+  ov.querySelector('#sqr-coach').onclick=async()=>{ov.remove();_sqAsking=false;await sqCoachFlow(c);};
+}
+/* Coach chosen: owner / approved -> done; no owner -> claim; else -> request */
+async function sqCoachFlow(c){
+  const au=await shareAuth();
+  if(!au){alert('Sign in first, so the squad owner knows who is asking for coach access.');return;}
+  const a=await sqAccFetch(c,true);
+  if(a.me||a.coach){sqRoleSet(c,'coach');toast(a.me?'You are the owner of '+pvSqName(c):'Coach access to '+pvSqName(c));renderStartupCalendar();return;}
+  if(!a.owner){
+    if(!confirm(pvSqName(c)+' has no owner yet (it was made before owners existed).\n\nClaim it? You become its owner: you plan it, see athletes’ load and approve other coaches.'))return;
+    if(!(await ensureSquadUnlocked(c)))return;
+    const pw=getSquadPw(c),body={uid:au.uid,name:sqMyName().slice(0,60),t:Date.now()};
+    if(pw)body.auth=await sqPwHashA(c,pw);
+    let ok=false;try{const r=await sqFb(c+'/owner',au,{method:'PUT',body:JSON.stringify(body)});ok=r.ok;}catch(e){}
+    if(!ok){toast('Could not claim the squad (wrong password, or someone claimed it first)',4000);await sqAccFetch(c,true);renderStartupCalendar();return;}
+    sqRoleSet(c,'coach');await sqAccFetch(c,true);toast('You now own '+pvSqName(c));renderStartupCalendar();return;
+  }
+  if(a.pending){sqRoleSet(c,'coach');toast('Coach access already requested - waiting for '+(a.ownerName||'the owner'));renderStartupCalendar();return;}
+  if(!confirm('Ask '+(a.ownerName||'the squad owner')+' for coach access to '+pvSqName(c)+'?\n\nUntil they approve it you see the squad as an athlete.'))return;
+  let em='';try{em=fbAuth.currentUser.email||'';}catch(e){}
+  let ok=false;try{const r=await sqFb(c+'/coachReq/'+au.uid,au,{method:'PUT',body:JSON.stringify({name:sqMyName().slice(0,60),email:em.slice(0,100),t:Date.now()})});ok=r.ok;}catch(e){}
+  if(!ok){toast('Request not sent - try again',4000);return;}
+  sqRoleSet(c,'coach');await sqAccFetch(c,true);toast('Coach access requested');renderStartupCalendar();
+}
+/* Owner: approve / decline requests, remove coaches. Coach: give up access. */
+async function sqManageOpen(c){
+  const au=await shareAuth();if(!au){alert('Sign in first.');return;}
+  const a=await sqAccFetch(c,true);
+  if(!a.me){
+    if(a.coach&&confirm('Give up coach access to '+pvSqName(c)+'?')){try{await sqFb(c+'/coaches/'+au.uid,au,{method:'DELETE'});}catch(e){}sqRoleSet(c,'athlete');await sqAccFetch(c,true);renderStartupCalendar();}
+    return;
+  }
+  const R=Object.keys(a.reqs||{}),C=Object.keys(a.coaches||{});
+  const row=(id,x,btns)=>'<div style="display:flex;align-items:center;gap:8px;padding:8px 0;border-top:1px solid var(--border);font-size:13px;"><span style="flex:1;min-width:0;"><b>'+_secEsc(x.name||'Coach')+'</b>'+(x.email?'<br><span style="font-size:11px;opacity:.7;">'+_secEsc(x.email)+'</span>':'')+'</span>'+btns+'</div>';
+  const B=(attr,id,col,t)=>'<button '+attr+'="'+_secEsc(id)+'" style="padding:6px 10px;border:none;border-radius:6px;background:'+col+';color:#fff;font-weight:800;cursor:pointer;font-family:inherit;">'+t+'</button>';
+  const ov=sqModal('<div style="display:flex;align-items:center;font-size:1rem;font-weight:800;margin-bottom:2px;">'+pvMarker(pvCol(c),10)+_secEsc(pvSqName(c))+' &middot; coaches</div>'
+    +'<div style="font-size:12px;opacity:.75;margin-bottom:10px;">You own this squad. Coaches can plan the squad calendar and see each athlete’s load.</div>'
+    +'<div style="font-size:12px;font-weight:800;margin-top:6px;">Requests</div>'+(R.length?R.map(id=>row(id,a.reqs[id],B('data-sqok',id,'#27ae60','Approve')+B('data-sqno',id,'#c0392b','Decline'))).join(''):'<div style="font-size:12px;opacity:.7;padding:6px 0;">None waiting.</div>')
+    +'<div style="font-size:12px;font-weight:800;margin-top:10px;">Coaches</div>'+(C.length?C.map(id=>row(id,a.coaches[id],B('data-sqrm',id,'#7f8c8d','Remove'))).join(''):'<div style="font-size:12px;opacity:.7;padding:6px 0;">Just you.</div>')
+    +'<button id="sqm-done" style="width:100%;margin-top:12px;padding:10px 0;background:#1E88E5;border:none;color:#fff;border-radius:8px;font-weight:800;cursor:pointer;font-family:inherit;">Done</button>');
+  const re=async()=>{await sqAccFetch(c,true);ov.remove();sqManageOpen(c);renderStartupCalendar();};
+  ov.querySelectorAll('[data-sqok]').forEach(b=>{b.onclick=async()=>{const id=b.dataset.sqok,x=a.reqs[id]||{};
+    const r=await sqFb(c+'/coaches/'+id,au,{method:'PUT',body:JSON.stringify({name:String(x.name||'Coach').slice(0,60),t:Date.now()})}).catch(()=>null);
+    if(r&&r.ok){await sqFb(c+'/coachReq/'+id,au,{method:'DELETE'}).catch(()=>{});toast('Approved '+(x.name||'coach'));}else toast('Not saved - check the database rules are updated',4000);re();};});
+  ov.querySelectorAll('[data-sqno]').forEach(b=>{b.onclick=async()=>{await sqFb(c+'/coachReq/'+b.dataset.sqno,au,{method:'DELETE'}).catch(()=>{});re();};});
+  ov.querySelectorAll('[data-sqrm]').forEach(b=>{b.onclick=async()=>{const x=a.coaches[b.dataset.sqrm]||{};if(!confirm('Remove coach access for '+(x.name||'this coach')+'?'))return;await sqFb(c+'/coaches/'+b.dataset.sqrm,au,{method:'DELETE'}).catch(()=>{});re();};});
+  ov.querySelector('#sqm-done').onclick=()=>ov.remove();
+  ov.onclick=e=>{if(e.target===ov)ov.remove();};
+}
+/* one line per squad on the calendar: your role, change it, owner tools */
+function calSqBarHtml(){
+  if(_wktCtx)return '';
+  const on=calSqOn();if(!on.length)return '';
+  return '<div style="display:flex;flex-direction:column;gap:3px;margin:-2px 0 8px;font-size:11px;color:var(--muted);">'+on.map(c=>{
+    const a=_sqAcc[c],r=sqRole(c);let you;
+    if(r==='coach'){you=!a?'Coach (checking…)':a.me?'<b style="color:#6a3fb0;">Coach (owner)</b>':a.coach?'<b style="color:#6a3fb0;">Coach</b>':a.pending?'Coach access requested - athlete view until approved':'Coach - no access yet';}
+    else if(r==='athlete')you='Athlete';else you='Role not set';
+    const nReq=a&&a.me?Object.keys(a.reqs||{}).length:0;
+    return '<div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap;">'+pvMarker(pvCol(c),7)+'<span style="font-weight:700;color:var(--text);">'+_secEsc(pvSqName(c))+'</span><span>You: '+you+'</span>'
+      +'<a href="#" data-sqrole="'+c+'" style="color:var(--b);">'+(r&&r!=='later'?'Change role':'Set role')+'</a>'
+      +(r==='coach'&&a&&!a.me&&!a.coach?'<a href="#" data-sqreq="'+c+'" style="color:var(--b);">'+(a.pending?'Check again':'Request coach access')+'</a>':'')
+      +(a&&a.me?'<a href="#" data-sqman="'+c+'" style="color:'+(nReq?'#e67e22':'var(--b)')+';font-weight:'+(nReq?'800':'400')+';">'+(nReq?nReq+' coach request'+(nReq===1?'':'s')+' - review':'Manage coaches')+'</a>':'')
+      +(a&&a.coach&&!a.me&&r==='coach'?'<a href="#" data-sqman="'+c+'" style="color:var(--b);">Give up coach access</a>':'')
+      +'</div>';}).join('')+'</div>';
+}
+function calSqBarWire(el){
+  el.querySelectorAll('[data-sqrole]').forEach(x=>{x.onclick=e=>{e.preventDefault();sqRoleAsk(x.dataset.sqrole);};});
+  el.querySelectorAll('[data-sqreq]').forEach(x=>{x.onclick=async e=>{e.preventDefault();await sqCoachFlow(x.dataset.sqreq);};});
+  el.querySelectorAll('[data-sqman]').forEach(x=>{x.onclick=e=>{e.preventDefault();sqManageOpen(x.dataset.sqman);};});
+}
+/* ══════════════════════════════════════════════════════════════════════════
+   SQUAD PLANS ON MY CALENDAR (19 Nov). The separate Planning window is gone.
+   The start calendar is always your own, with the plan of each squad you
+   belong to shown on it too (squad colour edge; tap a squad chip in the
+   calendar header to hide or show it). Squads load by themselves when their
+   password is saved. Anyone can import a squad workout to their own
+   calendar; only a coach can add workouts to, or remove them from, a squad
+   calendar ("Add to" in the Workouts list). Squad workouts don't count in
+   your own load until imported.
+   ══════════════════════════════════════════════════════════════════════════ */
+let _calTgt='mine';const _csTried={};
+function calSqOff(){try{const v=JSON.parse(localStorage.getItem('br_cal_sq_off')||'{}');return v&&typeof v==='object'?v:{};}catch(e){return {};}}
+function calSqCodes(){return pvSquads().map(x=>String(x.code||'').toUpperCase()).filter(c=>c.length===7&&c!==DEMO_SQUAD_CODE_SAFE());}
+function DEMO_SQUAD_CODE_SAFE(){try{return DEMO_SQUAD_CODE;}catch(e){return '';}}
+function calSqOn(){if(_wktCtx)return [];const off=calSqOff();return calSqCodes().filter(c=>!off[c]&&_pv.sq[c]);}
+function calSqToggle(c){const off=calSqOff();if(off[c])delete off[c];else off[c]=1;try{localStorage.setItem('br_cal_sq_off',JSON.stringify(off));}catch(e){}if(!off[c]&&!_pv.sq[c]){pvLoadSquad(c).then(ok=>{if(ok)renderStartupCalendar();});}if(off[c]&&_calTgt===c)_calTgt='mine';renderStartupCalendar();}
+async function calSqAutoLoad(){
+  if(_wktCtx)return;
+  const off=calSqOff();
+  for(const c of calSqCodes()){
+    if(off[c]||_pv.sq[c]||_pv.loading[c]||_csTried[c])continue;
+    _csTried[c]=1;
+    try{
+      if(!_sqPwOk[c]){const r=await checkSquadPw(c,getSquadPw(c));if(r!=='ok')continue;_sqPwOk[c]=true;}
+      if(await pvLoadSquad(c))renderStartupCalendar();
+    }catch(e){}
+  }
+  try{await sqAccRefreshAll();}catch(e){}
+}
+function calSqChipsHtml(CH){
+  if(_wktCtx)return '<span style="display:flex;gap:4px;margin-left:8px;"><button id="cal-mine" class="filt-chip" style="'+CH+'">&larr; My calendar</button></span>';
+  const off=calSqOff(),cs=calSqCodes();
+  if(!cs.length)return '';
+  return '<span style="display:flex;gap:4px;margin-left:8px;flex-wrap:wrap;">'+cs.map(c=>{const on=!off[c],ld=!!_pv.sq[c];
+    return '<button data-calsq="'+c+'" class="filt-chip'+(on&&ld?' on':'')+'" style="'+CH+(on?'':'opacity:.55;')+'" title="'+(on?'Hide':'Show')+' this squad’s plan">'+pvMarker(pvCol(c),8)+_secEsc(pvSqName(c))+(on&&!ld?(_pv.loading[c]?' …':' \u{1F512}'):'')+'</button>';}).join('')+'</span>';
+}
+function calSqWire(el){
+  el.querySelectorAll('[data-calsq]').forEach(b=>{b.onclick=async()=>{const c=b.dataset.calsq,off=calSqOff();
+    if(!off[c]&&!_pv.sq[c]){if(await pvLoadSquad(c))renderStartupCalendar();return;}   // locked: ask for the password
+    calSqToggle(c);};});
+}
+function calSqEntries(k){
+  const out=[];
+  calSqOn().forEach(c=>{const st=_pv.sq[c],e=st.days&&st.days[k],ids=(e&&Array.isArray(e.ids))?e.ids:[];const by={};(st.workouts||[]).forEach(w=>{if(w&&!w.deleted)by[w.id]=w;});ids.forEach((id,i)=>out.push({c,id,idx:i,w:by[id]||null}));});
+  return out;
+}
+function calSqItemsOf(k,types){
+  const out=[];calSqOn().forEach(c=>{const st=_pv.sq[c],e=st.items&&st.items[k];((e&&Array.isArray(e.list))?e.list:[]).filter(x=>!types||types.indexOf(x.type)>=0).forEach(x=>out.push({c,x}));});return out;
+}
+function calSqCellHtml(k){
+  if(_wktCtx)return '';
+  const todayK=_dayKey(Date.now());
+  let h='';
+  calSqItemsOf(k,['event']).slice(0,1).forEach(q=>{h+='<div title="'+_secEsc(pvSqName(q.c)+': '+(q.x.text||''))+'" style="font-size:9px;line-height:1.3;background:'+CI_EVENT_COL+';color:#fff;border-radius:3px;padding:0 3px;margin-top:1px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;font-weight:700;border-left:3px solid '+pvCol(q.c)+';">'+(q.x.race?'\u{1F3C1}':'')+_secEsc(q.x.text||'')+'</div>';});
+  if(k<todayK)return h;
+  const en=calSqEntries(k);
+  en.slice(0,2).forEach(x=>{const col=x.w?(x.w.venue==='erg'?CAL_ERG_COL:CAL_WATER_COL):'#8e8e93';
+    h+='<div title="'+_secEsc(pvSqName(x.c))+'" style="font-size:9px;line-height:1.3;background:'+col+';color:#fff;border-radius:3px;padding:0 3px;margin-top:1px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;opacity:.85;border-left:4px solid '+pvCol(x.c)+';">'+(x.w?_secEsc(_wktDispName(x.w)):'(deleted)')+'</div>';});
+  if(en.length>2)h+='<div style="font-size:9px;color:var(--muted);">+'+(en.length-2)+' squad</div>';
+  return h;
+}
+function calSqDayHtml(k){
+  if(_wktCtx)return '';
+  const todayK=_dayKey(Date.now()),en=calSqEntries(k),its=calSqItemsOf(k);
+  if(!en.length&&!its.length)return '';
+  let h='';
+  calSqOn().forEach(c=>{
+    const e1=en.filter(x=>x.c===c),i1=its.filter(x=>x.c===c);if(!e1.length&&!i1.length)return;
+    const can=pvSrcWritable(c)&&k>=todayK;
+    h+='<div style="font-size:11px;color:var(--muted);margin:10px 0 4px;display:flex;align-items:center;">'+pvMarker(pvCol(c),8)+'Squad plan &middot; <b style="color:var(--text);margin-left:3px;">'+_secEsc(pvSqName(c))+'</b>'+(can?'':'<span style="margin-left:6px;">(import to add it to your plan)</span>')+'</div>';
+    _pv.sel=k;i1.forEach(q=>{h+=pvSqItemRow(q);});
+    if(k>=todayK)e1.forEach(x=>{const bg=x.w?(x.w.venue==='erg'?CAL_ERG_COL:CAL_WATER_COL):'#8e8e93';
+      h+=calStrip(x.w?'data-calsqdet="'+_secEsc(c+'|'+x.id)+'"':'',bg,
+        '<span style="'+CAL_STRIP_LBL+'">'+(x.w?(x.w.venue==='erg'?'ERG':'WATER'):'')+'</span>'
+        +'<span style="flex:1;min-width:0;font-size:13px;font-weight:700;color:var(--text);">'+(x.w?_secEsc(_wktDispName(x.w)):'Deleted workout')+'</span>'
+        +(x.w&&WKT_ENABLED?'<button data-calsqimp="'+_secEsc(c+'|'+x.id)+'" style="'+CAL_STRIP_BTN+'background:'+bg+';color:#fff;border-color:'+bg+';font-weight:800;">IMPORT</button>':''),
+        can?'<button class="sz-del" data-calsqrm="'+_secEsc(c+'|'+x.idx)+'" title="Remove from the squad plan"><img src="icons/Delete.svg"></button>':'',!!x.w);});
+  });
+  return h;
+}
+function calSqDayWire(root,k){
+  const sp=v=>{const i=v.indexOf('|');return [v.slice(0,i),v.slice(i+1)];};
+  root.querySelectorAll('[data-calsqimp]').forEach(b=>{b.onclick=e=>{e.stopPropagation();const [c,id]=sp(b.dataset.calsqimp);const w=((_pv.sq[c]||{}).workouts||[]).find(x=>x&&x.id===id);pvImport(c,w,k);};});
+  root.querySelectorAll('[data-calsqrm]').forEach(b=>{b.onclick=e=>{e.stopPropagation();const [c,i]=sp(b.dataset.calsqrm);pvSqPlanRemove(c,k,+i);};});
+  root.querySelectorAll('[data-calsqdet]').forEach(b=>{b.onclick=()=>{const [c,id]=sp(b.dataset.calsqdet);pvShowWorkout(c,id);};});
+  root.querySelectorAll('[data-pv="cidelsq"]').forEach(b=>{b.onclick=e=>{e.stopPropagation();pvSqItemDelete(b.dataset.c,k,b.dataset.xid);};});
+}
+/* Coach: add one of my workouts to a squad's plan (copied into the squad's list). */
+function calSqAdd(c,day,id){
+  if(!pvSrcWritable(c)||!_pv.sq[c]){toast('Only the coach can add to the squad calendar');return;}
+  const w=(_pW()||[]).find(x=>x&&x.id===id&&!x.deleted);if(!w)return;
+  const nid=pvCopyId('mine',c,w.id);
+  pvSqMutate(c,st=>{
+    st.workouts=Array.isArray(st.workouts)?st.workouts:[];
+    const i=st.workouts.findIndex(x=>x&&x.id===nid);
+    if(i<0||st.workouts[i].deleted||(st.workouts[i].rev||0)<(w.rev||0)){const cp=JSON.parse(JSON.stringify(w));cp.id=nid;cp.rev=Date.now();delete cp.ord;delete cp.deleted;if(i>=0)st.workouts[i]=cp;else st.workouts.push(cp);}
+    st.days=st.days||{};const e=st.days[day],ids=(e&&Array.isArray(e.ids))?e.ids.slice():[];ids.push(nid);st.days[day]={ids,rev:Date.now()};
+  });
+  _calSel=day;
+  toast(_wktDispName(w)+' added to '+pvSqName(c)+' on '+new Date(day+'T12:00:00').toLocaleDateString('en-AU',{weekday:'short',day:'numeric',month:'short'}));
+}
+function calTgtOk(){return _calTgt!=='mine'&&!_wktCtx&&!!_pv.sq[_calTgt]&&calSqOn().indexOf(_calTgt)>=0&&sqIsCoach(_calTgt);}
 /* ══════════════════════════════════════════════════════════════════════════
    SEASON PLAN (18 Nov). The Planning tab's week-by-week timeline: loading
    cycles (Medium / Hard / Recovery weeks, 3-week cycles by default - 2
@@ -16182,8 +16421,9 @@ function sznCalCtx(){
    ══════════════════════════════════════════════════════════════════════════ */
 let _pwDrag=null;
 const _pwF={q:'',v:'all'};
-function planDragOk(){return (WKT_ENABLED||_wktCtx)&&(!_wktCtx||(typeof sqCanEdit==='function'&&sqCanEdit()));}
+function planDragOk(){if(calTgtOk())return true;return (WKT_ENABLED||_wktCtx)&&(!_wktCtx||(typeof sqCanEdit==='function'&&sqCanEdit()));}
 function planDropAdd(day,id){
+  if(calTgtOk()){calSqAdd(_calTgt,day,id);return;}   // 19 Nov: coach adding to a squad calendar
   const w=(WORKOUTS_DB||[]).find(x=>x&&x.id===id&&!x.deleted);if(!w)return;
   planAdd(day,id);_calSel=day;renderStartupCalendar();
   toast(_wktDispName(w)+' added to '+new Date(day+'T12:00:00').toLocaleDateString('en-AU',{weekday:'short',day:'numeric',month:'short'}));
@@ -16199,7 +16439,8 @@ function renderPlanWorkouts(){
   const dl=_calSel?new Date(_calSel+'T12:00:00').toLocaleDateString('en-AU',{weekday:'short',day:'numeric',month:'short'}):'';
   let h='<input id="pw-q" type="text" placeholder="Search workouts" value="'+_secEsc(_pwF.q)+'" style="width:100%;box-sizing:border-box;padding:8px 10px;border-radius:8px;border:1px solid var(--border);background:var(--s2);color:var(--text);font-family:inherit;font-size:13px;margin-bottom:8px;">'
     +'<div style="display:flex;gap:4px;margin-bottom:6px;">'+[['all','All'],['water','On-water'],['erg','Erg']].map(([v,l])=>'<button data-pwv="'+v+'" class="filt-chip'+(_pwF.v===v?' on':'')+'" style="'+CH+'">'+l+'</button>').join('')+'</div>'
-    +'<div style="font-size:11px;color:var(--muted);margin-bottom:6px;">'+(!ok?(_wktCtx?'View only: this squad\'s plan is set by the coach.':'Planning switches on once BoatRun on your phone is signed in with Google Drive.'):selOk?'Drag onto a day, or + Add to '+dl+'.':'Drag a workout onto today or a future day, or select a day to add with a tap.')+'</div>'
+    +((!_wktCtx&&calSqOn().some(sqIsCoach))?'<label style="display:flex;align-items:center;gap:6px;font-size:12px;font-weight:700;margin-bottom:6px;">Add to <select id="pw-tgt" style="flex:1;min-width:0;padding:6px 8px;border-radius:8px;border:1px solid var(--border);background:var(--s2);color:var(--text);font-family:inherit;font-size:13px;"><option value="mine">My calendar</option>'+calSqOn().filter(sqIsCoach).map(c=>'<option value="'+c+'"'+(_calTgt===c?' selected':'')+'>Squad: '+_secEsc(pvSqName(c))+'</option>').join('')+'</select></label>':'')
+    +'<div style="font-size:11px;color:var(--muted);margin-bottom:6px;">'+(calTgtOk()?'Drag onto a day to add to the squad calendar ('+_secEsc(pvSqName(_calTgt))+')'+(selOk?', or + Add to '+dl:'')+'.':!ok?(_wktCtx?'View only: this squad\'s plan is set by the coach.':'Planning switches on once BoatRun on your phone is signed in with Google Drive.'):selOk?'Drag onto a day, or + Add to '+dl+'.':'Drag a workout onto today or a future day, or select a day to add with a tap.')+'</div>'
     +'<div id="pw-list" style="max-height:min(420px,55vh);overflow-y:auto;padding-right:2px;margin-bottom:10px;">';
   if(!list.length)h+='<div style="font-size:12px;color:var(--muted);padding:6px 0;">'+(all.length?'No workouts match.':'No workouts yet.')+'</div>';
   list.forEach(w=>{
@@ -16217,6 +16458,7 @@ function renderPlanWorkouts(){
   const pl=document.getElementById('pw-list');if(pl)pl.scrollTop=keep;
   const qi=document.getElementById('pw-q');
   if(qi)qi.oninput=()=>{_pwF.q=qi.value;const pos=qi.selectionStart;renderPlanWorkouts();const n=document.getElementById('pw-q');if(n){n.focus();try{n.setSelectionRange(pos,pos);}catch(e){}}};
+  {const t=document.getElementById('pw-tgt');if(t)t.onchange=()=>{_calTgt=t.value;renderStartupCalendar();};}
   el.querySelectorAll('[data-pwv]').forEach(b=>{b.onclick=()=>{_pwF.v=b.dataset.pwv;renderPlanWorkouts();};});
   el.querySelectorAll('[data-pww]').forEach(r=>{
     r.onclick=e=>{const a=e.target.closest('[data-pwadd]');if(a){e.stopPropagation();planDropAdd(_calSel,a.dataset.pwadd);return;}try{window.showWorkoutsModal({viewId:r.dataset.pww});}catch(err){}};
@@ -16240,7 +16482,7 @@ function _pW(){return _wktCtx?_wktPersonal:WORKOUTS_DB;}
 function _pWset(v){if(_wktCtx)_wktPersonal=v;else WORKOUTS_DB=v;}
 function _pP(){return _wktCtx?_planPersonal:WKT_PLAN;}
 function _pPset(v){if(_wktCtx)_planPersonal=v;else WKT_PLAN=v;}
-function sqCanEdit(){return !!_wktCtx&&isCoach();}
+function sqCanEdit(){return !!_wktCtx&&sqIsCoach(_wktCtx);}   // 19 Nov: coach access to THAT squad (owner or approved), not the Coach plan
 async function sqPwHashA(code,pw){
   const s='BoatRun|'+String(code||'').trim().toUpperCase()+'|'+(pw||'');
   const buf=await crypto.subtle.digest('SHA-256',new TextEncoder().encode(s));
@@ -16483,7 +16725,7 @@ function pvSrcMove(src,from,to){
   pvSrcSave(src);
 }
 /* Copy a workout from one list to another (My workouts or any opened squad). */
-function pvSrcWritable(src){return src==='mine'?WKT_ENABLED:(isCoach()&&(src!==_wktCtx||sqCanEdit()));}
+function pvSrcWritable(src){return src==='mine'?WKT_ENABLED:sqIsCoach(src);}
 function pvCopyId(src,tgt,id){
   id=String(id);
   if(tgt!=='mine'&&src==='mine'&&id.indexOf('sq'+tgt+'_')===0)return id.slice(3+tgt.length);
@@ -16502,8 +16744,9 @@ async function pvPushSquad(code){
   const pw=getSquadPw(code);
   if(pw)body.auth=await sqPwHashA(code,pw);
   try{
-    const r=await fetch(SQ_FB_BASE+'/squads/'+code+'/plan.json',{method:'PUT',body:JSON.stringify(body)});
-    if(!r.ok)toast('Squad '+code+' not saved (HTTP '+r.status+')',4000);
+    let au=null;try{au=await shareAuth();}catch(e){}   // 19 Nov: the rules check the account's coach access
+    const r=await fetch(SQ_FB_BASE+'/squads/'+code+'/plan.json'+(au?'?auth='+encodeURIComponent(au.tok):''),{method:'PUT',body:JSON.stringify(body)});
+    if(!r.ok)toast(r.status===401||r.status===403?'Squad '+code+' not saved - you need coach access to this squad':'Squad '+code+' not saved (HTTP '+r.status+')',4000);
   }catch(e){toast('Squad '+code+' not saved — no connection',4000);}
   try{renderStartupCalendar();}catch{}
 }
