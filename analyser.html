@@ -5031,7 +5031,7 @@ function renderStartNav(){
   let h='<div class="sz-lhd" style="margin-bottom:8px;">Navigation<span style="display:flex;gap:6px;flex-wrap:wrap;justify-content:flex-end;">'
     +nb('sz-nav-lane','lane')+nb('sz-nav-div','divider')+nb('sz-nav-haz','hazard')+'</span></div>'
     +'<div style="margin-bottom:4px;"><button class="hbtn" id="sz-nav-sharetog" style="font-size:10px;" onclick="var x=document.getElementById(\'sz-nav-sharebox\');if(x)x.style.display=x.style.display===\'none\'?\'flex\':\'none\';">Share / Import \u25BE</button>'+'<div id="sz-nav-sharebox" style="display:none;gap:6px;flex-wrap:wrap;margin-top:6px;">'+b('sz-nav-club','\u{1F465} Club')+b('sz-nav-course','Export course file')+b('sz-nav-share','Share')+b('sz-nav-import','Import')+'</div></div>'
-    +'<div style="max-height:520px;overflow-y:auto;">';
+    +'<div class="sz-panelist" style="max-height:520px;overflow-y:auto;">';
   if(clubs.length||mine.length)h+=sub('MY LINES');
   h+=mine.length?mine.map(l=>navTileHtml(l,'')).join(''):'<div class="sz-loading">'+(clubs.length?'None':'No lanes or hazards yet. Tap + Lane, + Divider or + Hazard to draw one on the map.')+'</div>';
   clubs.forEach(c=>{
@@ -5692,7 +5692,7 @@ function renderStartSectors(){
   const list=SECTORS_DB.filter(x=>!x.deleted).sort((a,b)=>String(a.name).localeCompare(String(b.name)));
   let h='<div class="sz-lhd" style="margin-bottom:8px;">Sectors<span style="display:flex;gap:6px;"><button class="hbtn" id="sz-sec-courses" style="font-size:10px;" title="Ready-made courses from boatrun.au">Courses</button><button class="hbtn" id="sz-sec-import" style="font-size:10px;">Import</button><button class="hbtn" id="sz-sec-draw" style="font-size:10px;">\u270E Draw</button></span></div>';
   if(!list.length)h+='<div class="sz-loading">No sectors yet. Tap \u270E Draw to draw one on the map, or Courses for ready-made ones.</div>';
-  else h+='<div style="max-height:420px;overflow-y:auto;">'+list.map(secTileHtml).join('')+'</div>';
+  else h+='<div class="sz-panelist" style="max-height:420px;overflow-y:auto;">'+list.map(secTileHtml).join('')+'</div>';
   box.innerHTML=h;
   document.getElementById('sz-sec-draw').onclick=()=>window.drawSector();
   document.getElementById('sz-sec-import').onclick=()=>window.importSectorsFile(renderStartSectors);
@@ -12469,6 +12469,7 @@ async function showStartup(){
         row.appendChild(btn);row.appendChild(del);
         return row;
       };
+      window._szDelFile=async f=>{await AnalyserDrive.deleteFile(f.id);await AnalyserDrive.tombstoneSession(f.name,f.appProperties&&f.appProperties.sid);fileList=fileList.filter(x=>x.id!==f.id);renderList();};   // 19 Nov: also used by the season plan's week view
       {const _first=!_calMakeRow;_calMakeRow=makeRow;if(_first&&!_wktCtx&&_calSel)renderStartupCalendar();}
       shown.forEach(f=>container.appendChild(makeRow(f,true)));
       if(!shown.length){
@@ -16458,16 +16459,17 @@ function sznRender(){
   h+='</div></div>'
     +'<div style="display:flex;gap:12px;flex-wrap:wrap;font-size:10px;color:var(--muted);margin:4px 0 2px;"><span>solid = done</span><span>faded = planned</span><span>dashed box = target</span><span>number = done + planned (<span style="color:#27ae60;">on target</span> / <span style="color:#e67e22;">under</span> / <span style="color:#e74c3c;">over</span>)</span><span>top bar = block</span><span>tap a week for its days</span><span>drag a workout onto a week or a day</span></div>'
     +'<div style="font-size:11px;color:var(--muted);line-height:1.45;margin-bottom:8px;">Load climbs through the loading weeks and drops in the recovery week, so the body absorbs the work; each cycle starts about 4% higher until Peak. 3-week cycles suit masters rowers, who take longer to recover; 4-week cycles suit younger athletes with a long training history.</div>';
+  const _sf=[];   // 19 Nov: sessions shown in the selected week, for open / delete
   /* selected week */
   {const x=sel,st=sznStat(x);
    h+='<div style="padding:10px;border-radius:8px;background:var(--s2);border:1px solid var(--border);border-left:5px solid '+SZN_T[x.t][2]+';">'
      +'<div style="font-size:13px;font-weight:800;margin-bottom:2px;">Week of '+sznFmtD(x.w,{weekday:'short',day:'numeric',month:'short'})+' &middot; '+SZN_T[x.t][0]+' week &middot; <span style="color:'+SZN_BLK[x.blk][1]+';">'+SZN_BLK[x.blk][0]+'</span></div>'
      +(x.races.length?'<div style="font-size:12px;font-weight:700;margin-bottom:4px;">'+x.races.map(r=>'\u{1F3C1} '+r.pri+' race: '+_secEsc(r.text)+' ('+sznFmtD(r.day,{weekday:'short',day:'numeric',month:'short'})+')').join(' &middot; ')+'</div>':'')
      +'<div style="font-size:12px;margin-bottom:6px;display:flex;align-items:center;gap:6px;flex-wrap:wrap;">'+(x.tgt!=null?'<label style="display:flex;align-items:center;gap:5px;">Target <input id="szn-tgt" type="number" inputmode="numeric" min="0" max="5000" value="'+(x.tov?x.tgt:'')+'" placeholder="'+x.auto+'" style="'+IN+'width:80px;"></label>'+(x.tov?'<span style="color:var(--muted);">(auto '+x.auto+')</span>':'<span style="color:var(--muted);">(auto)</span>')+' &middot; ':'')+'done '+x.act+(x.pl?' &middot; planned '+x.pl:'')+(x.tgt?' &middot; <b style="color:'+st.col+';">'+st.txt+'</b>':'')+'</div>';
-   const CHP=(col,lbl,txt,L)=>'<span style="display:inline-flex;align-items:center;gap:4px;padding:2px 6px;border-radius:10px;background:var(--s1);border:1px solid var(--border);border-left:4px solid '+col+';font-size:11px;margin:2px 4px 2px 0;"><span style="font-size:9px;font-weight:800;color:'+col+';">'+lbl+'</span>'+txt+(L?' <span style="color:var(--muted);">'+L+'</span>':'')+'</span>';
+   const CHP=(col,lbl,txt,L,X)=>'<span style="display:inline-flex;align-items:center;gap:4px;padding:2px 6px;border-radius:10px;background:var(--s1);border:1px solid var(--border);border-left:4px solid '+col+';font-size:11px;margin:2px 4px 2px 0;"><span style="font-size:9px;font-weight:800;color:'+col+';">'+lbl+'</span>'+txt+(L?' <span style="color:var(--muted);">'+L+'</span>':'')+(X||'')+'</span>';
    x.days.forEach(k=>{
      const items=[];let dayL=0;
-     if(k<=M.todayK)((M.D.items||{})[k]||[]).filter(p=>p.c!=='plan').forEach(p=>{dayL+=p.load;items.push(p.c==='other'?CHP(CI_OTHER_COL,'OTHER',_secEsc((p.o&&p.o.text)||'Other'),Math.round(p.load)):CHP(p.c==='erg'?CAL_ERG_COL:CAL_WATER_COL,p.c==='erg'?'ERG':'WATER','✓ '+_secEsc((p.x&&p.x.p&&(p.x.p.name||p.x.p.workout))||(p.c==='erg'?'Erg':'Row')),Math.round(p.load)));});
+     if(k<=M.todayK)((M.D.items||{})[k]||[]).filter(p=>p.c!=='plan').forEach(p=>{dayL+=p.load;items.push(p.c==='other'?CHP(CI_OTHER_COL,'OTHER',_secEsc((p.o&&p.o.text)||'Other'),Math.round(p.load)):CHP(p.c==='erg'?CAL_ERG_COL:CAL_WATER_COL,p.c==='erg'?'ERG':'WATER',(p.x&&p.x.f?'<a href="#" data-sznopen="'+_sf.push(p.x)+'" style="color:var(--text);text-decoration:none;" title="Open session">':'')+'✓ '+_secEsc((p.x&&p.x.p&&(p.x.p.name||p.x.p.workout))||(p.c==='erg'?'Erg':'Row'))+(p.x&&p.x.f?'</a>':''),Math.round(p.load),(p.x&&p.x.f&&!_wktCtx?'<button data-szndel="'+_sf.length+'" title="Delete session" style="border:none;background:none;color:var(--muted);cursor:pointer;font-size:13px;padding:0 0 0 4px;line-height:1;">\u{1F5D1}</button>':'')));});
      if(k>=M.todayK){
        if(!(k===M.todayK&&M.map.a[k]>0))tlPlanFor(k).forEach(p=>{dayL+=p.load;items.push(CHP(p.w.venue==='erg'?CAL_ERG_COL:CAL_WATER_COL,p.w.venue==='erg'?'ERG':'WATER',_secEsc(_wktDispName(p.w)),p.load));});
        if(k>M.todayK){const e=tlItems()[k];((e&&e.list)||[]).filter(o=>o.type==='other').forEach(o=>{const L=tlOtherLoad(o);dayL+=L;items.push(CHP(CI_OTHER_COL,'OTHER',_secEsc(o.text||'Other'),L||''));});}
@@ -16512,6 +16514,10 @@ function sznRender(){
   }
   if(g('szn-auto'))g('szn-auto').onclick=()=>{SZN_WK[sel.w]={...(SZN_WK[sel.w]||{}),t:'',rev:Date.now()};sznSave();renderStartupCalendar();};
   if(g('szn-fill'))g('szn-fill').onclick=()=>sznFillWeek(sel,M);
+  el.querySelectorAll('[data-sznopen]').forEach(a=>{a.onclick=e=>{e.preventDefault();e.stopPropagation();const x=_sf[+a.dataset.sznopen-1];if(x&&x.f&&typeof _calOpen==='function')_calOpen(x.f);};});
+  el.querySelectorAll('[data-szndel]').forEach(b=>{b.onclick=async e=>{e.stopPropagation();const x=_sf[+b.dataset.szndel-1];if(!x||!x.f||typeof window._szDelFile!=='function')return;
+    if(!confirm('Delete this session permanently?\n\n'+((x.p&&(x.p.name||x.p.workout))||x.f.name)+'\n\nIt will be removed from Google Drive, and from every device on its next sync.\n\nThis cannot be undone.'))return;
+    b.disabled=true;b.textContent='\u2026';try{await window._szDelFile(x.f);toast('Session deleted');}catch(err){toast('Delete failed: '+err.message);b.disabled=false;b.textContent='\u{1F5D1}';}};});
   g('szn-cal').onclick=()=>{
     const k=sel.days.find(d=>d>=M.todayK)||sel.days[0];_calSel=k;
     try{const n=new Date(),d=new Date(k+'T12:00:00');_calMonthOff=(d.getFullYear()-n.getFullYear())*12+d.getMonth()-n.getMonth();}catch(e){}
@@ -20245,7 +20251,7 @@ body .hdr-tabs .hmenu,body.light .hdr-tabs .hmenu{background:#fff!important;bord
 .sz-list[data-prc="coach"]::before{border-color:#6a3fb0;}
 .sz-list[data-prc="load"]::before{border-color:#b5531c;}   /* 19 Nov: after the base rule, so the colour sticks */
 .sz-list[data-prc="nav"]::before{border-color:#1e7f4f;}
-@media (min-width:1100px){#startup .sz-list[data-prc="nav"] .sz-sumwrap{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:16px;align-items:start;max-width:none;}#startup .sz-list[data-prc="nav"] #sz-navempty{grid-column:1/-1;}}
+@media (min-width:1100px){#startup .sz-list[data-prc="nav"] .sz-sumwrap{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:16px;align-items:stretch;max-width:none;}#startup .sz-list[data-prc="nav"] #sz-navempty{grid-column:1/-1;}#startup .sz-list[data-prc="nav"] #sz-sectors,#startup .sz-list[data-prc="nav"] #sz-nav{margin:0!important;box-sizing:border-box;}#startup .sz-list[data-prc="nav"] .sz-panelist{max-height:none!important;overflow:visible!important;}}   /* 19 Nov: two equal-height columns, lists at full length */
 #startup #sz-ntabs{display:none!important;}
 .sz-list:not([data-prc="row"]) .prc-row{display:none!important;}
 .sz-list:not([data-prc="plan"]) .prc-plan{display:none!important;}
