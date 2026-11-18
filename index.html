@@ -8,7 +8,7 @@
 <meta name="color-scheme" content="light"/>
 <title>BoatRun — Rowing Telemetry</title>
 <link rel="icon" type="image/png" href="icons/icon-192.png">
-<meta name="description" content="Real-time rowing metrics for rowers, coxes and coaches. Live stroke telemetry, lanes and hazard warnings, training calendar, squad monitoring and post-session analysis."/>
+<meta name="description" content="Real-time rowing metrics for rowers, coxes and coaches. Live stroke telemetry, lanes and hazard warnings, season planning and training load, free squad coaching and post-session analysis."/>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&family=Inter:wght@400;500;600;700&family=Roboto+Mono:wght@500;600&display=swap" rel="stylesheet">
@@ -122,9 +122,6 @@ h1.hero-h em{font-style:normal;color:var(--coral);}
 .store-badge img{height:48px;width:143px;object-fit:contain;display:block;}
 .store-badge-sm{margin-top:8px;}
 .store-badge-sm img{height:42px;width:125px;}
-/* Google's badge image has built-in padding: size it up so the visible badge matches Apple's */
-.gp-badge img{height:70px;width:auto;margin:-11px -10px;}
-.store-badge-sm.gp-badge img{height:61px;width:auto;margin:-9px -9px;}
 .hero-stats{display:flex;gap:30px;}
 .hstat b{display:block;font-family:'Space Grotesk',sans-serif;font-size:22px;font-weight:700;}
 .hstat span{font-size:12px;color:var(--ink-faint);letter-spacing:.03em;}
@@ -205,6 +202,7 @@ h2.section-h{font-family:'Space Grotesk',sans-serif;font-size:clamp(26px,3.4vw,3
 .shot-pair{display:flex;gap:12px;}
 .shot-pair .shot{flex:1;}
 .pro-tag{display:inline-block;margin-left:8px;font-family:'Roboto Mono',monospace;font-size:10px;font-weight:600;letter-spacing:.08em;color:#fff;background:var(--coral);padding:2px 8px;border-radius:100px;vertical-align:middle;}
+.free-tag{display:inline-block;margin-left:8px;font-family:'Roboto Mono',monospace;font-size:10px;font-weight:600;letter-spacing:.08em;color:var(--navy);background:var(--teal);padding:2px 8px;border-radius:100px;vertical-align:middle;}
 
 /* lanes & hazards illustration */
 .legend{display:flex;flex-wrap:wrap;gap:8px 16px;margin-top:18px;}
@@ -248,6 +246,13 @@ h2.section-h{font-family:'Space Grotesk',sans-serif;font-size:clamp(26px,3.4vw,3
 .plan-card h4{font-family:'Space Grotesk',sans-serif;font-size:16px;font-weight:700;margin-bottom:8px;}
 .plan-card .checklist{margin-top:0;gap:7px;}
 .plan-card .checklist li{font-size:13.5px;}
+
+/* season plan mockup */
+.season{display:flex;gap:6px;margin-top:14px;align-items:flex-end;}
+.season .wk{flex:1;display:flex;flex-direction:column;align-items:center;gap:4px;font-family:'Roboto Mono',monospace;font-size:9px;color:var(--ink-faint);}
+.season .bar{width:70%;border-radius:3px 3px 0 0;position:relative;}
+.season .tgt{position:absolute;left:-12%;right:-12%;bottom:0;border:1.5px dashed currentColor;border-radius:3px;}
+.season .typ{font-size:8.5px;font-weight:700;color:#fff;border-radius:6px;padding:1px 5px;}
 
 /* interface catalog */
 .catalog{display:flex;gap:14px;overflow-x:auto;padding:4px 4px 14px;scrollbar-width:none;}
@@ -304,8 +309,10 @@ footer{background:var(--navy);color:var(--ink-faint);border-top:1px solid rgba(2
 @media(max-width:860px){.tier-grid{grid-template-columns:1fr;}}
 .tier-card{background:#fff;border:1px solid rgba(14,20,32,.08);border-radius:16px;padding:26px 24px;display:flex;flex-direction:column;gap:10px;}
 .tier-card.feat{border-color:rgba(255,90,60,.55);box-shadow:0 18px 40px -22px rgba(255,90,60,.55);}
+.tier-card.free{border-color:rgba(47,211,198,.55);box-shadow:0 18px 40px -22px rgba(47,211,198,.5);}
 .tier-tag{font-family:'Roboto Mono',monospace;font-size:10.5px;letter-spacing:.1em;text-transform:uppercase;color:rgba(14,20,32,.42);}
 .tier-card.feat .tier-tag{color:var(--coral);}
+.tier-card.free .tier-tag{color:#12867E;}
 .tier-card h3{font-family:'Space Grotesk',sans-serif;font-size:22px;font-weight:700;}
 .tier-price{font-family:'Space Grotesk',sans-serif;font-size:17px;font-weight:700;color:rgba(14,20,32,.55);margin-bottom:4px;}
 .tier-list{list-style:none;display:flex;flex-direction:column;gap:9px;}
@@ -315,6 +322,12 @@ footer{background:var(--navy);color:var(--ink-faint);border-top:1px solid rgba(2
 .tier-list li.no{color:rgba(14,20,32,.42);}
 .tier-list li.no:before{content:"–";background:rgba(14,20,32,.05);border:1px solid rgba(14,20,32,.14);color:rgba(14,20,32,.4);}
 .tier-note{margin-top:22px;font-size:13px;color:rgba(14,20,32,.5);max-width:640px;}
+.share-tbl{width:100%;border-collapse:collapse;margin-top:26px;background:#fff;border:1px solid rgba(14,20,32,.08);border-radius:14px;overflow:hidden;font-size:14px;}
+.share-tbl th,.share-tbl td{padding:11px 14px;text-align:left;border-bottom:1px solid rgba(14,20,32,.07);vertical-align:top;}
+.share-tbl th{font-family:'Roboto Mono',monospace;font-size:10.5px;letter-spacing:.08em;text-transform:uppercase;color:rgba(14,20,32,.5);font-weight:600;}
+.share-tbl tr:last-child td{border-bottom:none;}
+.share-tbl td:first-child{font-weight:600;color:rgba(14,20,32,.8);}
+.share-wrap{overflow-x:auto;}
 </style>
 </head>
 <body>
@@ -348,9 +361,9 @@ footer{background:var(--navy);color:var(--ink-faint);border-top:1px solid rgba(2
     <a href="#rowers">Rowers</a>
     <a href="#courses">Sectors &amp; Courses</a>
     <a href="./courses.html">Courses</a>
-    <a href="#planning">Training Calendar &amp; Planning</a>
+    <a href="#planning">Season Planning &amp; Training Load</a>
     <a href="#erg">Erg &amp; Squad Erg</a>
-    <a href="#coaches">Coaches</a>
+    <a href="#coaches">Coaches &mdash; free</a>
     <a href="#analysis">Analysis</a>
     <a href="#spectator">Spectator</a>
     <a href="#pricing">Plans</a>
@@ -368,10 +381,10 @@ footer{background:var(--navy);color:var(--ink-faint);border-top:1px solid rgba(2
     <div>
       <span class="eyebrow hero-eyebrow">Premium Rowing Telemetry</span>
       <h1 class="hero-h">Master Every <em>Stroke</em></h1>
-      <p class="hero-sub">Real-time rowing metrics built for rowers, coxes and coaches who want raw data, honest precision, and tactical confidence on the water.</p>
+      <p class="hero-sub">Real-time rowing metrics built for rowers, coxes and coaches who want raw data, honest precision, and tactical confidence on the water. Coaching is free.</p>
       <div class="hero-ctas">
         <a class="store-badge" href="https://apps.apple.com/au/app/boatrun/id6792436401?itscg=30200&amp;itsct=apps_box_badge&amp;mttnsubad=6792436401" target="_blank" rel="noopener"><img src="https://toolbox.marketingtools.apple.com/api/v2/badges/download-on-the-app-store/black/en-us?releaseDate=1787702400" alt="Download on the App Store"></a>
-        <a class="store-badge gp-badge" href="https://play.google.com/store/apps/details?id=com.davidmacready74.boatrunmetrics" target="_blank" rel="noopener"><img src="https://play.google.com/intl/en_us/badges/static/images/badges/en_badge_web_generic.png" alt="Get it on Google Play"></a>
+        <a class="btn btn-coral" aria-disabled="true">Android — Coming Soon</a>
       </div>
       <div class="hero-analyser">
         <a class="btn btn-teal" href="https://boatrun.au/analyser.html">Open Web Analyser</a>
@@ -380,7 +393,7 @@ footer{background:var(--navy);color:var(--ink-faint);border-top:1px solid rgba(2
       <div class="hero-stats">
         <div class="hstat"><b>50Hz</b><span>Sensor sample rate</span></div>
         <div class="hstat"><b>3</b><span>Apps · one squad</span></div>
-        <div class="hstat"><b>0</b><span>Setup required</span></div>
+        <div class="hstat"><b>$0</b><span>To coach a squad</span></div>
       </div>
     </div>
     <div class="shot" style="background:#101E3E;border-color:rgba(255,255,255,.10);">
@@ -441,12 +454,13 @@ footer{background:var(--navy);color:var(--ink-faint);border-top:1px solid rgba(2
     <div>
       <span class="eyebrow section-eyebrow">For Rowers</span>
       <h2 class="section-h">Your Cockpit on the Water</h2>
-      <p class="section-p">Mount your phone, press calibrate and go. BoatRun delivers a high-contrast, sun-readable metric overlay with immediate feedback to keep you in perfect form.</p>
+      <p class="section-p">Mount your phone and go. BoatRun delivers a high-contrast, sun-readable metric overlay with immediate feedback to keep you in perfect form.</p>
       <ul class="checklist">
         <li>Custom workouts — pick a type, tap to load</li>
         <li>Real-time visual metrics and stroke curve with ideal stroke template overlays</li>
         <li>Automatically sync sessions to your personal Google Drive and send them to your coach</li>
         <li>Today's planned workout pops up ready to load when you open the app</li>
+        <li>A quick morning check-in and your watch's training load numbers keep your training load honest</li>
       </ul>
     </div>
     <div class="fr-media">
@@ -483,41 +497,42 @@ footer{background:var(--navy);color:var(--ink-faint);border-top:1px solid rgba(2
   </div>
 </section>
 
-<!-- 6. TRAINING CALENDAR & PLANNING -->
+<!-- 6. SEASON PLANNING & TRAINING LOAD -->
 <section id="planning">
   <div class="wrap feature-row rev">
     <div>
-      <span class="eyebrow section-eyebrow">Training Calendar &amp; Planning</span>
-      <h2 class="section-h">Plan the Week, Row the Plan</h2>
-      <p class="section-p">Every session you row lands on a calendar in the app and the Web Analyser. Put workouts on the days ahead — for yourself, or for a whole squad — and on the day BoatRun has them ready to load.</p>
+      <span class="eyebrow section-eyebrow">Season Planning &amp; Training Load</span>
+      <h2 class="section-h">Plan the Season, Row the Plan</h2>
+      <p class="section-p">Every session you row lands on a calendar in the app and the Web Analyser. Lay your season out in loading cycles, put workouts on the days ahead &mdash; for yourself, or for a whole squad &mdash; and on the day BoatRun has them ready to load, with how hard to go.</p>
       <div class="plan-cols">
         <div class="plan-card">
           <h4>For you</h4>
           <ul class="checklist">
-            <li>Month calendar of every on-water and erg session</li>
-            <li>Drop workouts onto any day ahead</li>
-            <li>Suggested workout pops up on the day, one tap to load</li>
-            <li>Plan in the Analyser on a big screen, row it from the phone</li>
-            <li>Sync to your phone calendar — and on to Google Calendar</li>
+            <li>Season plan: Medium, Hard and Recovery weeks with a target load for each, lined up with every A, B and C race</li>
+            <li>Training load, fatigue and load ratio, on the same scale as your Garmin, Polar, Coros, Suunto or Fitbit numbers</li>
+            <li>A daily check-in: sleep, soreness, energy, resting HR and HRV</li>
+            <li>Suggested workout for today, with the optimal load for the day</li>
+            <li>Drag workouts onto any day or any week ahead</li>
+            <li>Sync to your phone calendar &mdash; and on to Google Calendar</li>
           </ul>
         </div>
         <div class="plan-card">
           <h4>For your squad</h4>
           <ul class="checklist">
             <li>Coach builds the squad plan on a shared calendar</li>
-            <li>Rowers follow the squad plan with its code</li>
-            <li>Plan updates arrive by themselves, even when not connected to the squad</li>
-            <li>Coach workouts are marked yellow, beside rowers' own plans</li>
-            <li>Changes by the coach flow straight to every rower's calendar</li>
+            <li>Each squad's plan sits on every rower's own calendar, beside their own plan</li>
+            <li>Import any squad workout to your own plan in one tap</li>
+            <li>The squad owner decides who else can coach and plan it</li>
+            <li>Coaches see each athlete's training load and check-ins, when the athlete chooses to share them</li>
           </ul>
         </div>
       </div>
     </div>
     <div class="fr-media">
-      <div class="calmock" aria-label="BoatRun training calendar showing sessions, planned workouts and a suggested workout">
+      <div class="calmock" aria-label="BoatRun training calendar showing sessions, planned workouts, the season plan and a suggested workout">
         <div class="cal-top">
           <b>October 2026</b>
-          <div class="cal-chips"><span class="cal-chip">Mine</span><span class="cal-chip on">Squad</span></div>
+          <div class="cal-chips"><span class="cal-chip on">Mine</span><span class="cal-chip on">Squad</span></div>
         </div>
         <div class="cal-grid">
           <div class="cal-h">M</div><div class="cal-h">T</div><div class="cal-h">W</div><div class="cal-h">T</div><div class="cal-h">F</div><div class="cal-h">S</div><div class="cal-h">S</div>
@@ -551,13 +566,22 @@ footer{background:var(--navy);color:var(--ink-faint);border-top:1px solid rgba(2
         <div class="cal-key">
           <span><span class="cal-dots"><i class="w"></i></span>On water</span>
           <span><span class="cal-dots"><i class="e"></i></span>Erg</span>
-          <span><span class="cal-dots"><i class="c"></i></span>Coach plan</span>
+          <span><span class="cal-dots"><i class="c"></i></span>Squad plan</span>
           <span><span class="cal-dots"><i class="p"></i></span>My plan</span>
         </div>
+        <div class="season" aria-label="Season plan: medium, hard and recovery weeks">
+          <div class="wk" style="color:#1E88E5;"><div class="bar" style="height:44px;background:#1E88E5;"><span class="tgt" style="height:46px;"></span></div><span class="typ" style="background:#1E88E5;">MED</span></div>
+          <div class="wk" style="color:#E53935;"><div class="bar" style="height:30px;background:#E53935;opacity:.85;"><span class="tgt" style="height:54px;"></span></div><span class="typ" style="background:#E53935;">HARD</span></div>
+          <div class="wk" style="color:#27ae60;"><div class="bar" style="height:20px;background:#27ae60;opacity:.45;"><span class="tgt" style="height:30px;"></span></div><span class="typ" style="background:#27ae60;">REC</span></div>
+          <div class="wk" style="color:#1E88E5;"><div class="bar" style="height:12px;background:#1E88E5;opacity:.45;"><span class="tgt" style="height:48px;"></span></div><span class="typ" style="background:#1E88E5;">MED</span></div>
+          <div class="wk" style="color:#E53935;"><div class="bar" style="height:8px;background:#E53935;opacity:.45;"><span class="tgt" style="height:57px;"></span></div><span class="typ" style="background:#E53935;">HARD</span></div>
+          <div class="wk" style="color:#16a085;"><div class="bar" style="height:6px;background:#16a085;opacity:.45;"><span class="tgt" style="height:34px;"></span></div><span class="typ" style="background:#16a085;">TAPER</span></div>
+          <div class="wk" style="color:#c0392b;"><div class="bar" style="height:4px;background:#c0392b;opacity:.45;"><span class="tgt" style="height:22px;"></span></div><span class="typ" style="background:#c0392b;">🏁 A</span></div>
+        </div>
         <div class="cal-sugg">
-          <div class="t">SUGGESTED WORKOUT</div>
-          <div class="s">Planned for today</div>
-          <div class="b"><i></i>LOAD 3 × 1500 m @ 26</div>
+          <div class="t">SUGGESTED TODAY &middot; HARD WEEK</div>
+          <div class="s">Optimal load today: 140&ndash;230</div>
+          <div class="b"><i></i>LOAD 3 &times; 1500 m @ 26</div>
         </div>
       </div>
     </div>
@@ -580,9 +604,9 @@ footer{background:var(--navy);color:var(--ink-faint);border-top:1px solid rgba(2
       </ul>
     </div>
     <div class="fr-media">
-      <div style="display:flex;flex-direction:column;gap:12px;">
-        <div class="shot"><img src="screenshot-erg-curve.png" alt="BoatRun erg stroke curve view"></div>
+      <div class="shot-pair">
         <div class="shot"><img src="screenshot-erg-squad.png" alt="BoatRun squad erg view — live pace and race track"></div>
+        <div class="shot"><img src="screenshot-erg-curve.png" alt="BoatRun erg stroke curve view"></div>
       </div>
     </div>
   </div>
@@ -592,15 +616,17 @@ footer{background:var(--navy);color:var(--ink-faint);border-top:1px solid rgba(2
 <section id="coaches" class="on-navy apps-band">
   <div class="wrap feature-row rev">
     <div>
-      <span class="eyebrow" style="color:var(--teal);border-color:rgba(47,211,198,.35);background:rgba(47,211,198,.1);">For Coaches</span>
-      <h2 class="section-h">Command Your Entire Fleet</h2>
-      <p class="section-p">Follow every rower's metrics live from the anywhere in the world. Track real-time metrics and acceleration curves against templates.</p>
+      <span class="eyebrow" style="color:var(--teal);border-color:rgba(47,211,198,.35);background:rgba(47,211,198,.1);">For Coaches</span><span class="free-tag">FREE</span>
+      <h2 class="section-h">Command Your Entire Fleet &mdash; Free</h2>
+      <p class="section-p">Coaching costs nothing. Create a squad, follow every rower live from anywhere in the world, and plan their season. Your Pro rowers send you everything; rowers on Basic send their position.</p>
       <ul class="checklist">
-        <li>Multi-athlete squad dashboard</li>
+        <li>Multi-athlete squad dashboard and live squad map</li>
         <li>Tap-to-open individual crew details including stroke curve, metrics and mini-map</li>
         <li>In-app video recording for immediate post-session stroke curve and metrics overlay</li>
         <li>Create and distribute custom workouts to crews on the water or the erg</li>
-        <li>Plan the squad's training on a shared calendar that every rower follows</li>
+        <li>Plan the squad's training on a shared calendar that sits on every rower's own calendar</li>
+        <li>See each athlete's training load, load ratio and daily check-in, when they share it</li>
+        <li>You own the squads you create, and choose who else can coach them</li>
         <li>Set your club's lanes, dividers and hazards once for every rower</li>
         <li>Collate and export session data with a single click</li>
       </ul>
@@ -620,13 +646,15 @@ footer{background:var(--navy);color:var(--ink-faint);border-top:1px solid rgba(2
     <div>
       <span class="eyebrow section-eyebrow">Deep Analysis</span>
       <h2 class="section-h">The Web-Based Analyser</h2>
-      <p class="section-p">Your data deserves a bigger screen. Sessions sync straight to your desktop or tablet for close study.</p>
+      <p class="section-p">Your data deserves a bigger screen. Sessions sync straight to your desktop or tablet for close study, in five tabs: Planning, Load, Results, Trends and Navigation.</p>
       <ul class="checklist">
         <li>Compare stroke curves between different crews, dates and templates</li>
         <li>Create stroke templates for consistent training</li>
         <li>Overlay stroke curves and metrics on auto-synced video</li>
-        <li>Calendar start page — open sessions by day and plan workouts ahead</li>
-        <li>Draw lanes, dividers and hazards on a full-size map</li>
+        <li>Season plan with loading cycles, block templates and drag-and-drop workouts</li>
+        <li>Training load, fatigue and load ratio, with today's suggestion and optimal load</li>
+        <li>Your plan and your squads' plans on one calendar</li>
+        <li>Draw lanes, dividers, hazards and sectors on a full-size map</li>
       </ul>      <a class="btn btn-coral" style="margin-top:8px;" href="https://boatrun.au/analyser.html">Launch Web Analyser</a>
       <br><a class="btn" style="margin-top:8px;background:transparent;color:var(--coral);border:2px solid var(--coral);" href="https://boatrun.au/analyser.html?demo=demo1">Launch Demo Session</a>
     </div>
@@ -662,14 +690,14 @@ footer{background:var(--navy);color:var(--ink-faint);border-top:1px solid rgba(2
       <div class="app-card">
         <span class="app-tag">On the water</span>
         <h3>BoatRun App</h3>
-        <p>Row, Cox or Coach — one native app for iPhone and Android. Live metrics, squad sync, lanes and hazards, training calendar, video and Strava export.</p>
+        <p>Row, Cox or Coach — one native app for iPhone and Android. Live metrics, squad sync, lanes and hazards, training calendar and load, video and Strava export.</p>
         <a class="store-badge store-badge-sm" href="https://apps.apple.com/au/app/boatrun/id6792436401?itscg=30200&amp;itsct=apps_box_badge&amp;mttnsubad=6792436401" target="_blank" rel="noopener"><img src="https://toolbox.marketingtools.apple.com/api/v2/badges/download-on-the-app-store/black/en-us?releaseDate=1787702400" alt="Download on the App Store"></a>
-        <a class="store-badge store-badge-sm gp-badge" href="https://play.google.com/store/apps/details?id=com.davidmacready74.boatrunmetrics" target="_blank" rel="noopener"><img src="https://play.google.com/intl/en_us/badges/static/images/badges/en_badge_web_generic.png" alt="Get it on Google Play"></a>
+        <span class="app-tag">Android — coming soon</span>
       </div>
       <div class="app-card">
         <span class="app-tag">Post-session</span>
         <h3>Web Analyser</h3>
-        <p>Full single-session review is always free, on any browser. Plan your training calendar and draw your lanes and hazards. No install needed.</p>
+        <p>Full single-session review is always free, on any browser. Plan your season, track your training load and draw your lanes and hazards. No install needed.</p>
         <a class="app-link" href="https://boatrun.au/analyser.html">Open Analyser</a>
       </div>
       <div class="app-card">
@@ -687,8 +715,8 @@ footer{background:var(--navy);color:var(--ink-faint);border-top:1px solid rgba(2
   <div class="wrap">
     <div class="section-head">
       <span class="eyebrow section-eyebrow">Plans</span>
-      <h2 class="section-h">Basic, Pro and Coach</h2>
-      <p class="section-p">Every new account gets one month of full Pro and Coach access. After that you keep Basic forever — no hard paywall, and your raw data is always yours to export.</p>
+      <h2 class="section-h">Basic and Pro. Coaching is free.</h2>
+      <p class="section-p">Every new account gets one month of full Pro. After that you keep Basic forever — no hard paywall, and your raw data is always yours to export. Running a squad never costs anything.</p>
     </div>
     <div class="tier-grid">
       <div class="tier-card">
@@ -702,8 +730,10 @@ footer{background:var(--navy);color:var(--ink-faint);border-top:1px solid rgba(2
           <li class="yes">Sessions saved to your own Google Drive</li>
           <li class="yes">Raw JSON, CSV, TCX and FIT export</li>
           <li class="yes">Full single-session Web Analyser</li>
+          <li class="yes">Join a squad &mdash; your coach sees where you are</li>
           <li class="yes">Viewer for spectators ashore</li>
           <li class="no">20 minute recording cap per session</li>
+          <li class="no">Coach sees your position only &mdash; no live metrics, curves, intervals or sessions</li>
           <li class="no">No live stroke acceleration curve</li>
           <li class="no">No stroke templates or workouts</li>
           <li class="no">No lanes, dividers or hazard warnings</li>
@@ -711,7 +741,7 @@ footer{background:var(--navy);color:var(--ink-faint);border-top:1px solid rgba(2
         </ul>
       </div>
       <div class="tier-card feat">
-        <span class="tier-tag">Most popular</span>
+        <span class="tier-tag">For rowers</span>
         <h3>Pro</h3>
         <p class="tier-price">Subscription</p>
         <ul class="tier-list">
@@ -724,49 +754,62 @@ footer{background:var(--navy);color:var(--ink-faint);border-top:1px solid rgba(2
           <li class="yes">Custom workouts, on the water and the erg</li>
           <li class="yes">Plan workouts on your training calendar, with suggested workout on the day</li>
           <li class="yes">Follow a squad's training plan</li>
+          <li class="yes"><span><b>Full link to your coach</b>: live metrics, stroke curve, intervals, sessions and training load</span></li>
           <li class="yes">Sync your plan and sessions to your phone calendar</li>
           <li class="yes">Lanes, dividers and hazard warnings, plus club lines</li>
           <li class="yes">Sectors, courses and live PB racing</li>
-          <li class="yes">Squad erg mode with live race track *</li>
+          <li class="yes">Squad erg mode with live race track</li>
           <li class="yes">Automatic Strava sync</li>
           <li class="yes">Multi-session comparison in the Analyser</li>
           <li class="yes">Open a whole squad's sessions at once</li>
           <li class="yes">Video overlay of curve, metrics and stroke template</li>
         </ul>
       </div>
-      <div class="tier-card">
-        <span class="tier-tag">For clubs and schools</span>
+      <div class="tier-card free">
+        <span class="tier-tag">For coaches, clubs and schools</span>
         <h3>Coach</h3>
-        <p class="tier-price">Subscription</p>
+        <p class="tier-price">Free for everyone</p>
         <ul class="tier-list">
-          <li class="yes">Everything in Pro</li>
           <li class="yes">Create squad codes and share them by QR</li>
           <li class="yes">Password-protected squad codes</li>
+          <li class="yes">You own the squads you create, and approve who else can coach them</li>
           <li class="yes">Live squad map — every rower as a labelled dot</li>
-          <li class="yes">Rower tiles with rate, pace and your chosen metrics</li>
-          <li class="yes">Tap-to-open crew detail with live curve, metrics and map</li>
-          <li class="yes">Request any rower's live stroke curve on demand</li>
+          <li class="yes">Rower tiles with rate, pace and your chosen metrics *</li>
+          <li class="yes">Tap-to-open crew detail with live curve, metrics and map *</li>
+          <li class="yes">Request any rower's live stroke curve on demand *</li>
           <li class="yes">Lap every boat at once to start an interval together</li>
           <li class="yes">Create and push workouts to the whole squad</li>
-          <li class="yes">Squad training calendar that every rower follows</li>
+          <li class="yes">Squad training calendar on every rower's own calendar</li>
+          <li class="yes">Each athlete's training load and check-ins, when they share them *</li>
           <li class="yes">Set up erg races with a synchronised start</li>
           <li class="yes">Live race leaderboard with metres ahead or behind</li>
           <li class="yes">Push a stroke template to the squad mid-session</li>
           <li class="yes">In-app video recording, tagged to the rower and moment</li>
-          <li class="yes">Collate and export every rower's session</li>
+          <li class="yes">Collate and export every rower's session *</li>
           <li class="yes">Coach from an erg without leaving the coach screens</li>
         </ul>
       </div>
     </div>
-    <p class="tier-note">Existing subscribers are grandfathered at their original price. The Viewer is free for everyone, always — no account needed.</p>
-    <p class="tier-note">* Coach required to setup erg squad races and training events.</p>
+
+    <div class="share-wrap">
+      <table class="share-tbl">
+        <tr><th>What your coach gets from you</th><th>Basic rower</th><th>Pro rower</th></tr>
+        <tr><td>Your position on the squad map</td><td>✓</td><td>✓</td></tr>
+        <tr><td>Live pace, rate, distance, heart rate and stroke metrics</td><td>&ndash;</td><td>✓</td></tr>
+        <tr><td>Your live stroke curve</td><td>&ndash;</td><td>✓</td></tr>
+        <tr><td>Interval results and sessions sent to the coach</td><td>&ndash;</td><td>✓</td></tr>
+        <tr><td>Training load, load ratio and daily check-in (if you turn it on)</td><td>&ndash;</td><td>✓</td></tr>
+      </table>
+    </div>
+
+    <p class="tier-note">* Needs the rower to be on Pro. A Basic rower shares their position only. Setting up a squad erg race, planning a squad and seeing athletes' load need coach access to that squad: you created it, or its owner approved you. Existing subscribers are grandfathered at their original price. The Viewer is free for everyone, always — no account needed.</p>
 
     <a href="./clubs.html" style="display:block;text-decoration:none;color:inherit;margin-top:34px;background:linear-gradient(180deg,#0F1C3A,#0B1630);border:1px solid rgba(255,255,255,.12);border-radius:16px;padding:28px;">
       <div style="display:flex;gap:28px;align-items:center;flex-wrap:wrap;justify-content:space-between;">
         <div style="flex:1 1 380px;">
           <span class="eyebrow" style="color:var(--amber);border-color:rgba(255,182,72,.35);background:rgba(255,182,72,.12);">For clubs &amp; schools</span>
-          <h3 style="font-family:'Space Grotesk',sans-serif;font-size:24px;font-weight:700;letter-spacing:-.015em;color:var(--ink);margin:14px 0 8px;">Buy seats for the whole squad at once</h3>
-          <p style="color:var(--ink-dim);font-size:15px;max-width:520px;">One payment, one tax invoice for your treasurer, and a redemption code for every rower and coach. Seats are the same price as the App Store, with a club rate of up to 15% off once you're buying for a whole squad. Works the same on iPhone and Android, and each seat's twelve months starts the day that person redeems it &mdash; not the day you paid.</p>
+          <h3 style="font-family:'Space Grotesk',sans-serif;font-size:24px;font-weight:700;letter-spacing:-.015em;color:var(--ink);margin:14px 0 8px;">Buy Pro seats for the whole squad at once</h3>
+          <p style="color:var(--ink-dim);font-size:15px;max-width:520px;">Coaching is free, so you only buy seats for your rowers. One payment, one tax invoice for your treasurer, and a redemption code for every rower. Seats are the same price as the App Store, with a club rate of up to 15% off once you're buying for a whole squad. Works the same on iPhone and Android, and each seat's twelve months starts the day that person redeems it &mdash; not the day you paid.</p>
         </div>
         <span class="btn btn-coral" style="flex:0 0 auto;">Club packs &rarr;</span>
       </div>
@@ -780,7 +823,7 @@ footer{background:var(--navy);color:var(--ink-faint);border-top:1px solid rgba(2
     <div class="section-head">
       <span class="eyebrow section-eyebrow">Documentation</span>
       <h2 class="section-h">Get Rowing in Minutes</h2>
-      <p class="section-p">Everything from mounting your phone to building custom squad workouts.</p>
+      <p class="section-p">Everything from mounting your phone to planning a season for your squad.</p>
     </div>
     <div class="res-grid">
       <a class="res-card" href="./quickstart.html">
@@ -808,10 +851,10 @@ footer{background:var(--navy);color:var(--ink-faint);border-top:1px solid rgba(2
   <div class="wrap">
     <span class="eyebrow" style="color:var(--coral);border-color:rgba(255,90,60,.35);background:var(--coral-dim);">Get BoatRun</span>
     <h2>Ready to see every stroke?</h2>
-    <p>BoatRun is live on the App Store for iPhone and iPad, and on Google Play for Android.</p>
+    <p>BoatRun is live on the App Store for iPhone and iPad. Android is coming soon to Google Play. Coaches: it's free.</p>
     <div class="hero-ctas">
       <a class="store-badge" href="https://apps.apple.com/au/app/boatrun/id6792436401?itscg=30200&amp;itsct=apps_box_badge&amp;mttnsubad=6792436401" target="_blank" rel="noopener"><img src="https://toolbox.marketingtools.apple.com/api/v2/badges/download-on-the-app-store/black/en-us?releaseDate=1787702400" alt="Download on the App Store"></a>
-      <a class="store-badge gp-badge" href="https://play.google.com/store/apps/details?id=com.davidmacready74.boatrunmetrics" target="_blank" rel="noopener"><img src="https://play.google.com/intl/en_us/badges/static/images/badges/en_badge_web_generic.png" alt="Get it on Google Play"></a>
+      <a class="btn btn-coral" aria-disabled="true">BoatRun for Android — Coming Soon</a>
       <a class="btn btn-ghost" href="https://boatrun.au/analyser.html">Try the Web Analyser free</a>
     </div>
   </div>
@@ -829,7 +872,7 @@ footer{background:var(--navy);color:var(--ink-faint);border-top:1px solid rgba(2
           <a href="https://viewer.boatrun.au/">Viewer</a>
           <a href="./courses.html">Courses</a>
           <a href="#lanes">Lanes &amp; Hazards</a>
-          <a href="#planning">Training Calendar</a>
+          <a href="#planning">Season Planning</a>
           <a href="./clubs.html">Club Packs</a>
           <a href="./pack.html">Redeem a Code</a>
         </div>
