@@ -11887,7 +11887,7 @@ async function showStartup(){
   if(adPeekPendingOpen())setTimeout(adRunPendingOpen,400);
   document.getElementById('app').style.display='none';
   el.innerHTML=`<div class="sz-list" data-ntab="prc" data-prc="row">
-    <div class="sz-prc" id="sz-prc"><button data-prc="plan">Planning</button><button data-prc="load">Load</button><button data-prc="row" class="sel">Results</button><button data-prc="coach">Trends</button></div>
+    <div class="sz-prc" id="sz-prc"><button data-prc="plan">Planning</button><button data-prc="load">Load</button><button data-prc="row" class="sel">Results</button><button data-prc="coach">Trends</button><button data-prc="nav">Navigation</button></div>
     <div class="sz-prcsub" id="sz-prcsub"></div>
     <div class="brpill-row">
       ${SESSIONS.length ? '<button class="dzbtn" id="sz-back" style="background:#fc4c02;border-color:#fc4c02;color:#fff;font-weight:800;box-shadow:0 3px 9px rgba(252,76,2,.45);"><span style="color:#fff;">&#10005; Back to session</span></button>' : ''}
@@ -11902,7 +11902,7 @@ async function showStartup(){
     <div class="sz-ntabs" id="sz-ntabs"><button class="sz-ntab sel" data-nt="sess">Sessions</button><button class="sz-ntab" data-nt="cal">Calendar</button><button class="sz-ntab" data-nt="course" style="display:none;">Course</button></div>
     <div class="brpill prc-plan" id="sz-season" style="margin-bottom:14px;"></div>
     <div class="sz-grid">
-    <div class="sz-sumwrap" data-ct="sec"><div class="brpill prc-plan" id="sz-plancard"><div class="sz-lhd" style="margin-bottom:8px;">Workouts</div><div style="font-size:13px;line-height:1.5;margin-bottom:10px;">Build intervals and give them to a day on the calendar. Metrics offers the day\u2019s workout when you start.</div><div id="sz-planwk"></div><button class="dzbtn dzbtn-sec" id="sz-plan-wkt"><span>Create / edit workouts</span></button></div><div class="sz-ctabs" id="sz-ctabs" style="display:none;"><button class="sz-ntab sel" data-ct="sec">Sectors</button><button class="sz-ntab" data-ct="nav">Navigation</button></div><div class="brpill" id="sz-sectors" style="display:none;"></div><div class="brpill" id="sz-nav" style="display:none;"></div><div class="brpill prc-row" id="sz-focus" style="display:none;"></div><div class="brpill sz-sumcol"><div class="sz-lhd" style="margin-bottom:8px;">Summary</div><div id="sz-sumbody"></div></div></div>
+    <div class="sz-sumwrap" data-ct="sec"><div class="brpill prc-plan" id="sz-plancard"><div class="sz-lhd" style="margin-bottom:8px;">Workouts</div><div style="font-size:13px;line-height:1.5;margin-bottom:10px;">Build intervals and give them to a day on the calendar. Metrics offers the day\u2019s workout when you start.</div><div id="sz-planwk"></div><button class="dzbtn dzbtn-sec" id="sz-plan-wkt" style="display:none;"><span>Create / edit workouts</span></button></div><div class="sz-ctabs" id="sz-ctabs" style="display:none;"><button class="sz-ntab sel" data-ct="sec">Sectors</button><button class="sz-ntab" data-ct="nav">Navigation</button></div><div class="brpill" id="sz-sectors" style="display:none;"></div><div class="brpill" id="sz-nav" style="display:none;"></div><div class="brpill prc-nav" id="sz-navempty" style="display:none;"><div class="sz-lhd">Navigation</div><div style="font-size:13px;line-height:1.5;color:var(--muted);">Nothing here yet. Sectors and navigation lines (lanes, dividers, hazards) appear once you have set some up from a session, or once your club shares them.</div></div><div class="brpill prc-row" id="sz-focus" style="display:none;"></div><div class="brpill sz-sumcol"><div class="sz-lhd" style="margin-bottom:8px;">Summary</div><div id="sz-sumbody"></div></div></div>
     <div class="sz-calcol"><div class="brpill" id="sz-cal"></div><div class="brpill" id="sz-calday" style="display:none;"></div><div class="brpill" id="sz-sqload" style="display:none;"></div><div class="brpill" id="sz-load" style="display:none;"></div></div>
     <div class="brpill" id="sz-sesspill">
       <div class="sz-lhd">Sessions<span class="sz-count" id="sz-count"></span><button type="button" id="sz-refresh" title="Fetch the session list from Drive again" style="margin-left:10px;min-height:30px;padding:0 12px;border:0;border-radius:8px;background:#0d2b5e;color:#fff;font:700 12px Inter,-apple-system,sans-serif;letter-spacing:0;text-transform:none;cursor:pointer;vertical-align:middle;">&#8635; Refresh list</button><span class="sz-signout" id="sz-signout">Sign out</span></div>
@@ -11932,6 +11932,7 @@ async function showStartup(){
        const vis=id=>{const x=document.getElementById(id);return !!(x&&x.style.display!=='none');};
        const s=vis('sz-sectors'),n=vis('sz-nav');
        cbar.style.display=(s&&n)?'':'none';
+       {const ne=document.getElementById('sz-navempty');if(ne)ne.style.display=(s||n)?'none':'';}   // 19 Nov: Navigation tab empty state
        if(s&&!n&&sw.dataset.ct!=='sec')setC('sec');
        if(n&&!s&&sw.dataset.ct!=='nav')setC('nav');
        const cb=bar.querySelector('[data-nt="course"]');if(cb)cb.style.display=(s||n)?'':'none';
@@ -11943,7 +11944,7 @@ async function showStartup(){
   /* 13 Nov: Plan / Row / Coach. Plan = calendar, workouts, course. Row = sessions,
      summary, focus metrics. Coach = trends (what drives pace per boat), compare. */
   {const lst=el.querySelector('.sz-list'),bar=document.getElementById('sz-prc'),sub=document.getElementById('sz-prcsub');
-   const SUB={plan:'Plan the season: loading cycles, workouts and the calendar, plus courses and navigation lines',load:'Training load, fatigue and what to do today',row:'Your sessions, and what to watch in the boat',coach:'Find what makes the boat faster'};
+   const SUB={plan:'Plan the season: loading cycles, workouts and the calendar',nav:'Courses, sectors and navigation lines',load:'Training load, fatigue and what to do today',row:'Your sessions, and what to watch in the boat',coach:'Find what makes the boat faster'};
    const setP=t=>{
      lst.dataset.prc=t;
      bar.querySelectorAll('button').forEach(b=>{const on=b.dataset.prc===t;b.classList.toggle('sel',on);b.setAttribute('aria-pressed',on?'true':'false');});
@@ -11952,12 +11953,13 @@ async function showStartup(){
      if(t==='coach'){const h=document.getElementById('sz-trhost');if(h&&!h.dataset.on){h.dataset.on='1';showTrendsModal(h);}else{try{window.dispatchEvent(new Event('resize'));}catch(e){}}}
      if(t==='row'){try{szRenderFocus();}catch(e){}}
      if(t==='load'){try{renderLoadPanel();}catch(e){}}
+     if(t==='nav'){setTimeout(()=>{try{window.dispatchEvent(new Event('resize'));}catch(e){}try{if(typeof leafletMap!=='undefined'&&leafletMap&&leafletMap.invalidateSize)leafletMap.invalidateSize();}catch(e){}},60);}   // maps drawn while hidden need a resize
      if(t==='plan'){try{sznRender();}catch(e){}}
    };
    bar.onclick=e=>{const b=e.target.closest('button');if(b)setP(b.dataset.prc);};
    document.getElementById('sz-plan-wkt').onclick=()=>{const w=document.getElementById('wktbtn');if(w)w.click();};
    window._szSetPrc=setP;
-   let p0='row';try{const v=localStorage.getItem('_sz_prc');if(v==='plan'||v==='coach'||v==='row'||v==='load')p0=v;}catch(e){}
+   let p0='row';try{const v=localStorage.getItem('_sz_prc');if(v==='plan'||v==='coach'||v==='row'||v==='load'||v==='nav')p0=v;}catch(e){}
    setP(p0);}
   szWideSummary();
   renderStartSectors();
@@ -15745,17 +15747,17 @@ function renderStartupCalendar(){
       const k=y+'-'+String(m+1).padStart(2,'0')+'-'+String(d).padStart(2,'0');
       const ss=byDay[k]||[], pl=((WKT_ENABLED||_wktCtx)&&k>=todayK)?planIds(k).filter(id=>wById[id]&&planShown(k,wById[id])):[];
       const sel=_calSel===k, today=k===todayK, past=k<todayK;
-      g+='<div data-day="'+k+'" style="min-height:52px;padding:3px;border-radius:8px;opacity:'+(past&&!sel?'.55':'1')+';box-shadow:'+(sel?'0 3px 10px rgba(0,0,0,.28)':'0 1px 3px rgba(0,0,0,.16),0 1px 1px rgba(0,0,0,.06)')+';cursor:pointer;overflow:hidden;border:1px solid '+(sel?'var(--b)':'var(--border)')+';background:'+(sel?'var(--s3)':'var(--s2)')+';'+_szc.top(k)+'">'
-        +'<div style="display:flex;align-items:center;gap:4px;font-size:11px;font-weight:'+(today?'800':'500')+';color:'+(today?'var(--b)':'var(--text)')+';">'+d+calNoteDot(k)+'</div>'
-        +(true?calEventsOf(k).slice(0,2).map(x=>'<div data-cichip="'+_secEsc(x.id)+'" title="'+_secEsc(x.text||'')+'" style="font-size:9px;line-height:1.3;background:'+CI_EVENT_COL+';color:#fff;border-radius:3px;padding:0 3px;margin-top:1px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;font-weight:700;box-shadow:0 1px 2px rgba(0,0,0,.25);">'+(x.time?_secEsc(x.time)+' ':'')+_secEsc(x.text||'')+'</div>').join(''):'')
+      g+='<div data-day="'+k+'" style="min-height:52px;padding:3px;border-radius:8px;opacity:'+(past&&!sel?'.55':'1')+';box-shadow:'+(sel?'0 3px 10px rgba(0,0,0,.28)':'0 1px 3px rgba(0,0,0,.16),0 1px 1px rgba(0,0,0,.06)')+';cursor:pointer;overflow:hidden;border:1px solid '+(sel?'var(--b)':'var(--border)')+';background:'+(sel?'var(--s3)':'var(--s2)')+';'+(calMineOn()?_szc.top(k):'')+'">'
+        +'<div style="display:flex;align-items:center;gap:4px;font-size:11px;font-weight:'+(today?'800':'500')+';color:'+(today?'var(--b)':'var(--text)')+';">'+d+(calMineOn()?calNoteDot(k):'')+'</div>'
+        +(calMineOn()?calEventsOf(k).slice(0,2).map(x=>'<div data-cichip="'+_secEsc(x.id)+'" title="'+_secEsc(x.text||'')+'" style="font-size:9px;line-height:1.3;background:'+CI_EVENT_COL+';color:#fff;border-radius:3px;padding:0 3px;margin-top:1px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;font-weight:700;box-shadow:0 1px 2px rgba(0,0,0,.25);">'+(x.time?_secEsc(x.time)+' ':'')+_secEsc(x.text||'')+'</div>').join(''):'')
         +ss.slice(0,3).map(x=>calSessChip(x,9,false)).join('')+(ss.length>3?'<div style="font-size:9px;color:var(--muted);">+'+(ss.length-3)+'</div>':'')
-        +(()=>{const sq=daySeq(k).filter(q=>q.t==='o'||pl.indexOf(q.id)>=0);
+        +(()=>{if(!calMineOn())return '';const sq=daySeq(k).filter(q=>q.t==='o'||pl.indexOf(q.id)>=0);
           return sq.slice(0,2).map(q=>q.t==='o'
             ?'<div data-cichip="'+_secEsc(q.x.id)+'" title="'+_secEsc(q.x.text||'')+'" style="font-size:9px;line-height:1.3;background:'+CI_OTHER_COL+';color:#fff;border-radius:3px;padding:0 3px;margin-top:1px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;box-shadow:0 1px 2px rgba(0,0,0,.25);">'+(q.x.done?'&#10003; ':'')+_secEsc(q.x.text||'')+'</div>'
             :'<div style="font-size:9px;line-height:1.3;background:'+(wById[q.id].venue==='erg'?CAL_ERG_COL:CAL_WATER_COL)+';color:#fff;border-radius:3px;padding:0 3px;margin-top:1px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">'+_coachMark(q.id,false)+_secEsc(_wktDispName(wById[q.id]))+'</div>').join('')
             +(sq.length>2?'<div style="font-size:9px;color:var(--muted);">+'+(sq.length-2)+'</div>':'');})()
         +calSqCellHtml(k)
-        +_szc.cell(k,false)
+        +(calMineOn()?_szc.cell(k,false):'')
         +'</div>';
     }
     return g+'</div>';
@@ -15835,18 +15837,12 @@ function renderStartupCalendar(){
     });
     h+='</div>';
     const BB='flex:1 1 0;min-width:0;min-height:48px;line-height:1.2;padding:10px 6px;border-radius:10px;border:none;box-shadow:0 2px 8px rgba(0,0,0,.22);font-family:-apple-system,Roboto,sans-serif;font-size:11px;font-weight:700;letter-spacing:.06em;cursor:pointer;color:#fff;';
-    if(!_wktCtx||sqCanEdit()){_calBtnsShown=true;h+='<div style="display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:6px;margin-top:20px;">'
-      +'<button id="cal-add-water" style="'+BB+'background:'+CAL_WATER_COL+';">+ ON-WATER WORKOUT</button>'
-      +'<button id="cal-add-erg" style="'+BB+'background:'+CAL_ERG_COL+';">+ ERG WORKOUT</button>'
-      +(_ciEd?'<button id="cal-add-other" style="'+BB+'background:'+CI_OTHER_COL+';">+ OTHER WORKOUT</button>'
-        +'<button id="cal-add-event" style="'+BB+'background:#27ae60;">+ EVENT</button><button id="cal-add-note" style="'+BB+'background:'+CI_NOTE_COL+';color:#fff;">+ NOTE</button>':'')
-      +'<button id="cal-edit-wkts" style="'+BB+'background:'+CAL_EDIT_COL+';">EDIT WORKOUTS</button>'
-      +'</div>';}
+    _calBtnsShown=true;   // 19 Nov: the add buttons are at the top of the Workouts pane
     }
     if(!_seqShown)h+=_othRows;
     h+=calSqDayHtml(_calSel);   // 19 Nov: squad plans for this day
     if(!_wktCtx&&!WKT_ENABLED&&_calSel>=todayK)h+='<div style="font-size:12px;color:var(--muted);margin:10px 0 4px;line-height:1.5;">To plan workouts here, open BoatRun on your phone signed in with Google Drive linked. Planning switches on by itself.</div>';
-    if(!_calBtnsShown&&_ciEd){
+    if(false){   // 19 Nov: moved to the Workouts pane
       const BB='flex:1 1 0;min-width:0;min-height:48px;line-height:1.2;padding:10px 6px;border-radius:10px;border:none;box-shadow:0 2px 8px rgba(0,0,0,.22);font-family:-apple-system,Roboto,sans-serif;font-size:11px;font-weight:700;letter-spacing:.06em;cursor:pointer;color:#fff;';
       h+='<div style="display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:6px;margin-top:20px;">'
         +'<button id="cal-add-other" style="'+BB+'background:'+CI_OTHER_COL+';">+ OTHER WORKOUT</button>'
@@ -16074,6 +16070,9 @@ function calSqBarWire(el){
    calendar; only a coach can add workouts to, or remove them from, a squad
    calendar ("Add to" in the Workouts list). Squad workouts don't count in
    your own load until imported.
+   19 Nov: a "Mine" chip hides or shows your own plan, events, notes and day
+   loads on the calendar (completed sessions always show; the day details
+   below still list everything).
    ══════════════════════════════════════════════════════════════════════════ */
 let _calTgt='mine';const _csTried={};
 function calSqOff(){try{const v=JSON.parse(localStorage.getItem('br_cal_sq_off')||'{}');return v&&typeof v==='object'?v:{};}catch(e){return {};}}
@@ -16096,12 +16095,15 @@ async function calSqAutoLoad(){
 }
 function calSqChipsHtml(CH){
   if(_wktCtx)return '<span style="display:flex;gap:4px;margin-left:8px;"><button id="cal-mine" class="filt-chip" style="'+CH+'">&larr; My calendar</button></span>';
-  const off=calSqOff(),cs=calSqCodes();
-  if(!cs.length)return '';
-  return '<span style="display:flex;gap:4px;margin-left:8px;flex-wrap:wrap;">'+cs.map(c=>{const on=!off[c],ld=!!_pv.sq[c];
+  const off=calSqOff(),cs=calSqCodes(),mo=calMineOn();
+  return '<span style="display:flex;gap:4px;margin-left:8px;flex-wrap:wrap;">'
+    +'<button data-calmine="1" class="filt-chip'+(mo?' on':'')+'" style="'+CH+(mo?'':'opacity:.55;')+'" title="'+(mo?'Hide':'Show')+' your own plan, events and notes">'+pvMarker(PV_MINE_COL,8)+'Mine</button>'
+    +cs.map(c=>{const on=!off[c],ld=!!_pv.sq[c];
     return '<button data-calsq="'+c+'" class="filt-chip'+(on&&ld?' on':'')+'" style="'+CH+(on?'':'opacity:.55;')+'" title="'+(on?'Hide':'Show')+' this squad’s plan">'+pvMarker(pvCol(c),8)+_secEsc(pvSqName(c))+(on&&!ld?(_pv.loading[c]?' …':' \u{1F512}'):'')+'</button>';}).join('')+'</span>';
 }
+function calMineOn(){if(_wktCtx)return true;try{return localStorage.getItem('br_cal_mine_off')!=='1';}catch(e){return true;}}
 function calSqWire(el){
+  el.querySelectorAll('[data-calmine]').forEach(b=>{b.onclick=()=>{try{localStorage.setItem('br_cal_mine_off',calMineOn()?'1':'0');}catch(e){}renderStartupCalendar();};});
   el.querySelectorAll('[data-calsq]').forEach(b=>{b.onclick=async()=>{const c=b.dataset.calsq,off=calSqOff();
     if(!off[c]&&!_pv.sq[c]){if(await pvLoadSquad(c))renderStartupCalendar();return;}   // locked: ask for the password
     calSqToggle(c);};});
@@ -16329,7 +16331,7 @@ function sznRender(){
       +'</div>';
   });
   h+='</div></div>'
-    +'<div style="display:flex;gap:12px;flex-wrap:wrap;font-size:10px;color:var(--muted);margin:4px 0 2px;"><span>solid = done</span><span>faded = planned</span><span>dashed box = target</span><span>number = done + planned (<span style="color:#27ae60;">on target</span> / <span style="color:#e67e22;">under</span> / <span style="color:#e74c3c;">over</span>)</span><span>top bar = block</span><span>tap a week for its days</span></div>'
+    +'<div style="display:flex;gap:12px;flex-wrap:wrap;font-size:10px;color:var(--muted);margin:4px 0 2px;"><span>solid = done</span><span>faded = planned</span><span>dashed box = target</span><span>number = done + planned (<span style="color:#27ae60;">on target</span> / <span style="color:#e67e22;">under</span> / <span style="color:#e74c3c;">over</span>)</span><span>top bar = block</span><span>tap a week for its days</span><span>drag a workout onto a week or a day</span></div>'
     +'<div style="font-size:11px;color:var(--muted);line-height:1.45;margin-bottom:8px;">Load climbs through the loading weeks and drops in the recovery week, so the body absorbs the work; each cycle starts about 4% higher until Peak. 3-week cycles suit masters rowers, who take longer to recover; 4-week cycles suit younger athletes with a long training history.</div>';
   /* selected week */
   {const x=sel,st=sznStat(x);
@@ -16347,7 +16349,7 @@ function sznRender(){
      }
      const evs=(()=>{const e=tlItems()[k];return ((e&&e.list)||[]).filter(o=>o.type==='event');})();
      const ev=evs.map(o=>'<span style="display:inline-flex;align-items:center;gap:4px;padding:2px 8px;border-radius:10px;background:'+(o.race?'#c0392b':CI_EVENT_COL)+';color:#fff;font-size:11px;font-weight:800;margin:2px 4px 2px 0;">'+(o.race?'\u{1F3C1} '+o.race+' race: ':'')+(o.time?_secEsc(o.time)+' ':'')+_secEsc(o.text||'Event')+'</span>').join('');
-     h+='<div style="display:flex;align-items:flex-start;gap:8px;padding:4px 0;border-top:1px solid var(--border);font-size:12px;'+(k===M.todayK?'font-weight:700;':'')+(k<M.todayK?'opacity:.75;':'')+'">'
+     h+='<div '+(k>=M.todayK?'data-szday="'+k+'" ':'')+'style="display:flex;align-items:flex-start;gap:8px;padding:4px 0;border-top:1px solid var(--border);font-size:12px;'+(k===M.todayK?'font-weight:700;':'')+(k<M.todayK?'opacity:.75;':'')+'">'
        +'<span style="width:58px;flex-shrink:0;padding-top:3px;">'+sznFmtD(k,{weekday:'short',day:'numeric'})+'</span>'
        +'<span style="flex:1;min-width:0;">'+ev+items.join('')+((!items.length&&!ev)?'<span style="color:var(--muted);display:inline-block;padding-top:3px;">Rest</span>':'')+'</span>'
        +'<span style="width:40px;text-align:right;padding-top:3px;font-weight:800;">'+(dayL?Math.round(dayL):'')+'</span></div>';
@@ -16372,6 +16374,17 @@ function sznRender(){
   if(g('szn-tgt'))g('szn-tgt').onchange=()=>{const v=Math.max(0,Math.min(5000,Math.round(+g('szn-tgt').value||0)));SZN_WK[sel.w]={...(SZN_WK[sel.w]||{}),tgt:v,rev:Date.now()};sznSave();renderStartupCalendar();};
   el.querySelectorAll('[data-szt]').forEach(s=>{s.onclick=e=>e.stopPropagation();s.onchange=()=>{SZN_WK[s.dataset.szt]={...(SZN_WK[s.dataset.szt]||{}),t:s.value||'',rev:Date.now()};_sznSel=s.dataset.szt;sznSave();renderStartupCalendar();};});
   el.querySelectorAll('[data-szw]').forEach(c=>{c.onclick=()=>{_sznSel=c.dataset.szw;sznRender();};});
+  /* 19 Nov: drop a workout from the Workouts list onto a week (first open day
+     from today) or onto a day in the week below */
+  if(planDragOk()){
+    const did=e=>{const v=(e.dataTransfer&&e.dataTransfer.getData('text/plain'))||'';const id=v.indexOf('wkt:')===0?v.slice(4):_pwDrag;_pwDrag=null;return id;};
+    const zone=(z,pick)=>{z.ondragover=e=>{if(!_pwDrag)return;e.preventDefault();e.dataTransfer.dropEffect='copy';z.style.outline='2px dashed var(--b)';z.style.outlineOffset='-2px';};
+      z.ondragleave=e=>{if(!z.contains(e.relatedTarget))z.style.outline='';};
+      z.ondrop=e=>{e.preventDefault();e.stopPropagation();z.style.outline='';const id=did(e);if(!id)return;const r=pick();if(!r)return;_sznSel=r.w;planDropAdd(r.k,id);};};
+    el.querySelectorAll('[data-szw]').forEach(c=>{const wk=W.find(x=>x.w===c.dataset.szw);if(!wk||!wk.days.some(k=>k>=M.todayK))return;
+      zone(c,()=>{const fut=wk.days.filter(k=>k>=M.todayK);const free=fut.find(k=>calTgtOk()?!(((_pv.sq[_calTgt]||{}).days||{})[k]||{ids:[]}).ids.length:!planIds(k).length);return{k:free||fut[0],w:wk.w};});});
+    el.querySelectorAll('[data-szday]').forEach(r=>{zone(r,()=>({k:r.dataset.szday,w:sel.w}));});
+  }
   if(g('szn-auto'))g('szn-auto').onclick=()=>{SZN_WK[sel.w]={...(SZN_WK[sel.w]||{}),t:'',rev:Date.now()};sznSave();renderStartupCalendar();};
   if(g('szn-fill'))g('szn-fill').onclick=()=>sznFillWeek(sel,M);
   g('szn-cal').onclick=()=>{
@@ -16437,7 +16450,14 @@ function renderPlanWorkouts(){
   const keep=(document.getElementById('pw-list')||{}).scrollTop||0;
   const CH='font-size:12px;padding:6px 10px;flex:1;';
   const dl=_calSel?new Date(_calSel+'T12:00:00').toLocaleDateString('en-AU',{weekday:'short',day:'numeric',month:'short'}):'';
-  let h='<input id="pw-q" type="text" placeholder="Search workouts" value="'+_secEsc(_pwF.q)+'" style="width:100%;box-sizing:border-box;padding:8px 10px;border-radius:8px;border:1px solid var(--border);background:var(--s2);color:var(--text);font-family:inherit;font-size:13px;margin-bottom:8px;">'
+  const ciOk=(()=>{try{return calItemCanEdit();}catch(e){return false;}})(),wkOk=WKT_ENABLED&&!_wktCtx,iDay=_calSel||todayK;
+  const BB='min-width:0;min-height:44px;line-height:1.2;padding:8px 4px;border-radius:10px;border:none;box-shadow:0 2px 8px rgba(0,0,0,.22);font-family:-apple-system,Roboto,sans-serif;font-size:11px;font-weight:800;letter-spacing:.04em;cursor:pointer;color:#fff;';
+  let h=(wkOk||ciOk)?'<div style="display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:6px;margin-bottom:6px;">'
+      +(wkOk?'<button id="pw-new-water" style="'+BB+'background:'+CAL_WATER_COL+';">+ ON-WATER WORKOUT</button><button id="pw-new-erg" style="'+BB+'background:'+CAL_ERG_COL+';">+ ERG WORKOUT</button>':'')
+      +(ciOk?'<button id="pw-add-other" style="'+BB+'background:'+CI_OTHER_COL+';">+ OTHER WORKOUT</button><button id="pw-add-event" style="'+BB+'background:#27ae60;">+ EVENT</button><button id="pw-add-note" style="'+BB+'background:'+CI_NOTE_COL+';">+ NOTE</button>':'')
+      +(wkOk?'<button id="pw-edit" style="'+BB+'background:'+CAL_EDIT_COL+';">EDIT WORKOUTS</button>':'')
+      +'</div>'+(ciOk?'<div style="font-size:11px;color:var(--muted);margin-bottom:10px;">Other workouts, events and notes go on <b style="color:var(--text);">'+new Date(iDay+'T12:00:00').toLocaleDateString('en-AU',{weekday:'short',day:'numeric',month:'short'})+'</b>'+(_calSel?'':' (today)')+' - tap a day on the calendar to change it.</div>':'<div style="margin-bottom:10px;"></div>'):'';
+  h+='<input id="pw-q" type="text" placeholder="Search workouts" value="'+_secEsc(_pwF.q)+'" style="width:100%;box-sizing:border-box;padding:8px 10px;border-radius:8px;border:1px solid var(--border);background:var(--s2);color:var(--text);font-family:inherit;font-size:13px;margin-bottom:8px;">'
     +'<div style="display:flex;gap:4px;margin-bottom:6px;">'+[['all','All'],['water','On-water'],['erg','Erg']].map(([v,l])=>'<button data-pwv="'+v+'" class="filt-chip'+(_pwF.v===v?' on':'')+'" style="'+CH+'">'+l+'</button>').join('')+'</div>'
     +((!_wktCtx&&calSqOn().some(sqIsCoach))?'<label style="display:flex;align-items:center;gap:6px;font-size:12px;font-weight:700;margin-bottom:6px;">Add to <select id="pw-tgt" style="flex:1;min-width:0;padding:6px 8px;border-radius:8px;border:1px solid var(--border);background:var(--s2);color:var(--text);font-family:inherit;font-size:13px;"><option value="mine">My calendar</option>'+calSqOn().filter(sqIsCoach).map(c=>'<option value="'+c+'"'+(_calTgt===c?' selected':'')+'>Squad: '+_secEsc(pvSqName(c))+'</option>').join('')+'</select></label>':'')
     +'<div style="font-size:11px;color:var(--muted);margin-bottom:6px;">'+(calTgtOk()?'Drag onto a day to add to the squad calendar ('+_secEsc(pvSqName(_calTgt))+')'+(selOk?', or + Add to '+dl:'')+'.':!ok?(_wktCtx?'View only: this squad\'s plan is set by the coach.':'Planning switches on once BoatRun on your phone is signed in with Google Drive.'):selOk?'Drag onto a day, or + Add to '+dl+'.':'Drag a workout onto today or a future day, or select a day to add with a tap.')+'</div>'
@@ -16459,6 +16479,12 @@ function renderPlanWorkouts(){
   const qi=document.getElementById('pw-q');
   if(qi)qi.oninput=()=>{_pwF.q=qi.value;const pos=qi.selectionStart;renderPlanWorkouts();const n=document.getElementById('pw-q');if(n){n.focus();try{n.setSelectionRange(pos,pos);}catch(e){}}};
   {const t=document.getElementById('pw-tgt');if(t)t.onchange=()=>{_calTgt=t.value;renderStartupCalendar();};}
+  {const g=id=>document.getElementById(id);
+   const nw=v=>()=>window.showWorkoutsModal({newVenue:v,onSaved:()=>{renderStartupCalendar();toast('Saved - drag it onto a day or a week');}});
+   if(g('pw-new-water'))g('pw-new-water').onclick=nw('water');
+   if(g('pw-new-erg'))g('pw-new-erg').onclick=nw('erg');
+   if(g('pw-edit'))g('pw-edit').onclick=()=>window.showWorkoutsModal();
+   [['pw-add-other','other'],['pw-add-event','event'],['pw-add-note','note']].forEach(([id,t])=>{if(g(id))g(id).onclick=()=>calItemEditor(iDay,t,null,renderStartupCalendar);});}
   el.querySelectorAll('[data-pwv]').forEach(b=>{b.onclick=()=>{_pwF.v=b.dataset.pwv;renderPlanWorkouts();};});
   el.querySelectorAll('[data-pww]').forEach(r=>{
     r.onclick=e=>{const a=e.target.closest('[data-pwadd]');if(a){e.stopPropagation();planDropAdd(_calSel,a.dataset.pwadd);return;}try{window.showWorkoutsModal({viewId:r.dataset.pww});}catch(err){}};
@@ -20065,6 +20091,15 @@ body .hdr-tabs .hmenu,body.light .hdr-tabs .hmenu{background:#fff!important;bord
 .sz-list[data-prc="plan"] .sz-prcsub{background:#0b6e79;}
 .sz-list[data-prc="row"] .sz-prcsub{background:#1a5fd0;}
 .sz-list[data-prc="coach"] .sz-prcsub{background:#6a3fb0;}
+/* 19 Nov: NAVIGATION tab - sectors and navigation lines on their own */
+.sz-prc button[data-prc="nav"].sel{background:#1e7f4f;color:#fff;}
+.sz-list[data-prc="nav"] .sz-prcsub{background:#1e7f4f;}
+.sz-list[data-prc="nav"]::before{border-color:#1e7f4f;}
+.sz-list:not([data-prc="nav"]) .prc-nav{display:none!important;}
+.sz-list:not([data-prc="nav"]) #sz-ctabs,.sz-list:not([data-prc="nav"]) #sz-sectors,.sz-list:not([data-prc="nav"]) #sz-nav{display:none!important;}
+.sz-list[data-prc="nav"] .sz-calcol,.sz-list[data-prc="nav"] #sz-sesspill,.sz-list[data-prc="nav"] .sz-sumcol,.sz-list[data-prc="nav"] #sz-focus{display:none!important;}
+#startup .sz-list[data-prc="nav"] .sz-grid{grid-template-columns:minmax(0,1fr)!important;grid-template-rows:auto!important;}
+#startup .sz-list[data-prc="nav"] .sz-sumwrap{grid-column:1!important;grid-row:1!important;max-width:1100px;width:100%;margin:0 auto;}
 .sz-prc button[data-prc="load"].sel{background:#b5531c;color:#fff;}
 .sz-list[data-prc="load"] .sz-prcsub{background:#b5531c;}
 .sz-list[data-prc="load"]::before{border-color:#b5531c;}
