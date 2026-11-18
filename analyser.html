@@ -11887,7 +11887,7 @@ async function showStartup(){
   if(adPeekPendingOpen())setTimeout(adRunPendingOpen,400);
   document.getElementById('app').style.display='none';
   el.innerHTML=`<div class="sz-list" data-ntab="prc" data-prc="row">
-    <div class="sz-prc" id="sz-prc"><button data-prc="plan">Planning</button><button data-prc="row" class="sel">Results</button><button data-prc="coach">Trends</button></div>
+    <div class="sz-prc" id="sz-prc"><button data-prc="plan">Planning</button><button data-prc="load">Load</button><button data-prc="row" class="sel">Results</button><button data-prc="coach">Trends</button></div>
     <div class="sz-prcsub" id="sz-prcsub"></div>
     <div class="brpill-row">
       ${SESSIONS.length ? '<button class="dzbtn" id="sz-back" style="background:#fc4c02;border-color:#fc4c02;color:#fff;font-weight:800;box-shadow:0 3px 9px rgba(252,76,2,.45);"><span style="color:#fff;">&#10005; Back to session</span></button>' : ''}
@@ -11900,8 +11900,9 @@ async function showStartup(){
       ${(localStorage.getItem('_ad_legacy_done') === '1' || localStorage.getItem('_ad_legacy_empty') === '1') ? '' : '<button class="dzbtn dzbtn-sec prc-row" id="sz-oldacct"><span>Import old sessions</span></button>'}
     </div>
     <div class="sz-ntabs" id="sz-ntabs"><button class="sz-ntab sel" data-nt="sess">Sessions</button><button class="sz-ntab" data-nt="cal">Calendar</button><button class="sz-ntab" data-nt="course" style="display:none;">Course</button></div>
+    <div class="brpill prc-plan" id="sz-season" style="margin-bottom:14px;"></div>
     <div class="sz-grid">
-    <div class="sz-sumwrap" data-ct="sec"><div class="brpill prc-plan" id="sz-plancard"><div class="sz-lhd" style="margin-bottom:8px;">Workouts</div><div style="font-size:13px;line-height:1.5;margin-bottom:10px;">Build intervals and give them to a day on the calendar. Metrics offers the day\u2019s workout when you start.</div><button class="dzbtn dzbtn-sec" id="sz-plan-wkt"><span>Create / edit workouts</span></button></div><div class="sz-ctabs" id="sz-ctabs" style="display:none;"><button class="sz-ntab sel" data-ct="sec">Sectors</button><button class="sz-ntab" data-ct="nav">Navigation</button></div><div class="brpill" id="sz-sectors" style="display:none;"></div><div class="brpill" id="sz-nav" style="display:none;"></div><div class="brpill prc-row" id="sz-focus" style="display:none;"></div><div class="brpill sz-sumcol"><div class="sz-lhd" style="margin-bottom:8px;">Summary</div><div id="sz-sumbody"></div></div></div>
+    <div class="sz-sumwrap" data-ct="sec"><div class="brpill prc-plan" id="sz-plancard"><div class="sz-lhd" style="margin-bottom:8px;">Workouts</div><div style="font-size:13px;line-height:1.5;margin-bottom:10px;">Build intervals and give them to a day on the calendar. Metrics offers the day\u2019s workout when you start.</div><div id="sz-planwk"></div><button class="dzbtn dzbtn-sec" id="sz-plan-wkt"><span>Create / edit workouts</span></button></div><div class="sz-ctabs" id="sz-ctabs" style="display:none;"><button class="sz-ntab sel" data-ct="sec">Sectors</button><button class="sz-ntab" data-ct="nav">Navigation</button></div><div class="brpill" id="sz-sectors" style="display:none;"></div><div class="brpill" id="sz-nav" style="display:none;"></div><div class="brpill prc-row" id="sz-focus" style="display:none;"></div><div class="brpill sz-sumcol"><div class="sz-lhd" style="margin-bottom:8px;">Summary</div><div id="sz-sumbody"></div></div></div>
     <div class="sz-calcol"><div class="brpill" id="sz-cal"></div><div class="brpill" id="sz-calday" style="display:none;"></div><div class="brpill" id="sz-sqload" style="display:none;"></div><div class="brpill" id="sz-load" style="display:none;"></div></div>
     <div class="brpill" id="sz-sesspill">
       <div class="sz-lhd">Sessions<span class="sz-count" id="sz-count"></span><button type="button" id="sz-refresh" title="Fetch the session list from Drive again" style="margin-left:10px;min-height:30px;padding:0 12px;border:0;border-radius:8px;background:#0d2b5e;color:#fff;font:700 12px Inter,-apple-system,sans-serif;letter-spacing:0;text-transform:none;cursor:pointer;vertical-align:middle;">&#8635; Refresh list</button><span class="sz-signout" id="sz-signout">Sign out</span></div>
@@ -11942,7 +11943,7 @@ async function showStartup(){
   /* 13 Nov: Plan / Row / Coach. Plan = calendar, workouts, course. Row = sessions,
      summary, focus metrics. Coach = trends (what drives pace per boat), compare. */
   {const lst=el.querySelector('.sz-list'),bar=document.getElementById('sz-prc'),sub=document.getElementById('sz-prcsub');
-   const SUB={plan:'Set up what you are going to row: calendar, workouts, courses and navigation lines',row:'Your sessions, and what to watch in the boat',coach:'Find what makes the boat faster'};
+   const SUB={plan:'Plan the season: loading cycles, workouts and the calendar, plus courses and navigation lines',load:'Training load, fatigue and what to do today',row:'Your sessions, and what to watch in the boat',coach:'Find what makes the boat faster'};
    const setP=t=>{
      lst.dataset.prc=t;
      bar.querySelectorAll('button').forEach(b=>{const on=b.dataset.prc===t;b.classList.toggle('sel',on);b.setAttribute('aria-pressed',on?'true':'false');});
@@ -11950,11 +11951,13 @@ async function showStartup(){
      try{localStorage.setItem('_sz_prc',t);}catch(e){}
      if(t==='coach'){const h=document.getElementById('sz-trhost');if(h&&!h.dataset.on){h.dataset.on='1';showTrendsModal(h);}else{try{window.dispatchEvent(new Event('resize'));}catch(e){}}}
      if(t==='row'){try{szRenderFocus();}catch(e){}}
+     if(t==='load'){try{renderLoadPanel();}catch(e){}}
+     if(t==='plan'){try{sznRender();}catch(e){}}
    };
    bar.onclick=e=>{const b=e.target.closest('button');if(b)setP(b.dataset.prc);};
    document.getElementById('sz-plan-wkt').onclick=()=>{const w=document.getElementById('wktbtn');if(w)w.click();};
    window._szSetPrc=setP;
-   let p0='row';try{const v=localStorage.getItem('_sz_prc');if(v==='plan'||v==='coach'||v==='row')p0=v;}catch(e){}
+   let p0='row';try{const v=localStorage.getItem('_sz_prc');if(v==='plan'||v==='coach'||v==='row'||v==='load')p0=v;}catch(e){}
    setP(p0);}
   szWideSummary();
   renderStartSectors();
@@ -14565,6 +14568,7 @@ function wktRecheck(){
   }).catch(()=>{});
 }
 document.addEventListener('visibilitychange',()=>{if(document.visibilityState==='visible')wktRecheck();});
+setInterval(()=>{try{if(document.visibilityState==='visible')wktRecheck();}catch(e){}},5*60000);   // 18 Nov: an open tab picks up the phone's check-in and sessions without a refocus
 window.addEventListener('focus',wktRecheck);
 // ── Workout plan (calendar) — synced to Metrics as prefs.workoutPlan ───────
 let WKT_PLAN=(()=>{try{const v=JSON.parse(localStorage.getItem('br_wkt_plan')||'{}');return v&&typeof v==='object'&&!Array.isArray(v)?v:{};}catch{return {};}})();
@@ -14821,7 +14825,7 @@ function calItemEditor(day,type,id,onDone){
         +'<label style="display:block;font-size:12px;opacity:.75;margin-bottom:4px;">Race (Training load plans towards the next A race)</label>'
         +'<select id="ci-race" style="'+IN+'"><option value="">Not a race</option><option value="A">A race - the one to peak for</option><option value="B">B race - important</option><option value="C">C race - training race</option></select>'
        :'<textarea id="ci-text" rows="4" maxlength="1000" placeholder="'+(oth?'Other workout (e.g. Gym, 10 km run, Bike 45 min)':'Note')+'" style="'+IN+'resize:vertical;"></textarea>')
-    +(oth?'<label style="display:block;font-size:12px;opacity:.75;margin-bottom:4px;">Training load: minutes and effort (1 easy - 10 flat out), or the Garmin load number</label>'
+    +(oth?'<label style="display:block;font-size:12px;opacity:.75;margin-bottom:4px;">Training load: minutes and effort (1 easy - 10 flat out), or your watch\'s load number</label>'
         +'<div style="display:flex;gap:8px;"><input id="ci-min" type="number" min="0" max="900" placeholder="Minutes" style="'+IN+'flex:1;min-width:0;"><select id="ci-rpe" style="'+IN+'flex:1;min-width:0;"><option value="">Effort</option>'+[1,2,3,4,5,6,7,8,9,10].map(n=>'<option value="'+n+'">'+n+'</option>').join('')+'</select><input id="ci-load" type="number" min="0" max="3000" placeholder="or load" style="'+IN+'flex:1;min-width:0;"></div>':'')
     +'<div style="display:flex;gap:8px;">'
     +(cur?'<button id="ci-del" style="flex:1;padding:10px 0;background:none;border:1px solid #ff3b30;color:#ff3b30;border-radius:8px;font-weight:700;cursor:pointer;font-family:inherit;">Delete</button>':'')
@@ -14882,6 +14886,19 @@ function calItemEditor(day,type,id,onDone){
    check-in from Metrics) { 'YYYY-MM-DD':{sleep,sore,energy,rhr,hrv,rev} }.
    ══════════════════════════════════════════════════════════════════════════ */
 const TL_DEF_RPE=4, TL_ZONE_W=[0.4,0.9,1.5,3,5];
+/* 18 Nov: WATCH CHOICE (same list as Metrics, synced as prefs.watch). The load
+   box takes the chosen watch's own number and calibration learns from that
+   watch only (entries carry w; none = Garmin). Apple Watch / Whoop / no watch
+   have no per-workout load to copy, so they set effort (1-10) instead. */
+const WATCHES={garmin:{n:'Garmin',L:'Load',te:1},coros:{n:'Coros',L:'Training load',te:1},polar:{n:'Polar',L:'Cardio load'},suunto:{n:'Suunto',L:'TSS'},fitbit:{n:'Fitbit',L:'Cardio load'},apple:{n:'Apple Watch',eff:1},whoop:{n:'Whoop',eff:1},none:{n:'No watch',eff:1}};
+function tlWatchGet(){try{const v=JSON.parse(localStorage.getItem('br_watch')||'{}');return (v&&WATCHES[v.id])?v:{id:'garmin',rev:0};}catch(e){return {id:'garmin',rev:0};}}
+function tlWatch(){return tlWatchGet().id;}
+function tlWSpec(id){return WATCHES[id||tlWatch()]||WATCHES.garmin;}
+function tlWatchSet(id){
+  if(!WATCHES[id])return;const v={id,rev:Date.now()};try{localStorage.setItem('br_watch',JSON.stringify(v));}catch(e){}
+  try{if(AnalyserDrive.isSignedIn())AnalyserDrive.pullPrefs().then(()=>AnalyserDrive.pushPrefs({watch:v})).catch(()=>{});}catch(e){}
+  tlRenderSoon();
+}
 function tlW(e){return 0.15*Math.pow(e,1.5);}   // load per minute at effort e
 const _tlLoadLS=k=>{try{const v=JSON.parse(localStorage.getItem(k)||'{}');return v&&typeof v==='object'&&!Array.isArray(v)?v:{};}catch(e){return {};}};
 let SESS_LOAD=_tlLoadLS('br_sess_load'), WELLNESS=_tlLoadLS('br_wellness');
@@ -14890,7 +14907,9 @@ function tlMerge(a,b){const o={...(a||{})};Object.keys(b||{}).forEach(k=>{const 
 function tlFromPrefs(p){
   if(!p||typeof p!=='object')return;
   try{btpFromPrefs(p);}catch(e){}
+  try{sznFromPrefs(p);}catch(e){}
   try{sqlFromPrefs(p);}catch(e){}
+  if(p.watch&&typeof p.watch==='object'&&WATCHES[p.watch.id]&&(p.watch.rev||0)>(tlWatchGet().rev||0)){try{localStorage.setItem('br_watch',JSON.stringify(p.watch));}catch(e){}}
   if(p.sessLoad&&typeof p.sessLoad==='object'&&!Array.isArray(p.sessLoad)){SESS_LOAD=tlMerge(SESS_LOAD,p.sessLoad);try{localStorage.setItem('br_sess_load',JSON.stringify(SESS_LOAD));}catch(e){}}
   if(p.wellness&&typeof p.wellness==='object'&&!Array.isArray(p.wellness)){WELLNESS=tlMerge(WELLNESS,p.wellness);try{localStorage.setItem('br_wellness',JSON.stringify(WELLNESS));}catch(e){}}
   tlRenderSoon();
@@ -14943,8 +14962,8 @@ function tlModel(x){
    the sessions that have no Garmin number. */
 let _tlCal={};
 function tlCalibrate(){
-  const r={hr:[],est:[],eff:[]};
-  tlFiles().forEach(x=>{const man=SESS_LOAD[tlSessKey(x)]||{};if(!(man.load>0))return;const m=tlModel(x);if(m.load>5)r[m.kind].push(man.load/m.load);});
+  const r={hr:[],est:[],eff:[]},cw=tlWatch(),all=!!tlWSpec(cw).eff;   // 18 Nov: learn from the chosen watch only (an effort-only watch keeps any old numbers)
+  tlFiles().forEach(x=>{const man=SESS_LOAD[tlSessKey(x)]||{};if(!(man.load>0))return;if(!all&&(man.w||'garmin')!==cw)return;const m=tlModel(x);if(m.load>5)r[m.kind].push(man.load/m.load);});
   const out={};
   Object.keys(r).forEach(k=>{const v=r[k].sort((p,q)=>p-q);if(v.length>=3){const md=v.length%2?v[(v.length-1)/2]:(v[v.length/2-1]+v[v.length/2])/2;out[k]={k:Math.max(0.3,Math.min(3,md)),n:v.length};}});
   _tlCal=out;tlPushCal(out);return out;
@@ -14952,15 +14971,15 @@ function tlCalibrate(){
 let _tlCalPushT=null;
 function tlPushCal(c){
   if(_wktCtx)return;
-  const sig=JSON.stringify(c);let last='';try{last=localStorage.getItem('br_load_cal_sig')||'';}catch(e){}
+  const w=tlWatch(),sig=JSON.stringify(c)+w;let last='';try{last=localStorage.getItem('br_load_cal_sig')||'';}catch(e){}
   if(sig===last)return;
   try{if(!AnalyserDrive.isSignedIn())return;}catch(e){return;}
   clearTimeout(_tlCalPushT);
-  _tlCalPushT=setTimeout(()=>{AnalyserDrive.pullPrefs().then(()=>AnalyserDrive.pushPrefs({loadCal:{...c,rev:Date.now()}})).then(()=>{try{localStorage.setItem('br_load_cal_sig',sig);}catch(e){}}).catch(()=>{});},3000);
+  _tlCalPushT=setTimeout(()=>{AnalyserDrive.pullPrefs().then(()=>AnalyserDrive.pushPrefs({loadCal:{...c,w,rev:Date.now()}})).then(()=>{try{localStorage.setItem('br_load_cal_sig',sig);}catch(e){}}).catch(()=>{});},3000);
 }
 function tlSessLoad(x){
   const man=SESS_LOAD[tlSessKey(x)]||{};
-  if(man.load>0)return{load:+man.load,src:'Garmin'};
+  if(man.load>0)return{load:+man.load,src:tlWSpec(man.w||'garmin').n};
   const m=tlModel(x),c=_tlCal[m.kind];
   return{load:Math.round(m.load*(c?c.k:1)),src:m.src+(c?' (calibrated)':'')};
 }
@@ -15050,13 +15069,41 @@ const TL_KINDS={
 };
 const TL_GYM=['legs','pull','push','full','core'], TL_MTAU=2, TL_MSTEADY=1/(1-Math.exp(-1/TL_MTAU));
 /* What to do today, and which library workouts fit. */
+/* 18 Nov: OPTIMAL LOAD TODAY. The day's load that takes tomorrow's load ratio
+   (acute / chronic, from yesterday's figures) to the target for the suggested
+   type: easy below 1.0 (at most 60% of a normal day), steady 1.0-1.2, hard
+   1.2-1.4, short and sharp 0.9-1.1. Solves a' / c' = R with a' = a + (L-a)/7,
+   c' = c + (L-c)/42 (a, c per day): L = (41Rc - 36a) / (6 - R). Needs a
+   chronic load of 30+. */
+function tlOpt(a,c,t,done){
+  if(!(c*7>=30)||t==='race')return null;
+  const L=R=>Math.max(0,(41*R*c-36*a)/(6-R));
+  let lo,hi;
+  if(t==='done'){lo=hi=done;}
+  else if(t==='easy'){lo=0;hi=Math.min(L(1.0),0.6*c);}
+  else if(t==='steady'){lo=L(1.0);hi=L(1.2);}
+  else if(t==='hard'){lo=L(1.2);hi=L(1.4);}
+  else{lo=L(0.9);hi=L(1.1);}
+  return{lo:Math.round(lo),hi:Math.round(Math.max(lo,hi)),done:Math.round(done||0),t};
+}
+function tlOptTxt(o){
+  if(!o)return '';
+  if(o.t==='done')return 'Load today '+o.done+': enough for today';
+  if(o.hi<10)return 'Optimal load today: rest (keeps the load ratio in range)';
+  let s='Optimal load today: '+(o.lo?o.lo+'–':'up to ')+o.hi;
+  if(o.done>0)s+=' · done '+o.done+(o.done>=o.hi?', that’s enough':', '+(Math.max(0,o.lo-o.done)?Math.max(0,o.lo-o.done)+'–':'up to ')+(o.hi-o.done)+' to go');
+  return s;
+}
 function tlSuggest(D){
   const todayK=_dayKey(Date.now()),ti=D.ti,ch=D.fit[ti],ratio=ch>=30?D.form[ti]:null,ready=tlReady(WELLNESS[todayK]);
   const yHard=ti>0&&ch>=30&&D.load[ti-1]>=1.5*ch/7;
   const dd=D.target?D.days.indexOf(D.target.day)-ti:null;
   const phase=dd==null?'general':dd<=10?'taper':dd<=24?'peak':dd<=66?'build':'base';
+  /* 18 Nov: what is already done today (sessions + other workouts, not the plan) */
+  const doneL=((D.items||{})[todayK]||[]).filter(x=>x.c!=='plan').reduce((a,x)=>a+(x.load||0),0),hardThr=ch>=30?1.5*ch/7:120;
   const why=[];let type;
   if(dd===0){type='race';why.push('Race day: '+D.target.text);}
+  else if(doneL>=hardThr){type='done';why.push('a hard session is already done today (load '+Math.round(doneL)+')');}
   else if(ready!=null&&ready<2.7){type='easy';why.push('this morning’s check-in is poor');}
   else if(ratio!=null&&ratio>1.4){type='easy';why.push('load ratio is high ('+ratio.toFixed(2)+')');}
   else{
@@ -15067,9 +15114,12 @@ function tlSuggest(D){
     if(yHard)why.push('yesterday was a hard day');
     else if(ratio!=null&&ratio<0.8)why.push('load ratio is low ('+ratio.toFixed(2)+'), so there is room to add load');
     if(ready!=null&&ready>=3.7)why.push('check-in is good');
+    if(doneL>0){if(type==='hard'||type==='sharp')type='steady';why.push('already '+Math.round(doneL)+' load done today');}
   }
-  const T={race:'Race. Warm up well and go.',easy:'Recovery: easy row or rest',steady:'Steady endurance',hard:'Hard session',sharp:'Short and sharp'}[type];
-  const HINT={easy:'No easy workout in your library: 30 to 45 min at effort 3, or a day off.',steady:'No steady workout in your library: 60 to 80 min at effort 4 to 5.',hard:'No hard workout in your library: e.g. 4 x 2 km at race pace, effort 8.',sharp:'No short hard workout in your library: e.g. 6 x 250 m at race pace with full rest.',race:''}[type];
+  if(ready==null)why.push('no check-in for today has reached the Analyser yet');
+  const opt=tlOpt(ti>0?D.fat[ti-1]/7:0,ti>0?D.fit[ti-1]/7:0,type,doneL);
+  const T={race:'Race. Warm up well and go.',done:'Done for today: rest and recover',easy:'Recovery: easy row or rest',steady:'Steady endurance',hard:'Hard session',sharp:'Short and sharp'}[type];
+  const HINT={done:'Eat, sleep and stretch. Tomorrow\u2019s suggestion allows for today\u2019s load.',easy:'No easy workout in your library: 30 to 45 min at effort 3, or a day off.',steady:'No steady workout in your library: 60 to 80 min at effort 4 to 5.',hard:'No hard workout in your library: e.g. 4 x 2 km at race pace, effort 8.',sharp:'No short hard workout in your library: e.g. 6 x 250 m at race pace with full rest.',race:''}[type];
   let W;try{W=_pW();}catch(e){W=WORKOUTS_DB;}
   const lib=(W||[]).filter(w=>w&&!w.deleted&&Array.isArray(w.steps)).map(w=>{const r=tlWktLoad(w,0);return{w,e:rpeOf(w),load:r.load,min:r.min};}).filter(x=>x.min>0);
   let picks=[];
@@ -15077,7 +15127,7 @@ function tlSuggest(D){
   else if(type==='steady')picks=lib.filter(x=>x.e>=4&&x.e<=6).sort((p,q)=>q.min-p.min);
   else if(type==='hard')picks=lib.filter(x=>x.e>=7).sort((p,q)=>q.load-p.load);
   else if(type==='sharp')picks=lib.filter(x=>x.e>=7).sort((p,q)=>p.load-q.load);
-  return{type,title:T,why,picks:picks.slice(0,3),hint:HINT};
+  return{type,title:T,why,picks:picks.slice(0,3),hint:HINT,opt};
 }
 function tlReady(w){
   if(!w)return null;const v=[];
@@ -15101,7 +15151,7 @@ function renderLoadPanel(){
   const SG=tlSuggest(D);
   const fit=D.fit[n-1],fat=D.fat[n-1],form=D.form[n-1],fw=tlFormWord(form,fit);
   const box=(l,v,c,t)=>'<div title="'+t+'" style="flex:1;min-width:0;padding:8px 10px;border-radius:8px;background:var(--s2);border:1px solid var(--border);border-top:3px solid '+c+';"><div style="font-size:10px;color:var(--muted);letter-spacing:.05em;text-transform:uppercase;">'+l+'</div><div style="font-size:20px;font-weight:800;color:'+c+';">'+v+'</div></div>';
-  let h='<div class="sz-lhd" style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;">Training load<span style="font-size:12px;font-weight:700;color:'+fw[1]+';">'+fw[0]+'</span><span style="margin-left:auto;display:flex;gap:6px;flex-wrap:wrap;">'+(_wktCtx?'':'<button id="tl-btp" class="filt-chip" style="font-size:13px;padding:7px 14px;" title="Template weeks for each block, filled back from your race">Block templates</button>')+'<button id="tl-hist" class="filt-chip" style="font-size:13px;padding:7px 14px;" title="Type the Garmin load for past sessions">Enter Garmin loads</button></span></div>'
+  let h='<div class="sz-lhd" style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;">Training load<span style="font-size:12px;font-weight:700;color:'+fw[1]+';">'+fw[0]+'</span><span style="margin-left:auto;display:flex;gap:6px;flex-wrap:wrap;">'+'<select id="tl-watch" class="filt-chip" style="font-size:13px;padding:6px 10px;" title="Your watch: its load numbers train the model">'+Object.keys(WATCHES).map(k=>'<option value="'+k+'"'+(k===tlWatch()?' selected':'')+'>'+WATCHES[k].n+'</option>').join('')+'</select><button id="tl-hist" class="filt-chip" style="font-size:13px;padding:7px 14px;" title="Past sessions">'+(tlWSpec().eff?'Enter past efforts':'Enter '+tlWSpec().n+' loads')+'</button></span></div>'
     +'<div style="display:flex;gap:8px;margin-bottom:8px;">'
     +box('Acute load',Math.round(fat),'#E53935','Load over the last 7 days (weighted to recent days)')
     +box('Chronic load',Math.round(fit),'#1E88E5','Your normal week: 6-week average weekly load')
@@ -15117,9 +15167,9 @@ function renderLoadPanel(){
         +(D.planned?'':'<br><span style="color:var(--muted);">No workouts are planned before the race, so this assumes rest from today.</span>')+'</div>';
     })()
     +(()=>{
-      const planned=tlPlanFor(todayK).map(p=>p.w.id),col={easy:'#1E88E5',steady:'#27ae60',hard:'#E53935',sharp:'#e67e22',race:'#c0392b'}[SG.type];
+      const planned=tlPlanFor(todayK).map(p=>p.w.id),col={done:'#8e8e93',easy:'#1E88E5',steady:'#27ae60',hard:'#E53935',sharp:'#e67e22',race:'#c0392b'}[SG.type];
       let s='<div style="font-size:12px;margin-bottom:8px;padding:8px 10px;border-radius:8px;background:var(--s2);border:1px solid var(--border);border-left:5px solid '+col+';">'
-        +'<div style="font-size:10px;font-weight:800;letter-spacing:.06em;opacity:.7;">SUGGESTED TODAY</div><b style="font-size:14px;">'+SG.title+'</b>'
+        +'<div style="font-size:10px;font-weight:800;letter-spacing:.06em;opacity:.7;">SUGGESTED TODAY</div><b style="font-size:14px;">'+SG.title+'</b>'+(SG.opt?'<div style="font-weight:700;color:'+col+';margin-top:2px;">'+tlOptTxt(SG.opt)+'</div>':'')
         +(SG.why.length?'<div style="color:var(--muted);margin-top:2px;">Why: '+_secEsc(SG.why.join('; '))+'.</div>':'');
       SG.picks.forEach(p=>{s+='<div style="display:flex;align-items:center;gap:8px;margin-top:6px;"><span style="flex:1;min-width:0;">'+_secEsc(_wktDispName(p.w))+' <span style="color:var(--muted);">&middot; '+p.min+' min &middot; effort '+p.e+' &middot; load '+p.load+'</span></span>'
         +(planned.indexOf(p.w.id)>=0?'<span style="color:var(--muted);font-weight:700;">planned</span>':(_wktCtx?'':'<button data-tl-plan="'+_secEsc(p.w.id)+'" class="filt-chip" style="font-size:12px;padding:5px 12px;">Plan today</button>'))+'</div>';});
@@ -15146,9 +15196,9 @@ function renderLoadPanel(){
     const tm=new Date(x.p.approxTs).toLocaleTimeString('en-AU',{hour:'numeric',minute:'2-digit'});
     let opts='<option value="">Effort: auto</option>';for(let i=1;i<=10;i++)opts+='<option value="'+i+'"'+(+man.rpe===i?' selected':'')+'>Effort '+i+'</option>';
     h+='<div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap;font-size:12px;padding:5px 0;border-top:1px solid var(--border);">'
-      +'<span style="flex:1;min-width:120px;">'+(x.p.erg?'Erg':'Row')+' '+tm+' &middot; '+min+' min'+(tlTE(man)?'<br><span style="font-size:11px;color:#1E88E5;font-weight:700;">Garmin '+tlTE(man)+'</span>':'')+'</span>'
+      +'<span style="flex:1;min-width:120px;">'+(x.p.erg?'Erg':'Row')+' '+tm+' &middot; '+min+' min'+(tlTE(man)?'<br><span style="font-size:11px;color:#1E88E5;font-weight:700;">'+tlWSpec(man.w||'garmin').n+' '+tlTE(man)+'</span>':'')+'</span>'
       +'<select data-tl-rpe="'+k+'" style="'+IN+'">'+opts+'</select>'
-      +'<input data-tl-load="'+k+'" type="number" min="0" max="3000" placeholder="Garmin load" value="'+(man.load>0?man.load:'')+'" style="'+IN+'width:96px;">'
+      +(tlWSpec().eff?'':'<input data-tl-load="'+k+'" type="number" min="0" max="3000" placeholder="'+tlWSpec().n+' '+tlWSpec().L.toLowerCase()+'" title="'+tlWSpec().n+' '+tlWSpec().L.toLowerCase()+'" value="'+(man.load>0&&(man.w||'garmin')===tlWatch()?man.load:'')+'" style="'+IN+'width:96px;">')
       +'<span style="min-width:96px;text-align:right;"><b>'+L.load+'</b> <span style="color:var(--muted);">'+L.src+'</span></span></div>';
   });
   /* planned workouts, today and ahead: effort can be changed for this day only */
@@ -15164,15 +15214,16 @@ function renderLoadPanel(){
   ((it&&it.list)||[]).filter(x=>x.type==='other').forEach(x=>{const L=tlOtherLoad(x);
     h+='<div style="display:flex;align-items:center;gap:6px;font-size:12px;padding:5px 0;border-top:1px solid var(--border);"><span style="flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">'+_secEsc(x.text||'Other workout')+'</span><span style="text-align:right;">'+(L?'<b>'+L+'</b> <span style="color:var(--muted);">'+(x.load>0?'entered':x.min+' min, effort '+x.rpe)+'</span>':'<span style="color:var(--muted);">no load - edit it to add minutes and effort</span>')+'</span></div>';});
   if(!ss.length&&!pl.length&&!((it&&it.list)||[]).some(x=>x.type==='other'))h+='<div style="font-size:11px;color:var(--muted);">No sessions this day.</div>';
-  h+='<div style="font-size:10px;color:var(--muted);margin-top:8px;line-height:1.4;">Loads are on the Garmin scale (an easy hour is about 50-70, a hard hour 200+). Sessions with heart rate use HR zones once opened here; others are estimated at effort '+TL_DEF_RPE+' until you set an effort or type the Garmin number. Chronic load needs about 6 weeks of history to settle.'
-    +(()=>{const L={hr:'HR sessions',est:'estimated sessions',eff:'effort sessions'},p=Object.keys(_tlCal).map(k=>L[k]+' x'+_tlCal[k].k.toFixed(2)+' (from '+_tlCal[k].n+')');return p.length?'<br>Calibrated to your Garmin numbers: '+p.join(', ')+'.':'<br>Type the Garmin load for 3 or more past sessions and the rest are scaled to match your watch.';})()
+  h+='<div style="font-size:10px;color:var(--muted);margin-top:8px;line-height:1.4;">Loads are on a Garmin-style scale (an easy hour is about 50-70, a hard hour 200+). Sessions with heart rate use HR zones once opened here; others are estimated at effort '+TL_DEF_RPE+' until you set an effort'+(tlWSpec().eff?'':' or type the '+tlWSpec().n+' number')+'. Chronic load needs about 6 weeks of history to settle.'
+    +(()=>{const L={hr:'HR sessions',est:'estimated sessions',eff:'effort sessions'},p=Object.keys(_tlCal).map(k=>L[k]+' x'+_tlCal[k].k.toFixed(2)+' (from '+_tlCal[k].n+')');const W=tlWSpec();return p.length?'<br>Calibrated to your '+(W.eff?'watch':W.n)+' numbers: '+p.join(', ')+'.':(W.eff?'<br>'+W.n+' has no load number to copy, so set the effort for each session.':'<br>Type the '+W.n+' '+W.L.toLowerCase()+' for 3 or more past sessions and the rest are scaled to match your watch.');})()
     +(()=>{const n=_wktCtx?0:rpeMissing().length;return n?'<br>'+n+' workout'+(n===1?' has':'s have')+' no planned effort, so a guess is used. <a href="#" id="tl-rpe" style="color:#8e44ad;font-weight:700;">Set efforts</a>':'';})()+'</div>';
   h+=sqlShareHtml();
   el.innerHTML=h;
   try{sqlBindShare(el);}catch(e){}
   try{sqlPublishSoon(D);}catch(e){}
   el.querySelectorAll('[data-tl-rpe]').forEach(s=>{s.onchange=()=>tlSetSess(s.dataset.tlRpe,{rpe:s.value?+s.value:0});});
-  el.querySelectorAll('[data-tl-load]').forEach(s=>{s.onchange=()=>{const v=Math.max(0,Math.min(3000,Math.round(+s.value||0)));tlSetSess(s.dataset.tlLoad,{load:v});};});
+  el.querySelectorAll('[data-tl-load]').forEach(s=>{s.onchange=()=>{const v=Math.max(0,Math.min(3000,Math.round(+s.value||0)));tlSetSess(s.dataset.tlLoad,{load:v,w:tlWatch()});};});
+  const ws=document.getElementById('tl-watch');if(ws)ws.onchange=()=>tlWatchSet(ws.value);
   el.querySelectorAll('[data-tl-prpe]').forEach(s=>{s.onchange=()=>tlSetSess(s.dataset.tlPrpe,{rpe:(+s.value===+s.dataset.tlDef)?0:+s.value});});
   el.querySelectorAll('[data-tl-plan]').forEach(b=>{b.onclick=()=>{try{planAdd(todayK,b.dataset.tlPlan);}catch(e){}try{renderStartupCalendar();}catch(e){}renderLoadPanel();};});
   const tb=document.getElementById('tl-btp');if(tb)tb.onclick=btpOpen;
@@ -15188,6 +15239,7 @@ function tlHistoryOpen(){
   document.getElementById('_tl_modal')?.remove();
   const todayK=_dayKey(Date.now());
   const all=tlFiles().filter(x=>x.p.approxTs&&_dayKey(x.p.approxTs)<=todayK).sort((a,b)=>b.p.approxTs-a.p.approxTs).slice(0,400);
+  const W=tlWSpec(),cw=tlWatch();   // 18 Nov: the chosen watch's load, or effort for Apple / Whoop
   const ov=document.createElement('div');ov.id='_tl_modal';
   ov.style.cssText='position:fixed;inset:0;background:rgba(0,0,0,.72);display:flex;align-items:center;justify-content:center;z-index:9000;padding:16px;';
   const IN='padding:7px 8px;background:var(--s2);border:1px solid var(--border);border-radius:6px;color:var(--text);font-size:14px;font-family:inherit;width:84px;text-align:right;';
@@ -15197,20 +15249,22 @@ function tlHistoryOpen(){
     const mo=d.toLocaleDateString('en-AU',{month:'long',year:'numeric'});
     if(mo!==lastM){lastM=mo;rows+='<div style="font-size:11px;font-weight:800;letter-spacing:.05em;text-transform:uppercase;color:var(--muted);margin:10px 0 2px;">'+mo+'</div>';}
     rows+='<div style="display:flex;align-items:center;gap:8px;padding:5px 0;border-top:1px solid var(--border);font-size:13px;">'
-      +'<span style="flex:1;min-width:0;">'+d.toLocaleDateString('en-AU',{weekday:'short',day:'numeric'})+' '+d.toLocaleTimeString('en-AU',{hour:'numeric',minute:'2-digit'})+' &middot; '+(x.p.erg?'Erg':'Row')+' &middot; '+Math.round((x.p.durS||0)/60)+' min'+(x.p.distM?' &middot; '+(x.p.distM/1000).toFixed(1)+' km':'')+(tlTE(man)?'<br><span style="font-size:11px;color:#1E88E5;">'+tlTE(man)+'</span>':'')+'</span>'
+      +'<span style="flex:1;min-width:0;">'+d.toLocaleDateString('en-AU',{weekday:'short',day:'numeric'})+' '+d.toLocaleTimeString('en-AU',{hour:'numeric',minute:'2-digit'})+' &middot; '+(x.p.erg?'Erg':'Row')+' &middot; '+Math.round((x.p.durS||0)/60)+' min'+(x.p.distM?' &middot; '+(x.p.distM/1000).toFixed(1)+' km':'')+(tlTE(man)?'<br><span style="font-size:11px;color:#1E88E5;">'+tlWSpec(man.w||'garmin').n+' '+tlTE(man)+'</span>':'')+(man.load>0&&(man.w||'garmin')!==cw?'<br><span style="font-size:11px;color:var(--muted);">'+tlWSpec(man.w||'garmin').n+' load '+man.load+'</span>':'')+'</span>'
       +'<span style="font-size:11px;color:var(--muted);white-space:nowrap;">model '+Math.round(m.load)+' ('+m.src+')</span>'
-      +'<input data-tl-h="'+k+'" type="number" inputmode="numeric" min="0" max="3000" placeholder="Garmin" value="'+(man.load>0?man.load:'')+'" style="'+IN+'"></div>';
+      +(W.eff?'<select data-tl-he="'+k+'" style="'+IN+'width:96px;"><option value="">auto</option>'+[1,2,3,4,5,6,7,8,9,10].map(i=>'<option value="'+i+'"'+(+man.rpe===i?' selected':'')+'>Effort '+i+'</option>').join('')+'</select>'
+        :'<input data-tl-h="'+k+'" type="number" inputmode="numeric" min="0" max="3000" placeholder="'+W.n+'" value="'+(man.load>0&&(man.w||'garmin')===cw?man.load:'')+'" style="'+IN+'">')+'</div>';
   });
   ov.innerHTML='<div style="background:var(--s1);border:1px solid var(--border);border-top:6px solid #1E88E5;border-radius:12px;padding:16px;max-width:560px;width:100%;max-height:86vh;display:flex;flex-direction:column;color:var(--text);font-family:-apple-system,BlinkMacSystemFont,Helvetica Neue,sans-serif;">'
-    +'<div style="font-size:1rem;font-weight:800;margin-bottom:2px;">Garmin load for past sessions</div>'
-    +'<div style="font-size:12px;opacity:.75;margin-bottom:8px;line-height:1.4;">Type the exercise load Garmin shows for each activity. Each one replaces the model figure for that session and trains the model for the rest. Clear a box to go back to the model. Saved as you type.</div>'
+    +'<div style="font-size:1rem;font-weight:800;margin-bottom:2px;">'+(W.eff?'Effort for past sessions':W.n+' '+W.L.toLowerCase()+' for past sessions')+'</div>'
+    +'<div style="font-size:12px;opacity:.75;margin-bottom:8px;line-height:1.4;">'+(W.eff?'Pick the effort (1 easy - 10 flat out'+(W.n==='Apple Watch'?', as your Apple Watch rated it':'')+') for each session. It sets the load from the minutes. Saved as you pick.</div>':'Type the '+W.L.toLowerCase()+' '+W.n+' shows for each activity. Each one replaces the model figure for that session and trains the model for the rest. Clear a box to go back to the model. Saved as you type.</div>')
     +'<div id="tl-h-n" style="font-size:12px;font-weight:700;margin-bottom:4px;"></div>'
     +'<div style="overflow-y:auto;flex:1;min-height:0;padding-right:4px;">'+(rows||'<div style="font-size:13px;color:var(--muted);">No sessions yet.</div>')+'</div>'
     +'<button id="tl-h-done" style="margin-top:12px;padding:10px 0;background:#1E88E5;border:1px solid #1E88E5;color:#fff;border-radius:8px;font-weight:800;cursor:pointer;font-family:inherit;">Done</button></div>';
   document.body.appendChild(ov);
-  const count=()=>{const n=all.filter(x=>(SESS_LOAD[tlSessKey(x)]||{}).load>0).length;document.getElementById('tl-h-n').textContent=n+' of '+all.length+' sessions have a Garmin load';};
+  const count=()=>{const n=all.filter(x=>{const m=SESS_LOAD[tlSessKey(x)]||{};return W.eff?m.rpe>0:(m.load>0&&(m.w||'garmin')===cw);}).length;document.getElementById('tl-h-n').textContent=n+' of '+all.length+' sessions have '+(W.eff?'an effort':'a '+W.n+' '+W.L.toLowerCase());};
   count();
-  ov.querySelectorAll('[data-tl-h]').forEach(s=>{s.onchange=()=>{const v=Math.max(0,Math.min(3000,Math.round(+s.value||0)));if(!v)s.value='';tlSetSess(s.dataset.tlH,{load:v});count();};});
+  ov.querySelectorAll('[data-tl-h]').forEach(s=>{s.onchange=()=>{const v=Math.max(0,Math.min(3000,Math.round(+s.value||0)));if(!v)s.value='';tlSetSess(s.dataset.tlH,{load:v,w:cw});count();};});
+  ov.querySelectorAll('[data-tl-he]').forEach(s=>{s.onchange=()=>{tlSetSess(s.dataset.tlHe,{rpe:s.value?+s.value:0});count();};});
   const close=()=>{ov.remove();try{renderLoadPanel();}catch(e){}};
   ov.onclick=e=>{if(e.target===ov)close();};
   document.getElementById('tl-h-done').onclick=close;
@@ -15224,7 +15278,7 @@ function tlTipShow(seg,cx,cy){
   const it=seg.it,dl=new Date(seg.day+'T12:00:00').toLocaleDateString('en-AU',{weekday:'short',day:'numeric',month:'short'});
   let ttl,sub,col;
   if(it.x){const p=it.x.p;ttl=p.name||(p.erg?'Erg':'Row');sub=new Date(p.approxTs).toLocaleTimeString('en-AU',{hour:'numeric',minute:'2-digit'})+' &middot; '+Math.round((p.durS||0)/60)+' min'+(p.distM?' &middot; '+(p.distM/1000).toFixed(1)+' km':'');col=TL_COL[it.c];
-    const man=SESS_LOAD[tlSessKey(it.x)]||{};const te=tlTE(man);if(te)sub+='<br>Garmin '+te;}
+    const man=SESS_LOAD[tlSessKey(it.x)]||{};const te=tlTE(man);if(te)sub+='<br>'+tlWSpec(man.w||'garmin').n+' '+te;}
   else if(it.o){ttl=it.o.text||'Other workout';sub=(it.o.min?it.o.min+' min':'')+(it.o.rpe?' &middot; effort '+it.o.rpe:'');col=TL_COL.other;}
   else{ttl=_wktDispName(it.p.w);sub='Planned &middot; '+it.p.min+' min &middot; effort '+it.p.rpe;col=it.erg?TL_COL.erg:TL_COL.water;}
   const d=document.createElement('div');d.id='tl-tip';
@@ -15308,7 +15362,7 @@ function tlDrawChart(D){
    replace, shows the projected race day before applying, and keeps one Undo.
    Synced as prefs.planTpl { base:{days:[[ids]x7],rev}, ... }.
    ══════════════════════════════════════════════════════════════════════════ */
-const BTP_BLOCKS=[['base','Base','#1E88E5'],['build','Build','#e6a100'],['peak','Peak','#E53935'],['taper','Taper','#27ae60']];
+const BTP_BLOCKS=[['base','Base','#1E88E5'],['build','Build','#e6a100'],['peak','Peak','#E53935'],['taper','Taper','#27ae60'],['recovery','Recovery wk','#8e8e93']];   // 18 Nov: recovery week template, used for Recovery weeks in the season plan
 const BTP_DOW=['Mon','Tue','Wed','Thu','Fri','Sat','Sun'];
 let BTP_PLAN=(()=>{try{const v=JSON.parse(localStorage.getItem('br_plan_tpl')||'{}');return v&&typeof v==='object'&&!Array.isArray(v)?v:{};}catch(e){return {};}})();
 let _btpPushT=null,_btpUndo=null,_btpTab='base';
@@ -15323,25 +15377,52 @@ function btpSet(b,days){
 }
 function btpBlockFor(dd){return dd<=10?'taper':dd<=24?'peak':dd<=66?'build':'base';}
 function btpWkt(id){return (WORKOUTS_DB||[]).find(w=>w&&w.id===id&&!w.deleted)||null;}
-function btpWeekLoad(days){let L=0;days.forEach(ids=>ids.forEach(id=>{const w=btpWkt(id);if(w)L+=tlWktLoad(w,0).load;}));return L;}
+/* 18 Nov: a template day holds workout ids and other workouts {o:1,text,min,rpe}. */
+function btpEntOk(e){return (e&&typeof e==='object')?!!e.o:!!btpWkt(e);}
+function btpEntLoad(e){if(e&&typeof e==='object')return (e.min>0&&e.rpe>0)?Math.round(e.min*tlW(e.rpe)):0;const w=btpWkt(e);return w?tlWktLoad(w,0).load:0;}
+function btpWeekLoad(days){let L=0;days.forEach(ids=>ids.forEach(e=>{L+=btpEntLoad(e);}));return L;}
+function btpDayBusy(k){return planIds(k).length>0||calItemsOf(k).some(x=>x.type==='other'&&x.tpl);}
+/* Put template entries on days: workouts into the plan, other workouts as calendar
+   items (marked tpl, so a later fill can replace them). Returns the undo. */
+function btpApply(changes){
+  const undo={};
+  Object.keys(changes).forEach(k=>{
+    const ents=changes[k],prevItems=calItemsOf(k);
+    undo[k]={ids:planIds(k),items:prevItems};
+    WKT_PLAN[k]={ids:ents.filter(e=>typeof e==='string'),rev:Date.now()};
+    const oth=ents.filter(e=>e&&typeof e==='object'),keep=prevItems.filter(x=>!(x.type==='other'&&x.tpl));
+    if(oth.length||keep.length!==prevItems.length)calItemsSet(k,keep.concat(oth.map((e,i)=>({id:'ci'+Date.now()+i+Math.floor(Math.random()*1000),type:'other',text:e.text||'Other workout',min:e.min||0,rpe:e.rpe||0,tpl:1}))));
+  });
+  savePlan();_sznDC=null;return undo;
+}
+function btpUndoApply(u){
+  Object.keys(u).forEach(k=>{const v=u[k];const ids=Array.isArray(v)?v:(v.ids||[]);WKT_PLAN[k]={ids,rev:Date.now()};if(!Array.isArray(v)&&JSON.stringify(calItemsOf(k))!==JSON.stringify(v.items||[]))calItemsSet(k,v.items||[]);});
+  savePlan();_sznDC=null;
+}
 /* The day-by-day changes a fill would make, as {day:[ids]}. */
 function btpFillChanges(startK,raceK,replace){
-  const out={},blocks={};let n=0,skipped=0;
+  const out={},blocks={},bk={};let n=0,skipped=0;
+  const types={};try{sznModel().weeks.forEach(w=>{types[w.w]=w.t;});}catch(e){}   // 18 Nov: Recovery weeks use the recovery template
   for(let k=startK;k<raceK;k=tlAddDays(k,1)){
-    const dd=Math.round((new Date(raceK+'T12:00:00')-new Date(k+'T12:00:00'))/86400000);
-    const dow=(new Date(k+'T12:00:00').getDay()+6)%7,ids=btpGet(btpBlockFor(dd))[dow].filter(id=>btpWkt(id));
-    blocks[btpBlockFor(dd)]=1;
-    const cur=planIds(k);
-    if(cur.length&&!replace){skipped++;continue;}
-    if(!ids.length&&!cur.length)continue;
-    out[k]=ids;n++;
+    let b=btpBlockFor(sznDays(k,raceK));
+    if(types[sznWkStart(k)]==='rec'&&btpGet('recovery').some(x=>x.length))b='recovery';
+    const dow=(new Date(k+'T12:00:00').getDay()+6)%7,ents=btpGet(b)[dow].filter(btpEntOk);
+    blocks[b]=1;
+    const busy=btpDayBusy(k);
+    if(busy&&!replace){skipped++;continue;}
+    if(!ents.length&&!busy)continue;
+    out[k]=ents;bk[k]=b;n++;
   }
-  return{changes:out,n,skipped,blocks};
+  return{changes:out,n,skipped,blocks,bk};
 }
 function btpProject(changes){
-  const save=WKT_PLAN,tmp={...WKT_PLAN};
-  Object.keys(changes).forEach(k=>{tmp[k]={ids:changes[k],rev:1};});
-  WKT_PLAN=tmp;let D;try{D=tlDaily();}finally{WKT_PLAN=save;}
+  const save=WKT_PLAN,saveC=CAL_ITEMS,tmp={...WKT_PLAN},tmpC={...CAL_ITEMS};
+  Object.keys(changes).forEach(k=>{
+    tmp[k]={ids:changes[k].filter(e=>typeof e==='string'),rev:1};
+    const oth=changes[k].filter(e=>e&&typeof e==='object');
+    if(oth.length)tmpC[k]={list:calItemsOf(k).filter(x=>!(x.type==='other'&&x.tpl)).concat(oth.map(e=>({type:'other',text:e.text,min:e.min,rpe:e.rpe}))),rev:1};
+  });
+  WKT_PLAN=tmp;CAL_ITEMS=tmpC;let D;try{D=tlDaily();}finally{WKT_PLAN=save;CAL_ITEMS=saveC;_sznDC=null;}
   const i=D.target?D.days.indexOf(D.target.day):-1;
   return i<0?null:{ac:D.fat[i],ch:D.fit[i],ra:D.form[i]};
 }
@@ -15364,13 +15445,16 @@ function btpDraw(){
   const tab=BTP_BLOCKS.find(b=>b[0]===_btpTab);
   let h='<div style="background:var(--s1);border:1px solid var(--border);border-top:6px solid '+tab[2]+';border-radius:12px;padding:16px;max-width:620px;width:100%;max-height:90vh;overflow-y:auto;color:var(--text);font-family:-apple-system,BlinkMacSystemFont,Helvetica Neue,sans-serif;">'
     +'<div style="font-size:1rem;font-weight:800;margin-bottom:2px;">Block templates</div>'
-    +'<div style="font-size:12px;opacity:.75;margin-bottom:10px;line-height:1.4;">Set a typical week for each training block, then fill the calendar back from your race in one go.</div>'
+    +'<div style="font-size:12px;opacity:.75;margin-bottom:10px;line-height:1.4;">Set a typical week for each training block, then fill the calendar back from your race in one go. Add on-water, erg or other workouts (gym, run, bike) to any day. The Recovery wk template is used for the Recovery weeks in the season plan.</div>'
     +(()=>{const n=rpeMissing().length;return n?'<div style="font-size:12px;margin-bottom:10px;padding:6px 10px;border-radius:8px;border-left:4px solid #8e44ad;background:var(--s2);">'+n+' workout'+(n===1?' has':'s have')+' no planned effort (shown with ?), so loads use a guess. <a href="#" id="btp-rpe" style="color:#8e44ad;font-weight:700;">Set efforts</a></div>':'';})()
     +'<div style="display:flex;gap:6px;margin-bottom:10px;">'+BTP_BLOCKS.map(b=>{const on=b[0]===_btpTab,n=btpGet(b[0]).reduce((s,x)=>s+x.length,0);return '<button data-btp-tab="'+b[0]+'" style="flex:1;padding:8px 4px;border-radius:8px;border:2px solid '+b[2]+';background:'+(on?b[2]:'transparent')+';color:'+(on?'#fff':b[2])+';font-weight:800;font-size:13px;cursor:pointer;font-family:inherit;">'+b[1]+(n?' ('+n+')':'')+'</button>';}).join('')+'</div>';
   days.forEach((ids,di)=>{
     h+='<div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap;padding:6px 0;border-top:1px solid var(--border);font-size:13px;"><span style="width:34px;font-weight:800;">'+BTP_DOW[di]+'</span>';
-    ids.forEach((id,j)=>{const w=btpWkt(id);h+='<span style="display:inline-flex;align-items:center;gap:4px;padding:3px 4px 3px 8px;border-radius:12px;background:var(--s2);border:1px solid var(--border);'+(w?'':'opacity:.5;')+'">'+(w?_secEsc(_wktDispName(w)):'(deleted)')+'<button data-btp-rm="'+di+'_'+j+'" title="Remove" style="border:none;background:none;color:var(--muted);cursor:pointer;font-size:14px;padding:0 4px;">&times;</button></span>';});
-    h+='<select data-btp-add="'+di+'" style="'+IN+'margin-left:auto;max-width:170px;"><option value="">'+(ids.length?'+ add':'Rest day &middot; + add')+'</option>'+lib.map(w=>'<option value="'+_secEsc(w.id)+'">'+_secEsc(_wktDispName(w))+' (effort '+rpeOf(w)+(w.rpe?'':'?')+')'+'</option>').join('')+'</select></div>';
+    ids.forEach((e,j)=>{const isO=e&&typeof e==='object',w=isO?null:btpWkt(e),erg=!!(w&&w.venue==='erg'),col=isO?CI_OTHER_COL:(erg?CAL_ERG_COL:CAL_WATER_COL),lbl=isO?'OTHER':(erg?'ERG':'WATER');   // 18 Nov: venue on every workout
+      h+='<span style="display:inline-flex;align-items:center;gap:5px;padding:3px 2px 3px 4px;border-radius:12px;background:var(--s2);border:1px solid var(--border);border-left:4px solid '+col+';'+((isO||w)?'':'opacity:.5;')+'"><span style="font-size:9px;font-weight:800;color:#fff;background:'+col+';border-radius:6px;padding:1px 5px;">'+lbl+'</span>'+(isO?_secEsc(e.text||'Other workout')+' <span style="color:var(--muted);font-size:11px;">'+(e.min||0)+' min &middot; effort '+(e.rpe||'?')+'</span>':(w?_secEsc(_wktDispName(w)):'(deleted)'))+' <span style="color:var(--muted);font-size:11px;">'+btpEntLoad(e)+'</span><button data-btp-rm="'+di+'_'+j+'" title="Remove" style="border:none;background:none;color:var(--muted);cursor:pointer;font-size:14px;padding:0 4px;">&times;</button></span>';});
+    const _bo=w=>'<option value="'+_secEsc(w.id)+'">'+_secEsc(_wktDispName(w))+' (effort '+rpeOf(w)+(w.rpe?'':'?')+')</option>';
+    h+='<select data-btp-add="'+di+'" style="'+IN+'margin-left:auto;max-width:190px;"><option value="">'+(ids.length?'+ add':'Rest day &middot; + add')+'</option><optgroup label="On-water">'+lib.filter(w=>w.venue!=='erg').map(_bo).join('')+'</optgroup><optgroup label="Erg">'+lib.filter(w=>w.venue==='erg').map(_bo).join('')+'</optgroup><optgroup label="Other"><option value="__other">Other workout (gym, run, bike...)</option></optgroup></select></div>'
+      +(window._btpOth===di?'<div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap;padding:6px 0 8px 40px;font-size:12px;"><input id="btp-oth-t" type="text" placeholder="e.g. Gym: legs" style="'+IN+'flex:1;min-width:120px;"><input id="btp-oth-m" type="number" inputmode="numeric" min="1" max="600" placeholder="min" style="'+IN+'width:64px;"><select id="btp-oth-e" style="'+IN+'">'+[1,2,3,4,5,6,7,8,9,10].map(i=>'<option value="'+i+'"'+(i===5?' selected':'')+'>Effort '+i+'</option>').join('')+'</select><button id="btp-oth-add" style="padding:6px 12px;border:none;border-radius:6px;background:'+CI_OTHER_COL+';color:#fff;font-weight:800;cursor:pointer;font-family:inherit;">Add</button><button id="btp-oth-x" style="padding:6px 10px;border:1px solid var(--border);border-radius:6px;background:transparent;color:var(--text);cursor:pointer;font-family:inherit;">Cancel</button></div>':'');
   });
   const wl=btpWeekLoad(days);
   h+='<div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;font-size:12px;padding:8px 0;border-top:1px solid var(--border);"><span style="flex:1;">Week load about <b>'+wl+'</b> (Garmin scale)</span>'
@@ -15388,7 +15472,7 @@ function btpDraw(){
       +'<button id="btp-mon" class="filt-chip" style="font-size:11px;padding:4px 8px;">Next Monday</button>'
       +'<label style="display:flex;align-items:center;gap:5px;"><input id="btp-rep" type="checkbox"'+(window._btpRep?' checked':'')+'> Replace days already planned</label></div>';
     const startK=window._btpStart||todayK,F=btpFillChanges(startK,tgt.day,!!window._btpRep),P=btpProject(F.changes);
-    const cnt={};Object.keys(F.changes).forEach(k=>{const dd2=Math.round((new Date(tgt.day+'T12:00:00')-new Date(k+'T12:00:00'))/86400000);const b=btpBlockFor(dd2);cnt[b]=(cnt[b]||0)+1;});
+    const cnt={};Object.keys(F.changes).forEach(k=>{const b=F.bk[k];cnt[b]=(cnt[b]||0)+1;});
     const empty=BTP_BLOCKS.filter(b=>F.blocks[b[0]]&&!btpGet(b[0]).some(x=>x.length)).map(b=>b[1]);
     h+='<div style="font-size:12px;line-height:1.5;margin-bottom:8px;">'+F.n+' day'+(F.n===1?'':'s')+' to fill'+(F.skipped?', '+F.skipped+' already planned day'+(F.skipped===1?'':'s')+' left alone':'')+'.'
       +(Object.keys(cnt).length?'<br>'+BTP_BLOCKS.filter(b=>cnt[b[0]]).map(b=>'<span style="color:'+b[2]+';font-weight:700;">'+b[1]+' '+cnt[b[0]]+'</span>').join(' &middot; '):'')
@@ -15399,14 +15483,19 @@ function btpDraw(){
   }
   h+='</div><button id="btp-done" style="width:100%;margin-top:12px;padding:10px 0;background:#1E88E5;border:1px solid #1E88E5;color:#fff;border-radius:8px;font-weight:800;cursor:pointer;font-family:inherit;">Done</button></div>';
   ov.innerHTML=h;
-  ov.querySelectorAll('[data-btp-tab]').forEach(b=>{b.onclick=()=>{_btpTab=b.dataset.btpTab;btpDraw();};});
+  ov.querySelectorAll('[data-btp-tab]').forEach(b=>{b.onclick=()=>{_btpTab=b.dataset.btpTab;window._btpOth=null;btpDraw();};});
   ov.querySelectorAll('[data-btp-rm]').forEach(b=>{b.onclick=()=>{const [di,j]=b.dataset.btpRm.split('_').map(Number);const d=btpGet(_btpTab);d[di].splice(j,1);btpSet(_btpTab,d);btpDraw();};});
-  ov.querySelectorAll('[data-btp-add]').forEach(s=>{s.onchange=()=>{if(!s.value)return;const d=btpGet(_btpTab);d[+s.dataset.btpAdd].push(s.value);btpSet(_btpTab,d);btpDraw();};});
+  ov.querySelectorAll('[data-btp-add]').forEach(s=>{s.onchange=()=>{if(!s.value)return;if(s.value==='__other'){window._btpOth=+s.dataset.btpAdd;btpDraw();setTimeout(()=>{try{document.getElementById('btp-oth-t').focus();}catch(e){}},30);return;}const d=btpGet(_btpTab);d[+s.dataset.btpAdd].push(s.value);btpSet(_btpTab,d);btpDraw();};});
+  if(document.getElementById('btp-oth-add')){
+    document.getElementById('btp-oth-add').onclick=()=>{const t=(document.getElementById('btp-oth-t').value||'').trim()||'Other workout',m=Math.max(0,Math.min(600,Math.round(+document.getElementById('btp-oth-m').value||0))),e=+document.getElementById('btp-oth-e').value||5;
+      if(!m){toast('Add the minutes');return;}const d=btpGet(_btpTab);d[window._btpOth].push({o:1,text:t.slice(0,60),min:m,rpe:e});window._btpOth=null;btpSet(_btpTab,d);btpDraw();};
+    document.getElementById('btp-oth-x').onclick=()=>{window._btpOth=null;btpDraw();};
+  }
   const g=id=>document.getElementById(id);
   g('btp-clear').onclick=()=>{if(!confirm('Clear the '+tab[1]+' template?'))return;btpSet(_btpTab,[[],[],[],[],[],[],[]]);btpDraw();};
   g('btp-copy').onclick=()=>{
     const sel=(typeof _calSel!=='undefined'&&_calSel)?_calSel:todayK,d=new Date(sel+'T12:00:00');d.setDate(d.getDate()-(d.getDay()+6)%7);
-    const mon=_dayKey(d.getTime()),wk=[0,1,2,3,4,5,6].map(i=>planIds(tlAddDays(mon,i)).filter(id=>btpWkt(id)));
+    const mon=_dayKey(d.getTime()),wk=[0,1,2,3,4,5,6].map(i=>{const k=tlAddDays(mon,i);return planIds(k).filter(id=>btpWkt(id)).concat(calItemsOf(k).filter(x=>x.type==='other'&&x.min>0).map(x=>({o:1,text:x.text||'Other workout',min:x.min,rpe:x.rpe||5})));});
     if(!wk.some(x=>x.length)){toast('No workouts planned in the week of '+new Date(mon+'T12:00:00').toLocaleDateString('en-AU',{day:'numeric',month:'short'}));return;}
     if(btpGet(_btpTab).some(x=>x.length)&&!confirm('Replace the '+tab[1]+' template with the week of '+new Date(mon+'T12:00:00').toLocaleDateString('en-AU',{day:'numeric',month:'short'})+'?'))return;
     btpSet(_btpTab,wk);btpDraw();
@@ -15420,10 +15509,9 @@ function btpDraw(){
     g('btp-fill').onclick=()=>{
       const F=btpFillChanges(window._btpStart||todayK,tgt.day,!!window._btpRep);if(!F.n)return;
       if(window._btpRep&&!confirm('This replaces the workouts already planned on '+F.n+' days. Continue?'))return;
-      const undo={};Object.keys(F.changes).forEach(k=>{undo[k]=planIds(k);WKT_PLAN[k]={ids:F.changes[k],rev:Date.now()};});
-      _btpUndo=undo;savePlan();toast('Filled '+F.n+' days');btpDraw();
+      _btpUndo=btpApply(F.changes);toast('Filled '+F.n+' days');btpDraw();
     };
-    if(g('btp-undo'))g('btp-undo').onclick=()=>{const u=_btpUndo;if(!u)return;Object.keys(u).forEach(k=>{WKT_PLAN[k]={ids:u[k],rev:Date.now()};});_btpUndo=null;savePlan();toast('Fill undone');btpDraw();};
+    if(g('btp-undo'))g('btp-undo').onclick=()=>{const u=_btpUndo;if(!u)return;btpUndoApply(u);_btpUndo=null;toast('Fill undone');btpDraw();};
   }
 }
 /* ══════════════════════════════════════════════════════════════════════════
@@ -15619,7 +15707,10 @@ async function sqlRender(){
   el.querySelectorAll('[data-sql-row]').forEach(r=>{r.onclick=()=>{_sqlOpen=_sqlOpen===r.dataset.sqlRow?null:r.dataset.sqlRow;sqlRender();};});
 }
 function renderStartupCalendar(){
+  _sznDC=null;   // 18 Nov: fresh load figures for this render
   tlRenderSoon();   // 17 Nov: training load panel follows the calendar
+  try{renderPlanWorkouts();}catch(e){console.error(e);}   // 18 Nov: workout list beside the calendar
+  try{sznRender();}catch(e){console.error(e);}            // 18 Nov: season plan timeline
   if(typeof _pv!=='undefined'&&_pv&&_pv.open){try{pvRender();}catch(e){console.error(e);}}
   const el=document.getElementById('sz-cal');if(!el)return;
   const now=new Date();
@@ -15643,6 +15734,7 @@ function renderStartupCalendar(){
     if(x.p.favourite)return '<svg width="19" height="19" viewBox="0 0 24 24" style="display:inline-block;flex-shrink:0;margin:-3px -1px;filter:drop-shadow(0 0 2px rgba(255,200,0,.75));"><path d="'+STAR+'" style="fill:#ffcc00;stroke:#b8860b;stroke-width:1.4;stroke-linejoin:round;"/><circle cx="12" cy="12.6" r="3.6" style="fill:'+col+';stroke:#fff;stroke-width:.8;"/></svg>';
     return '<span style="width:7px;height:7px;border-radius:50%;background:'+col+';display:inline-block;align-self:center;"></span>';
   };
+  const _szc=sznCalCtx();   // 18 Nov: block edge + day load on each cell
   const monthGrid=(y,m)=>{
     const _ws=calWeekStart(), first=new Date(y,m,1), lead=(first.getDay()-_ws+7)%7, nDays=new Date(y,m+1,0).getDate();
     let g='<div style="display:grid;grid-template-columns:repeat(7,1fr);gap:3px;">';
@@ -15652,7 +15744,7 @@ function renderStartupCalendar(){
       const k=y+'-'+String(m+1).padStart(2,'0')+'-'+String(d).padStart(2,'0');
       const ss=byDay[k]||[], pl=((WKT_ENABLED||_wktCtx)&&k>=todayK)?planIds(k).filter(id=>wById[id]&&planShown(k,wById[id])):[];
       const sel=_calSel===k, today=k===todayK, past=k<todayK;
-      g+='<div data-day="'+k+'" style="min-height:52px;padding:3px;border-radius:8px;opacity:'+(past&&!sel?'.55':'1')+';box-shadow:'+(sel?'0 3px 10px rgba(0,0,0,.28)':'0 1px 3px rgba(0,0,0,.16),0 1px 1px rgba(0,0,0,.06)')+';cursor:pointer;overflow:hidden;border:1px solid '+(sel?'var(--b)':'var(--border)')+';background:'+(sel?'var(--s3)':'var(--s2)')+';">'
+      g+='<div data-day="'+k+'" style="min-height:52px;padding:3px;border-radius:8px;opacity:'+(past&&!sel?'.55':'1')+';box-shadow:'+(sel?'0 3px 10px rgba(0,0,0,.28)':'0 1px 3px rgba(0,0,0,.16),0 1px 1px rgba(0,0,0,.06)')+';cursor:pointer;overflow:hidden;border:1px solid '+(sel?'var(--b)':'var(--border)')+';background:'+(sel?'var(--s3)':'var(--s2)')+';'+_szc.top(k)+'">'
         +'<div style="display:flex;align-items:center;gap:4px;font-size:11px;font-weight:'+(today?'800':'500')+';color:'+(today?'var(--b)':'var(--text)')+';">'+d+calNoteDot(k)+'</div>'
         +(true?calEventsOf(k).slice(0,2).map(x=>'<div data-cichip="'+_secEsc(x.id)+'" title="'+_secEsc(x.text||'')+'" style="font-size:9px;line-height:1.3;background:'+CI_EVENT_COL+';color:#fff;border-radius:3px;padding:0 3px;margin-top:1px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;font-weight:700;box-shadow:0 1px 2px rgba(0,0,0,.25);">'+(x.time?_secEsc(x.time)+' ':'')+_secEsc(x.text||'')+'</div>').join(''):'')
         +ss.slice(0,3).map(x=>calSessChip(x,9,false)).join('')+(ss.length>3?'<div style="font-size:9px;color:var(--muted);">+'+(ss.length-3)+'</div>':'')
@@ -15661,6 +15753,7 @@ function renderStartupCalendar(){
             ?'<div data-cichip="'+_secEsc(q.x.id)+'" title="'+_secEsc(q.x.text||'')+'" style="font-size:9px;line-height:1.3;background:'+CI_OTHER_COL+';color:#fff;border-radius:3px;padding:0 3px;margin-top:1px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;box-shadow:0 1px 2px rgba(0,0,0,.25);">'+(q.x.done?'&#10003; ':'')+_secEsc(q.x.text||'')+'</div>'
             :'<div style="font-size:9px;line-height:1.3;background:'+(wById[q.id].venue==='erg'?CAL_ERG_COL:CAL_WATER_COL)+';color:#fff;border-radius:3px;padding:0 3px;margin-top:1px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">'+_coachMark(q.id,false)+_secEsc(_wktDispName(wById[q.id]))+'</div>').join('')
             +(sq.length>2?'<div style="font-size:9px;color:var(--muted);">+'+(sq.length-2)+'</div>':'');})()
+        +_szc.cell(k,false)
         +'</div>';
     }
     return g+'</div>';
@@ -15804,6 +15897,13 @@ function renderStartupCalendar(){
   document.getElementById('cal-today').onclick=()=>{
     _calMonthOff=0;_calSel=todayK;window._calAnchor={today:true};renderStartupCalendar();
   };
+  /* 18 Nov: drop a workout from the Workouts list onto today or a future day */
+  if(planDragOk())el.querySelectorAll('[data-day]').forEach(c=>{
+    const k=c.dataset.day;if(k<todayK)return;
+    c.ondragover=e=>{if(!_pwDrag)return;e.preventDefault();e.dataTransfer.dropEffect='copy';c.style.outline='2px dashed var(--b)';c.style.outlineOffset='-2px';};
+    c.ondragleave=e=>{if(!c.contains(e.relatedTarget))c.style.outline='';};
+    c.ondrop=e=>{e.preventDefault();c.style.outline='';const v=e.dataTransfer.getData('text/plain')||'';const id=v.indexOf('wkt:')===0?v.slice(4):_pwDrag;_pwDrag=null;if(!id)return;planDropAdd(k,id);};
+  });
   el.querySelectorAll('[data-day]').forEach(c=>{c.onclick=e=>{const ch=e.target.closest('[data-cichip]');if(ch){_calSel=c.dataset.day;renderStartupCalendar();calItemEditor(c.dataset.day,null,ch.dataset.cichip,renderStartupCalendar);return;}_calSel=(_calSel===c.dataset.day)?null:c.dataset.day;renderStartupCalendar();};});
   if(_calSel){
     const ss=(byDay[_calSel]||[]).slice().sort((a,b)=>(a.p.approxTs||0)-(b.p.approxTs||0));
@@ -15827,6 +15927,274 @@ function renderStartupCalendar(){
     dRoot.querySelectorAll('[data-cidel]').forEach(b=>{b.onclick=e=>{e.stopPropagation();calItemDelete(day,b.dataset.cidel);};});
     dRoot.querySelectorAll('[data-cidone]').forEach(b=>{b.onclick=e=>{e.stopPropagation();calItemToggleDone(day,b.dataset.cidone);};});
   }
+}
+/* ══════════════════════════════════════════════════════════════════════════
+   SEASON PLAN (18 Nov). The Planning tab's week-by-week timeline: loading
+   cycles (Medium / Hard / Recovery weeks, 3-week cycles by default - 2
+   loading weeks and a recovery week, which suits masters rowers - or 4-week
+   or 2-week), the block each week is in (Base, Build, Peak, Taper, Race,
+   from the next A race), a target load per week, and the load planned and
+   done, side by side so the shape of the season is visible.
+     - Cycles are anchored to the race: the last week before the taper week is
+       the hardest, the week before race week is Taper, race week is Race.
+       Without a race they follow the calendar week number.
+     - Target = base week x week factor (Medium 1.0, Hard 1.15, Hard+ 1.25,
+       Recovery 0.65, Taper 0.7, Race 0.45). Base = your chronic (normal week)
+       load at the start of this week, or the number you set. It goes up 4%
+       after each recovery week in Base and Build, and holds from Peak on.
+     - A week's type can be changed (tap its label); Auto goes back to the
+       recommended one. "Fill empty days" puts the block's template week (or
+       the Recovery week template, for a recovery week) on the empty days.
+   Synced as prefs.season {cyc,base,rev} and prefs.seasonWeeks {weekStart:{t,rev}}.
+   ══════════════════════════════════════════════════════════════════════════ */
+const SZN_T={med:['Medium',1.0,'#1E88E5'],hard:['Hard',1.15,'#E53935'],hardp:['Hard+',1.25,'#8e1b1b'],rec:['Recovery',0.65,'#27ae60'],taper:['Taper',0.7,'#16a085'],race:['Race',0.45,'#c0392b']};
+const SZN_ORDER={2:['rec','hard'],3:['rec','med','hard'],4:['rec','med','hard','hardp']};   // ends on the hardest week (before the taper)
+const SZN_FWD={2:['hard','rec'],3:['med','hard','rec'],4:['med','hard','hardp','rec']};
+const SZN_BLK={base:['Base','#1E88E5'],build:['Build','#e6a100'],peak:['Peak','#E53935'],taper:['Taper','#27ae60'],race:['Race','#c0392b'],post:['After race','#8e8e93'],general:['General','#7f8c8d']};
+const SZN_COLW=66;
+let SZN=_tlLoadLS('br_season'),SZN_WK=_tlLoadLS('br_season_wk'),_sznSel=null,_sznPushT=null,_sznDC=null,_sznScrolled=false;
+function sznCyc(){const c=+SZN.cyc;return (c===2||c===3||c===4)?c:3;}
+function sznSave(){
+  try{localStorage.setItem('br_season',JSON.stringify(SZN));localStorage.setItem('br_season_wk',JSON.stringify(SZN_WK));}catch(e){}
+  try{if(!AnalyserDrive.isSignedIn())return;}catch(e){return;}
+  clearTimeout(_sznPushT);
+  _sznPushT=setTimeout(()=>{AnalyserDrive.pullPrefs().then(cur=>{if(cur)sznFromPrefs(cur,true);return AnalyserDrive.pushPrefs({season:SZN,seasonWeeks:SZN_WK});}).catch(()=>{});},1500);
+}
+function sznFromPrefs(p,quiet){
+  if(!p||typeof p!=='object')return;
+  if(p.season&&typeof p.season==='object'&&(p.season.rev||0)>(SZN.rev||0))SZN=p.season;
+  if(p.seasonWeeks&&typeof p.seasonWeeks==='object'&&!Array.isArray(p.seasonWeeks))SZN_WK=tlMerge(SZN_WK,p.seasonWeeks);
+  try{localStorage.setItem('br_season',JSON.stringify(SZN));localStorage.setItem('br_season_wk',JSON.stringify(SZN_WK));}catch(e){}
+}
+function sznD(){const n=Date.now();if(_sznDC&&n-_sznDC.t<400)return _sznDC.D;const D=tlDaily();_sznDC={t:n,D};return D;}
+function sznWkStart(k){const d=new Date(k+'T12:00:00');return tlAddDays(k,-((d.getDay()-calWeekStart()+7)%7));}
+function sznDays(a,b){return Math.round((new Date(b+'T12:00:00')-new Date(a+'T12:00:00'))/86400000);}
+function sznRace(){const t=_dayKey(Date.now()),a=tlRaces().filter(r=>r.day>=t);return a.find(r=>r.pri==='A')||a[0]||null;}
+/* load done per day (sessions + other workouts, today and before) */
+function sznDayMap(D){
+  const todayK=_dayKey(Date.now()),a={};
+  Object.keys(D.items||{}).forEach(k=>{if(k>todayK)return;const v=D.items[k].filter(x=>x.c!=='plan').reduce((s,x)=>s+(x.load||0),0);if(v>0)a[k]=v;});
+  return{a};
+}
+/* load planned on a day (today on): planned workouts (not once today is rowed) + future other workouts */
+function sznPlanned(k,map,todayK){
+  let L=0;
+  if(!(k===todayK&&map.a[k]>0))tlPlanFor(k).forEach(p=>{L+=p.load||0;});
+  if(k>todayK){const e=tlItems()[k];if(e&&Array.isArray(e.list))e.list.forEach(x=>{L+=tlOtherLoad(x);});}
+  return L;
+}
+function sznBlockOf(k,T){if(!T)return 'general';if(k===T.day)return 'race';if(k>T.day)return 'post';return btpBlockFor(sznDays(k,T.day));}
+function sznModel(){
+  const D=sznD(),todayK=_dayKey(Date.now()),W0=sznWkStart(todayK),T=sznRace(),rW=T?sznWkStart(T.day):null;
+  let endW=tlAddDays(W0,7*16);if(rW){const e=tlAddDays(rW,14);if(e>endW)endW=e;}
+  const cap=tlAddDays(W0,7*52);if(endW>cap)endW=cap;
+  const startW=tlAddDays(W0,-7*8),map=sznDayMap(D);
+  const iW=D.days.indexOf(tlAddDays(W0,-1)),chW=iW>=0?D.fit[iW]:(D.fit[D.ti]||0);
+  const B=SZN.base>0?Math.round(+SZN.base):Math.max(150,Math.round(chW)),L=sznCyc(),grow=1.04;
+  const preLast=rW?tlAddDays(rW,-14):null;
+  const weeks=[];let gF=1;
+  for(let w=startW;w<=endW;w=tlAddDays(w,7)){
+    const days=[0,1,2,3,4,5,6].map(i=>tlAddDays(w,i));
+    let act=0,pl=0;days.forEach(k=>{if(k<=todayK)act+=map.a[k]||0;if(k>=todayK)pl+=sznPlanned(k,map,todayK);});
+    let blk='general';
+    if(T){if(w===rW)blk='race';else if(w>rW)blk='post';else blk=btpBlockFor(sznDays(tlAddDays(w,3),T.day));}
+    let rt;
+    if(T&&w===rW)rt='race';
+    else if(T&&w===tlAddDays(rW,-7))rt='taper';
+    else if(T&&w<rW){const O=SZN_ORDER[L],j=Math.round(sznDays(w,preLast)/7);rt=O[(O.length-1-(j%O.length)+O.length)%O.length];}
+    else if(T&&w===tlAddDays(rW,7))rt='rec';
+    else{const F=SZN_FWD[L],e=Math.floor(new Date(w+'T12:00:00').getTime()/604800000);rt=F[((e%F.length)+F.length)%F.length];}
+    const o=SZN_WK[w],ov=(o&&SZN_T[o.t])?o.t:null,t=ov||rt;
+    const tgt=w>=W0?Math.round(B*gF*SZN_T[t][1]):null;
+    weeks.push({w,days,act:Math.round(act),pl:Math.round(pl),blk,t,rt,ov:!!ov,tgt,cur:w===W0,past:w<W0,race:T&&w===rW?T:null});
+    if(w>=W0&&t==='rec'&&(blk==='base'||blk==='build'||blk==='general'))gF=Math.min(1.3,gF*grow);
+  }
+  return{weeks,T,B,chW,L,W0,todayK,D,map};
+}
+function sznStat(wk){
+  const tot=wk.act+wk.pl;if(!wk.tgt)return{col:'var(--muted)',txt:''};
+  const r=tot/wk.tgt,gap=wk.tgt-tot;
+  if(r<0.85)return{col:'#e67e22',txt:'about '+gap+' under',gap};
+  if(r>1.15)return{col:'#e74c3c',txt:'about '+(-gap)+' over',gap};
+  return{col:'#27ae60',txt:'on target',gap};
+}
+function sznFmtD(k,o){return new Date(k+'T12:00:00').toLocaleDateString('en-AU',o||{day:'numeric',month:'short'});}
+function sznRender(){
+  const el=document.getElementById('sz-season');if(!el)return;
+  if(_wktCtx){el.innerHTML='<div class="sz-lhd">Season plan</div><div style="font-size:12px;color:var(--muted);">The season plan is for your own calendar. Switch the calendar to Mine to see it.</div>';return;}
+  let M;try{M=sznModel();}catch(e){console.error(e);el.innerHTML='';return;}
+  const keepX=(document.getElementById('szn-tl')||{}).scrollLeft;
+  const W=M.weeks,cur=W.find(x=>x.cur)||W[0],sel=W.find(x=>x.w===_sznSel)||cur;
+  const IN='padding:6px 8px;background:var(--s2);border:1px solid var(--border);border-radius:8px;color:var(--text);font-size:13px;font-family:inherit;';
+  let h='<div class="sz-lhd" style="margin-bottom:8px;">Season plan</div>'
+    +'<div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:10px;font-size:12px;">'
+    +'<label style="display:flex;align-items:center;gap:6px;max-width:100%;">Loading cycle <select id="szn-cyc" style="'+IN+'max-width:100%;min-width:0;">'
+    +[[3,'3 weeks: Medium, Hard, Recovery (best for masters)'],[4,'4 weeks: Medium, Hard, Hard+, Recovery'],[2,'2 weeks: Hard, Recovery']].map(o=>'<option value="'+o[0]+'"'+(o[0]===M.L?' selected':'')+'>'+o[1]+'</option>').join('')+'</select></label>'
+    +'<label style="display:flex;align-items:center;gap:6px;" title="Your normal week. Auto = your chronic load now">Base week load <input id="szn-base" type="number" inputmode="numeric" min="0" max="5000" placeholder="auto '+Math.max(150,Math.round(M.chW))+'" value="'+(SZN.base>0?SZN.base:'')+'" style="'+IN+'width:96px;"></label>'
+    +'<button id="szn-btp" class="filt-chip" style="font-size:13px;padding:7px 14px;margin-left:auto;">Block templates</button></div>';
+  /* this week */
+  {const st=sznStat(cur),nx=W[W.indexOf(cur)+1],T=M.T,wks=T?Math.max(0,Math.round(sznDays(cur.w,sznWkStart(T.day))/7)):null;
+   h+='<div style="font-size:13px;line-height:1.5;margin-bottom:10px;padding:8px 10px;border-radius:8px;background:var(--s2);border:1px solid var(--border);border-left:5px solid '+SZN_T[cur.t][2]+';">'
+     +'<b>This week: '+SZN_T[cur.t][0]+' week</b>'+(cur.ov?' <span style="color:var(--muted);">(you set this; recommended '+SZN_T[cur.rt][0]+')</span>':'')
+     +' &middot; <span style="color:'+SZN_BLK[cur.blk][1]+';font-weight:700;">'+SZN_BLK[cur.blk][0]+'</span>'+(T?' &middot; '+(wks===0?'race week':wks+' week'+(wks===1?'':'s')+' to the '+T.pri+' race ('+_secEsc(T.text)+')'):' &middot; no race set')
+     +'<br>Target about <b>'+cur.tgt+'</b> &middot; done '+cur.act+' &middot; still planned '+cur.pl+' &middot; <b style="color:'+st.col+';">'+st.txt+'</b>'
+     +(st.gap>0&&cur.tgt&&(cur.act+cur.pl)/cur.tgt<0.85?' <span style="color:var(--muted);">(add a session or lift an effort)</span>':st.gap<0&&(cur.act+cur.pl)/cur.tgt>1.15?' <span style="color:var(--muted);">(drop or ease a session)</span>':'')
+     +(nx?'<br><span style="color:var(--muted);">Next week: '+SZN_T[nx.t][0]+', target about '+nx.tgt+'.</span>':'')
+     +(T?'':'<br><span style="color:var(--muted);">Add a calendar event and mark it as an A race to line the cycles and blocks up with it.</span>')
+     +'</div>';}
+  /* timeline */
+  const mx=Math.max(1,...W.map(x=>Math.max(x.tgt||0,x.act+x.pl)))*1.08,H=120;
+  h+='<div id="szn-tl" style="overflow-x:auto;overflow-y:hidden;padding-bottom:6px;-webkit-overflow-scrolling:touch;"><div style="display:flex;gap:4px;width:max-content;">';
+  let lastBlk='';
+  W.forEach(x=>{
+    const tc=SZN_T[x.t][2],bc=SZN_BLK[x.blk][1],st=sznStat(x),isSel=x===sel;
+    const ha=Math.round(x.act/mx*H),hp=Math.round(x.pl/mx*H),ht=x.tgt?Math.round(x.tgt/mx*H):0;
+    const newBlk=x.blk!==lastBlk;lastBlk=x.blk;
+    let opts='<option value="">Auto ('+SZN_T[x.rt][0]+')</option>';Object.keys(SZN_T).forEach(k=>{opts+='<option value="'+k+'"'+(x.ov&&x.t===k?' selected':'')+'>'+SZN_T[k][0]+'</option>';});
+    h+='<div data-szw="'+x.w+'" style="flex:0 0 '+SZN_COLW+'px;box-sizing:border-box;display:flex;flex-direction:column;gap:3px;padding:4px 3px;border-radius:8px;cursor:pointer;border:2px solid '+(isSel?'var(--b)':(x.cur?'var(--muted)':'transparent'))+';background:'+(x.cur?'var(--s2)':'transparent')+';opacity:'+(x.past?'.7':'1')+';">'
+      +'<div title="'+SZN_BLK[x.blk][0]+' block" style="height:5px;border-radius:3px;background:'+bc+';"></div>'
+      +'<div style="font-size:9px;font-weight:800;letter-spacing:.04em;color:'+bc+';text-align:center;height:11px;white-space:nowrap;overflow:hidden;">'+(newBlk?SZN_BLK[x.blk][0].toUpperCase():'')+'</div>'
+      +'<div style="font-size:10px;text-align:center;color:'+(x.cur?'var(--text)':'var(--muted)')+';font-weight:'+(x.cur?'800':'500')+';">'+(x.cur?'This wk':sznFmtD(x.w))+'</div>'
+      +'<div title="Week type - tap to change" style="position:relative;border-radius:10px;padding:3px 2px;font-size:10px;font-weight:800;text-align:center;color:#fff;background:'+tc+';white-space:nowrap;overflow:hidden;'+(x.ov?'box-shadow:0 0 0 2px var(--text);':'')+'">'+SZN_T[x.t][0]+(x.ov?' \u270E':'')+' \u25BE<select data-szt="'+x.w+'" style="position:absolute;inset:0;width:100%;height:100%;opacity:0;cursor:pointer;font-size:16px;">'+opts+'</select></div>'
+      +'<div style="position:relative;height:'+H+'px;">'
+      +(ht?'<div title="Target '+x.tgt+'" style="position:absolute;left:6px;right:6px;bottom:0;height:'+ht+'px;border:2px dashed '+tc+';border-radius:4px;box-sizing:border-box;"></div>':'')
+      +(ha?'<div title="Done '+x.act+'" style="position:absolute;left:13px;right:13px;bottom:0;height:'+ha+'px;background:'+tc+';border-radius:3px 3px 0 0;"></div>':'')
+      +(hp?'<div title="Planned '+x.pl+'" style="position:absolute;left:13px;right:13px;bottom:'+ha+'px;height:'+hp+'px;background:'+tc+';opacity:.38;border-radius:3px 3px 0 0;"></div>':'')
+      +(x.race?'<div style="position:absolute;top:0;left:0;right:0;text-align:center;font-size:14px;">\u{1F3C1}</div>':'')
+      +'</div>'
+      +'<div style="font-size:12px;font-weight:800;text-align:center;color:'+(x.tgt?st.col:'var(--text)')+';">'+(x.act+x.pl)+'</div>'
+      +'<div style="font-size:9px;text-align:center;color:var(--muted);">'+(x.tgt?'of '+x.tgt:'done')+'</div>'
+      +'</div>';
+  });
+  h+='</div></div>'
+    +'<div style="display:flex;gap:12px;flex-wrap:wrap;font-size:10px;color:var(--muted);margin:4px 0 2px;"><span>solid = done</span><span>faded = planned</span><span>dashed box = target</span><span>number = done + planned (<span style="color:#27ae60;">on target</span> / <span style="color:#e67e22;">under</span> / <span style="color:#e74c3c;">over</span>)</span><span>top bar = block</span><span>tap a week for its days</span></div>'
+    +'<div style="font-size:11px;color:var(--muted);line-height:1.45;margin-bottom:8px;">Load climbs through the loading weeks and drops in the recovery week, so the body absorbs the work; each cycle starts about 4% higher until Peak. 3-week cycles suit masters rowers, who take longer to recover; 4-week cycles suit younger athletes with a long training history.</div>';
+  /* selected week */
+  {const x=sel,st=sznStat(x),T=M.T;
+   h+='<div style="padding:10px;border-radius:8px;background:var(--s2);border:1px solid var(--border);border-left:5px solid '+SZN_T[x.t][2]+';">'
+     +'<div style="font-size:13px;font-weight:800;margin-bottom:2px;">Week of '+sznFmtD(x.w,{weekday:'short',day:'numeric',month:'short'})+' &middot; '+SZN_T[x.t][0]+' week &middot; <span style="color:'+SZN_BLK[x.blk][1]+';">'+SZN_BLK[x.blk][0]+'</span></div>'
+     +'<div style="font-size:12px;margin-bottom:6px;">'+(x.tgt?'Target about <b>'+x.tgt+'</b> &middot; ':'')+'done '+x.act+(x.pl?' &middot; planned '+x.pl:'')+(x.tgt?' &middot; <b style="color:'+st.col+';">'+st.txt+'</b>':'')+'</div>';
+   const CHP=(col,lbl,txt,L)=>'<span style="display:inline-flex;align-items:center;gap:4px;padding:2px 6px;border-radius:10px;background:var(--s1);border:1px solid var(--border);border-left:4px solid '+col+';font-size:11px;margin:2px 4px 2px 0;"><span style="font-size:9px;font-weight:800;color:'+col+';">'+lbl+'</span>'+txt+(L?' <span style="color:var(--muted);">'+L+'</span>':'')+'</span>';
+   x.days.forEach(k=>{
+     const items=[];let dayL=0;
+     if(k<=M.todayK)((M.D.items||{})[k]||[]).filter(p=>p.c!=='plan').forEach(p=>{dayL+=p.load;items.push(p.c==='other'?CHP(CI_OTHER_COL,'OTHER',_secEsc((p.o&&p.o.text)||'Other'),Math.round(p.load)):CHP(p.c==='erg'?CAL_ERG_COL:CAL_WATER_COL,p.c==='erg'?'ERG':'WATER','✓ '+_secEsc((p.x&&p.x.p&&(p.x.p.name||p.x.p.workout))||(p.c==='erg'?'Erg':'Row')),Math.round(p.load)));});
+     if(k>=M.todayK){
+       if(!(k===M.todayK&&M.map.a[k]>0))tlPlanFor(k).forEach(p=>{dayL+=p.load;items.push(CHP(p.w.venue==='erg'?CAL_ERG_COL:CAL_WATER_COL,p.w.venue==='erg'?'ERG':'WATER',_secEsc(_wktDispName(p.w)),p.load));});
+       if(k>M.todayK){const e=tlItems()[k];((e&&e.list)||[]).filter(o=>o.type==='other').forEach(o=>{const L=tlOtherLoad(o);dayL+=L;items.push(CHP(CI_OTHER_COL,'OTHER',_secEsc(o.text||'Other'),L||''));});}
+     }
+     const ev=(()=>{const e=tlItems()[k];return ((e&&e.list)||[]).filter(o=>o.type==='event').map(o=>(o.race?'\u{1F3C1} ':'')+_secEsc(o.text||'')).join(', ');})();
+     h+='<div style="display:flex;align-items:flex-start;gap:8px;padding:4px 0;border-top:1px solid var(--border);font-size:12px;'+(k===M.todayK?'font-weight:700;':'')+(k<M.todayK?'opacity:.75;':'')+'">'
+       +'<span style="width:58px;flex-shrink:0;padding-top:3px;">'+sznFmtD(k,{weekday:'short',day:'numeric'})+'</span>'
+       +'<span style="flex:1;min-width:0;">'+(items.join('')||'<span style="color:var(--muted);display:inline-block;padding-top:3px;">Rest</span>')+(ev?'<div style="font-size:11px;color:#27ae60;font-weight:700;">'+ev+'</div>':'')+'</span>'
+       +'<span style="width:40px;text-align:right;padding-top:3px;font-weight:800;">'+(dayL?Math.round(dayL):'')+'</span></div>';
+   });
+   const canFill=x.days.some(k=>k>=M.todayK);
+   h+='<div style="display:flex;gap:6px;flex-wrap:wrap;margin-top:8px;">'
+     +(canFill?'<button id="szn-fill" class="filt-chip" style="font-size:12px;padding:6px 12px;" title="Puts the template week on the days of this week that have nothing planned">Fill empty days from '+(x.t==='rec'&&btpGet('recovery').some(d=>d.length)?'Recovery week':SZN_BLK[x.blk==='race'||x.blk==='post'||x.blk==='general'?(x.blk==='race'?'taper':'base'):x.blk][0])+' template</button>':'')
+     +'<button id="szn-cal" class="filt-chip" style="font-size:12px;padding:6px 12px;">Show on calendar</button>'
+     +(x.ov?'<button id="szn-auto" class="filt-chip" style="font-size:12px;padding:6px 12px;">Back to recommended ('+SZN_T[x.rt][0]+')</button>':'')
+     +'</div></div>';}
+  el.innerHTML=h;
+  const tl=document.getElementById('szn-tl');
+  if(tl){const ci=W.indexOf(cur);if(keepX>0&&_sznScrolled)tl.scrollLeft=keepX;else{tl.scrollLeft=Math.max(0,(ci-2)*(SZN_COLW+4));if(tl.clientWidth>0)_sznScrolled=true;}}
+  const g=id=>document.getElementById(id);
+  g('szn-cyc').onchange=()=>{SZN={...SZN,cyc:+g('szn-cyc').value,rev:Date.now()};sznSave();renderStartupCalendar();};
+  g('szn-base').onchange=()=>{const v=Math.max(0,Math.min(5000,Math.round(+g('szn-base').value||0)));SZN={...SZN,base:v,rev:Date.now()};sznSave();renderStartupCalendar();};
+  g('szn-btp').onclick=btpOpen;
+  el.querySelectorAll('[data-szt]').forEach(s=>{s.onclick=e=>e.stopPropagation();s.onchange=()=>{SZN_WK[s.dataset.szt]={t:s.value||'',rev:Date.now()};_sznSel=s.dataset.szt;sznSave();renderStartupCalendar();};});
+  el.querySelectorAll('[data-szw]').forEach(c=>{c.onclick=()=>{_sznSel=c.dataset.szw;sznRender();};});
+  if(g('szn-auto'))g('szn-auto').onclick=()=>{SZN_WK[sel.w]={t:'',rev:Date.now()};sznSave();renderStartupCalendar();};
+  if(g('szn-fill'))g('szn-fill').onclick=()=>sznFillWeek(sel,M);
+  g('szn-cal').onclick=()=>{
+    const k=sel.days.find(d=>d>=M.todayK)||sel.days[0];_calSel=k;
+    try{const n=new Date(),d=new Date(k+'T12:00:00');_calMonthOff=(d.getFullYear()-n.getFullYear())*12+d.getMonth()-n.getMonth();}catch(e){}
+    renderStartupCalendar();
+    setTimeout(()=>{const c=document.querySelector('#sz-cal [data-day="'+k+'"]');if(!c)return;const sc=document.getElementById('cal-scroll');if(sc){const r=c.getBoundingClientRect(),sr=sc.getBoundingClientRect();sc.scrollTop+=r.top-sr.top-sc.clientHeight/3;}c.scrollIntoView({block:'nearest',behavior:'smooth'});},80);
+  };
+}
+function sznFillWeek(x,M){
+  const ch={},T=M.T;let n=0;
+  x.days.forEach(k=>{
+    if(k<M.todayK||btpDayBusy(k))return;
+    let b;
+    if(x.t==='rec'&&btpGet('recovery').some(d=>d.length))b='recovery';
+    else if(T&&k===T.day)b=null;
+    else if(T&&k<T.day)b=btpBlockFor(sznDays(k,T.day));
+    else b='base';
+    if(!b)return;
+    const dow=(new Date(k+'T12:00:00').getDay()+6)%7,ents=btpGet(b)[dow].filter(btpEntOk);
+    if(!ents.length)return;ch[k]=ents;n++;
+  });
+  if(!n){toast('Nothing to fill: those days are planned already, or the template has nothing for them');return;}
+  _btpUndo=btpApply(ch);
+  toast('Filled '+n+' day'+(n===1?'':'s')+' (Undo is in Block templates)');
+  renderStartupCalendar();
+}
+/* Calendar cells: the block as a coloured top edge (today to the race), and
+   the day's load - done, and ~planned. */
+function sznCalCtx(){
+  const no={top:()=>'',cell:()=>''};
+  if(_wktCtx)return no;
+  let D;try{D=sznD();}catch(e){return no;}
+  const todayK=_dayKey(Date.now()),map=sznDayMap(D),T=sznRace(),pc={};
+  const pl=k=>{if(!(k in pc))pc[k]=sznPlanned(k,map,todayK);return pc[k];};
+  return{
+    top:k=>{if(!T||k<todayK||k>T.day)return '';return 'border-top:3px solid '+SZN_BLK[sznBlockOf(k,T)][1]+';';},
+    cell:(k,big)=>{const a=k<=todayK?Math.round(map.a[k]||0):0,p=k>=todayK?Math.round(pl(k)):0;if(!a&&!p)return '';
+      return '<div title="Training load: done'+(p?' + planned':'')+'" style="font-size:'+(big?10:9)+'px;font-weight:700;text-align:right;margin-top:2px;color:var(--muted);line-height:1.2;">'+(a?'<span style="color:var(--text);">'+a+'</span>':'')+(a&&p?' + ':'')+(p?'~'+p:'')+'</div>';}
+  };
+}
+/* ══════════════════════════════════════════════════════════════════════════
+   PLANNING TAB WORKOUT LIST (18 Nov). The workout library stays on screen in
+   the Planning tab. Drag a workout onto today or a future day on the
+   calendar, or select a day and tap + Add. Tap a workout to view it. Uses
+   the shown calendar's list (a squad's when a squad calendar is open).
+   ══════════════════════════════════════════════════════════════════════════ */
+let _pwDrag=null;
+const _pwF={q:'',v:'all'};
+function planDragOk(){return (WKT_ENABLED||_wktCtx)&&(!_wktCtx||(typeof sqCanEdit==='function'&&sqCanEdit()));}
+function planDropAdd(day,id){
+  const w=(WORKOUTS_DB||[]).find(x=>x&&x.id===id&&!x.deleted);if(!w)return;
+  planAdd(day,id);_calSel=day;renderStartupCalendar();
+  toast(_wktDispName(w)+' added to '+new Date(day+'T12:00:00').toLocaleDateString('en-AU',{weekday:'short',day:'numeric',month:'short'}));
+}
+function renderPlanWorkouts(){
+  const el=document.getElementById('sz-planwk');if(!el)return;
+  const todayK=_dayKey(Date.now()),ok=planDragOk(),selOk=ok&&_calSel&&_calSel>=todayK;
+  const q=_pwF.q.trim().toLowerCase();
+  const all=(WORKOUTS_DB||[]).filter(w=>w&&!w.deleted);
+  const list=all.filter(w=>(_pwF.v==='all'||(_pwF.v==='erg')===(w.venue==='erg'))&&(!q||_wktDispName(w).toLowerCase().indexOf(q)>=0));
+  const keep=(document.getElementById('pw-list')||{}).scrollTop||0;
+  const CH='font-size:12px;padding:6px 10px;flex:1;';
+  const dl=_calSel?new Date(_calSel+'T12:00:00').toLocaleDateString('en-AU',{weekday:'short',day:'numeric',month:'short'}):'';
+  let h='<input id="pw-q" type="text" placeholder="Search workouts" value="'+_secEsc(_pwF.q)+'" style="width:100%;box-sizing:border-box;padding:8px 10px;border-radius:8px;border:1px solid var(--border);background:var(--s2);color:var(--text);font-family:inherit;font-size:13px;margin-bottom:8px;">'
+    +'<div style="display:flex;gap:4px;margin-bottom:6px;">'+[['all','All'],['water','On-water'],['erg','Erg']].map(([v,l])=>'<button data-pwv="'+v+'" class="filt-chip'+(_pwF.v===v?' on':'')+'" style="'+CH+'">'+l+'</button>').join('')+'</div>'
+    +'<div style="font-size:11px;color:var(--muted);margin-bottom:6px;">'+(!ok?(_wktCtx?'View only: this squad\'s plan is set by the coach.':'Planning switches on once BoatRun on your phone is signed in with Google Drive.'):selOk?'Drag onto a day, or + Add to '+dl+'.':'Drag a workout onto today or a future day, or select a day to add with a tap.')+'</div>'
+    +'<div id="pw-list" style="max-height:min(420px,55vh);overflow-y:auto;padding-right:2px;margin-bottom:10px;">';
+  if(!list.length)h+='<div style="font-size:12px;color:var(--muted);padding:6px 0;">'+(all.length?'No workouts match.':'No workouts yet.')+'</div>';
+  list.forEach(w=>{
+    const col=w.venue==='erg'?CAL_ERG_COL:CAL_WATER_COL;
+    const steps=Array.isArray(w.steps)?w.steps.map(_wktStepTxt).join(' \u00b7 '):'';
+    let ef='';try{ef='effort '+rpeOf(w)+(w.rpe?'':'?');}catch(e){}
+    h+='<div data-pww="'+_secEsc(w.id)+'"'+(ok?' draggable="true"':'')+' style="display:flex;align-items:center;gap:8px;padding:8px 10px;margin-bottom:6px;border-radius:10px;background:var(--s2);border:1px solid var(--border);border-left:5px solid '+col+';box-shadow:0 1px 3px rgba(0,0,0,.16);cursor:'+(ok?'grab':'pointer')+';-webkit-user-select:none;user-select:none;">'
+      +'<div style="flex:1;min-width:0;"><div style="font-size:13px;font-weight:700;display:flex;align-items:center;">'+_coachMark(w.id,false)+_secEsc(_wktDispName(w))+'</div>'
+      +'<div style="font-size:11px;color:var(--muted);margin-top:2px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">'+(w.venue==='erg'?'Erg':'On-water')+(ef?' \u00b7 '+ef:'')+(steps?' \u00b7 '+_secEsc(steps):'')+'</div></div>'
+      +(selOk?'<button data-pwadd="'+_secEsc(w.id)+'" style="border:none;background:'+col+';color:#fff;border-radius:8px;padding:6px 10px;font-size:11px;font-weight:800;cursor:pointer;font-family:inherit;flex-shrink:0;">+ Add</button>':'')
+      +'</div>';
+  });
+  h+='</div>';
+  el.innerHTML=h;
+  const pl=document.getElementById('pw-list');if(pl)pl.scrollTop=keep;
+  const qi=document.getElementById('pw-q');
+  if(qi)qi.oninput=()=>{_pwF.q=qi.value;const pos=qi.selectionStart;renderPlanWorkouts();const n=document.getElementById('pw-q');if(n){n.focus();try{n.setSelectionRange(pos,pos);}catch(e){}}};
+  el.querySelectorAll('[data-pwv]').forEach(b=>{b.onclick=()=>{_pwF.v=b.dataset.pwv;renderPlanWorkouts();};});
+  el.querySelectorAll('[data-pww]').forEach(r=>{
+    r.onclick=e=>{const a=e.target.closest('[data-pwadd]');if(a){e.stopPropagation();planDropAdd(_calSel,a.dataset.pwadd);return;}try{window.showWorkoutsModal({viewId:r.dataset.pww});}catch(err){}};
+    if(ok){
+      r.ondragstart=e=>{_pwDrag=r.dataset.pww;e.dataTransfer.setData('text/plain','wkt:'+r.dataset.pww);e.dataTransfer.effectAllowed='copy';r.style.opacity='.5';};
+      r.ondragend=()=>{r.style.opacity='';setTimeout(()=>{_pwDrag=null;},50);document.querySelectorAll('#sz-cal [data-day]').forEach(c=>{c.style.outline='';});};
+    }
+  });
 }
 /* ══════════════════════════════════════════════════════════════════════════
    SQUAD CALENDAR — the coach keeps a squad workout list and plan at
@@ -16321,6 +16689,7 @@ function pvRender(){
   c+='<div style="display:grid;grid-template-columns:repeat(7,minmax(0,1fr));gap:4px;padding-right:10px;">';
   [0,1,2,3,4,5,6].map(i=>['Sun','Mon','Tue','Wed','Thu','Fri','Sat'][(i+_ws)%7]).forEach(d=>{c+='<div style="font-size:11px;color:#EFF3FA;opacity:.8;text-align:center;padding:2px 0;font-weight:700;">'+d+'</div>';});
   c+='</div>';
+  const _szc=_pv.combined?{top:()=>'',cell:()=>''}:sznCalCtx();   // 18 Nov: block edge + day load
   c+='<div id="pv-cal" style="height:'+(wideL?'calc(100vh - 150px)':'70vh')+';overflow-y:auto;padding-right:4px;position:relative;">';
   for(let o=-PV_BACK;o<=PV_FWD;o++){
   const mb=new Date(now.getFullYear(),now.getMonth()+o,1),y=mb.getFullYear(),m=mb.getMonth();
@@ -16331,7 +16700,7 @@ function pvRender(){
   for(let d=1;d<=nDays;d++){
     const k=y+'-'+String(m+1).padStart(2,'0')+'-'+String(d).padStart(2,'0');
     const en=pvEn(k),sel=_pv.sel===k,today=k===todayK,past=k<todayK;
-    c+='<div data-pvday="'+k+'" style="min-height:96px;padding:5px;border-radius:10px;cursor:pointer;overflow:hidden;opacity:'+(past?'.6':'1')+';box-shadow:'+(sel?'0 4px 14px rgba(0,0,0,.3)':'0 1px 3px rgba(0,0,0,.16),0 1px 1px rgba(0,0,0,.06)')+';border:'+(sel?'2px solid var(--b)':'1px solid var(--border)')+';background:'+(sel?'var(--s3)':'var(--s2)')+';">'
+    c+='<div data-pvday="'+k+'" style="min-height:96px;padding:5px;border-radius:10px;cursor:pointer;overflow:hidden;opacity:'+(past?'.6':'1')+';box-shadow:'+(sel?'0 4px 14px rgba(0,0,0,.3)':'0 1px 3px rgba(0,0,0,.16),0 1px 1px rgba(0,0,0,.06)')+';border:'+(sel?'2px solid var(--b)':'1px solid var(--border)')+';background:'+(sel?'var(--s3)':'var(--s2)')+';'+_szc.top(k)+'">'
       +'<div style="display:flex;align-items:center;gap:5px;font-size:12px;font-weight:'+(today?'800':'600')+';color:'+(today?'var(--b)':'var(--text)')+';margin-bottom:2px;">'+d+calNoteDot(k,8)+(pvSqItems(k,['note']).length?'<span style="width:8px;height:8px;border-radius:50%;background:'+CI_NOTE_COL+';display:inline-block;box-shadow:0 0 0 2px '+pvCol(pvSqItems(k,['note'])[0].c)+';"></span>':'')+'</div>';
     const ciShow=true, cis=calEventsOf(k).concat(pvSqItems(k,['event']).map(q=>Object.assign({},q.x,{_sqc:q.c})));
     const maxW=sel?999:4, maxI=sel?999:2;
@@ -16349,6 +16718,7 @@ function pvRender(){
       c+='<div style="display:flex;align-items:center;font-size:10px;line-height:1.35;background:'+bg+';color:#fff;border-radius:4px;padding:1px 4px;margin-top:2px;box-shadow:0 1px 2px rgba(0,0,0,.28);white-space:nowrap;overflow:hidden;">'+mk+'<span style="overflow:hidden;text-overflow:ellipsis;">'+(x.w?_secEsc(_wktDispName(x.w)):'Deleted workout')+'</span></div>';
     });
     if(cseq.length>maxW)c+='<div style="font-size:10px;color:var(--text);opacity:.7;margin-top:2px;">+'+(cseq.length-maxW)+' more</div>';
+    c+=_szc.cell(k,true);
     c+='</div>';
   }
   c+='</div></div>';
@@ -19422,6 +19792,15 @@ body .hdr-tabs .hmenu,body.light .hdr-tabs .hmenu{background:#fff!important;bord
 .sz-list[data-prc="plan"] .sz-prcsub{background:#0b6e79;}
 .sz-list[data-prc="row"] .sz-prcsub{background:#1a5fd0;}
 .sz-list[data-prc="coach"] .sz-prcsub{background:#6a3fb0;}
+.sz-prc button[data-prc="load"].sel{background:#b5531c;color:#fff;}
+.sz-list[data-prc="load"] .sz-prcsub{background:#b5531c;}
+.sz-list[data-prc="load"]::before{border-color:#b5531c;}
+/* 18 Nov: LOAD tab - the training load panel on its own; Planning no longer shows it */
+.sz-list[data-prc="load"] .sz-sumwrap,.sz-list[data-prc="load"] #sz-sesspill,.sz-list[data-prc="load"] #sz-cal,.sz-list[data-prc="load"] #sz-calday{display:none!important;}
+.sz-list[data-prc="plan"] #sz-load,.sz-list[data-prc="plan"] #sz-sqload{display:none!important;}
+#startup .sz-list[data-prc="load"] .sz-grid{grid-template-columns:minmax(0,1fr)!important;grid-template-rows:auto!important;}
+#startup .sz-list[data-prc="load"] .sz-calcol{grid-column:1!important;grid-row:1!important;max-width:1100px;width:100%;margin:0 auto;}
+#startup #sz-season{margin-bottom:14px;}
 /* 14 Nov: the tab colour runs down both sides and along the bottom of the pane. */
 .sz-list[data-prc]{position:relative;padding:0 16px 20px;box-sizing:border-box;}
 .sz-list[data-prc] .sz-prc{margin:0 -16px;}
@@ -19434,6 +19813,7 @@ body .hdr-tabs .hmenu,body.light .hdr-tabs .hmenu{background:#fff!important;bord
 #startup #sz-ntabs{display:none!important;}
 .sz-list:not([data-prc="row"]) .prc-row{display:none!important;}
 .sz-list:not([data-prc="plan"]) .prc-plan{display:none!important;}
+@media (min-width:1100px){.sz-list[data-prc="plan"] #sz-plancard{position:sticky;top:70px;z-index:2;}}   /* 18 Nov: workout list stays on screen while scrolling the calendar */
 .sz-list:not([data-prc="coach"]) .prc-coach{display:none!important;}
 .sz-list[data-prc="coach"] .sz-grid{display:none!important;}
 .sz-list[data-prc="plan"] #sz-sesspill,.sz-list[data-prc="plan"] .sz-sumcol{display:none!important;}
