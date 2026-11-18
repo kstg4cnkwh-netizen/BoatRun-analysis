@@ -100,7 +100,7 @@ img.inline{display:inline;margin:0 3px;vertical-align:-.32em;height:1.45em;width
 <table class="lead">
 <tr><th></th><th>What it is</th><th>Where you use it</th></tr>
 <tr><td>BoatRun</td><td>The app. Row, Cox, Coach and Erg modes in one.</td><td>iPhone or Android phone, in the boat, in the coach launch or on the erg</td></tr>
-<tr><td>Analyser</td><td>Post-session analysis, training calendar, stroke templates and sectors, in a browser</td><td>PC (best) or tablet</td></tr>
+<tr><td>Analyser</td><td>Season planning, training load, post-session analysis, stroke templates, sectors and navigation lines, in a browser</td><td>PC (best) or tablet</td></tr>
 <tr><td>Viewer</td><td>Live spectator map</td><td>Any browser, any device</td></tr>
 </table>
 </div>
@@ -110,15 +110,12 @@ img.inline{display:inline;margin:0 3px;vertical-align:-.32em;height:1.45em;width
 <div class="box">
 <p><strong>Changed in this version</strong></p>
 <ul>
-<li><strong>Recovery Run</strong> replaces Recovery Loss, on the phone and in the Analyser, including older sessions. See <a href="#metrics">Metrics reference</a>.</li>
-<li>Stroke templates, workouts, sectors, lanes and hazards now <strong>sync through Google Drive</strong> - no more exporting and importing files. See <a href="#sync">what syncs</a>.</li>
-<li>The <strong>LAYOUTS</strong> tab is now <strong>DISPLAY</strong>: one on-water layout, one erg layout, plus Stroke templates, Hazards &amp; Lanes, Map Display and Screen Settings. See <a href="#display">Display: layouts and tiles</a>.</li>
-<li><strong>Calibration is automatic.</strong> There is no 8-second hold and no CAL pill. See <a href="#calibration">Calibration</a>.</li>
-<li><strong>Stroke templates</strong> are built in the Analyser by selecting strokes straight off the chart, and arrive on the phone by themselves. See <a href="#templates">Stroke templates</a>.</li>
-<li><strong>Hazards</strong> have a choice of warning distance, a red warning zone on the map, a full-screen warning card and per-hazard WARN switches. See <a href="#lines">Lanes, dividers and hazards</a>.</li>
-<li><strong>The Analyser</strong> now draws lanes, dividers, hazards and sectors on a big satellite map, and is where clubs create and manage their club lines. See <a href="#an-lines">Analyser: lanes and hazards</a>.</li>
-<li><strong>Coach</strong> FREE ROW and RACE are now the COACH and SQUAD tabs. See <a href="#coach">Coach mode</a>.</li>
-<li><strong>Calendar</strong> squad plan and phone calendar sync have moved to the ⚙ button on the Log calendar. See <a href="#calendar">Calendar and planning</a>.</li>
+<li><strong>Coaching is free.</strong> There is no Coach plan to buy any more - anyone can coach. What a coach receives depends on each rower's plan: a <strong>Pro</strong> rower sends everything, a <strong>Basic</strong> rower sends their position only. See <a href="#plans">Basic and Pro</a>.</li>
+<li><strong>Squad owners and coach access.</strong> Whoever creates a squad owns it, and approves anyone else who asks to coach it. Only the squad's coaches can plan it, set up its erg races and see each athlete's load. See <a href="#coach-access">Coach access</a>.</li>
+<li><strong>Training load.</strong> One load number per session on a Garmin-style scale, acute and chronic load, load ratio, a daily check-in, your watch's own numbers, and today's suggested workout with its optimal load. In the app under <strong>LOG → LOAD</strong>, and the Analyser's <strong>Load</strong> tab. See <a href="#load">Training load</a>.</li>
+<li><strong>Season plan.</strong> The Analyser lays your season out week by week in loading cycles - Medium, Hard and Recovery weeks - with a target load for each, lined up with every race. See <a href="#an-season">Season plan</a>.</li>
+<li><strong>The Analyser start page has five tabs</strong>: Planning, Load, Results, Trends and Navigation. Your squads' plans now sit on your own calendar, and workouts drag straight onto a day or a week. The separate planning window has gone. See <a href="#analyser">Analyser</a>.</li>
+<li><strong>Watch numbers</strong> - Garmin TE and load (or your Polar, Coros, Suunto or Fitbit load, or an effort for Apple Watch and Whoop) on the save card and each session's page.</li>
 </ul>
 </div>
 
@@ -130,7 +127,7 @@ img.inline{display:inline;margin:0 3px;vertical-align:-.32em;height:1.45em;width
 <ol start="1">
 <li><a href="#start">Getting started and where things are</a></li>
 <li><a href="#sync">Signing in, Drive and sync</a></li>
-<li><a href="#plans">Basic, Pro and Coach</a></li>
+<li><a href="#plans">Basic and Pro - coaching is free</a></li>
 <li><a href="#roles">Roles, Simple and Advanced</a></li>
 <li><a href="#mount">Mounting the phone</a></li>
 </ol>
@@ -143,7 +140,7 @@ img.inline{display:inline;margin:0 3px;vertical-align:-.32em;height:1.45em;width
 <li><a href="#hr">Heart rate</a></li>
 <li><a href="#power">Power and battery</a></li>
 <li><a href="#workouts">Workouts</a></li>
-<li><a href="#calendar">Calendar and planning</a></li>
+<li><a href="#calendar">Calendar, planning and training load</a></li>
 <li><a href="#sectors">Sectors and courses</a></li>
 <li><a href="#lines">Lanes, dividers and hazards</a></li>
 </ol>
@@ -196,35 +193,35 @@ img.inline{display:inline;margin:0 3px;vertical-align:-.32em;height:1.45em;width
 <tr><td>LIVE</td><td>Your tile grid while you row (reads ERG in Erg role)</td><td><a href="#live">The live screen</a></td></tr>
 <tr><td>CURVE</td><td>Live stroke curve and template pills (Pro)</td><td><a href="#record">Recording</a>, <a href="#templates">Templates</a></td></tr>
 <tr><td>MAP</td><td>Your boat, squad, sectors, lanes and hazards, with tiles</td><td><a href="#record">Recording</a>, <a href="#lines">Lanes and hazards</a></td></tr>
-<tr><td>INTERVALS</td><td>Workout steps and per-interval results</td><td><a href="#workouts">Workouts</a></td></tr>
+<tr><td>WORKOUT</td><td>Workout steps and per-interval results (a big workout board on the erg)</td><td><a href="#workouts">Workouts</a>, <a href="#erg-board">Erg mode</a></td></tr>
 <tr><td>SQUAD</td><td>Erg race track (Erg role, once you've joined a squad)</td><td><a href="#erg">Erg mode</a></td></tr>
-<tr><td>HOME → LOG</td><td>CALENDAR and SESSIONS</td><td><a href="#calendar">Calendar</a>, <a href="#log">Session log</a></td></tr>
+<tr><td>HOME → LOG</td><td>CALENDAR, SESSIONS and LOAD</td><td><a href="#calendar">Calendar</a>, <a href="#log">Session log</a>, <a href="#load">Training load</a></td></tr>
 <tr><td>HOME → WORKOUTS</td><td>Build, edit and load workouts</td><td><a href="#workouts">Workouts</a></td></tr>
 <tr><td>HOME → SECTORS</td><td>SECTORS and COURSES</td><td><a href="#sectors">Sectors and courses</a></td></tr>
 <tr><td>HOME → DISPLAY</td><td>On Water Layout, Ergometer Layout, Stroke templates, Hazards &amp; Lanes, Map Display, Screen Settings</td><td><a href="#display">Display</a></td></tr>
-<tr><td>HOME → SETTINGS</td><td>Role, squad, HR zones, units, account and plan, Strava, your data, metric definitions</td><td><a href="#settings">Settings reference</a></td></tr>
+<tr><td>HOME → SETTINGS</td><td>Role, squad, your watch, HR zones, units, account and plan, Strava, your data, metric definitions</td><td><a href="#settings">Settings reference</a></td></tr>
 </table>
 </div>
-<p>Coach role has its own tabs - COACH, SQUAD, INTERVALS and HOME - see <a href="#coach">Coach mode</a>. Simple mode hides DISPLAY, WORKOUTS, MAP and INTERVALS - see <a href="#roles">Simple and Advanced</a>.</p>
+<p>Coach role has its own tabs - COACH, SQUAD, INTERVALS and HOME - see <a href="#coach">Coach mode</a>. Simple mode hides DISPLAY, WORKOUTS, MAP and WORKOUT - see <a href="#roles">Simple and Advanced</a>.</p>
 
 <hr/>
 
 <!-- ==================== 2 ==================== -->
-<h1 id="sync">2. Signing in, Drive and sync <span class="chg">CHANGED</span></h1>
+<h1 id="sync">2. Signing in, Drive and sync</h1>
 
 <p>Signing in is two short steps, and the app walks you through both. Tap <strong>Sign in</strong> at the top right of HOME, or the <strong>SIGN IN · STEP 1 OF 2</strong> button on the launch screen.</p>
 <img class="w-md" src="screenshots/signin-steps.png" alt="Launch screen showing SIGN IN STEP 1 OF 2" loading="lazy"/>
 
 <ol>
-<li><strong>Step 1 - your BoatRun account.</strong> <strong>Continue with Apple</strong> or <strong>Continue with Google</strong>. This is <em>who you are</em>. It carries your plan between your phone, a new phone and the Analyser, and anchors your free trial so reinstalling doesn't restart it.</li>
+<li><strong>Step 1 - your BoatRun account.</strong> <strong>Continue with Apple</strong> or <strong>Continue with Google</strong>. This is <em>who you are</em>. It carries your plan between your phone, a new phone and the Analyser, anchors your free trial so reinstalling doesn't restart it, and makes you the owner of any squad you create.</li>
 <li><strong>Step 2 - link Google Drive.</strong> Offered straight after step 1; the button reads <strong>LINK DRIVE · STEP 2 OF 2</strong> until it's done. This is <em>where your files go</em> - a private, hidden folder in your own Google Drive.</li>
 </ol>
 <p>When both are done the button reads <strong>Drive linked</strong>. Tap it any time to open <strong>Account &amp; Plan</strong>: your account, the linked Apple / Google sign-ins, <strong>Sign out</strong>, and a <strong>Google Drive</strong> section with <strong>Sync now</strong> and <strong>Unlink Drive</strong>.</p>
 
 <h2>Why both</h2>
 <ul>
-<li><strong>Without the account</strong> a subscription bought on your phone stays on that phone, and the Analyser won't recognise it.</li>
-<li><strong>Without Drive</strong> nothing syncs. Sessions live only on the phone, there is no backup, nothing comes back on a new phone, and templates, workouts, sectors and lines can't move between the app and the Analyser.</li>
+<li><strong>Without the account</strong> a subscription bought on your phone stays on that phone, the Analyser won't recognise it, and you can't own a squad or ask for coach access.</li>
+<li><strong>Without Drive</strong> nothing syncs. Sessions live only on the phone, there is no backup, nothing comes back on a new phone, and templates, workouts, sectors, lines and your training load can't move between the app and the Analyser.</li>
 </ul>
 
 <h2>Apple and Google</h2>
@@ -236,13 +233,18 @@ img.inline{display:inline;margin:0 3px;vertical-align:-.32em;height:1.45em;width
 <table class="lead">
 <tr><th>Item</th><th>Made or changed in</th><th>Notes</th></tr>
 <tr><td>Sessions</td><td>App (recorded), either (renamed, favourited, deleted)</td><td>Deleting anywhere deletes everywhere</td></tr>
-<tr><td>Workouts</td><td>App or Analyser</td><td><a href="#workouts">Workouts</a></td></tr>
+<tr><td>Workouts, with their planned effort</td><td>App or Analyser</td><td><a href="#workouts">Workouts</a></td></tr>
 <tr><td>Planned days and calendar items</td><td>App or Analyser</td><td><a href="#calendar">Calendar</a></td></tr>
+<tr><td>Training load: watch numbers, efforts, heart-rate loads and calibration</td><td>App or Analyser</td><td><a href="#load">Training load</a></td></tr>
+<tr><td>Daily check-ins</td><td>App</td><td><a href="#load">Training load</a></td></tr>
+<tr><td>Your watch</td><td>App or Analyser</td><td><a href="#load">Training load</a></td></tr>
+<tr><td>Season plan, week types and block templates</td><td>Analyser</td><td><a href="#an-season">Season plan</a></td></tr>
 <tr><td>Stroke templates</td><td>Built in the Analyser; renamed or deleted in either</td><td><a href="#templates">Stroke templates</a></td></tr>
 <tr><td>Sectors, sector PBs and targets</td><td>Drawn, edited and targeted in the Analyser; downloaded, imported or deleted in either</td><td><a href="#sectors">Sectors</a></td></tr>
 <tr><td>Your lanes, dividers and hazards</td><td>App or Analyser</td><td><a href="#lines">Lanes and hazards</a></td></tr>
 <tr><td>The club lines code you follow</td><td>App</td><td>The lines themselves come from the club</td></tr>
 <tr><td>Clubs you edit lines for</td><td>Analyser</td><td>Follows you to the Analyser on another computer. <a href="#an-club">Managing club lines</a></td></tr>
+<tr><td>Which squads you share your training load with</td><td>App or Analyser</td><td><a href="#squad">Joining a squad</a></td></tr>
 <tr><td>Units, clock, calendar week start</td><td>App or Analyser</td><td></td></tr>
 <tr><td>Heart rate zones</td><td>App or Analyser</td><td><a href="#hr">Heart rate</a></td></tr>
 <tr><td>Curve, map and selectable tile choices</td><td>App</td><td><a href="#display">Display</a></td></tr>
@@ -253,20 +255,20 @@ img.inline{display:inline;margin:0 3px;vertical-align:-.32em;height:1.45em;width
 </div>
 
 <h3>What stays on the phone</h3>
-<p>Your On Water and Ergometer grid layouts, which templates are armed, hazard WARN switches, warning and alert distances, power mode, text size, timeouts, display mode, surge axis and the last calibration. These are about this phone and this mount, so they don't follow you.</p>
+<p>Your On Water and Ergometer grid layouts, which templates are armed, hazard WARN switches, warning and alert distances, power mode, text size, timeouts, display mode, surge axis and the last calibration. These are about this phone and this mount, so they don't follow you. Your role in each squad (athlete or coach) is kept in each Analyser you use.</p>
 
 <h3>What comes from somewhere else</h3>
 <ul>
 <li><strong>Club lines</strong> - from your club's code, read-only. See <a href="#club-lines">Club lines</a>.</li>
-<li><strong>Squad plan</strong> - from the squad you follow. See <a href="#calendar">Calendar</a>.</li>
+<li><strong>Squad plans</strong> - from the squads you belong to. See <a href="#calendar">Calendar</a>.</li>
 <li><strong>Courses</strong> - read live from boatrun.au. See <a href="#sectors">Sectors and courses</a>.</li>
 </ul>
 
 <h2>When it syncs</h2>
 <ul>
-<li>Changes you make go up straight away. If you're offline they wait and go when you have signal.</li>
+<li>Changes you make go up straight away. If you're offline they wait and go when you have signal - including your daily check-in.</li>
 <li>The app pulls changes at launch, when you come back to it, and when you open the Log - no more than every 5 minutes, and <strong>never while you're recording</strong>.</li>
-<li>The Analyser pulls when it opens. <strong>↻ Sync with app</strong> on its start page fetches straight away.</li>
+<li>The Analyser pulls when it opens, when you come back to its tab, and every 5 minutes while it's open. <strong>↻ Sync with app</strong> on its start page fetches straight away.</li>
 <li>Every finished session uploads by itself. On a new phone, sign in and link Drive and your sessions come back on their own. You never need to sync by hand. <strong>Sync now</strong> (Drive linked → Account &amp; Plan) is only there for when something you expect hasn't arrived.</li>
 </ul>
 
@@ -276,10 +278,12 @@ img.inline{display:inline;margin:0 3px;vertical-align:-.32em;height:1.45em;width
 <hr/>
 
 <!-- ==================== 3 ==================== -->
-<h1 id="plans">3. Basic, Pro and Coach</h1>
+<h1 id="plans">3. Basic and Pro - coaching is free <span class="chg">CHANGED</span></h1>
+
+<p>There are two plans for rowers, <strong>Basic</strong> (free) and <strong>Pro</strong> (subscription). <strong>Coaching is free for everyone</strong> - there is no Coach plan to buy. Anyone can create a squad, run it live, plan it and push workouts to it.</p>
 
 <h2>Free trial</h2>
-<p>Every new install gets <strong>30 days of everything - Pro and Coach</strong>, granted by the app. No card, nothing to cancel. The launch screen counts down the days. Sign in and the start date is kept with your account, so reinstalling doesn't restart it.</p>
+<p>Every new install gets <strong>30 days of full Pro</strong>, granted by the app. No card, nothing to cancel. The launch screen counts down the days. Sign in and the start date is kept with your account, so reinstalling doesn't restart it.</p>
 <p>When it expires, you drop to Basic. Nothing is deleted and nothing is locked away - all your recorded sessions, exports and raw data stay fully accessible.</p>
 
 <h2>What Basic gives you</h2>
@@ -288,57 +292,69 @@ img.inline{display:inline;margin:0 3px;vertical-align:-.32em;height:1.45em;width
 <li><strong>20 minute recording limit</strong> per session - a warning with 2 minutes left, then the session finishes and saves itself</li>
 <li>Full session log and calendar, full Drive backup</li>
 <li><strong>Every export - JSON, CSV, TCX and FIT - always free</strong></li>
-<li>Join a squad with a code</li>
+<li>Join a squad with a code. <strong>Your coach sees your position only</strong> - see below.</li>
+<li>Coach a squad - free</li>
 <li>Analyser single-session analysis, and the Viewer, always free</li>
 </ul>
 <p>Raw data is never held hostage. If you recorded it, you can export it.</p>
 
 <h2>What Pro adds</h2>
-<p>Unlimited recording, every stroke metric, the live stroke curve on the water and the erg, stroke templates, custom workouts and planning them on your calendar, sectors and courses with live PB racing, lanes, dividers and hazard warnings including club lines, the Navigation tile, squad erg racing, and automatic Strava sync.</p>
+<p>Unlimited recording, every stroke metric, the live stroke curve on the water and the erg, stroke templates, custom workouts and planning them on your calendar, following a squad plan, sectors and courses with live PB racing, lanes, dividers and hazard warnings including club lines, the Navigation tile, squad erg racing, and automatic Strava sync.</p>
+<p><strong>Pro is also the full link to your coach</strong>: live metrics, your stroke curve, interval results, sessions sent to the squad, and your training load if you choose to share it.</p>
 <p>On the same account it also unlocks the Analyser: multi-session comparison, the video overlay, opening a whole squad at once, and building stroke templates.</p>
 
-<h2>What Coach adds</h2>
-<p><strong>Coach includes Pro</strong>, so you don't buy both. It adds squad codes with QR and password, the live squad map and rower tiles, the SQUAD race view, rower detail with live curve, REQUEST CURVE, LAP ALL BOATS, pushing workouts and templates to the squad, the squad training calendar, squad erg races with a synchronised start, in-app video tagged to a rower, and collating every rower's session. Rowers join free with the code - one Coach subscription covers the squad. See <a href="#coach">Coach mode</a>.</p>
-
-<h2>The three levels side by side</h2>
+<h2 id="sharing">What your coach gets from you</h2>
 <div class="tblwrap">
 <table class="centre">
-<tr><th></th><th>Basic</th><th>Pro</th><th>Coach</th></tr>
-<tr><td>Price</td><td>Free</td><td>Subscription</td><td>Subscription</td></tr>
-<tr><td>Recording length</td><td>20 min</td><td>Unlimited</td><td>Unlimited</td></tr>
-<tr><td>Pace, Rate, DPS, HR, time and distance tiles</td><td>✓</td><td>✓</td><td>✓</td></tr>
-<tr><td>Stroke metrics (catch, impulse, accel, ratio, Char, efficiency)</td><td>-</td><td>✓</td><td>✓</td></tr>
-<tr><td>Live stroke curve, water and erg</td><td>-</td><td>✓</td><td>✓</td></tr>
-<tr><td>Stroke templates - use on the phone</td><td>-</td><td>✓</td><td>✓</td></tr>
-<tr><td>Stroke templates - build in the Analyser</td><td>-</td><td>✓</td><td>✓</td></tr>
-<tr><td>Custom workouts, water and erg</td><td>-</td><td>✓</td><td>✓</td></tr>
-<tr><td>Calendar of completed sessions</td><td>✓</td><td>✓</td><td>✓</td></tr>
-<tr><td>Plan workouts on your calendar, follow a squad plan</td><td>-</td><td>✓</td><td>✓</td></tr>
-<tr><td>Sectors, courses and live PB racing</td><td>-</td><td>✓</td><td>✓</td></tr>
-<tr><td>Lanes, dividers, hazard warnings, club lines</td><td>-</td><td>✓</td><td>✓</td></tr>
-<tr><td>Squad erg race - join</td><td>-</td><td>✓</td><td>✓</td></tr>
-<tr><td>Squad erg race - <em>set up</em></td><td>-</td><td>-</td><td>✓</td></tr>
-<tr><td>Strava auto-sync</td><td>-</td><td>✓</td><td>✓</td></tr>
-<tr><td>Analyser: single-session analysis</td><td>✓</td><td>✓</td><td>✓</td></tr>
-<tr><td>Analyser: comparison, video overlay, whole squad</td><td>-</td><td>✓</td><td>✓</td></tr>
-<tr><td>COACH role - squad map, tiles, detail, lap all, curves</td><td>demo only</td><td>demo only</td><td>✓</td></tr>
-<tr><td>Push workouts and templates to the squad</td><td>-</td><td>-</td><td>✓</td></tr>
-<tr><td>Squad training calendar</td><td>-</td><td>-</td><td>✓</td></tr>
-<tr><td>In-app video tagged to a rower</td><td>-</td><td>-</td><td>✓</td></tr>
-<tr><td>Create squad codes, passwords, QR</td><td>-</td><td>-</td><td>✓</td></tr>
-<tr><td>Join a squad with a code</td><td>✓</td><td>✓</td><td>✓</td></tr>
-<tr><td>All exports, Drive backup, Viewer</td><td>✓</td><td>✓</td><td>✓</td></tr>
+<tr><th></th><th>Basic rower</th><th>Pro rower</th></tr>
+<tr><td>Your name and position on the squad map</td><td>✓</td><td>✓</td></tr>
+<tr><td>Live pace, rate, distance, heart rate and stroke metrics</td><td>-</td><td>✓</td></tr>
+<tr><td>Your live stroke curve (REQUEST CURVE)</td><td>-</td><td>✓</td></tr>
+<tr><td>Interval results on the coach's INTERVALS tab</td><td>-</td><td>✓</td></tr>
+<tr><td>Send a session to the squad</td><td>-</td><td>✓</td></tr>
+<tr><td>Training load, load ratio and daily check-in (if you turn it on)</td><td>-</td><td>✓</td></tr>
+</table>
+</div>
+<p>A Basic rower still shows on the coach's map and squad list - their tiles show the name and position, without numbers.</p>
+
+<h2>Coaching</h2>
+<p>The <strong>COACH</strong> role is open to everyone: the live squad map and rower tiles, the SQUAD race view, rower detail, LAP ALL BOATS, pushing workouts and templates to the squad, in-app video tagged to a rower, and collating every rower's session. See <a href="#coach">Coach mode</a>.</p>
+<p>What a coach can <em>change</em> in a squad comes from the squad, not from a plan: <strong>planning the squad calendar, setting up a squad erg race and seeing each athlete's load need coach access to that squad</strong> - you created it, or its owner approved you. See <a href="#coach-access">Coach access</a>.</p>
+
+<h2>Side by side</h2>
+<div class="tblwrap">
+<table class="centre">
+<tr><th></th><th>Basic</th><th>Pro</th></tr>
+<tr><td>Price</td><td>Free</td><td>Subscription</td></tr>
+<tr><td>Recording length</td><td>20 min</td><td>Unlimited</td></tr>
+<tr><td>Pace, Rate, DPS, HR, time and distance tiles</td><td>✓</td><td>✓</td></tr>
+<tr><td>Stroke metrics (catch, impulse, accel, ratio, Char, consistency)</td><td>-</td><td>✓</td></tr>
+<tr><td>Live stroke curve, water and erg</td><td>-</td><td>✓</td></tr>
+<tr><td>Stroke templates - use on the phone and build in the Analyser</td><td>-</td><td>✓</td></tr>
+<tr><td>Custom workouts, water and erg</td><td>-</td><td>✓</td></tr>
+<tr><td>Calendar of completed sessions</td><td>✓</td><td>✓</td></tr>
+<tr><td>Plan workouts on your calendar, follow a squad plan</td><td>-</td><td>✓</td></tr>
+<tr><td>Sectors, courses and live PB racing</td><td>-</td><td>✓</td></tr>
+<tr><td>Lanes, dividers, hazard warnings, club lines</td><td>-</td><td>✓</td></tr>
+<tr><td>Squad erg race - join</td><td>-</td><td>✓</td></tr>
+<tr><td>Strava auto-sync</td><td>-</td><td>✓</td></tr>
+<tr><td>Analyser: single-session analysis</td><td>✓</td><td>✓</td></tr>
+<tr><td>Analyser: comparison, video overlay, whole squad</td><td>-</td><td>✓</td></tr>
+<tr><td>Join a squad with a code</td><td>✓ (position only)</td><td>✓ (everything)</td></tr>
+<tr><td>COACH role, create squads, push workouts</td><td>✓</td><td>✓</td></tr>
+<tr><td>All exports, Drive backup, Viewer</td><td>✓</td><td>✓</td></tr>
 </table>
 </div>
 
-<p>One subscription covers the app and the Analyser on the same account. Monthly or yearly. Buy it from <strong>Account &amp; Plan → GET PRO</strong> or <strong>GET COACH</strong>. Club and school seats can also be bought in bulk at <a href="./clubs.html">Club Packs</a> and redeemed with a code; a club seat shows its expiry date in Account &amp; Plan.</p>
+<p>One subscription covers the app and the Analyser on the same account. Monthly or yearly. Buy it from <strong>Account &amp; Plan → GET PRO</strong>. Club and school Pro seats can also be bought in bulk at <a href="./clubs.html">Club Packs</a> and redeemed with a code; a club seat shows its expiry date in Account &amp; Plan. Coaches don't need a seat.</p>
 <p>Locked tiles show <strong>PRO - Upgrade to unlock</strong> rather than disappearing, so you can see what you're missing.</p>
+<p><strong>Already on the Coach plan?</strong> It keeps working as Pro until it ends. For squad rights, claim or join your squads as described in <a href="#coach-access">Coach access</a>.</p>
 
 <h2>Plan level</h2>
-<p><strong>Account &amp; Plan</strong> has a <strong>BASIC / PRO / COACH</strong> picker that sets which plan the app behaves as.</p>
+<p><strong>Account &amp; Plan</strong> has a plan picker that sets which plan the app behaves as.</p>
 <ul>
-<li>During the free trial every level is open - pick any one to see exactly how the app looks on that plan before you buy.</li>
-<li>After the trial you can step down at any time, but never above what you pay for. A coach who wants the rower screens can step down to PRO without cancelling anything.</li>
+<li>During the free trial every level is open - pick one to see exactly how the app looks on that plan before you buy.</li>
+<li>After the trial you can step down at any time, but never above what you pay for.</li>
 </ul>
 
 <hr/>
@@ -351,20 +367,20 @@ img.inline{display:inline;margin:0 3px;vertical-align:-.32em;height:1.45em;width
 <div class="tblwrap">
 <table class="lead">
 <tr><th>Role</th><th>Tab bar</th><th>What it does</th></tr>
-<tr><td>ROW</td><td>LIVE · CURVE · MAP · INTERVALS · HOME</td><td>Full recording, all metrics, stroke curve</td></tr>
-<tr><td>COX</td><td>LIVE · CURVE · MAP · INTERVALS · HOME</td><td>Same as Row, with the accelerometer flipped for a bow-facing cox</td></tr>
-<tr><td>ERG</td><td>ERG · CURVE · SQUAD · INTERVALS · HOME</td><td>Reads a Concept2 PM5 over Bluetooth. SQUAD only appears once you've joined a squad. See <a href="#erg">Erg mode</a>.</td></tr>
-<tr><td>COACH</td><td>COACH · SQUAD · INTERVALS · HOME</td><td>Live squad map and rower tiles. No recording of your own. See <a href="#coach">Coach mode</a>.</td></tr>
+<tr><td>ROW</td><td>LIVE · CURVE · MAP · WORKOUT · HOME</td><td>Full recording, all metrics, stroke curve</td></tr>
+<tr><td>COX</td><td>LIVE · CURVE · MAP · WORKOUT · HOME</td><td>Same as Row, with the accelerometer flipped for a bow-facing cox</td></tr>
+<tr><td>ERG</td><td>ERG · CURVE · SQUAD · WORKOUT · HOME</td><td>Reads a Concept2 PM5 over Bluetooth. SQUAD only appears once you've joined a squad. See <a href="#erg">Erg mode</a>.</td></tr>
+<tr><td>COACH</td><td>COACH · SQUAD · INTERVALS · HOME</td><td>Live squad map and rower tiles. Free for everyone. No recording of your own. See <a href="#coach">Coach mode</a>.</td></tr>
 </table>
 </div>
-<p>Row, Cox and Erg all broadcast to a squad if connected. Coach receives. A coach who wants to row picks ERG (or ROW) like anyone else - the Coach plan still gives them the squad workout and squad start buttons on the erg.</p>
+<p>Row, Cox and Erg all broadcast to a squad if connected - everything on Pro, position only on Basic. Coach receives. A coach who wants to row picks ERG (or ROW) like anyone else; with coach access to the squad they also get the squad workout and squad start buttons on the erg.</p>
 
 <h2>Simple and Advanced</h2>
 <p><strong>ADVANCED</strong> is the full app described in this guide, and is what new installs start in. <strong>SIMPLE</strong> is a stripped-back version:</p>
 <ul>
 <li>Pace, Rate, DPS and HR tiles. In portrait two more tiles sit underneath - time of day and average pace to start with. Every tile can still be changed on the live screen.</li>
 <li>No stroke-analysis tiles, stroke templates, workouts or Navigation tile.</li>
-<li>No DISPLAY or WORKOUTS tab on HOME, and no MAP, INTERVALS or SQUAD tab.</li>
+<li>No DISPLAY or WORKOUTS tab on HOME, and no MAP, WORKOUT or SQUAD tab.</li>
 <li>Only the ♥ HR chip and Start before you row. On the erg, Simple adds Load Workout and Connect Erg.</li>
 </ul>
 <p>Switch in <strong>HOME → DISPLAY → Screen Settings → DISPLAY MODE</strong>. While you're in Simple the DISPLAY tab is hidden, so the switch also sits at the top of <strong>HOME → SETTINGS</strong>. Coach role always uses Advanced. Your recorded data is identical in both.</p>
@@ -372,7 +388,7 @@ img.inline{display:inline;margin:0 3px;vertical-align:-.32em;height:1.45em;width
 <hr/>
 
 <!-- ==================== 5 ==================== -->
-<h1 id="mount">5. Mounting the phone <span class="chg">CHANGED</span></h1>
+<h1 id="mount">5. Mounting the phone</h1>
 
 <img class="photo" src="screenshots/mount-photo.jpg" alt="Phone mounted flat in the boat, screen facing the stern" loading="lazy"/>
 
@@ -421,7 +437,7 @@ img.inline{display:inline;margin:0 3px;vertical-align:-.32em;height:1.45em;width
 <tr><td>♥ HR</td><td>Connect your heart rate strap. See <a href="#hr">Heart rate</a>.</td></tr>
 <tr><td>SQUAD</td><td>Connect to a squad code. See <a href="#squad">Joining a squad</a>.</td></tr>
 <tr><td>WORKOUT</td><td>Load a saved workout, or build a quick one. See <a href="#workouts">Workouts</a>.</td></tr>
-<tr><td>SQUAD WKT</td><td>Erg only, Coach plan only - push a workout to the whole squad.</td></tr>
+<tr><td>SQUAD WKT</td><td>Erg only, for the squad's coaches (owner or approved) - push a workout to the whole squad.</td></tr>
 <tr><td>VIDEO</td><td>Show the Video Sync code to your camera. See <a href="#video-sync">Video Sync</a>.</td></tr>
 </table>
 </div>
@@ -472,10 +488,11 @@ img.inline{display:inline;margin:0 3px;vertical-align:-.32em;height:1.45em;width
 
 <h3>MAP</h3>
 <p>Where you are. The map turns to match your heading, shows your squad if you're connected, and draws your sectors, lanes, dividers and hazards. Tiles sit underneath in portrait, and beside it in landscape - tap any one to change it. Choose the landscape arrangement in <a href="#map-display">DISPLAY → Map Display</a>. <strong>SAT / MAP</strong> switches between satellite and street.</p>
+<p><strong>Offline maps.</strong> Every map tile you look at is kept on the phone, so water you have viewed before still has a map with no signal. Tiles older than 30 days refresh by themselves when you have signal. To get a new stretch of water ready, open the map over it once with signal. There is no bulk download - the map providers don't allow it.</p>
 <p>Near a lane or divider a readout box shows the distance and an arrow to it - top right in Row, bottom right in Cox. See <a href="#on-water">Lanes on the water</a>.</p>
 
-<h3>INTERVALS</h3>
-<p>The workout's steps and per-interval results as you complete them. <strong>WORK ONLY</strong> hides warmup, rest and cooldown rows.</p>
+<h3>WORKOUT</h3>
+<p>The workout's steps and per-interval results as you complete them. (This tab used to be called INTERVALS.) On the erg it becomes a workout board - see <a href="#erg-board">Erg mode</a>. <strong>WORK ONLY</strong> hides warmup, rest and cooldown rows.</p>
 <img class="w-lg" src="screenshots/intervals-tab.png" alt="INTERVALS tab with the interval table" loading="lazy"/>
 
 <hr/>
@@ -521,7 +538,10 @@ img.inline{display:inline;margin:0 3px;vertical-align:-.32em;height:1.45em;width
 <p>Use the <strong>LOCK</strong> button to stop water changing screens. You'll need to unlock to press LAP, change tabs or finish. For more protection, use Guided Access on iPhone (triple-click the side button) or Screen Pinning on Android.</p>
 
 <h2>Stopping and finishing</h2>
-<p><strong>STOP</strong> pauses, <strong>RESUME</strong> continues, <strong>FINISH</strong> ends and saves. Name the session, or tap NO NAME. The app autosaves regularly; if it closes mid-session (battery, crash, anything) the recording is recovered next time you open it.</p>
+<p><strong>STOP</strong> pauses, <strong>RESUME</strong> continues, <strong>FINISH</strong> ends and saves. Name the session, or tap NO NAME.</p>
+<p><strong>Boat type</strong> - the save prompt also asks which boat: <strong>1x, 2-, 2x, 4+, 4-, 4x</strong> or <strong>8+</strong>, plus <strong>MIXED</strong> for a mixed crew and <strong>COASTAL BOAT</strong> for a coastal shell. Your last choice is kept for next time, including for sessions that finish themselves. Change it later from the session detail, or in the Analyser. The Log and the Analyser can filter by boat, so you can find, say, every coastal 2x or mixed 8+. Erg sessions have no boat type.</p>
+<p><strong>Watch numbers <span class="new">NEW</span></strong> - the save prompt has a button for your watch's figures, labelled for the watch you picked in <strong>SETTINGS → YOUR WATCH</strong>: <strong>+ GARMIN TE &amp; LOAD</strong> (aerobic TE, anaerobic TE and load; Coros the same), <strong>+ POLAR CARDIO LOAD</strong>, <strong>+ FITBIT CARDIO LOAD</strong>, <strong>+ SUUNTO TSS</strong>, or <strong>+ EFFORT (1-10)</strong> for Apple Watch, Whoop or no watch. Fill in any you have; they replace BoatRun's own load figure for that session and teach it your watch's scale. Add or change them later on the session's page. See <a href="#load">Training load</a>.</p>
+<p>The app autosaves regularly; if it closes mid-session (battery, crash, anything) the recording is recovered next time you open it.</p>
 <div class="shots">
   <img class="w-md" src="screenshots/qs-finish.png" alt="Finish session confirmation dialog" loading="lazy"/>
   <img class="w-sm" src="screenshots/qs-name-session.png" alt="Name this session dialog" loading="lazy"/>
@@ -530,7 +550,7 @@ img.inline{display:inline;margin:0 3px;vertical-align:-.32em;height:1.45em;width
 <hr/>
 
 <!-- ==================== 8 ==================== -->
-<h1 id="display">8. Display: layouts and tiles <span class="chg">CHANGED</span></h1>
+<h1 id="display">8. Display: layouts and tiles</h1>
 <p class="where">Where: <b>HOME → DISPLAY</b> (Advanced only - hidden in Simple and in Coach role)</p>
 
 <p>DISPLAY is laid out as six big buttons. Tap one to open it underneath; tap again to close. Only one is open at a time.</p>
@@ -548,7 +568,7 @@ img.inline{display:inline;margin:0 3px;vertical-align:-.32em;height:1.45em;width
 </div>
 
 <h2 id="layouts">On Water and Ergometer layouts</h2>
-<p>There is now <strong>one on-water layout and one erg layout</strong> - no named profiles to switch between. Each holds a separate grid for <strong>LANDSCAPE</strong> and <strong>PORTRAIT</strong>; rotate the phone and the grid swaps. The erg layout only offers tiles the PM5 can feed.</p>
+<p>There is <strong>one on-water layout and one erg layout</strong> - no named profiles to switch between. Each holds a separate grid for <strong>LANDSCAPE</strong> and <strong>PORTRAIT</strong>; rotate the phone and the grid swaps. The erg layout only offers tiles the PM5 can feed.</p>
 <ol>
 <li>Tap <strong>On Water Layout</strong> or <strong>Ergometer Layout</strong>.</li>
 <li>Pick a grid size for each orientation.</li>
@@ -561,7 +581,7 @@ img.inline{display:inline;margin:0 3px;vertical-align:-.32em;height:1.45em;width
 <div class="tblwrap">
 <table class="lead">
 <tr><th>Layout</th><th>Portrait</th><th>Landscape</th></tr>
-<tr><td>On Water</td><td>2×4 - pace, rate, DPS, catch dur, impulse, HR, workout, time/distance tile</td><td>3×3 - pace, rate, DPS, HR, catch dur, impulse, recovery run, workout, time/distance tile</td></tr>
+<tr><td>On Water</td><td>2×4 - pace, rate, DPS, catch dur, impulse, HR, workout, time/distance tile</td><td>3×3 - pace, rate, DPS, HR, catch dur, impulse, recovery loss, workout, time/distance tile</td></tr>
 <tr><td>Ergometer</td><td>2×3 - stroke length, HR, workout and three time/distance tiles</td><td>3×2 - the same six</td></tr>
 </table>
 </div>
@@ -575,7 +595,7 @@ img.inline{display:inline;margin:0 3px;vertical-align:-.32em;height:1.45em;width
 <tr><td>Rate</td><td>Stroke rate, lap rate, last lap rate (erg: recovery time)</td><td>Basic</td></tr>
 <tr><td>Distance</td><td>Total, lap and last lap distance, DPS (erg: stroke length, projected and last split distance)</td><td>Basic</td></tr>
 <tr><td>Time</td><td>Time of day, total, lap and last lap time (erg: projected and last split time)</td><td>Basic</td></tr>
-<tr><td>Stroke</td><td>Catch Dur, Drive Time, Stroke Ratio, Stroke Char, Positive and Negative Catch Slope, Catch Accel, Impulse, Recovery Run, Vel Efficiency, Drive Accel, Recovery Accel</td><td>Pro</td></tr>
+<tr><td>Stroke</td><td><strong>Consistency</strong> (water and erg), Catch Dur, Drive Time, Stroke Ratio, Stroke Char, Positive and Negative Catch Slope, Catch Accel, Impulse, Recovery Loss, Drive Accel, Recovery Accel</td><td>Pro</td></tr>
 <tr><td>Power (erg)</td><td>Watts, average power, peak and average force, drag factor, calories, cal/hr, work per stroke</td><td>Basic</td></tr>
 <tr><td>Other</td><td>Heart rate (Basic), <strong>Workout / Sector</strong> (Pro), <strong>Navigation</strong> (Pro), empty</td><td></td></tr>
 </table>
@@ -609,7 +629,7 @@ img.inline{display:inline;margin:0 3px;vertical-align:-.32em;height:1.45em;width
 <hr/>
 
 <!-- ==================== 9 ==================== -->
-<h1 id="templates">9. Stroke templates <span class="light">(Pro)</span> <span class="chg">CHANGED</span></h1>
+<h1 id="templates">9. Stroke templates <span class="light">(Pro)</span></h1>
 
 <p>A stroke template is a target stroke shape built from your own best strokes. It is drawn as a dashed line behind your live curve, continuously re-timed to whatever rate you're rowing, so you can see straight away where your stroke differs from the one you want.</p>
 <img class="w-lg" src="screenshots/curve-template-live.png" alt="CURVE tab with a dashed stroke template drawn behind the live curve" loading="lazy"/>
@@ -635,7 +655,7 @@ img.inline{display:inline;margin:0 3px;vertical-align:-.32em;height:1.45em;width
 <li><strong>Export file</strong> saves a template file to send to someone. <strong>Delete</strong> removes the template from the phone too.</li>
 <li>Not signed in to Drive? <strong>Save</strong> downloads a template file instead, which you can import on the phone.</li>
 <li><strong>Open template file…</strong> opens a file someone has sent you. If you're signed in to Drive it is sent to your phone as well.</li>
-<li>Creating templates needs Pro. Coach accounts can open and view them.</li>
+<li>Creating templates needs Pro. Anyone can open and view them.</li>
 </ul>
 
 <h2 id="tpl-phone">2. On the phone</h2>
@@ -665,7 +685,7 @@ img.inline{display:inline;margin:0 3px;vertical-align:-.32em;height:1.45em;width
 <img class="fr w-sm" src="screenshots/hr-zones.png" alt="Heart rate zone settings" loading="lazy"/>
 <p>BoatRun connects directly to a Bluetooth heart rate strap - Polar H10, Garmin HRM, Wahoo, anything speaking standard BLE heart rate. Connect it with the <strong>♥ HR</strong> chip on the live screen (or <strong>Connect HR</strong> at the bottom). That is the only place to pair it.</p>
 <p><strong>Connect before you press Start.</strong> Once the app knows the strap it reconnects automatically on later sessions, but do the first pairing on dry land.</p>
-<p>HR appears as its own tile with a zone bar, is recorded into the session, exports in TCX and FIT, and charts in the session detail and the Analyser.</p>
+<p>HR appears as its own tile with a zone bar, is recorded into the session, exports in TCX and FIT, charts in the session detail and the Analyser, and gives each session its heart-rate training load - see <a href="#load">Training load</a>.</p>
 <p><strong>Zones</strong> are set in <strong>SETTINGS → HR ZONES</strong>: max HR, LTHR, resting HR and age, then a model - Friel/Coggan LTHR zones, percentage of max HR, or age-predicted. They sync through Drive to the Analyser.</p>
 <p>On the erg, pair the strap to the PM5 instead - see <a href="#erg">Erg mode</a>.</p>
 
@@ -692,7 +712,7 @@ img.inline{display:inline;margin:0 3px;vertical-align:-.32em;height:1.45em;width
 
 <h2>Battery tips</h2>
 <ul>
-<li>A squad link uses the most battery of anything. Leave it disconnected unless your coach needs you live - you can still <strong>Send to squad</strong> from the log afterwards.</li>
+<li>A squad link uses the most battery of anything. Leave it disconnected unless your coach needs you live - on Pro you can still <strong>Send to squad</strong> from the log afterwards.</li>
 <li>Screen brightness is the next biggest drain. Turn it down, or use SAVER.</li>
 <li>Start long sessions at full charge, and carry a battery pack for long mornings.</li>
 </ul>
@@ -717,6 +737,7 @@ img.inline{display:inline;margin:0 3px;vertical-align:-.32em;height:1.45em;width
 <h2>Building your own</h2>
 <p><strong>+ NEW WORKOUT</strong> → name it → add steps with the coloured buttons underneath.</p>
 <p><strong>Notes</strong> - an optional box under the name. Whatever you write (or your coach writes) shows when the workout is loaded, and stays available from the <strong>📝 NOTE</strong> pill on the live screen.</p>
+<p><strong>Effort</strong> <span class="new">NEW</span> - how hard the work pieces are, 1 easy to 10 flat out. It sets the workout's planned load on the calendar and decides when it's suggested (an easy day picks low-effort workouts, a hard day high ones). A workout with no effort set shows a guess with a ? - set it once and it's used everywhere.</p>
 <p>An on-water workout always opens with a <strong>WARMUP</strong> and ends with a <strong>COOLDOWN</strong>. Erg workouts have neither.</p>
 <div class="tblwrap">
 <table class="lead">
@@ -766,8 +787,8 @@ img.inline{display:inline;margin:0 3px;vertical-align:-.32em;height:1.45em;width
 <hr/>
 
 <!-- ==================== 13 ==================== -->
-<h1 id="calendar">13. Calendar and planning <span class="chg">CHANGED</span></h1>
-<p class="where">Where: <b>HOME → LOG → CALENDAR</b>, and the Analyser start page</p>
+<h1 id="calendar">13. Calendar, planning and training load <span class="chg">CHANGED</span></h1>
+<p class="where">Where: <b>HOME → LOG → CALENDAR</b> and <b>LOAD</b>, and the Analyser's <b>Planning</b> and <b>Load</b> tabs</p>
 
 <img class="w-md" src="screenshots/log-calendar.png" alt="Log calendar with sessions and planned workouts" loading="lazy"/>
 
@@ -781,8 +802,42 @@ img.inline{display:inline;margin:0 3px;vertical-align:-.32em;height:1.45em;width
 </ul>
 
 <h2>Planning a day <span class="light">(Pro)</span></h2>
-<p>Tap a day, then <strong>+ ON-WATER</strong> or <strong>+ ERG</strong> to add one of your workouts to it (or make a new one from the picker). You can also add a note, an event or another kind of workout. <strong>DETAILS</strong> shows a planned workout with <strong>EDIT</strong>; <strong>COMPLETE?</strong> ticks an item off; swipe left to remove. Planning is easier still on the Analyser's calendar - it's the same plan, shared through Drive. See <a href="#an-calendar">Analyser: calendar and planning</a>.</p>
+<p>Tap a day, then <strong>+ ON-WATER</strong> or <strong>+ ERG</strong> to add one of your workouts to it (or make a new one from the picker). You can also add a note, an event or another kind of workout. <strong>DETAILS</strong> shows a planned workout with <strong>EDIT</strong>; <strong>COMPLETE?</strong> ticks an item off; swipe left to remove. Planning a whole season is easier on the Analyser - it's the same plan, shared through Drive. See <a href="#an-season">Season plan</a>.</p>
+<p>An event can be marked as an <strong>A</strong>, <strong>B</strong> or <strong>C race</strong>. The season plan and training load build towards your A races, ease off for B races, and train through C races.</p>
 <p>On the day, when you open the app, a <strong>SUGGESTED WORKOUT</strong> card pops up with a <strong>LOAD</strong> button for each workout planned for today. Tap one, or <strong>NOT NOW</strong>. It only offers on-water workouts when you're rowing and erg workouts when you're on the erg, and never pops up mid-session.</p>
+
+<h2 id="load">Training load <span class="new">NEW</span></h2>
+<p class="where">Where: <b>HOME → LOG → LOAD</b>, and the Analyser's <b>Load</b> tab</p>
+<p>Every session gets one load number on a Garmin-style scale - an easy hour is about 50-70, a hard hour 200 or more. From those numbers BoatRun works out:</p>
+<div class="tblwrap">
+<table class="lead">
+<tr><td>Acute load</td><td>Your last 7 days, weighted to the most recent.</td></tr>
+<tr><td>Chronic load</td><td>Your normal week - a 6-week average. Needs about 6 weeks of history to settle.</td></tr>
+<tr><td>Load ratio</td><td>Acute ÷ chronic. <strong>0.8 to 1.4 is optimal</strong>; under 0.8 there's room to add load, over 1.4 you're carrying more than usual.</td></tr>
+</table>
+</div>
+<p><strong>Where each session's load comes from</strong>, in this order:</p>
+<ol>
+<li>Your watch's number, if you entered one (on the save card or the session's page).</li>
+<li>An effort you set (1-10) × the minutes.</li>
+<li>Heart rate - every minute weighted by its HR zone.</li>
+<li>Otherwise an estimate: the minutes at effort 4.</li>
+</ol>
+<p>Once 3 or more sessions have a watch number, the rest are scaled to match your watch, separately for heart-rate, effort and estimated sessions. The app and the Analyser use the same numbers.</p>
+<p><strong>Your watch</strong> - pick it in <strong>SETTINGS → YOUR WATCH</strong> (also on LOG → LOAD and in the Analyser's Load tab). Each brand scores load its own way, so the load box is labelled with your watch's own figure and calibration only learns from that watch:</p>
+<div class="tblwrap">
+<table class="lead">
+<tr><th>Watch</th><th>What you enter</th></tr>
+<tr><td>Garmin, Coros</td><td>Aerobic TE, anaerobic TE and load (Coros: training load)</td></tr>
+<tr><td>Polar, Fitbit</td><td>Cardio load</td></tr>
+<tr><td>Suunto</td><td>TSS</td></tr>
+<tr><td>Apple Watch, Whoop, no watch</td><td>Effort 1-10 (the same scale as Apple's workout effort rating). Whoop's 0-21 strain can't be converted.</td></tr>
+</table>
+</div>
+<p><strong>Daily check-in</strong> - the first time you open the app each day, the opening screen offers a check-in: sleep, soreness and energy (1-5), plus resting HR and HRV if your watch gives them. A poor check-in turns today's suggestion to an easy row or rest.</p>
+<p><strong>Suggested today</strong> - from your check-in, load ratio, where you are in your training block, whether yesterday was hard, and what you've already done today. It names a workout type (recovery, steady, hard, short and sharp, or race), the <strong>optimal load today</strong> - the load that keeps tomorrow's ratio where this kind of day wants it - and up to three workouts from your library. After a hard session it says <strong>Done for today</strong>.</p>
+<p><strong>The LOAD tab</strong> shows the figures above, the race ahead, today's suggestion, a chart of daily load (stacked by session, other workouts in orange, planned load dashed) with acute, chronic and ratio lines, the selected day and your last three weeks. Tap any session to open it.</p>
+<p>Share your load with your coach from <strong>SETTINGS → CONNECT SQUAD → SHARE TRAINING LOAD WITH COACH</strong> (Pro) - see <a href="#squad">Joining a squad</a>.</p>
 
 <h2>Calendar settings - the ⚙ button</h2>
 <p>The ⚙ at the top of the Log calendar opens <strong>Calendar settings</strong>, with two parts.</p>
@@ -801,14 +856,14 @@ img.inline{display:inline;margin:0 3px;vertical-align:-.32em;height:1.45em;width
 <li>It's one-way: BoatRun owns these events and keeps them up to date. <strong>STOP SYNCING CALENDARS</strong> removes them.</li>
 </ul>
 
-<h2>Planning for a squad <span class="light">(Coach)</span></h2>
-<p>In the Analyser, switch the calendar from <strong>Mine</strong> to <strong>Squad</strong>, enter the squad code, and plan the squad's days with your workouts. Every rower following that squad gets the update. For a longer block, <strong>🗓 Planning ↗</strong> opens a bigger planning window. See <a href="#an-calendar">Analyser: calendar and planning</a>.</p>
+<h2>Planning for a squad</h2>
+<p>In the Analyser, every squad you belong to shows on your own calendar as a coloured chip. With coach access to the squad, choose <strong>Add to → Squad: name</strong> in the Workouts pane and drag workouts onto its days. Every rower following that squad gets the update. See <a href="#an-calendar">Analyser: calendar</a> and <a href="#coach-access">Coach access</a>.</p>
 
 <hr/>
 
 <!-- ==================== 14 ==================== -->
 <h1 id="sectors">14. Sectors and courses <span class="light">(Pro)</span></h1>
-<p class="where">Where: <b>HOME → SECTORS</b> (SECTORS and COURSES), and the Analyser</p>
+<p class="where">Where: <b>HOME → SECTORS</b> (SECTORS and COURSES), and the Analyser's <b>Navigation</b> tab</p>
 
 <p>A sector is a timed stretch of water between a start line and a finish line. Row through it on any session and BoatRun times you automatically, keeps your PB, and races you against it live.</p>
 <img class="w-lg" src="screenshots/screenshot-sectors.png" alt="Live sector - metres to the finish and ahead or behind your PB" loading="lazy"/>
@@ -848,8 +903,8 @@ img.inline{display:inline;margin:0 3px;vertical-align:-.32em;height:1.45em;width
 <hr/>
 
 <!-- ==================== 15 ==================== -->
-<h1 id="lines">15. Lanes, dividers and hazards <span class="light">(Pro)</span> <span class="chg">CHANGED</span></h1>
-<p class="where">Where: <b>HOME → DISPLAY → Hazards &amp; Lanes</b>, and the Analyser start page</p>
+<h1 id="lines">15. Lanes, dividers and hazards <span class="light">(Pro)</span></h1>
+<p class="where">Where: <b>HOME → DISPLAY → Hazards &amp; Lanes</b>, and the Analyser's <b>Navigation</b> tab</p>
 
 <p>Mark your river's traffic lanes, keep-clear dividers and hazards once. BoatRun draws them on your map and the coach map, shows how far you are from the nearest one, and warns you before you hit something. They are not timed.</p>
 <img class="w-lg" src="screenshots/lanes-map.png" alt="Map with a yellow lane, dashed divider and orange hazard with its red warning zone" loading="lazy"/>
@@ -985,16 +1040,33 @@ img.inline{display:inline;margin:0 3px;vertical-align:-.32em;height:1.45em;width
 <p>Distance follows your km/mi setting, with erg km shown to three decimals so every metre counts. Erg tiles are instantaneous values; cumulative and averaged figures (average pace, splits, projections) are in the time and distance groups of the tile list. Set the grid in <a href="#layouts">DISPLAY → Ergometer Layout</a>.</p>
 <img class="w-lg" src="screenshots/erg-tiles.png" alt="Erg tile grid" loading="lazy"/>
 
-<h2>The CURVE tab on the erg</h2>
-<p>The PM5's own <strong>drive force curve</strong>, drive phase only, with the stroke characteristic (where peak force falls within the stroke). Erg templates draw over it - see <a href="#templates">Stroke templates</a>. Force data is only requested while the CURVE tab is open, so it doesn't slow everything else.</p>
+<h2 id="erg-curve">The CURVE tab on the erg</h2>
+<p>The PM5's own <strong>drive force curve</strong>, drive phase only, in newtons, drawn along the handle travel in metres. It starts from 0 N at the catch.</p>
+<ul>
+<li><strong>Steady scale.</strong> The force scale only moves in whole steps and holds for about 10 strokes, so you can see your power rise and fall from stroke to stroke. It comes back down after about 10 lighter strokes, for example after a very hard start.</li>
+<li><strong>Three big figures</strong> - <strong>PEAK FORCE</strong> (N), <strong>PEAK AT</strong> (where peak force lands, as % of the stroke - the Stroke Char) and <strong>STROKE LENGTH</strong> (m) along the bottom.</li>
+</ul>
+<p>Erg templates draw over it - see <a href="#templates">Stroke templates</a>. Force curves are read from the PM5 every stroke while the CURVE tab is open, and at least every couple of seconds in the background so they're saved with the session.</p>
 <img class="w-lg" src="screenshots/erg-curve.png" alt="Erg force curve with a template drawn behind it" loading="lazy"/>
 
 <h2>Workouts</h2>
 <p>Load a workout with the <strong>WORKOUT</strong> chip and it is <strong>pushed onto the monitor</strong>. From then on the PM5 owns the timing. Workouts programmed on the erg itself are read back and tracked in INTERVALS.</p>
 <p class="note"><strong>Limitation:</strong> a new workout programmed on the erg is only picked up once the monitor is back at its ready state.</p>
 
+<h2 id="erg-board">The WORKOUT tab - workout board</h2>
+<p>The PM5 already shows your numbers, so on the erg the WORKOUT tab is a board you can read from the seat. It shows which rep you're on and how much is <strong>TO GO</strong>, your <strong>REP SPLIT</strong> against the target, your <strong>RATE</strong>, and a list of the reps you've done with their splits. During a rest it shows the <strong>REST</strong> countdown and your <strong>LAST REP</strong>. With no workout loaded it shows the piece you're rowing.</p>
+
+<h2 id="erg-finish">Finishing an erg session</h2>
+<p>The PM5 runs the session: it starts when you row and ends when you finish the workout or press the erg's menu key. There's no Start or Finish button to press.</p>
+<p>If you walk away without finishing on the erg (in Just Row, for example), the PM5 never says the workout is over. So:</p>
+<ul>
+<li><strong>Finish Session</strong> appears once you've taken no strokes for 15 seconds, the erg stops sending data, or it disconnects.</li>
+<li>The session <strong>saves itself</strong> after 3 minutes with no strokes (10 minutes if you're in an interval rest), or 2 minutes after the PM5 disconnects. The idle time at the end is included.</li>
+<li>After a finish, only a real stroke starts the next session - an idle erg won't start one by itself.</li>
+</ul>
+
 <h2>The SQUAD tab - racing</h2>
-<p>Join a squad with the <strong>SQUAD</strong> chip. A <strong>SQUAD</strong> tab then appears. Joining a squad race needs <strong>Pro</strong>; setting one up needs <strong>Coach</strong>.</p>
+<p>Join a squad with the <strong>SQUAD</strong> chip. A <strong>SQUAD</strong> tab then appears. Joining a squad race needs <strong>Pro</strong>; setting one up needs <strong>coach access to the squad</strong> - see <a href="#coach-access">Coach access</a>.</p>
 <img class="fr w-sm" src="screenshots/erg-squad-tab.png" alt="Erg SQUAD tab with race track and rower list" loading="lazy"/>
 <ol>
 <li>Warm up however you like, then press menu to finish your warmup. <strong>You MUST be on the MENU to receive the workout.</strong></li>
@@ -1002,7 +1074,7 @@ img.inline{display:inline;margin:0 3px;vertical-align:-.32em;height:1.45em;width
 <li>The coach starts everyone together with a count-in.</li>
 </ol>
 <p>During the race the SQUAD tab shows a simulated track with every rower's boat, name, pace, rate and gap in metres. Tap your own name to hide yourself (you also lose sight of their gaps; the coach still sees everything). <strong>A− / A+</strong> change the text size.</p>
-<p>A rower on the Coach plan can run the race from their own erg with the <strong>SQUAD WKT</strong> chip (or the squad workout and squad start buttons); their own machine arms and starts with everyone else.</p>
+<p>A rower with coach access to the squad can run the race from their own erg with the <strong>SQUAD WKT</strong> chip (or the squad workout and squad start buttons); their own machine arms and starts with everyone else.</p>
 
 <h2 class="clear">Erg data afterwards</h2>
 <p>Erg sessions save, sync and export like any other. The Analyser shows the PM5 force curves in newtons.</p>
@@ -1010,7 +1082,7 @@ img.inline{display:inline;margin:0 3px;vertical-align:-.32em;height:1.45em;width
 <hr/>
 
 <!-- ==================== 17 ==================== -->
-<h1 id="squad">17. Joining a squad</h1>
+<h1 id="squad">17. Joining a squad <span class="chg">CHANGED</span></h1>
 
 <p>Tap the <strong>SQUAD</strong> chip on the live screen, or open <strong>HOME → SETTINGS → CONNECT SQUAD</strong>.</p>
 <div class="shots">
@@ -1022,9 +1094,15 @@ img.inline{display:inline;margin:0 3px;vertical-align:-.32em;height:1.45em;width
 <li>Enter your name - the one your coach sees.</li>
 <li><strong>CONNECT</strong>.</li>
 </ol>
-<p>The coach sees your location and name straight away, and your data once you press Start. Advanced metrics and the stroke curve are only sent if you're on Pro. Your coach can send you workouts and templates and press lap for you. <strong>SHOW QR</strong> lets a crewmate scan the code off your phone.</p>
+<p>The coach sees your name and location straight away. <strong>What else they get depends on your plan</strong> - see <a href="#sharing">What your coach gets from you</a>:</p>
+<ul>
+<li><strong>Pro</strong> - everything: live pace, rate, distance, heart rate and stroke metrics once you press Start, your stroke curve when they ask for it, your interval results, and any session you send to the squad.</li>
+<li><strong>Basic</strong> - your position only. Nothing else is sent.</li>
+</ul>
+<p>Your coach can send you workouts and templates and press lap for you. <strong>SHOW QR</strong> lets a crewmate scan the code off your phone.</p>
+<p><strong>SHARE TRAINING LOAD WITH COACH</strong> <span class="light">(Pro)</span> - in CONNECT SQUAD. Turn it on and the squad's coaches see your daily training load, load ratio and daily check-ins (sleep, soreness, energy, resting HR, HRV), so they can see how loaded you are. Off unless you turn it on; turn it off to remove it. It keeps updating after the live squad link drops, and you must be signed in. You can also turn it on from the Analyser's Load tab.</p>
 <p><strong>PROMPT TO JOIN SQUAD</strong> (in CONNECT SQUAD) opens the squad box for you - <strong>ON WATER</strong> as soon as the app opens on the live screen, <strong>ON ERG</strong> as soon as the PM5 connects, <strong>ALWAYS</strong>, or <strong>NEVER</strong>. Skipped if you're already in a squad.</p>
-<p class="note"><strong>Battery:</strong> a squad link stays open all session and uses noticeably more battery, especially when your coach is watching your curve. If you don't need to be watched live, don't connect - you can <strong>Send to squad</strong> from the log afterwards. Where phone reception is unreliable the live link may not work at all; recording carries on regardless.</p>
+<p class="note"><strong>Battery:</strong> a squad link stays open all session and uses noticeably more battery, especially when your coach is watching your curve. If you don't need to be watched live, don't connect - on Pro you can <strong>Send to squad</strong> from the log afterwards. Where phone reception is unreliable the live link may not work at all; recording carries on regardless.</p>
 <p><strong>AAAAAAA</strong> is an open test squad - no password, and sessions uploaded to it are deleted from the cloud after 7 days.</p>
 <p>Following your squad's <em>training plan</em> is separate and doesn't need the live link - see <a href="#calendar">Calendar and planning</a>.</p>
 
@@ -1034,11 +1112,12 @@ img.inline{display:inline;margin:0 3px;vertical-align:-.32em;height:1.45em;width
 <h1 id="coach">18. Coach mode <span class="chg">CHANGED</span></h1>
 
 <p>Set role to <strong>COACH</strong> on the launch screen or in Settings.</p>
-<p class="note"><strong>Coach mode needs the Coach plan</strong> (included in the free trial). Without it, tapping COACH opens the Coach upgrade instead. The <a href="#demo">COACH demo</a> runs on canned data so you can see it first.</p>
+<p class="note"><strong>Coach mode is free for everyone.</strong> There is no plan to buy. Your Pro rowers send you everything; rowers on Basic show their position only. The <a href="#demo">COACH demo</a> runs on canned data so you can see it first.</p>
 
 <h2>Setting up a squad</h2>
 <p class="where">Where: <b>HOME → SETTINGS → CREATE A NEW SQUAD</b></p>
 <ol>
+<li><strong>Sign in first</strong> - the signed-in person who creates a squad becomes its <strong>owner</strong>.</li>
 <li>Enter a squad name. Rowers see the name, not the code, and only the first 5 characters fit their status pill - keep the start short.</li>
 <li>Optionally set a password.</li>
 <li>Tap <strong>GENERATE</strong> for a new 7-character code.</li>
@@ -1047,18 +1126,32 @@ img.inline{display:inline;margin:0 3px;vertical-align:-.32em;height:1.45em;width
 </ol>
 <p><strong>SQUAD PASSWORD</strong> locks <em>reading</em> the squad - the coach live view and the Analyser. Rowers still join and upload without it. Anyone with the code and password sees the squad's live positions and squad-sent sessions, so use a password, or a new code each term.</p>
 
+<h2 id="coach-access">Coach access - owners and approved coaches <span class="new">NEW</span></h2>
+<p>Coach rights are per squad. A squad has one <strong>owner</strong> - whoever created it while signed in - and any number of <strong>coaches</strong> the owner has approved. Only the owner and approved coaches can:</p>
+<ul>
+<li>add workouts to, or remove them from, the squad calendar,</li>
+<li>set up a squad erg race (SQUAD WKT, squad start),</li>
+<li>see each athlete's training load and check-ins.</li>
+</ul>
+<p><strong>Getting coach access</strong> - in the Analyser, each squad on your calendar asks once for your role: <strong>Athlete</strong> or <strong>Coach</strong>.</p>
+<ul>
+<li>Pick <strong>Coach</strong> as the owner or an approved coach and you have access straight away.</li>
+<li>Anyone else is asked whether to send the owner a <strong>coach access request</strong>. Until it's approved you see the squad as an athlete.</li>
+<li>A squad made before owners existed has none. The first signed-in person to pick Coach is offered <strong>Claim it</strong>, which needs the squad password if it has one. <strong>Owners of older squads: claim yours.</strong></li>
+</ul>
+<p><strong>Approving coaches</strong> - under the Analyser calendar header, the owner sees <strong>Manage coaches</strong> next to the squad (orange, with a count, when someone is waiting). It lists requests with <strong>Approve</strong> and <strong>Decline</strong>, and current coaches with <strong>Remove</strong>. A coach can <strong>Give up coach access</strong> the same way, and anyone can <strong>Change role</strong>.</p>
+
 <h2>The coach tabs</h2>
 <div class="tblwrap">
 <table class="lead">
 <tr><th>Tab</th><th>Header reads</th><th>Best for</th><th>What you see</th></tr>
-<tr><td>COACH</td><td>FREE ROW</td><td>Steady state, technical work, crews doing their own thing</td><td>One tile per rower with rate, pace and your chosen metrics, coloured by state. Tap a tile for detail.</td></tr>
+<tr><td>COACH</td><td>FREE ROW</td><td>Steady state, technical work, crews doing their own thing</td><td>One tile per rower with rate, pace and your chosen metrics, coloured by state. Tap a tile for detail. A Basic rower's tile shows name and position only.</td></tr>
 <tr><td>SQUAD</td><td>FREE ROW upright, RACE MODE sideways</td><td>Pieces, races, intervals started together</td><td>Phone upright: every crew listed with pace and rate, in the same order as the COACH tiles. Phone sideways: a ranked race panel: a simulated track with every crew, ordered by who's furthest ahead, with lap distance and metres ahead or behind. Relative position resets at each new interval. Tap a name for detail. <strong>A− / A+</strong> change the text size.</td></tr>
-<tr><td>INTERVALS</td><td></td><td>After a piece</td><td>Every rower's intervals - see below.</td></tr>
+<tr><td>INTERVALS</td><td></td><td>After a piece</td><td>Every Pro rower's intervals - see below.</td></tr>
 <tr><td>HOME</td><td></td><td></td><td>LOG, WORKOUTS, SECTORS, SETTINGS. DISPLAY isn't used in Coach role.</td></tr>
 </table>
 </div>
 <img class="w-lg" src="screenshots/coach-free-race.png" alt="COACH tab tiles and SQUAD tab race panel side by side" loading="lazy"/>
-<p>The old FREE ROW / RACE switch in the header has gone - the tab you're on decides.</p>
 
 <h2>The coach screen</h2>
 <img class="fr w-sm" src="screenshots/coach-tab.png" alt="Coach tab with squad map and rower tiles" loading="lazy"/>
@@ -1084,8 +1177,8 @@ img.inline{display:inline;margin:0 3px;vertical-align:-.32em;height:1.45em;width
 
 <h2>Rower detail</h2>
 <img class="fr w-sm" src="screenshots/coach-rower-detail.png" alt="Rower detail with live curve and metrics" loading="lazy"/>
-<p>Tap a tile or a name. Full metrics, live stroke curve, laps, and <strong>VIDEO</strong> and <strong>LAP</strong> buttons for that one boat. ⛶ opens the curve full screen. <strong>Hold any metric</strong> to open <strong>DETAILED VIEW METRICS</strong> and choose which ones show and in what order.</p>
-<p><strong>REQUEST CURVE</strong> asks that rower's phone to stream its stroke curve for the time set in <strong>STROKE CURVE REQUEST LENGTH</strong> (SETTINGS → CONNECT SQUAD), 5–60 seconds. Longer is smoother, and costs them more battery.</p>
+<p>Tap a tile or a name. Full metrics, live stroke curve, laps, and <strong>VIDEO</strong> and <strong>LAP</strong> buttons for that one boat (metrics and curve for Pro rowers). ⛶ opens the curve full screen. <strong>Hold any metric</strong> to open <strong>DETAILED VIEW METRICS</strong> and choose which ones show and in what order.</p>
+<p><strong>REQUEST CURVE</strong> asks a Pro rower's phone to stream its stroke curve for the time set in <strong>STROKE CURVE REQUEST LENGTH</strong> (SETTINGS → CONNECT SQUAD), 5–60 seconds. Longer is smoother, and costs them more battery.</p>
 <p><strong>VIDEO</strong> records a clip tagged to that rower and that moment, ready to drop onto their session in the Analyser. Set the save folder in <strong>SETTINGS → SYSTEM SETTINGS → VIDEO</strong> - <strong>CHOOSE VIDEO FOLDER</strong>, then <strong>FOLDER ONLY</strong> or <strong>FOLDER + PHOTOS</strong> (also keeps a full-quality copy in Photos). A cloud-synced folder is best.</p>
 
 <h2 class="clear">Templates to the squad</h2>
@@ -1105,10 +1198,10 @@ img.inline{display:inline;margin:0 3px;vertical-align:-.32em;height:1.45em;width
 </ol>
 
 <h2>The INTERVALS tab</h2>
-<p>Every connected rower's intervals as they complete them. Refreshes every 30 seconds, or tap <strong>↻ REFRESH</strong>. <strong>×</strong> or <strong>CLEAR SHOWN</strong> only removes results from the display - nothing is deleted. They're collated into a squad session in your log; a new one starts after a 3-hour break or a change from water to erg. Open them in the Analyser under <strong>COACH SESSIONS</strong>.</p>
+<p>Every connected Pro rower's intervals as they complete them. Refreshes every 30 seconds, or tap <strong>↻ REFRESH</strong>. <strong>×</strong> or <strong>CLEAR SHOWN</strong> only removes results from the display - nothing is deleted. They're collated into a squad session in your log; a new one starts after a 3-hour break or a change from water to erg. Open them in the Analyser under <strong>COACH SESSIONS</strong>.</p>
 
-<h2>Squad training calendar</h2>
-<p>Plan the squad's week on the Analyser's calendar in <strong>Squad</strong> view. See <a href="#calendar">Calendar and planning</a>.</p>
+<h2>Squad training calendar and load</h2>
+<p>Plan the squad's weeks on the Analyser's calendar, and see each athlete's load in its <strong>Load</strong> tab. Both need coach access to the squad. See <a href="#an-calendar">Analyser: calendar</a> and <a href="#an-load">Analyser: Load</a>.</p>
 
 <h2>Coach settings</h2>
 <ul>
@@ -1116,7 +1209,6 @@ img.inline{display:inline;margin:0 3px;vertical-align:-.32em;height:1.45em;width
 <li><strong>STROKE CURVE REQUEST LENGTH</strong> - in CONNECT SQUAD.</li>
 <li><strong>Video folder</strong> - SETTINGS → SYSTEM SETTINGS → VIDEO.</li>
 <li><strong>Power button</strong> - Coach shares the Row/Cox power mode. The coach's phone drains fastest of all, so SAVER is worth using.</li>
-<li><strong>Plan level</strong> - step down to PRO in Account &amp; Plan for the rower screens without cancelling.</li>
 </ul>
 
 <h2>Battery - read this</h2>
@@ -1151,13 +1243,16 @@ img.inline{display:inline;margin:0 3px;vertical-align:-.32em;height:1.45em;width
 
 <!-- ==================== 20 ==================== -->
 <h1 id="log">20. Session log and exports</h1>
-<p class="where">Where: <b>HOME → LOG</b> - two views, <b>CALENDAR</b> (see <a href="#calendar">Calendar</a>) and <b>SESSIONS</b></p>
+<p class="where">Where: <b>HOME → LOG</b> - three views, <b>CALENDAR</b> (see <a href="#calendar">Calendar</a>), <b>SESSIONS</b> and <b>LOAD</b> (see <a href="#load">Training load</a>)</p>
 
 <p><strong>SESSIONS</strong> is the full list, newest first. Filter with <strong>All</strong>, <strong>On water</strong>, <strong>Erg</strong>, <strong>Squad</strong> (coach) and <strong>★</strong> favourites. Tap the star on a card to make it a favourite. Each card shows <strong>Synced</strong> once the Drive copy is confirmed, or <strong>Awaiting Sync</strong>. Tap a card to open it; swipe it left to reveal DELETE.</p>
 
 <h2>Session detail</h2>
 <p>Summary cards, colour-coded by what affects them - green independent, blue boat-dependent, red condition-dependent. Then lap tables, workout intervals, the sectors you rowed through, and charts for every metric.</p>
-<p><strong>RENAME</strong> names the session (the Drive copy updates too). <strong>Analyser ↗</strong> opens it in the Analyser.</p>
+<p><strong>RENAME</strong> names the session (the Drive copy updates too). <strong>Analyser ↗</strong> opens it in the Analyser. Your watch numbers (or effort) show near the top with <strong>EDIT</strong>, or a <strong>+</strong> button to add them - see <a href="#load">Training load</a>.</p>
+
+<h2>Importing a session someone recorded for you</h2>
+<p>If someone else in the boat recorded the session, ask them to send you the <strong>JSON</strong> export. Tap <strong>IMPORT</strong> on the Log and pick the file (or several). It goes into your log and your Drive like a session you rowed yourself. Imported sessions aren't sent to Strava or Concept2 automatically. A session already in your log is skipped. The Analyser can import into your sessions too.</p>
 <div class="shots three">
   <img class="w-sm" src="screenshots/log-list.png" alt="Session log list" loading="lazy"/>
   <img class="w-sm" src="screenshots/log-detail.png" alt="Session detail summary cards" loading="lazy"/>
@@ -1168,14 +1263,14 @@ img.inline{display:inline;margin:0 3px;vertical-align:-.32em;height:1.45em;width
 <div class="tblwrap">
 <table class="lead">
 <tr><th>Button</th><th>What you get</th></tr>
-<tr><td>Send to squad</td><td>Uploads the session to your squad so your coach can open it in the Analyser. Works after the row without a live link.</td></tr>
+<tr><td>Send to squad <span class="light">(Pro)</span></td><td>Uploads the session to your squad so your coach can open it in the Analyser. Works after the row without a live link.</td></tr>
 <tr><td>TCX Export</td><td>Standard training file. GPS track plus heart rate.</td></tr>
 <tr><td>FIT Export (Recommended)</td><td>Same destinations as TCX, better fidelity. Use Chrome rather than Safari to import FIT to Garmin Connect.</td></tr>
 <tr><td>JSON</td><td>The complete session - every stroke, every metric. The Analyser's preferred format.</td></tr>
 <tr><td>Delete</td><td>Removes it from this phone, your Drive and every other device. Permanent.</td></tr>
 </table>
 </div>
-<p>All exports are free on every plan. You don't need to export to get a session into the Analyser - it's already there through Drive. Pro users who link Strava get automatic upload - see <a href="#sync">Strava</a>.</p>
+<p>All file exports are free on every plan. You don't need to export to get a session into the Analyser - it's already there through Drive. Pro users who link Strava get automatic upload - see <a href="#sync">Strava</a>.</p>
 
 <hr/>
 
@@ -1187,8 +1282,9 @@ img.inline{display:inline;margin:0 3px;vertical-align:-.32em;height:1.45em;width
 <tr><th>Where</th><th>What's there</th><th>Who can see it</th></tr>
 <tr><td>Your phone</td><td>Every session, full detail (older ones may be summary only - see Storage)</td><td>You</td></tr>
 <tr><td>Your Google Drive</td><td>A copy of each session, plus everything in <a href="#what-syncs">What syncs</a>, in a private hidden app folder</td><td>You, and the Analyser once you sign in with the same account</td></tr>
-<tr><td>Squad cloud (while connected)</td><td>Live rate, pace, position, and the metrics your coach has enabled</td><td>Your coach and anyone with the squad code</td></tr>
-<tr><td>Squad cloud (Send to squad)</td><td>The full session file</td><td>Your coach and anyone with the squad code, until pruned</td></tr>
+<tr><td>Squad cloud (while connected)</td><td>Basic: your name and position. Pro: also live rate, pace, metrics, stroke curve when requested, and interval results</td><td>Your coach and anyone with the squad code (and password)</td></tr>
+<tr><td>Squad cloud (Send to squad, Pro)</td><td>The full session file</td><td>Your coach and anyone with the squad code, until pruned</td></tr>
+<tr><td>Squad cloud (training load, Pro, if turned on)</td><td>Daily load, acute, chronic and ratio, and your daily check-ins</td><td>Only the squad's owner and approved coaches, checked by account</td></tr>
 <tr><td>Phone calendar (if synced)</td><td>Planned workouts and completed sessions as events</td><td>Whoever can see that calendar</td></tr>
 <tr><td>Strava (Pro, if linked)</td><td>The activity</td><td>Per your Strava privacy settings</td></tr>
 </table>
@@ -1226,15 +1322,15 @@ img.inline{display:inline;margin:0 3px;vertical-align:-.32em;height:1.45em;width
 <hr/>
 
 <!-- ==================== 22 ==================== -->
-<h1 id="analyser">22. Analyser</h1>
+<h1 id="analyser">22. Analyser <span class="chg">CHANGED</span></h1>
 
 <p>The Analyser is a web page. Bookmark it and open it on a desktop for preference, or an iPad at a pinch. Nothing to install. It reads and writes the same Google Drive folder the app does, so everything in <a href="#what-syncs">What syncs</a> is already there.</p>
 
-<p>Every pane on the page has a grip at the top. <strong>Drag the grip to move the pane</strong> up or down - the order is remembered.</p>
+<p><strong>View</strong> in the header holds the page's settings: the order of the panes (drag them in the list - the order is remembered), the summary tiles, and dark or light mode.</p>
 
 <h2>Signing in</h2>
 <img src="screenshots/analyser-signin.png" alt="Analyser sign-in" loading="lazy"/>
-<p>The start page walks you through the same two steps as the app: <strong>Sign in · Step 1 of 2</strong> (the same Apple or Google you use on the phone), then <strong>Link Google Drive · Step 2 of 2</strong>. Your Pro or Coach plan comes with your account.</p>
+<p>The start page walks you through the same two steps as the app: <strong>Sign in · Step 1 of 2</strong> (the same Apple or Google you use on the phone), then <strong>Link Google Drive · Step 2 of 2</strong>. Your Pro plan comes with your account.</p>
 <p>Other buttons on the start page:</p>
 <ul>
 <li><strong>From Squad</strong> - sessions sent to a squad code (plus its password if it has one).</li>
@@ -1244,42 +1340,69 @@ img.inline{display:inline;margin:0 3px;vertical-align:-.32em;height:1.45em;width
 <li><strong>✕ Back to session</strong> - returns to the session you had open.</li>
 </ul>
 
-<h2>The start page</h2>
-<p>Below the buttons, the start page is a set of panes:</p>
+<h2>The start page - five tabs</h2>
 <div class="tblwrap">
 <table class="lead">
-<tr><td>Sectors <span class="light">(Pro)</span></td><td>Your sectors, each with its PB, distance, pace and rate. See <a href="#an-sectors">Sectors</a>.</td></tr>
-<tr><td>Lanes &amp; hazards <span class="light">(Pro)</span></td><td>Your lines and your clubs' lines. See <a href="#an-lines">Lanes, dividers and hazards</a>.</td></tr>
-<tr><td>Summary and Personal Bests</td><td>See below.</td></tr>
-<tr><td>Calendar</td><td>Every session and planned workout by day. See <a href="#an-calendar">Calendar and planning</a>.</td></tr>
-<tr><td>Sessions</td><td>Every session, newest first. <strong>Search sessions…</strong>, and filter by <strong>★ Favourites</strong>, <strong>Water</strong> or <strong>Erg</strong>, or sort by <strong>Date</strong>, <strong>Distance</strong> or <strong>Time</strong>. <strong>Sign out</strong> is at the top of this pane.</td></tr>
+<tr><th>Tab</th><th>What's in it</th></tr>
+<tr><td>Planning</td><td>The season plan, your workouts and the calendar. See <a href="#an-season">Season plan</a> and <a href="#an-calendar">Calendar</a>.</td></tr>
+<tr><td>Load</td><td>Training load, today's suggestion and, for coaches, the squad's load. See <a href="#an-load">Load</a>.</td></tr>
+<tr><td>Results</td><td>Your sessions, Summary and Personal Bests, and what to watch in the boat.</td></tr>
+<tr><td>Trends</td><td>What makes the boat faster, across your sessions.</td></tr>
+<tr><td>Navigation</td><td>Sectors, and lanes, dividers and hazards. See <a href="#an-sectors">Sectors</a> and <a href="#an-lines">Lanes and hazards</a>.</td></tr>
 </table>
 </div>
+<p>The <strong>Sessions</strong> list (Results tab) shows every session as a card, newest first - a blue edge and wave icon for on-water, a red edge and erg icon for erg, with the boat type beside the date. Search from the box in the header. Filter by <strong>All / On water / Erg</strong>, <strong>★</strong> favourites, <strong>Boat</strong> (pick one boat type), <strong>Mixed</strong> and <strong>Coastal</strong>, and sort with <strong>Sort</strong>. <strong>Tag boats…</strong> puts a tick box on every session so you can set the boat type for several at once (sessions from a squad or with a workout can't be changed). <strong>Sign out</strong> is at the top of this pane.</p>
 
-<h2 id="an-calendar">Calendar and planning</h2>
-<img class="w-lg" src="screenshots/analyser-calendar.png" alt="Analyser start page calendar" loading="lazy"/>
-<p>Click a session on the calendar to open it. Click a day to open that day underneath.</p>
+<h2 id="an-season">Season plan <span class="new">NEW</span></h2>
+<p class="where">Where: <b>Planning</b> tab, top</p>
+<p>Your season as a row of weeks you scroll sideways, from 8 weeks back to beyond your last race. Each week shows:</p>
 <ul>
-<li><strong>Mine / Squad</strong> - your own calendar, or a squad's (enter the code).</li>
+<li>a <strong>coloured bar</strong> on top for its block - Base, Build, Peak, Taper, Race, counted back from the next A race,</li>
+<li>its <strong>week type</strong> - Medium, Hard, Hard+, Recovery, Taper, B race or Race. Tap it to change it; <strong>Auto</strong> goes back to the recommended one,</li>
+<li><strong>bars</strong> - solid for load done, faded for load planned, a dashed box for the target,</li>
+<li>the <strong>number</strong> done plus planned, green on target, orange under, red over,</li>
+<li>🏁 flags with A, B or C on race weeks.</li>
+</ul>
+<p><strong>Loading cycle</strong> - <strong>3 weeks: Medium, Hard, Recovery</strong> (the default, and best for masters rowers, who take longer to recover), <strong>4 weeks: Medium, Hard, Hard+, Recovery</strong>, or <strong>2 weeks: Hard, Recovery</strong>. Each A race gets its own build-up: the hardest week just before a taper week, then race week, then a recovery week. A B race week becomes a lighter B race week; a C race is trained through.</p>
+<p><strong>Targets</strong> - each week's target is the <strong>base week load</strong> (your chronic load now, or a number you type) times a percentage for its type: Medium 100, Hard 115, Hard+ 125, Recovery 65, Taper 70, B race 85, Race 45. It rises 4% after each recovery week in Base and Build, and holds from Peak on. <strong>Set up week loads</strong> changes the percentages and the growth; to set one week's target, tap the week and type it into <strong>Target</strong>.</p>
+<p>The box above the timeline gives this week's type, block, weeks to go, target, done and still planned, and whether to add or ease a session. <strong>Tap a week</strong> to see its days with every session, planned workout (labelled ERG or WATER) and other workout, and their loads. From there, <strong>Fill empty days from … template</strong> puts the block's template week on the empty days, and <strong>Show on calendar</strong> jumps there.</p>
+<p><strong>Block templates</strong> - a typical week for each block (Base, Build, Peak, Taper) and a <strong>Recovery wk</strong> template used for Recovery weeks. Add on-water, erg or <strong>other workouts</strong> (gym, run, bike, with minutes and effort) to any day. <strong>Fill plan</strong> fills the calendar back from your A race in one go, shows the projected race day first, and keeps one Undo.</p>
+
+<h2 id="an-calendar">Workouts and calendar <span class="chg">CHANGED</span></h2>
+<img class="w-lg" src="screenshots/analyser-calendar.png" alt="Analyser start page calendar" loading="lazy"/>
+<p class="where">Where: <b>Planning</b> tab, under the season plan</p>
+<p><strong>The Workouts pane</strong> keeps your workout library on screen:</p>
+<ul>
+<li>Along the top: <strong>+ ON-WATER WORKOUT</strong> and <strong>+ ERG WORKOUT</strong> create a new workout; <strong>+ OTHER WORKOUT</strong>, <strong>+ EVENT</strong> and <strong>+ NOTE</strong> go on the selected day (today if none); <strong>EDIT WORKOUTS</strong> opens the library.</li>
+<li>Search, and filter by All / On-water / Erg. Each workout shows its venue, effort and steps.</li>
+<li><strong>Drag a workout onto a day on the calendar</strong>, onto a <strong>week</strong> in the season plan (it goes on the first open day from today), or onto a day in the selected week's list. Or select a day and tap <strong>+ Add</strong>.</li>
+<li><strong>Add to</strong> (coaches only) - choose <strong>My calendar</strong> or one of your squads.</li>
+</ul>
+<p><strong>The calendar</strong> - click a session to open it; click a day to open it underneath. Each day shows its load (done, and ~planned) and, from today to your race, its block as a coloured top edge.</p>
+<ul>
+<li><strong>Chips</strong> in the header: <strong>Mine</strong>, then one for each squad you belong to, in its own colour. Tap to hide or show each - your own plan and every squad's plan share one calendar. A 🔒 squad needs its password; squads with a saved password load by themselves.</li>
+<li>Under the header, each squad shows your role (Athlete, Coach, Coach (owner) or Coach access requested), with <strong>Change role</strong>, and <strong>Manage coaches</strong> for owners. See <a href="#coach-access">Coach access</a>.</li>
 <li><strong>↻ From squad</strong> - copies a squad's plan into your own calendar, the same as following it in the app.</li>
 <li><strong>↻ Sync with app</strong> - fetches new sessions, workouts and calendar items from Drive now.</li>
-<li><strong>🗓 Planning ↗</strong> - opens a bigger planning calendar in its own window (see below).</li>
 <li><strong>Today</strong> and ‹ › move around the months. On a wide screen the months scroll as one long strip instead.</li>
 </ul>
-<h3>Planning a day</h3>
-<p>Open a day, then <strong>+ ON-WATER WORKOUT</strong>, <strong>+ ERG WORKOUT</strong> or <strong>+ OTHER WORKOUT</strong>, <strong>+ EVENT</strong> or <strong>+ NOTE</strong>. Drag planned workouts to change their order. The app offers each planned workout as that day's <strong>SUGGESTED WORKOUT</strong> - see <a href="#calendar">Calendar and planning</a>.</p>
-<p>In <strong>Squad</strong> view the bar under the calendar says what you can do: <strong>Coach - you can plan workouts</strong>, or <strong>View only - import workouts to your calendar</strong>. In view-only, each workout has an <strong>IMPORT</strong> button that copies it to your own calendar.</p>
-<h3>The planning window</h3>
-<p><strong>🗓 Planning ↗</strong> opens a full-size calendar for laying out a block of training. Along the top:</p>
-<ul>
-<li><strong>⧉ Combined</strong> - your plan plus the squads you tick, on one calendar. Changes go to your own plan.</li>
-<li><strong>Mine</strong>, or a squad's name - one calendar on its own.</li>
-<li><strong>+ Squad</strong> - adds a squad to the list. Coach plan only (it shows 🔒 otherwise).</li>
-</ul>
+<p>A day's details list your completed sessions, notes and events, your planned workouts (drag to reorder) and each squad's plan. Everyone can <strong>IMPORT</strong> a squad workout to their own plan; only the squad's coaches can remove one. Squad workouts don't count in your own load until imported.</p>
 <p>Planning your own workouts switches on by itself once BoatRun on your phone has synced with Drive. Until then the Analyser says so - open the app, signed in with Drive linked, then come back.</p>
 
+<h2 id="an-load">Load <span class="new">NEW</span></h2>
+<p class="where">Where: <b>Load</b> tab</p>
+<ul>
+<li><strong>Acute load, chronic load and load ratio</strong>, with your watch picker and <strong>Enter … loads</strong> (or <strong>Enter past efforts</strong> for Apple Watch and Whoop) to fill in past sessions.</li>
+<li><strong>The race ahead</strong> - your projected acute, chronic and ratio on race day, and whether you'll be fresh.</li>
+<li><strong>Suggested today</strong> - the workout type, why, the optimal load for today, and up to three workouts with <strong>Plan today</strong>.</li>
+<li><strong>The chart</strong> - daily load stacked by session (water blue, erg red, other orange, planned faded) with acute, chronic and ratio lines, blocks along the top, race markers and check-in colours. Hover a bar for its detail and <strong>Open session</strong>.</li>
+<li><strong>The selected day</strong> - its check-in, each session with an effort box and a watch-load box, planned workouts (effort adjustable for that day), and other workouts.</li>
+<li><strong>Share my load</strong> with your squads (Pro), and - for a squad's coaches - the <strong>Squad load</strong> table: every sharing athlete's acute, chronic and ratio, today's check-in, 8 weeks of load and when they last updated, riskiest first. Tap an athlete for detail.</li>
+</ul>
+<p>How the numbers work: <a href="#load">Training load</a>.</p>
+
 <h2>Workouts</h2>
-<p><strong>EDIT WORKOUTS</strong> (under an open day) creates, edits and reorders your workouts on a big screen. They appear in the app's WORKOUTS list. In Squad view, a coach builds the squad's workouts the same way.</p>
+<p><strong>EDIT WORKOUTS</strong> creates, edits and reorders your workouts on a big screen, including each one's planned effort. They appear in the app's WORKOUTS list. <strong>Set efforts</strong> (in the Load tab and Block templates) lists workouts with no effort yet.</p>
 
 <h2>Summary and Personal Bests</h2>
 <img class="fr w-sm" src="screenshots/summary-tab.png" alt="Analyser summary, personal bests and sessions" loading="lazy"/>
@@ -1287,13 +1410,13 @@ img.inline{display:inline;margin:0 3px;vertical-align:-.32em;height:1.45em;width
 <p><strong>Personal Bests</strong> - your fastest <strong>500m, 1km, 2km, 5km, 10km, 30min and 1hour</strong> on the water and on the erg. True rolling best efforts, found anywhere in any session. Tap a PB to open the session. <strong>Scan All for Records</strong> rebuilds the table; <strong>Reset Records</strong> clears it.</p>
 
 <h2 class="clear">Loading a session</h2>
-<p>Click any session. To load another alongside it, use <strong>Add for comparison</strong> in the menu (Pro); each session gets a tab across the top.</p>
+<p>Click any session. <strong>Open</strong> in the header goes back to the session list to open a different one; <strong>Compare</strong> loads another alongside it (Pro), and each session gets a tab across the top.</p>
 
 <h2>Units bar</h2>
 <p>Pace unit, distance and DPS sub-unit. In erg files: Pace, Watts or Calories. Synced with the app.</p>
 
 <h2>Summary cards</h2>
-<p>Every metric as a card, colour-coded by category. <strong>Clicking a card toggles that metric in the main chart.</strong> <strong>Tiles</strong> reorders and hides cards. <strong>Metrics</strong> opens the glossary.</p>
+<p>Every metric as a card, colour-coded by category. <strong>Clicking a card toggles that metric in the main chart.</strong> <strong>View → Tiles</strong> reorders and hides cards. <strong>Metrics</strong> opens the glossary.</p>
 <img class="w-md" src="screenshots/analyser-tiles.png" alt="Tiles panel" loading="lazy"/>
 
 <h2>Stroke chart</h2>
@@ -1309,19 +1432,25 @@ img.inline{display:inline;margin:0 3px;vertical-align:-.32em;height:1.45em;width
 <h2>Curve comparison</h2>
 <img src="screenshots/analyser-curve-comparison.png" alt="Curve comparison with overlaid averaged stroke curves" loading="lazy"/>
 <p>Pin up to 8 groups of strokes (from several sessions on Pro) and their averaged curves overlay on one canvas, with the integrated speed profile underneath. Pin a group by dragging a selection then <strong>＋ Add to curves</strong>, or from a lap or sector row. Each group is a coloured pill; its <strong>×</strong> removes it. The stats table gives one column per group. <strong>Remove all curves</strong> clears them.</p>
+<ul>
+<li><strong>From the lap table</strong> - <strong>＋ Add to curves</strong> on a selected lap, or <strong>＋ Add all work intervals to curves</strong>. For these groups the stats table shows the <strong>lap's own</strong> time, distance, pace, rate, HR and DPS, so it matches the lap table exactly.</li>
+<li><strong>Consistency</strong> rows - Consistency, Effort ±, Character ± (and Length ± on the erg) for each group. See <a href="#m-consistency">Consistency</a>.</li>
+<li><strong>Erg curves</strong> are drawn in newtons along the handle travel in metres, on a fixed force scale. Each curve has a dot at the top of its average curve and a ring at its average peak; a big gap between them means the peaks vary. A small box in the top right gives each curve's stroke length and its peak force and where it falls. <strong>Peak consistency</strong> in the table puts a number on the dot-to-ring gap.</li>
+</ul>
 <p>The curve shape comes from the accelerometer and is <strong>not affected by wind, tide or current</strong>, so comparing two different days is always valid.</p>
 
 <h2>Stroke templates <span class="light">(Pro)</span></h2>
 <p>The <strong>STROKE TEMPLATE</strong> drop-down sits at the top of Curve Comparison, with <strong>Edit</strong> and <strong>Close</strong> beside it. Pick a template, then tap a curve pill to draw it over that curve. <strong>Save</strong> sends a template straight to the app. Full steps: <a href="#tpl-build">Build it in the Analyser</a>.</p>
 
 <h2 id="an-sectors">Sectors <span class="light">(Pro)</span></h2>
+<p class="where">Where: <b>Navigation</b> tab → Sectors, and in a session</p>
 <p>Two ways to make a sector:</p>
 <ul>
-<li><strong>✎ Draw</strong> (on the start page's Sectors pane, or in a session) - a full-screen satellite map opens. Tap the start, then tap along the course to the finish, following the bends so the line stays within 100 m of where you row. Drag a point to move it, tap a turn point to delete it, long-press the line to add one. <strong>↶ Undo</strong> and <strong>Clear</strong> as usual. Name it and tap <strong>Save sector</strong>. A sector must be at least 100 m.</li>
+<li><strong>✎ Draw</strong> (in the Navigation tab, or in a session) - a full-screen satellite map opens. Tap the start, then tap along the course to the finish, following the bends so the line stays within 100 m of where you row. Drag a point to move it, tap a turn point to delete it, long-press the line to add one. <strong>↶ Undo</strong> and <strong>Clear</strong> as usual. Name it and tap <strong>Save sector</strong>. A sector must be at least 100 m.</li>
 <li><strong>＋ Create Sector</strong> (in a session's Sectors pane) - click the start on the session's track, then the finish.</li>
 </ul>
 <p>After saving, the Analyser offers to <strong>Scan all</strong> your Drive sessions for past times on the new sector.</p>
-<p><strong>Tap a sector</strong> on the start page for its detail:</p>
+<p><strong>Tap a sector</strong> in the Navigation tab for its detail:</p>
 <div class="tblwrap">
 <table class="lead">
 <tr><td>PERSONAL BEST</td><td>Time, pace, rate and date. <strong>📍 MAP</strong> shows the sector.</td></tr>
@@ -1336,7 +1465,8 @@ img.inline{display:inline;margin:0 3px;vertical-align:-.32em;height:1.45em;width
 <p>In a session, the Sectors pane lists each sector you rowed through. Click a row to highlight it on the map and select its strokes. <strong>Sector list</strong>, <strong>Scan all</strong>, <strong>＋ Create Sector</strong> and <strong>✎ Draw</strong> sit in its header. See <a href="#sectors">Sectors and courses</a> for rowing them.</p>
 
 <h2 id="an-lines">Lanes, dividers and hazards <span class="light">(Pro)</span></h2>
-<p>The <strong>Lanes &amp; hazards</strong> pane on the start page lists <strong>MY LINES</strong>, then one list for each club you edit (<strong>CLUB · name · code</strong>). Everything here is the same set of lines as on your phone, synced through Drive - see <a href="#lines">Lanes, dividers and hazards</a> for how they warn you on the water.</p>
+<p class="where">Where: <b>Navigation</b> tab → Navigation</p>
+<p>The <strong>Navigation</strong> pane lists <strong>MY LINES</strong>, then one list for each club you edit (<strong>CLUB · name · code</strong>). Everything here is the same set of lines as on your phone, synced through Drive - see <a href="#lines">Lanes, dividers and hazards</a> for how they warn you on the water. When you have both sectors and lines, <strong>Sectors | Navigation</strong> switches between them.</p>
 <div class="tblwrap">
 <table class="lead">
 <tr><td>+ Lane, + Divider, + Hazard</td><td>Draw a new one on the map.</td></tr>
@@ -1359,6 +1489,7 @@ img.inline{display:inline;margin:0 3px;vertical-align:-.32em;height:1.45em;width
 <li><strong>From session track</strong> (when a session is open) - zoom the map to the stretch of the session's track you want, then tap <strong>From session track</strong>. The line is laid along the track you rowed; tidy it up by dragging points.</li>
 <li>Your sectors and other lines show faintly for reference.</li>
 <li>Type a name. <strong>Save to:</strong> choose <strong>my lines</strong> or <strong>Save to club: …</strong>. Then <strong>Save</strong>, or <strong>Save + add another</strong> to start the next one at the same spot. <strong>Delete</strong> appears when editing.</li>
+<li>When setting a line up you can choose whether lanes and dividers show by default.</li>
 </ul>
 <p class="note"><strong>Maps for drawing.</strong> The layer box (top right) switches between <strong>Satellite (world)</strong> and <strong>NSW aerial (sharper)</strong> - much clearer photos that show posts and buoys, NSW only - and adds <strong>Buoys &amp; seamarks</strong> (charted buoys and beacons). Your choices are remembered. With a mouse, the pointer is a cross with a ring round it; set the ring with <strong>RING</strong> (Hidden, 10, 20, 30, 50 or 100 m) to judge distances - for example set it to your hazard warning distance.</p>
 <p>On a session's route map, your hazards and your clubs' hazards near the track are drawn so you can see how close you came.</p>
@@ -1437,7 +1568,7 @@ img.inline{display:inline;margin:0 3px;vertical-align:-.32em;height:1.45em;width
 <li>Enter the password if there is one</li>
 <li><strong>CONNECT</strong></li>
 </ol>
-<p>A full-screen map with every rower updating live, and a strip of cards with name, rate and pace. <strong>+ Add another squad</strong> watches more than one. <strong>✕ LEAVE</strong> disconnects.</p>
+<p>A full-screen map with every rower updating live, and a strip of cards with name, rate and pace (position only for rowers on Basic). <strong>+ Add another squad</strong> watches more than one. <strong>✕ LEAVE</strong> disconnects.</p>
 <img src="screenshots/viewer.png" alt="Viewer live map with rower cards" loading="lazy"/>
 
 <hr/>
@@ -1465,10 +1596,11 @@ img.inline{display:inline;margin:0 3px;vertical-align:-.32em;height:1.45em;width
 <tr><th>Card</th><th>What's in it</th></tr>
 <tr><td>ROLE</td><td>Row, Cox, Coach, Erg, and demos. <a href="#roles">Roles</a>.</td></tr>
 <tr><td>DISPLAY MODE</td><td>Only shown here while you're in Simple.</td></tr>
-<tr><td>CONNECT SQUAD ▾</td><td>Squad code, recent codes, name, PROMPT TO JOIN SQUAD. Coach: STROKE CURVE REQUEST LENGTH. <a href="#squad">Joining a squad</a>.</td></tr>
+<tr><td>CONNECT SQUAD ▾</td><td>Squad code, recent codes, name, SHARE TRAINING LOAD WITH COACH, PROMPT TO JOIN SQUAD. Coach: STROKE CURVE REQUEST LENGTH. <a href="#squad">Joining a squad</a>.</td></tr>
 <tr><td>CREATE A NEW SQUAD ▾</td><td>Coach role. <a href="#coach">Coach mode</a>.</td></tr>
 <tr><td>SQUAD PASSWORD ▾</td><td>Coach role, once a squad is set.</td></tr>
 <tr><td>ERGOMETER (CONCEPT2 PM5)</td><td>Erg role. Connect or disconnect the PM5. <a href="#erg">Erg mode</a>.</td></tr>
+<tr><td>YOUR WATCH</td><td>Which watch's training load numbers you enter. Not shown in Coach role. <a href="#load">Training load</a>.</td></tr>
 <tr><td>HR ZONES ▾</td><td>Max HR, LTHR, resting HR, age, zone model. <a href="#hr">Heart rate</a>.</td></tr>
 <tr><td>SYSTEM SETTINGS ▾</td><td>SURGE AXIS (AUTO / LANDSCAPE / PORTRAIT), VIDEO folder (coach), WORKOUT TARGET BEEPS, UNITS (pace, distance, sub-units), CLOCK (AUTO / 12 / 24 hour), CALENDAR WEEK STARTS.</td></tr>
 <tr><td>ACCOUNT &amp; PLAN</td><td>Sign in, link Drive, link Apple/Google, plan level, upgrade. <a href="#sync">Signing in</a>, <a href="#plans">Plans</a>.</td></tr>
@@ -1477,7 +1609,7 @@ img.inline{display:inline;margin:0 3px;vertical-align:-.32em;height:1.45em;width
 <tr><td>METRIC DEFINITIONS</td><td>What every metric means. <a href="#metrics">Metrics reference</a>.</td></tr>
 </table>
 </div>
-<p>Units: pace in /500m, /1km, km/h, /mile or mph; distance in km or miles; sub-units (DPS) in m, ft or in. CLOCK AUTO follows the phone's 24-hour setting - force 12 or 24 if your phone doesn't pass it through. Units, clock and week start are shared with the Analyser.</p>
+<p>Units: pace in /500m, /1km, km/h, /mile or mph; distance in km or miles; sub-units (DPS, recovery loss) in m, ft or in. CLOCK AUTO follows the phone's 24-hour setting - force 12 or 24 if your phone doesn't pass it through. Units, clock and week start are shared with the Analyser.</p>
 
 <h2>HOME → LOG → CALENDAR → ⚙</h2>
 <p>SQUAD PLAN (follow, change, stop) and PHONE CALENDAR (sync, completed/planned, change, stop). <a href="#calendar">Calendar and planning</a>.</p>
@@ -1508,8 +1640,8 @@ img.inline{display:inline;margin:0 3px;vertical-align:-.32em;height:1.45em;width
 <p>Recovery time ÷ drive time. About 2.0–2.5 at training rates, 1.5–1.8 at race rates. If it collapses as rate climbs, you're shortening the recovery instead of quickening the drive.</p>
 <h3>🟢 Stroke Char (%)</h3>
 <p>Where peak drive acceleration falls within the drive: 0% = boat starts accelerating after the catch, 100% = blade exit. Under 40% front-loaded, 40–60% mid-drive, over 60% back-loaded. Smoothed over 5 strokes. On the erg it is where peak force falls within the stroke.</p>
-<h3>🔵 Recovery Run <span class="chg">CHANGED</span></h3>
-<p>Boat speed gained from the finish to the next catch, as a percentage of average boat speed. Positive means the boat runs on as you slide to the stern; near zero or negative means the recovery is checking the boat - rushing the slide, or hanging at the finish. Higher is better. Replaces Recovery Loss; older sessions are recalculated in the Analyser from their saved stroke curves.</p>
+<h3>🟢 Recovery Loss</h3>
+<p>Speed lost to deceleration in the recovery, per second of recovery. Lower is better.</p>
 <h3>🔵 The catch group</h3>
 <ol>
 <li><strong>Negative Catch Slope</strong> - the gradient down into the check</li>
@@ -1529,9 +1661,26 @@ img.inline{display:inline;margin:0 3px;vertical-align:-.32em;height:1.45em;width
 <h3>🔵 Recovery Accel</h3>
 <p>Peak forward acceleration in the recovery, after the small dip following the finish. Top right of the curve. Should rise at high ratings.</p>
 <h3>🔵 Vel Efficiency (%)</h3>
-<p>How steady the hull's speed is through the stroke. 100% = perfectly steady; 93–97% typical sculling. Higher is better.</p>
+<p>How steady the hull's speed is through the stroke. 100% = perfectly steady; 93–97% typical sculling. Higher is better. It moves only a percent or two and follows rate and boat class more than technique, so it is no longer a live tile. It's still in the session detail, the Analyser and the CSV, where it's useful for comparing pieces at the same rate over weeks.</p>
+<h3 id="m-consistency">🟢 Consistency (%)</h3>
+<p>How alike your recent stroke curves are - the boat's acceleration curve on the water, the PM5 force curve on the erg. Each stroke is compared with the average curve of the strokes around it; <strong>100% = every stroke the same shape</strong>.</p>
+<ul>
+<li><strong>On the water</strong> it uses your last 20 strokes within ±1 spm of your current rate, because the curve's shape changes with rate.</li>
+<li><strong>On the erg</strong> it uses your last 10 work strokes. It shows REST during interval rests.</li>
+<li>It shows <strong>--</strong> until it has 6 strokes - on the water usually 8–10 strokes into a piece, once the rate settles.</li>
+<li>The tile label reads <strong>GOOD</strong> (92% and over, green), <strong>FAIR</strong> (85–92%, amber) or <strong>LOW</strong> (under 85%, red).</li>
+</ul>
+<p>Underneath, what's varying, as the spread from stroke to stroke:</p>
+<ul>
+<li><strong>Effort ±%</strong> - how much the height of the curve's peak changes, as % of the average peak.</li>
+<li><strong>Character ±%</strong> - how much the point of peak moves, in % of the stroke. It's the spread of Stroke Char.</li>
+<li><strong>Length ±m</strong> - erg only, how much your stroke length changes.</li>
+</ul>
+<p>On the water, chop and wash also move the curve, so expect lower numbers than on the erg. Compare water with water and erg with erg. In the Analyser the same figures appear in the Curve Comparison table for each group.</p>
 <h3>🟢 Heart Rate</h3>
 <p>From a connected strap, with zone colouring.</p>
+<h3>Training load</h3>
+<p>Not a stroke metric - one number per session on a Garmin-style scale. See <a href="#load">Training load</a>.</p>
 <h3>Navigation</h3>
 <p>Not a metric - the lane, divider and hazard readout as a tile. See <a href="#on-water">Lanes on the water</a>.</p>
 
@@ -1546,6 +1695,9 @@ img.inline{display:inline;margin:0 3px;vertical-align:-.32em;height:1.45em;width
 <h2>GPS metrics measure over the ground</h2>
 <p>Pace and DPS measure motion relative to the ground. On a tidal river a 0.3 m/s current changes displayed pace by about 10 seconds per 500m at a 2:00 baseline. The accelerometer metrics are unaffected - <strong>they are your reliable technique metrics on tidal water.</strong></p>
 
+<h2>Training load is a guide</h2>
+<p>Load numbers, targets and suggestions are estimates from heart rate, effort and your watch's figures. They don't know how you feel - your check-in and your coach do. Back off when something hurts, whatever the plan says.</p>
+
 <h2>The mount matters more than anything else</h2>
 <p>Every accelerometer metric assumes the phone is rigidly attached to the hull. A mount that rocks near stroke frequency corrupts stroke ratio and Stroke Char plausibly enough that you might believe the numbers. After moving the phone, sit still for a few seconds before you press Start so the automatic calibration gets a clean reading.</p>
 
@@ -1556,7 +1708,7 @@ img.inline{display:inline;margin:0 3px;vertical-align:-.32em;height:1.45em;width
 <p>In doubles, quads and eights the accelerometer sees all the rowers together; stroke detection follows the dominant signal. Catch Slope, Catch Accel and Impulse are not comparable with single-scull values, and stroke templates must be built per boat class.</p>
 
 <h2>No absolute force measurement</h2>
-<p>These metrics measure the hull's response to blade force, not the force itself. Never compare Catch Slope, Catch Accel, Impulse, Drive Accel or Recovery Run across boat classes.</p>
+<p>These metrics measure the hull's response to blade force, not the force itself. Never compare Catch Slope, Catch Accel, Impulse, Drive Accel or Recovery Loss across boat classes.</p>
 
 <h2>Cold, heat and battery</h2>
 <p>Below about 5°C the phone may throttle. In hot sun it can overheat - see <a href="#power">Power and battery</a>. Start long sessions at full charge.</p>
@@ -1591,9 +1743,15 @@ img.inline{display:inline;margin:0 3px;vertical-align:-.32em;height:1.45em;width
 <p class="qa"><b>Something I made on the phone isn't in the Analyser.</b> Tap <strong>↻ Sync with app</strong> on the Analyser start page, or reload the page.</p>
 <p class="qa"><b>I used to export and import templates, workouts or lines.</b> No need any more - they sync. Files still work for sharing with <em>other</em> people.</p>
 
-<h2>Plans</h2>
+<h2>Plans and coaching</h2>
 <p class="qa"><b>Recording stopped at 20 minutes.</b> Basic limit. <a href="#plans">Plans</a></p>
-<p class="qa"><b>Tiles say PRO - Upgrade to unlock, or Coach screens keep showing the upgrade.</b> That feature isn't on your plan - or your plan level is stepped down in Account &amp; Plan. <a href="#plans">Plan level</a></p>
+<p class="qa"><b>Tiles say PRO - Upgrade to unlock.</b> That feature isn't on your plan - or your plan level is stepped down in Account &amp; Plan. <a href="#plans">Plan level</a></p>
+<p class="qa"><b>My coach only sees my position.</b> You're on Basic - only Pro sends live metrics, curves, intervals and sessions. <a href="#sharing">What your coach gets</a></p>
+<p class="qa"><b>A rower's tile shows a name but no numbers.</b> They're on Basic, so they send their position only.</p>
+<p class="qa"><b>Can't add workouts to the squad calendar, or no Add to → Squad.</b> You need coach access to that squad: pick <strong>Coach</strong> as your role, then claim it (older squads with no owner) or ask the owner for access. <a href="#coach-access">Coach access</a></p>
+<p class="qa"><b>"Squad not saved - you need coach access".</b> Your account isn't the owner or an approved coach of that squad. <a href="#coach-access">Coach access</a></p>
+<p class="qa"><b>Approving a coach says "Not saved".</b> The squad server's rules haven't been updated yet - try again later or contact BoatRun.</p>
+<p class="qa"><b>I paid for Coach.</b> It keeps working as Pro until it ends. Coaching itself is now free. <a href="#plans">Plans</a></p>
 
 <h2>Display and tiles</h2>
 <p class="qa"><b>Can't find LAYOUTS.</b> It's now <strong>DISPLAY</strong>. It's hidden in Simple mode and in Coach role. <a href="#display">Display</a></p>
@@ -1601,6 +1759,9 @@ img.inline{display:inline;margin:0 3px;vertical-align:-.32em;height:1.45em;width
 <p class="qa"><b>Can't change a tile.</b> Unlock the tile lock (top right) and tap it, or hold it while recording.</p>
 <p class="qa"><b>Map tiles don't match what I set.</b> The map shares its first four tiles with the CURVE tab; tiles 5 and 6 only show on the landscape side-by-side layouts. <a href="#map-display">Map Display</a></p>
 <p class="qa"><b>Water splashes change screens.</b> Use LOCK. <a href="#record">Recording</a></p>
+<p class="qa"><b>Where has Vel Efficiency gone?</b> It's no longer a tile; a tile that showed it now shows Consistency. It's still in the session detail and the Analyser. <a href="#m-consistency">Consistency</a></p>
+<p class="qa"><b>Consistency shows --.</b> It needs 6 strokes with curves - on the water, at your current rate. Keep rowing at a steady rate. On the erg it also shows REST during interval rests.</p>
+<p class="qa"><b>Can't find INTERVALS.</b> It's now the <strong>WORKOUT</strong> tab (Coach role still has INTERVALS).</p>
 
 <h2>Stroke templates</h2>
 <p class="qa"><b>Template not on the phone.</b> Did you tap <strong>Save</strong> in the Analyser (it reads Saved ✓)? Same account, Drive linked on both. Then reopen the app. <a href="#tpl-build">Build</a></p>
@@ -1611,16 +1772,21 @@ img.inline{display:inline;margin:0 3px;vertical-align:-.32em;height:1.45em;width
 <p class="qa"><b>No ＋ Add to template button.</b> Tap <strong>＋ Select strokes on the chart</strong> in the template panel first (the yellow bar shows across the top), then drag across at least 3 strokes on the Stroke Chart.</p>
 <p class="qa"><b>A COACH pill appeared.</b> Your coach pushed a template. Tap it off if you don't want it. <a href="#templates">Templates</a></p>
 
-<h2>Workouts and calendar</h2>
+<h2>Workouts, calendar and training load</h2>
 <p class="qa"><b>No suggested workout today.</b> It appears once a day, never mid-session, and only for workouts matching your venue. Check the day in the Log calendar.</p>
-<p class="qa"><b>Squad plan not appearing.</b> Log calendar → ⚙ → FOLLOW A SQUAD PLAN. If the squad has a password you'll be asked for it. <a href="#calendar">Calendar</a></p>
+<p class="qa"><b>Squad plan not appearing.</b> Log calendar → ⚙ → FOLLOW A SQUAD PLAN. If the squad has a password you'll be asked for it. In the Analyser, check the squad's chip is on. <a href="#calendar">Calendar</a></p>
 <p class="qa"><b>Phone calendar events not appearing.</b> Log calendar → ⚙ → PHONE CALENDAR: check it's on and points at a calendar the phone syncs. Allow BoatRun calendar access in the phone's settings.</p>
 <p class="qa"><b>No beeps on a work interval.</b> Volume up, phone off silent, and SETTINGS → SYSTEM SETTINGS → WORKOUT TARGET BEEPS on.</p>
+<p class="qa"><b>A session's load looks too low or too high.</b> Enter your watch's number for it (session page, or the Analyser's Load tab). After 3 or more, the rest are scaled to your watch. <a href="#load">Training load</a></p>
+<p class="qa"><b>The Analyser suggests a hard session after a poor check-in.</b> The check-in hasn't reached it yet - it says "no check-in for today has reached the Analyser yet". It arrives within a few minutes of the phone getting signal.</p>
+<p class="qa"><b>Load ratio shows –.</b> It needs a chronic load of at least 30 - about two weeks of sessions.</p>
+<p class="qa"><b>Where's the Planning window?</b> Gone - your plan and your squads' plans are on one calendar in the Planning tab. <a href="#an-calendar">Calendar</a></p>
 
 <h2>Sectors and courses</h2>
 <p class="qa"><b>No sector pop-up.</b> Approach the start heading the right way, with no workout running, and <strong>Show live sectors</strong> ticked. Pre-arm it to skip the pop-up. <a href="#sectors">Sectors</a></p>
 <p class="qa"><b>DOWNLOAD or delete doesn't work.</b> Both need you signed in with Drive linked, and signal.</p>
 <p class="qa"><b>Edited a sector in the Analyser and its times have gone.</b> Changing a sector's course clears its results and PB. Accept the rescan when offered, or tap <strong>Scan all</strong> in a session's Sectors pane. <a href="#an-sectors">Analyser: sectors</a></p>
+<p class="qa"><b>No map with no signal.</b> Only water you have already viewed is kept on the phone. Open the map over it once with signal before you go. <a href="#live">MAP</a></p>
 <p class="qa"><b>Courses list empty or old.</b> It's read from boatrun.au and needs signal; the last list downloaded is shown meanwhile.</p>
 
 <h2>Lanes, dividers and hazards</h2>
@@ -1632,7 +1798,8 @@ img.inline{display:inline;margin:0 3px;vertical-align:-.32em;height:1.45em;width
 <p class="qa"><b>The arrow points the wrong way.</b> The warning card's arrow is as the rower sees it - down is ahead of the boat. The map box's arrow points at the hazard on the map. <a href="#on-water">Reading the arrow</a></p>
 <p class="qa"><b>Club lines not updating.</b> Tap REFRESH. They're checked every 5 minutes and need signal. "This club code has been deleted" means the club removed it - LEAVE and follow the new code.</p>
 <p class="qa"><b>Imported lines didn't all appear.</b> Lines you already have are skipped.</p>
-<p class="qa"><b>Can't draw lines in the Analyser.</b> Drawing needs Pro and signing in. Without Pro the Lanes &amp; hazards pane only shows <strong>👥 Club</strong>. <a href="#an-lines">Analyser: lanes and hazards</a></p>
+<p class="qa"><b>Can't find sectors or lines in the Analyser.</b> They're in the <strong>Navigation</strong> tab. <a href="#an-lines">Analyser: lanes and hazards</a></p>
+<p class="qa"><b>Can't draw lines in the Analyser.</b> Drawing needs Pro and signing in. Without Pro the Navigation pane only shows <strong>👥 Club</strong>. <a href="#an-lines">Analyser: lanes and hazards</a></p>
 <p class="qa"><b>PASSWORD CHANGED next to a club in the Analyser.</b> Another editor set a new edit password. Get it from them and enter it on the club's card under 👥 Club. <a href="#an-club">Managing club lines</a></p>
 <p class="qa"><b>Forgot the club's edit password.</b> 👥 Club → <strong>Forgot the password? Use the recovery code</strong>. No recovery code? Any editor who still has the password can set a new one.</p>
 <p class="qa"><b>Rowers don't see a new club line.</b> Check it was saved to the club (<strong>Save to club: …</strong>), not to your own lines. Phones check every 5 minutes; tap REFRESH on the phone.</p>
@@ -1642,11 +1809,14 @@ img.inline{display:inline;margin:0 3px;vertical-align:-.32em;height:1.45em;width
 <p class="qa"><b>Rower tiles going grey.</b> No recent data. Intermittent grey under bridges is normal.</p>
 <p class="qa"><b>Can't find FREE ROW / RACE.</b> They're the COACH and SQUAD tabs now. <a href="#coach">Coach mode</a></p>
 <p class="qa"><b>Can't find coach tile metrics.</b> Hold a rower tile on the COACH tab. For the rower detail view, hold a metric in it. <a href="#coach">Coach mode</a></p>
+<p class="qa"><b>No Squad load table.</b> It shows for a squad you have coach access to, once athletes turn on SHARE TRAINING LOAD WITH COACH (Pro). <a href="#an-load">Analyser: Load</a></p>
 
 <h2>Heart rate and erg</h2>
 <p class="qa"><b>HR strap won't connect.</b> Wet the contacts, put it on before connecting, and make sure no watch has already claimed it. Connect it with the ♥ HR chip. <a href="#hr">Heart rate</a></p>
 <p class="qa"><b>PM5 not found.</b> Wake it first - press a key or take a stroke. <a href="#erg">Erg mode</a></p>
 <p class="qa"><b>Squad erg workout didn't arrive.</b> The erg must be on its main menu.</p>
+<p class="qa"><b>No SQUAD WKT chip on my erg.</b> It needs coach access to the connected squad. <a href="#coach-access">Coach access</a></p>
+<p class="qa"><b>Erg session still recording after I walked away.</b> Tap <strong>Finish Session</strong> - it appears after 15 seconds without a stroke. Left alone, the session saves itself after 3 minutes. <a href="#erg-finish">Finishing an erg session</a></p>
 
 <h2>Battery and screen</h2>
 <p class="qa"><b>Screen went black but numbers still show.</b> That's SAVER or the overheating guard. Tap the power button for ⚡ FULL. <a href="#power">Power</a></p>
@@ -1665,8 +1835,8 @@ img.inline{display:inline;margin:0 3px;vertical-align:-.32em;height:1.45em;width
 <h2>Analyser and Strava</h2>
 <p class="qa"><b>Analyser chart looks empty.</b> Click a summary card to bring a metric back, or double-click the chart to reset zoom.</p>
 <p class="qa"><b>No Personal Bests showing.</b> Run <strong>Scan All for Records</strong>.</p>
-<p class="qa"><b>No workout buttons on the Analyser calendar.</b> Open the app on your phone, signed in with Drive linked, then come back to the Analyser. Planning switches on by itself. <a href="#an-calendar">Calendar and planning</a></p>
-<p class="qa"><b>A pane is in the wrong place.</b> Drag the grip at the top of a pane to move it. <a href="#analyser">Analyser</a></p>
+<p class="qa"><b>No workout buttons on the Analyser calendar.</b> Open the app on your phone, signed in with Drive linked, then come back to the Analyser. Planning switches on by itself. <a href="#an-calendar">Calendar</a></p>
+<p class="qa"><b>A pane is in the wrong place.</b> <strong>View</strong> in the header → change the pane order. <a href="#analyser">Analyser</a></p>
 <p class="qa"><b>Video won't sync from the code.</b> Step to the frame where the digits change, type the time and tap <strong>Use</strong>, or sync from the chart instead. <a href="#video-sync">Video Sync</a></p>
 <p class="qa"><b>Strava upload not appearing.</b> Pro only, and Strava must be linked. With the Garmin merge ticked, BoatRun waits for the Garmin activity to arrive first. For a manual upload, export FIT and add it as a Rowing activity.</p>
 
