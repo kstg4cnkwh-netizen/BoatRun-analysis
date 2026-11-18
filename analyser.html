@@ -12299,6 +12299,7 @@ async function showStartup(){
       document.getElementById('sum-w-next').onclick=()=>{if(sumWeekOff>0){sumWeekOff--;renderSummary();}};
     }
     const openSessFile=async(f,p,el)=>{
+      p=p||{};   // 19 Nov: callers without the parsed name (was 'undefined is not an object')
       if(el){el.style.opacity='.5';el.style.pointerEvents='none';}
       try{const session=await AnalyserDrive.fetchSession(f.id);applySessionUnits(session);addSessionFromData(sessionToAnalyserFmt(session),p.name||f.name.replace('RowSess_','').replace('.json',''),true,f.id);}
       catch(err){if(!driveAuthExpired(err)){toast('Load failed: '+err.message);if(el){el.style.opacity='';el.style.pointerEvents='';}}}
@@ -16469,10 +16470,11 @@ function sznRender(){
    const CHP=(col,lbl,txt,L,X)=>'<span style="display:inline-flex;align-items:center;gap:4px;padding:2px 6px;border-radius:10px;background:var(--s1);border:1px solid var(--border);border-left:4px solid '+col+';font-size:11px;margin:2px 4px 2px 0;"><span style="font-size:9px;font-weight:800;color:'+col+';">'+lbl+'</span>'+txt+(L?' <span style="color:var(--muted);">'+L+'</span>':'')+(X||'')+'</span>';
    x.days.forEach(k=>{
      const items=[];let dayL=0;
-     if(k<=M.todayK)((M.D.items||{})[k]||[]).filter(p=>p.c!=='plan').forEach(p=>{dayL+=p.load;items.push(p.c==='other'?CHP(CI_OTHER_COL,'OTHER',_secEsc((p.o&&p.o.text)||'Other'),Math.round(p.load)):CHP(p.c==='erg'?CAL_ERG_COL:CAL_WATER_COL,p.c==='erg'?'ERG':'WATER',(p.x&&p.x.f?'<a href="#" data-sznopen="'+_sf.push(p.x)+'" style="color:var(--text);text-decoration:none;" title="Open session">':'')+'✓ '+_secEsc((p.x&&p.x.p&&(p.x.p.name||p.x.p.workout))||(p.c==='erg'?'Erg':'Row'))+(p.x&&p.x.f?'</a>':''),Math.round(p.load),(p.x&&p.x.f&&!_wktCtx?'<button data-szndel="'+_sf.length+'" title="Delete session" style="border:none;background:none;color:var(--muted);cursor:pointer;font-size:13px;padding:0 0 0 4px;line-height:1;">\u{1F5D1}</button>':'')));});
+     if(k<=M.todayK)((M.D.items||{})[k]||[]).filter(p=>p.c!=='plan').forEach(p=>{dayL+=p.load;items.push(p.c==='other'?CHP(CI_OTHER_COL,'OTHER',_secEsc((p.o&&p.o.text)||'Other'),Math.round(p.load)):CHP(p.c==='erg'?CAL_ERG_COL:CAL_WATER_COL,p.c==='erg'?'ERG':'WATER',(p.x&&p.x.f?'<a href="#" data-sznopen="'+_sf.push(p.x)+'" style="color:var(--text);text-decoration:none;" title="Open session">':'')+'✓ '+_secEsc((p.x&&p.x.p&&(p.x.p.name||p.x.p.workout))||(p.c==='erg'?'Erg':'Row'))+(p.x&&p.x.f?'</a>':''),Math.round(p.load)));});
      if(k>=M.todayK){
-       if(!(k===M.todayK&&M.map.a[k]>0))tlPlanFor(k).forEach(p=>{dayL+=p.load;items.push(CHP(p.w.venue==='erg'?CAL_ERG_COL:CAL_WATER_COL,p.w.venue==='erg'?'ERG':'WATER',_secEsc(_wktDispName(p.w)),p.load));});
-       if(k>M.todayK){const e=tlItems()[k];((e&&e.list)||[]).filter(o=>o.type==='other').forEach(o=>{const L=tlOtherLoad(o);dayL+=L;items.push(CHP(CI_OTHER_COL,'OTHER',_secEsc(o.text||'Other'),L||''));});}
+       if(!(k===M.todayK&&M.map.a[k]>0)){const ids=planIds(k);let from=0;tlPlanFor(k).forEach(p=>{dayL+=p.load;let ix=ids.indexOf(p.w.id,from);if(ix<0)ix=ids.indexOf(p.w.id);from=ix+1;   // 19 Nov: remove a planned workout here
+         items.push(CHP(p.w.venue==='erg'?CAL_ERG_COL:CAL_WATER_COL,p.w.venue==='erg'?'ERG':'WATER',_secEsc(_wktDispName(p.w)),p.load,ix>=0?'<button data-sznprm="'+k+'|'+ix+'" title="Remove from the plan" style="border:none;background:none;color:var(--muted);cursor:pointer;font-size:13px;padding:0 0 0 4px;line-height:1;">\u{1F5D1}</button>':''));});}
+       if(k>M.todayK){const e=tlItems()[k];((e&&e.list)||[]).filter(o=>o.type==='other').forEach(o=>{const L=tlOtherLoad(o);dayL+=L;items.push(CHP(CI_OTHER_COL,'OTHER',_secEsc(o.text||'Other'),L||'',o.id?'<button data-sznorm="'+k+'|'+_secEsc(o.id)+'" title="Remove from the plan" style="border:none;background:none;color:var(--muted);cursor:pointer;font-size:13px;padding:0 0 0 4px;line-height:1;">\u{1F5D1}</button>':''));});}
      }
      const evs=(()=>{const e=tlItems()[k];return ((e&&e.list)||[]).filter(o=>o.type==='event');})();
      const ev=evs.map(o=>'<span style="display:inline-flex;align-items:center;gap:4px;padding:2px 8px;border-radius:10px;background:'+(o.race?'#c0392b':CI_EVENT_COL)+';color:#fff;font-size:11px;font-weight:800;margin:2px 4px 2px 0;">'+(o.race?'\u{1F3C1} '+o.race+' race: ':'')+(o.time?_secEsc(o.time)+' ':'')+_secEsc(o.text||'Event')+'</span>').join('');
@@ -16514,10 +16516,9 @@ function sznRender(){
   }
   if(g('szn-auto'))g('szn-auto').onclick=()=>{SZN_WK[sel.w]={...(SZN_WK[sel.w]||{}),t:'',rev:Date.now()};sznSave();renderStartupCalendar();};
   if(g('szn-fill'))g('szn-fill').onclick=()=>sznFillWeek(sel,M);
-  el.querySelectorAll('[data-sznopen]').forEach(a=>{a.onclick=e=>{e.preventDefault();e.stopPropagation();const x=_sf[+a.dataset.sznopen-1];if(x&&x.f&&typeof _calOpen==='function')_calOpen(x.f);};});
-  el.querySelectorAll('[data-szndel]').forEach(b=>{b.onclick=async e=>{e.stopPropagation();const x=_sf[+b.dataset.szndel-1];if(!x||!x.f||typeof window._szDelFile!=='function')return;
-    if(!confirm('Delete this session permanently?\n\n'+((x.p&&(x.p.name||x.p.workout))||x.f.name)+'\n\nIt will be removed from Google Drive, and from every device on its next sync.\n\nThis cannot be undone.'))return;
-    b.disabled=true;b.textContent='\u2026';try{await window._szDelFile(x.f);toast('Session deleted');}catch(err){toast('Delete failed: '+err.message);b.disabled=false;b.textContent='\u{1F5D1}';}};});
+  el.querySelectorAll('[data-sznopen]').forEach(a=>{a.onclick=e=>{e.preventDefault();e.stopPropagation();const x=_sf[+a.dataset.sznopen-1];if(x&&x.f&&typeof _calOpen==='function')_calOpen(x.f,x.p||{},a);};});
+  el.querySelectorAll('[data-sznprm]').forEach(b=>{b.onclick=e=>{e.stopPropagation();const [k,i]=b.dataset.sznprm.split('|');planRemove(k,+i);_sznDC=null;renderStartupCalendar();};});
+  el.querySelectorAll('[data-sznorm]').forEach(b=>{b.onclick=e=>{e.stopPropagation();const v=b.dataset.sznorm,j=v.indexOf('|');calItemDelete(v.slice(0,j),v.slice(j+1));};});
   g('szn-cal').onclick=()=>{
     const k=sel.days.find(d=>d>=M.todayK)||sel.days[0];_calSel=k;
     try{const n=new Date(),d=new Date(k+'T12:00:00');_calMonthOff=(d.getFullYear()-n.getFullYear())*12+d.getMonth()-n.getMonth();}catch(e){}
