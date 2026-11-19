@@ -4,6 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
 <meta name="color-scheme" content="light dark"/>
+<meta name="br-build" content="Analyser_261119_1">
 <title>BoatRun Analyser</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -20137,21 +20138,35 @@ window.rvOpenExport=function(){
 })();
 </script>
 <script>
-/* 14 Nov: NEW VERSION AVAILABLE. Asks the server for this page's ETag /
-   Last-Modified (a HEAD request, a few hundred bytes) when the page loads,
-   every 5 minutes and whenever the tab comes back into view. If they change,
-   a bar offers a refresh. No version number to keep up to date. Web only
-   (does nothing when opened as a local file). */
+/* 19 Nov: NEW VERSION AVAILABLE, take 2. The 14 Nov check compared the
+   server's ETag / Last-Modified, but every push to main rebuilds and
+   re-obfuscates every page, so any Metrics push changed the Analyser's stamp
+   too, and GitHub Pages edges serve old and new copies for a few minutes after
+   a deploy. Now: read only the top of the live page (stops after ~16 KB),
+   pull the <meta name="br-build"> tag and show the bar only when that build is
+   NEWER than this page's own. Web only. */
 (function(){
   if(!/^https?:$/.test(location.protocol))return;
   const url=location.origin+location.pathname;
-  let base=null,shown=false,busy=false;
-  async function stamp(){
+  const RE=/<meta name="br-build" content="Analyser_(\d{6})_(\d+)"/;
+  function key(m){return m?(+m[1])*1000+(+m[2]):null;}
+  const mine=key(RE.exec(document.documentElement.innerHTML.slice(0,4000)));
+  if(mine==null)return;
+  let shown=false,busy=false;
+  async function liveBuild(){
+    let rd=null;
     try{
-      const r=await fetch(url+'?_v='+Date.now(),{method:'HEAD',cache:'no-store'});
-      if(!r.ok)return null;
-      return r.headers.get('etag')||r.headers.get('last-modified')||null;
+      const r=await fetch(url+'?_v='+Date.now(),{cache:'no-store',headers:{Range:'bytes=0-16383'}});
+      if(!(r.ok||r.status===206)||!r.body)return null;
+      rd=r.body.getReader();const dec=new TextDecoder();let txt='';
+      while(txt.length<16384){
+        const {done,value}=await rd.read();if(done)break;
+        txt+=dec.decode(value,{stream:true});
+        const m=RE.exec(txt);if(m)return key(m);
+      }
+      return key(RE.exec(txt));
     }catch(e){return null;}
+    finally{try{rd&&rd.cancel();}catch(e){}}
   }
   function show(){
     if(shown)return;shown=true;
@@ -20168,12 +20183,10 @@ window.rvOpenExport=function(){
   }
   async function check(){
     if(busy||shown)return;busy=true;
-    const s=await stamp();busy=false;
-    if(!s)return;
-    if(base==null){base=s;return;}
-    if(s!==base)show();
+    const live=await liveBuild();busy=false;
+    if(live!=null&&live>mine)show();
   }
-  check();
+  setTimeout(check,3000);
   setInterval(check,5*60*1000);
   document.addEventListener('visibilitychange',()=>{if(document.visibilityState==='visible')check();});
   window.addEventListener('focus',check);
