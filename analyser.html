@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
 <meta name="color-scheme" content="light dark"/>
-<meta name="br-build" content="Analyser_261120_5">
+<meta name="br-build" content="Analyser_261120_6">
 <title>BoatRun Analyser</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -111,15 +111,17 @@ function adClearPendingOpen(){try{sessionStorage.removeItem('_ad_open');}catch(e
   #cards, #cards-fixed { display: grid; grid-template-columns: repeat(auto-fill, minmax(92px, 1fr)); gap: 7px; padding: 12px 16px; }
   #cards-fixed { padding-bottom: 0; margin-bottom: 8px; }
   #cards-fixed:empty { display: none; }
-  #cards-fixed #card-tload { grid-column: span 4; padding-top: 7px; padding-bottom: 7px; }
+  #cards-fixed #card-tload { grid-column: span 4; padding-top: 6px; padding-bottom: 6px; }
   #cards-fixed .c-fdist { border-top: 3px solid #16a085; } #cards-fixed .c-fdist .val { color: #16a085; }
   #cards-fixed .c-fdur { border-top: 3px solid #8e44ad; } #cards-fixed .c-fdur .val { color: #8e44ad; }
   #cards-fixed .c-fwind { border-top: 3px solid #2980b9; } #cards-fixed .c-fwind .val { color: #2980b9; }
   #cards-fixed .c-fload { border-top: 3px solid #e67e22; } #cards-fixed .c-fload .val { color: #e67e22; }
   #card-tload .tl-row { display: flex; align-items: center; gap: 10px; }
   #card-tload .tl-main { flex: 0 0 auto; min-width: 72px; }
-  #card-tload .tl-fields { display: flex; gap: 6px; flex: 1; min-width: 0; flex-wrap: wrap; justify-content: center; }
-  #card-tload .tl-f { display: flex; flex-direction: column; gap: 2px; align-items: stretch; }
+  #card-tload .tl-fields { display: flex; gap: 12px; flex: 1; min-width: 0; flex-wrap: wrap; justify-content: center; }
+  #card-tload .tl-col { display: flex; flex-direction: column; gap: 3px; }
+  #card-tload .tl-f { display: flex; flex-direction: row; gap: 6px; align-items: center; justify-content: space-between; }
+  #card-tload .tl-f .lbl { text-align: left; }
   #card-tload .tl-f input, #card-tload .tl-f select { width: 66px; box-sizing: border-box; padding: 2px 4px; background: var(--s2); border: 1px solid var(--border); border-radius: 5px; color: var(--text); font-size: 12px; font-family: inherit; text-align: center; }
   @media (max-width: 520px) { #cards-fixed #card-tload { grid-column: 1 / -1; } }
   .card { background: var(--s1); border: 1px solid var(--border); border-radius: 12px; padding: 10px 11px; text-align: center; box-shadow: var(--sh); transition: box-shadow .2s, transform .15s, opacity .15s; }
@@ -15386,10 +15388,13 @@ function tlCardHtml(){
   return '<div class="card cw c-fload" id="card-tload" title="Training load for this session. Type the numbers your watch shows, or set the effort. Synced with Metrics and the Training load panel.">'
     +'<div class="tl-row"><div class="tl-main"><div class="lbl">Training Load</div><div class="val"><span id="tl-card-v">'+L.load+'</span></div><div class="sub"><span id="tl-card-src">'+_secEsc(L.src)+'</span></div></div>'
     +'<div class="tl-fields">'
+    /* 20 Nov: two stacked columns - watch load over effort, aerobic TE over anaerobic TE */
+    +'<div class="tl-col">'
     +(W.eff?'':fld(_secEsc(W.n+' '+W.L.toLowerCase()),'<input id="tl-card-load" data-k="'+k+'" type="number" inputmode="numeric" min="0" max="3000" placeholder="-" value="'+(man.load>0&&(man.w||'garmin')===cw?man.load:'')+'">'))
     +fld('Effort','<select id="tl-card-rpe" data-k="'+k+'">'+opts+'</select>')
-    /* 20 Nov: Garmin / Coros aerobic and anaerobic Training Effect (0-5), saved as ate / ante */
-    +(W.te?te('tl-card-ate','ate','Aerobic TE')+te('tl-card-ante','ante','Anaerobic TE'):'')
+    +'</div>'
+    /* Garmin / Coros aerobic and anaerobic Training Effect (0-5), saved as ate / ante */
+    +(W.te?'<div class="tl-col">'+te('tl-card-ate','ate','Aerobic TE')+te('tl-card-ante','ante','Anaerobic TE')+'</div>':'')
     +'</div></div></div>';
 }
 function tlCardBind(){
