@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
 <meta name="color-scheme" content="light dark"/>
-<meta name="br-build" content="Analyser_261120_11">
+<meta name="br-build" content="Analyser_261120_19">
 <title>BoatRun Analyser</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -805,7 +805,7 @@ body.light .hdrname{color:#fff;}
   <div id="topBlock" class="secpill" data-pane="topBlock"><div class="pane-grip" title="Drag to move this pane"><span></span></div>
   <div id="unitsbar" class="brsettings"></div>
   <!-- 13 Nov: Coach tools for the open session -->
-  <div id="coachbar" style="display:flex;flex-wrap:wrap;align-items:center;gap:8px;margin:0 0 10px;padding:9px 12px;border:2px solid #6a3fb0;border-radius:12px;"><span style="font:800 12px Inter,-apple-system,sans-serif;letter-spacing:.05em;">COACH TOOLS</span><button class="coachtool" onclick="coachTool('athletes')">Compare athletes</button><button class="coachtool" onclick="coachTool('pace')">What drives pace</button><button class="coachtool" onclick="coachTool('video')">Video overlay</button><button class="coachtool" onclick="coachTool('tpl')">Stroke template</button><button class="coachtool" onclick="coachTool('curves')">Curve comparison</button><button class="coachtool" onclick="coachTool('replay')">Export replay video</button><span style="font-size:11px;">Select strokes on the chart first</span></div>
+  <div id="coachbar" style="display:flex;flex-wrap:wrap;align-items:center;gap:8px;margin:0 0 10px;padding:9px 12px;border:2px solid #6a3fb0;border-radius:12px;"><span style="font:800 12px Inter,-apple-system,sans-serif;letter-spacing:.05em;">COACH TOOLS</span><button class="coachtool" onclick="coachTool('pace')">What drives pace</button><button class="coachtool" onclick="coachTool('video')">Video overlay</button><button class="coachtool" onclick="coachTool('tpl')">Stroke template</button><button class="coachtool" onclick="coachTool('curves')">Curve comparison</button><button class="coachtool" onclick="coachTool('replay')">Export replay video</button><span style="font-size:11px;">Select strokes on the chart first</span></div>
   <!-- Summary cards -->
   <div id="cards-fixed"></div>
   <div id="cards"></div>
@@ -5993,10 +5993,12 @@ function _secCmpBuildView(){
   c.follow=true;c.full=false;c.lastFit=0;
   body.innerHTML='<div id="_seccmp_stage"><div id="_seccmp_map" style="'+SECCMP_MAP_CSS+'"></div><div id="_seccmp_mini" style="display:none;"></div>'
     +'<div id="_seccmp_ctrls" style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:10px;">'
-    +'<button class="hbtn" id="_seccmp_back" style="font-size:11px;">‹ Sessions</button>'
+    +'<button class="hbtn" id="_seccmp_back" style="font-size:11px;">'+(c.adhoc?'‹ Back':'‹ Sessions')+'</button>'
     +'<button class="hbtn" id="_seccmp_full" style="font-size:11px;">\u26F6 Full screen</button>'
     +'<button class="hbtn" id="_seccmp_follow" style="font-size:11px;">\u25CE Centre</button>'
+    +'<span style="position:relative;display:inline-block;"><button class="hbtn" id="_seccmp_mets" style="font-size:11px;">\u2630 Metrics</button><div id="_seccmp_metpop" style="display:none;position:absolute;left:0;bottom:calc(100% + 6px);z-index:1200;background:var(--s1);border:1px solid var(--border);border-radius:8px;box-shadow:0 6px 20px rgba(0,0,0,.35);padding:8px 10px;max-height:60vh;overflow-y:auto;min-width:210px;"></div></span>'
     +'<button class="hbtn" id="_seccmp_play" style="font-size:11px;min-width:60px;">▶ Play</button>'
+    +'<button class="hbtn" id="_seccmp_vid" style="font-size:11px;" title="Save this play-through as a video">\u23FA Save video</button>'
     +'<button class="hbtn" id="_seccmp_reset" style="font-size:11px;">⟲</button>'
     +'<span style="display:flex;gap:4px;">'+sp+'</span>'
     +'<input type="range" id="_seccmp_scrub" min="0" max="'+Math.round(c.dur)+'" step="100" value="0" style="flex:1;min-width:160px;">'
@@ -6019,8 +6021,10 @@ function _secCmpBuildView(){
   });
   map.fitBounds(datum.getBounds(),{padding:[30,30]});
   setTimeout(()=>{if(_secCmp&&_secCmp.map)_secCmp.map.invalidateSize();},120);
-  document.getElementById('_seccmp_back').onclick=()=>{_secCmpPause();_secCmpExitFull();if(c.map){c.map.remove();c.map=null;}_secCmpRenderPicker();};
+  document.getElementById('_seccmp_back').onclick=()=>{if(c.adhoc){closeSectorCompare();return;}_secCmpPause();_secCmpExitFull();if(c.map){c.map.remove();c.map=null;}_secCmpRenderPicker();};
   document.getElementById('_seccmp_full').onclick=_secCmpToggleFull;
+  document.getElementById('_seccmp_vid').onclick=()=>window._secCmpVideo();
+  document.getElementById('_seccmp_mets').onclick=e=>{e.stopPropagation();_secCmpMetPop();};
   document.getElementById('_seccmp_follow').onclick=()=>{c.follow=!c.follow;_secCmpFollowUI();if(c.follow)_secCmpCentre(true);};
   map.on('dragstart',()=>{if(c.follow){c.follow=false;_secCmpFollowUI();}});
   _secCmpFollowUI();
@@ -6030,6 +6034,173 @@ function _secCmpBuildView(){
   body.querySelectorAll('button[data-spd]').forEach(b=>{b.onclick=()=>{c.speed=+b.dataset.spd;_secCmpSpeedUI();};});
   _secCmpSpeedUI();
   _secCmpDraw(true);
+}
+/* 20 Nov: choose the play-through card metrics (sector and Compare athletes
+   play-throughs). Saved on this device; default Pace, Rate, DPS, HR. The
+   full-screen strip shows the first five. */
+/* 20 Nov: SAVE THE PLAY-THROUGH AS A VIDEO. The live map is Leaflet (HTML
+   tiles) and cannot be recorded, so each frame is drawn on a canvas with the
+   replay-video kit (same satellite tiles, projection and recorder): course,
+   start and finish, every boat with its trail, the clock, and a leaderboard
+   with the metrics chosen under Metrics. Positions, distances and stroke values
+   come from the same play-through data, so the video matches what you watch. */
+window._secCmpVideo=function(){
+  const c=_secCmp;if(!c||!c.sess||!c.sess.length)return;
+  const K=window._rvKit;
+  if(!K){toast('Video export is not available');return;}
+  const mime=K.rvMime();
+  if(!mime||!HTMLCanvasElement.prototype.captureStream){toast('This browser cannot record video - try Chrome or Safari');return;}
+  try{_secCmpPause();}catch(e){}
+  document.getElementById('_scv_modal')?.remove();
+  const ov=document.createElement('div');ov.id='_scv_modal';
+  ov.style.cssText='position:fixed;inset:0;background:rgba(0,0,0,.75);display:flex;align-items:center;justify-content:center;z-index:10000;padding:12px;';
+  const pn=document.createElement('div');
+  pn.style.cssText='background:var(--s1);color:var(--text);border-radius:14px;max-width:760px;width:100%;max-height:94vh;overflow:auto;padding:14px 16px;box-sizing:border-box;';
+  const durS=c.dur/1000;
+  const spOpts=[1,2,4,8,16,32].filter(v=>durS/v>=4||v===1);
+  let spDef=spOpts.find(v=>durS/v<=40)||spOpts[spOpts.length-1];
+  pn.innerHTML='<div style="display:flex;align-items:center;gap:8px;margin-bottom:10px;"><b style="font-size:14px;">Save play-through video</b><button class="hbtn" id="_scv_close" style="margin-left:auto;font-size:11px;">✕</button></div>'
+    +'<div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:10px;align-items:center;">'
+    +'<select id="_scv_fmt" style="font-size:12px;"><option value="landscape">Landscape 16:9</option><option value="portrait">Portrait 9:16</option><option value="square">Square 1:1</option></select>'
+    +'<select id="_scv_spd" style="font-size:12px;">'+spOpts.map(v=>'<option value="'+v+'"'+(v===spDef?' selected':'')+'>'+v+'× · '+fmtTime(Math.max(1,Math.round(durS/v)))+'</option>').join('')+'</select>'
+    +'<button class="dzbtn dzbtn-pri" id="_scv_go">Make video</button></div>'
+    +'<div id="_scv_msg" style="font-size:11px;color:var(--muted);margin-bottom:8px;">Loading map…</div>'
+    +'<div style="text-align:center;"><canvas id="_scv_cv" style="max-width:100%;max-height:60vh;border-radius:10px;background:#000;"></canvas><video id="_scv_vid" controls playsinline style="display:none;max-width:100%;max-height:60vh;border-radius:10px;background:#000;"></video></div>'
+    +'<div id="_scv_save" style="display:none;gap:8px;margin-top:10px;"><button class="dzbtn dzbtn-pri" id="_scv_dl">Save video</button><button class="dzbtn dzbtn-sec" id="_scv_sh" style="display:none;"><span>Share</span></button></div>';
+  ov.appendChild(pn);document.body.appendChild(ov);
+  const $=id=>document.getElementById(id);
+  const cv=$('_scv_cv'),ctx=cv.getContext('2d'),msg=$('_scv_msg');
+  const sec=c.sec,o=sec.origin;
+  const ref=sec.ref.map(p=>sectorLatLon(p[0],p[1],o));
+  const all=ref.slice();c.sess.forEach(s=>s.tr.forEach(p=>all.push([p.lat,p.lon])));
+  const keys=_secCmpKeys().slice(0,4);
+  const FONT=K.RV_FONT;
+  let W=0,H=0,lay=null,mp=null,busy=false,rec=null,blob=null,url=null,gen=0;
+  const close=()=>{gen++;try{if(rec&&rec.state!=='inactive')rec.stop();}catch(e){}if(url)URL.revokeObjectURL(url);ov.remove();};
+  $('_scv_close').onclick=close;
+  const layout=(W,H)=>{
+    const mn=Math.min(W,H),m=Math.round(mn*0.025),hdrH=Math.round(mn*0.1);
+    const rowH=Math.round(mn*0.052),panH=Math.round(rowH*(c.sess.length+1)+m*0.8);
+    const panel={x:m,y:H-panH-m,w:W-2*m,h:panH};
+    return {mn,m,hdrH,rowH,panel,map:{x:m,y:hdrH+m,w:W-2*m,h:panel.y-hdrH-2*m}};
+  };
+  const mval=(m,st)=>{if(!m||!st)return '—';try{if(m.filter(st))return m.fmtAvg(m.val(st));}catch(e){}return '—';};
+  const frame=t=>{
+    ctx.drawImage(mp.bg,0,0);
+    const P=(lat,lon)=>mp.proj(lat,lon),mn=lay.mn;
+    [[ref[0],'#2ee06a'],[ref[ref.length-1],'#f54040']].forEach(([p,col])=>{const q=P(p[0],p[1]);ctx.beginPath();ctx.arc(q[0],q[1],mn*0.012,0,Math.PI*2);ctx.fillStyle=col;ctx.fill();ctx.lineWidth=3;ctx.strokeStyle='#000';ctx.stroke();});
+    const st=c.sess.map(s=>{
+      const pos=_secCmpInterpPos(s.tr,t);
+      let d=Math.min(sec.distance,_secCmpInterpD(s.dtr,t/1000));const done=t>=s.h.timeMs;if(done)d=sec.distance;
+      return {s,pos,d,done};
+    });
+    st.forEach(o2=>{
+      const s=o2.s;ctx.lineJoin='round';ctx.lineCap='round';ctx.strokeStyle=s.color;ctx.lineWidth=Math.max(4,mn/160);
+      ctx.beginPath();let first=true;for(const p of s.tr){if(p.t>t)break;const q=P(p.lat,p.lon);first?ctx.moveTo(q[0],q[1]):ctx.lineTo(q[0],q[1]);first=false;}
+      if(o2.pos){const q=P(o2.pos[0],o2.pos[1]);first?ctx.moveTo(q[0],q[1]):ctx.lineTo(q[0],q[1]);}
+      ctx.stroke();
+    });
+    st.forEach(o2=>{if(!o2.pos)return;const q=P(o2.pos[0],o2.pos[1]),r=mn*0.016;
+      ctx.save();ctx.translate(q[0],q[1]);ctx.rotate(Math.PI/4);ctx.fillStyle=o2.s.color;ctx.fillRect(-r,-r,2*r,2*r);ctx.lineWidth=3;ctx.strokeStyle='#000';ctx.strokeRect(-r,-r,2*r,2*r);ctx.restore();});
+    /* header */
+    const m=lay.m;
+    ctx.fillStyle='rgba(8,18,36,.88)';K.rvRR(ctx,m,m,W-2*m,lay.hdrH,mn*0.02);ctx.fill();
+    ctx.fillStyle='#fff';ctx.textBaseline='middle';ctx.textAlign='left';
+    ctx.font='700 '+Math.round(mn*0.036)+'px '+FONT;ctx.fillText((sec.name||'Stretch')+' · '+sec.distance+' m',m*2,m+lay.hdrH*0.5);
+    ctx.textAlign='right';ctx.font='700 '+Math.round(mn*0.05)+'px '+FONT;ctx.fillText(_secCmpFmtElapsed(t),W-m*2,m+lay.hdrH*0.5);
+    ctx.font='600 '+Math.round(mn*0.02)+'px '+FONT;ctx.fillStyle='rgba(255,255,255,.7)';ctx.fillText('BoatRun',W-m*2,m+lay.hdrH*0.86);
+    /* leaderboard */
+    const pnl=lay.panel,rh=lay.rowH;
+    ctx.fillStyle='rgba(8,18,36,.88)';K.rvRR(ctx,pnl.x,pnl.y,pnl.w,pnl.h,mn*0.02);ctx.fill();
+    const lead=Math.max(...st.map(x=>x.d));
+    const rows=st.slice().sort((a,b)=>(a.done&&b.done)?a.s.h.timeMs-b.s.h.timeMs:b.d-a.d);
+    const cols=[0.03,0.36,0.48].concat(keys.map((_,i)=>0.6+i*0.1)).map(f=>pnl.x+f*pnl.w);
+    ctx.font='700 '+Math.round(mn*0.019)+'px '+FONT;ctx.fillStyle='rgba(255,255,255,.6)';ctx.textAlign='left';
+    const hy=pnl.y+m*0.4+rh*0.5;
+    ctx.fillText('Gap',cols[1],hy);ctx.fillText('To go',cols[2],hy);
+    keys.forEach((k,i)=>ctx.fillText(_secCmpLbl(k),cols[3+i],hy));
+    rows.forEach((o2,i)=>{
+      const s=o2.s,y=pnl.y+m*0.4+rh*(i+1.5),r=mn*0.011;
+      ctx.save();ctx.translate(cols[0]+r,y);ctx.rotate(Math.PI/4);ctx.fillStyle=s.color;ctx.fillRect(-r,-r,2*r,2*r);ctx.restore();
+      ctx.textAlign='left';ctx.fillStyle='#fff';ctx.font='700 '+Math.round(mn*0.026)+'px '+FONT;
+      let nm=String(s.r.label||'');const maxW=cols[1]-cols[0]-r*4;while(nm.length>3&&ctx.measureText(nm).width>maxW)nm=nm.slice(0,-2);
+      if(nm!==String(s.r.label||''))nm=nm.slice(0,-1)+'…';
+      ctx.fillText(nm,cols[0]+r*3,y);
+      const gap=o2.d-lead;
+      ctx.fillStyle=o2.done?'#2ee06a':(Math.abs(gap)<0.5?'#2ee06a':'#ff6b6b');
+      ctx.fillText(o2.done?fmtRecordTime(s.h.timeMs):(Math.abs(gap)<0.5?'Leader':Math.round(gap)+' m'),cols[1],y);
+      ctx.fillStyle='#fff';ctx.fillText(Math.max(0,Math.round(sec.distance-o2.d))+' m',cols[2],y);
+      const abs=s.h.startT+Math.min(t,s.h.timeMs),sk=_secCmpStrokeAt(s.strokes,abs);
+      keys.forEach((k,j)=>{let v;if(k.k==='hr'){const b=_secCmpHRAt(s.hr,abs);v=b!=null?f0(b)+' bpm':'—';}else v=mval(k,sk);ctx.fillText(v,cols[3+j],y);});
+    });
+  };
+  const resetOut=()=>{$('_scv_save').style.display='none';$('_scv_vid').style.display='none';cv.style.display='';if(url){URL.revokeObjectURL(url);url=null;}blob=null;};
+  const build=async()=>{
+    const my=++gen;busy=true;$('_scv_go').disabled=true;resetOut();
+    const sz=K.RV_SIZES[$('_scv_fmt').value];W=sz[0];H=sz[1];cv.width=W;cv.height=H;lay=layout(W,H);
+    ctx.fillStyle='#0b1a2e';ctx.fillRect(0,0,W,H);msg.textContent='Loading map…';
+    const m=await K.rvBuildMap(all,W,H,lay,(d,n)=>{if(my===gen)msg.textContent='Loading map '+d+'/'+n+'…';},ref);
+    if(my!==gen)return;
+    mp=m;
+    try{if(document.fonts&&document.fonts.ready)await document.fonts.ready;}catch(e){}
+    frame(0);
+    msg.textContent=(m.ok<m.total*0.5?'Satellite map could not load - drawn on a plain background. ':'')+'Ready. Keep this tab open and on screen while it records.';
+    busy=false;$('_scv_go').disabled=false;
+  };
+  $('_scv_fmt').onchange=build;
+  $('_scv_go').onclick=()=>{
+    if(busy||!mp)return;
+    busy=true;['_scv_go','_scv_fmt','_scv_spd'].forEach(id=>$(id).disabled=true);resetOut();
+    const spd=+$('_scv_spd').value,len=c.dur/1000/spd,my=gen,chunks=[];
+    let stream;
+    try{stream=cv.captureStream(30);rec=new MediaRecorder(stream,{mimeType:mime,videoBitsPerSecond:10000000});}
+    catch(e){toast('Recording failed: '+(e&&e.message||e));busy=false;['_scv_go','_scv_fmt','_scv_spd'].forEach(id=>$(id).disabled=false);return;}
+    rec.ondataavailable=e=>{if(e.data&&e.data.size)chunks.push(e.data);};
+    rec.onstop=()=>{
+      try{stream.getTracks().forEach(t=>t.stop());}catch(e){}
+      ['_scv_go','_scv_fmt','_scv_spd'].forEach(id=>$(id).disabled=false);busy=false;
+      if(my!==gen||!chunks.length)return;
+      blob=new Blob(chunks,{type:mime.split(';')[0]});url=URL.createObjectURL(blob);
+      const v=$('_scv_vid');v.src=url;v.style.display='';cv.style.display='none';$('_scv_save').style.display='flex';
+      const ext=mime.indexOf('mp4')>=0?'mp4':'webm';
+      const fname='BoatRun_'+String(sec.name||'stretch').replace(/[^A-Za-z0-9_-]+/g,'_').slice(0,40)+'_'+sec.distance+'m_playthrough.'+ext;
+      const file=new File([blob],fname,{type:blob.type});
+      let canSh=false;try{canSh=!!(navigator.canShare&&navigator.canShare({files:[file]}));}catch(e){}
+      $('_scv_sh').style.display=canSh?'':'none';
+      $('_scv_sh').onclick=()=>{navigator.share({files:[file],title:'BoatRun play-through'}).catch(()=>{});};
+      $('_scv_dl').onclick=()=>{const a=document.createElement('a');a.href=url;a.download=fname;document.body.appendChild(a);a.click();a.remove();};
+      msg.textContent='Done · '+(blob.size/1048576).toFixed(1)+' MB '+ext.toUpperCase();
+    };
+    frame(0);rec.start(250);
+    const HOLD0=0.8,HOLD1=2,t0=performance.now();
+    const tick=()=>{
+      if(my!==gen)return;
+      const el=(performance.now()-t0)/1000,t=Math.max(0,Math.min(c.dur,(el-HOLD0)*spd*1000));
+      frame(t);
+      msg.textContent='Recording '+Math.round(Math.min(1,el/(len+HOLD0+HOLD1))*100)+'% — keep this tab on screen';
+      if(el<len+HOLD0+HOLD1)requestAnimationFrame(tick);else{try{rec.stop();}catch(e){}}
+    };
+    requestAnimationFrame(tick);
+  };
+  build();
+};
+const SECCMP_KEYS_LS='scull_seccmp_keys';
+function _secCmpKeySel(){let a=null;try{a=JSON.parse(localStorage.getItem(SECCMP_KEYS_LS)||'null');}catch(e){}return Array.isArray(a)?a:['pace','rate','dps','hr'];}
+/* The play-through shows heart rate at that moment, not an average */
+function _secCmpLbl(m){return m.k==='hr'?'HR':m.l;}
+function _secCmpKeys(){const a=_secCmpKeySel();return METRIC_DEFS.filter(m=>a.includes(m.k)&&!ERG_ONLY_KEYS.includes(m.k));}
+function _secCmpMetPop(){
+  const pop=document.getElementById('_seccmp_metpop');if(!pop)return;
+  if(pop.style.display==='block'){pop.style.display='none';return;}
+  const sel=new Set(_secCmpKeySel());
+  pop.innerHTML='<div style="display:flex;align-items:center;gap:8px;margin-bottom:6px;"><b style="font-size:12px;color:var(--text);">Show on the cards</b><button class="hbtn" id="_scm_def" style="margin-left:auto;font-size:10px;">Default</button></div>'
+    +METRIC_DEFS.filter(m=>!ERG_ONLY_KEYS.includes(m.k)).map(m=>'<label style="display:flex;align-items:center;gap:6px;font-size:12px;color:var(--text);padding:2px 0;cursor:pointer;"><input type="checkbox" data-k="'+m.k+'"'+(sel.has(m.k)?' checked':'')+'>'+_secCmpLbl(m)+'</label>').join('');
+  pop.style.display='block';
+  pop.onclick=e=>e.stopPropagation();
+  const save=a=>{try{localStorage.setItem(SECCMP_KEYS_LS,JSON.stringify(a));}catch(e){}if(_secCmp){_secCmp.lastCards=0;_secCmpDraw(true);}};
+  pop.querySelectorAll('input[data-k]').forEach(cb=>{cb.onchange=()=>save([...pop.querySelectorAll('input[data-k]:checked')].map(x=>x.dataset.k));});
+  document.getElementById('_scm_def').onclick=()=>{try{localStorage.removeItem(SECCMP_KEYS_LS);}catch(e){}pop.style.display='none';_secCmpMetPop();if(_secCmp){_secCmp.lastCards=0;_secCmpDraw(true);}};
+  setTimeout(()=>document.addEventListener('click',function off(){const p=document.getElementById('_seccmp_metpop');if(p)p.style.display='none';document.removeEventListener('click',off);}),0);
 }
 const SECCMP_MAP_CSS='height:420px;border-radius:10px;overflow:hidden;background:#030d1e;margin-bottom:8px;';
 function _secCmpFollowUI(){
@@ -6157,7 +6328,7 @@ function _secCmpCards(){
   const box=document.getElementById('_seccmp_cards'), mini=document.getElementById('_seccmp_mini');
   if(!box&&!mini)return;
   const lead=Math.max(...c.sess.map(s=>s.dNow||0));
-  const keys=METRIC_DEFS.filter(m=>!hid[m.k]&&!ERG_ONLY_KEYS.includes(m.k));
+  const keys=_secCmpKeys();
   const mdef=k=>METRIC_DEFS.find(m=>m.k===k);
   const mval=(m,st)=>{if(!m||!st)return '\u2014';try{if(m.filter(st))return m.fmtAvg(m.val(st));}catch(e){}return '\u2014';};
   const info=c.sess.map(s=>{
@@ -6183,7 +6354,7 @@ function _secCmpCards(){
         let v='\u2014';
         if(m.k==='hr'){const b=_secCmpHRAt(s.hr,o.abs);if(b!=null)v=f0(b)+' bpm';}
         else v=mval(m,o.st);
-        h+=row(m.l,v);
+        h+=row(_secCmpLbl(m),v);
       });
       return h+'</div>';
     }).join('');
@@ -6195,7 +6366,7 @@ function _secCmpCards(){
       return '<div style="flex:0 0 auto;min-width:150px;max-width:190px;border:2px solid '+s.color+';border-radius:8px;padding:5px 8px;background:var(--s2);">'
         +'<div style="display:flex;align-items:center;gap:5px;"><span style="width:8px;height:8px;background:'+s.color+';transform:rotate(45deg);display:inline-block;flex:0 0 auto;"></span><span style="font-size:11px;font-weight:700;color:var(--text);">'+fmtRecordDate(s.r.date)+'</span><span style="margin-left:auto;font-size:11px;font-weight:700;color:'+o.gapCol+';">'+o.gapTxt+'</span></div>'
         +'<div style="font-size:10px;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;margin-bottom:2px;">'+o.name+'</div>'
-        +cell('To go',o.toGo)+cell('Pace',mval(mdef('pace'),o.st))+cell('Rate',mval(mdef('rate'),o.st))+cell('DPS',mval(mdef('dps'),o.st))
+        +cell('To go',o.toGo)+keys.slice(0,5).map(m=>{if(m.k==='hr'){const b=_secCmpHRAt(s.hr,o.abs);return cell(_secCmpLbl(m),b!=null?f0(b)+' bpm':'\u2014');}return cell(_secCmpLbl(m),mval(m,o.st));}).join('')
         +'</div>';
     }).join('');
   }
@@ -6237,7 +6408,6 @@ function renderSessionTabs() {
     const dt=_sessDate(s);
     return `<button class="sess-tab${i===activeSessionIdx?' on':''}" onclick="switchSession(${i})" title="${safe}${dt?' '+dt:''}"><span style="display:inline-flex;flex-direction:column;align-items:flex-start;line-height:1.2;vertical-align:middle;">${short}${dt?`<span style="font-size:.95em;font-weight:600;opacity:.85;">${dt}</span>`:''}</span><span class="sess-x" onclick="event.stopPropagation();removeSession(${i})">×</span></button>`;
   }).join('');
-  wrap.insertAdjacentHTML('beforeend','<button class="sess-tab" onclick="openAthleteCompare()" style="border-color:#6a3fb0;color:#6a3fb0;font-weight:800;" title="All loaded sessions on one map, cut to the same start and finish">Compare athletes</button>');
 }
 
 async function loadFromDrive() {
@@ -12100,12 +12270,22 @@ async function showStartup(){
     <div class="brpill-row">
       ${SESSIONS.length ? '<button class="dzbtn" id="sz-back" style="background:#fc4c02;border-color:#fc4c02;color:#fff;font-weight:800;box-shadow:0 3px 9px rgba(252,76,2,.45);"><span style="color:#fff;">&#10005; Back to session</span></button>' : ''}
       <button class="dzbtn dzbtn-sec" id="sz-trends" style="display:none;"><span>Trends</span></button>
-      <button class="dzbtn dzbtn-sec prc-row" id="sz-coach"><img src="icons/Import.svg"><span>Coach Sessions</span></button>
-      <button class="dzbtn dzbtn-sec prc-row" id="sz-squad"><img src="icons/Import.svg"><span>From Squad</span></button>
-      <button class="dzbtn dzbtn-sec prc-row" id="sz-openfile"><img src="icons/Open.svg"><span>Open file</span></button>
-      <button class="dzbtn dzbtn-sec prc-row" id="sz-import" title="Add a session JSON someone else recorded for you to your own sessions"><img src="icons/Import.svg"><span>Import to my sessions</span></button>
-      <button class="dzbtn dzbtn-sec prc-row" id="sz-demo"><span>Demo session</span></button>
-      ${(localStorage.getItem('_ad_legacy_done') === '1' || localStorage.getItem('_ad_legacy_empty') === '1') ? '' : '<button class="dzbtn dzbtn-sec prc-row" id="sz-oldacct"><span>Import old sessions</span></button>'}
+    </div>
+    <!-- 20 Nov: Results actions. Head to Head stands on its own; opening a session and the extras are grouped. Import old sessions retired. -->
+    <div class="sz-rowacts prc-row">
+      <button type="button" id="sz-h2h" class="sz-h2h" title="Put sessions from any athlete or device side by side on one stretch of water, then replay it">
+        <span class="t"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 8h13l3-3"/><path d="M3 16h13l3 3"/><circle cx="7" cy="8" r="1.6"/><circle cx="11" cy="16" r="1.6"/></svg>Head to Head</span>
+        <span class="s">Athletes and devices side by side on the same water, then replay it</span>
+      </button>
+      <div class="sz-actgrp"><div class="sz-actlbl">Open a session</div><div class="sz-actbtns brpill-row">
+        <button class="dzbtn dzbtn-sec" id="sz-coach"><img src="icons/Import.svg"><span>Coach Sessions</span></button>
+        <button class="dzbtn dzbtn-sec" id="sz-squad"><img src="icons/Import.svg"><span>From Squad</span></button>
+        <button class="dzbtn dzbtn-sec" id="sz-openfile"><img src="icons/Open.svg"><span>Open file</span></button>
+      </div></div>
+      <div class="sz-actgrp"><div class="sz-actlbl">More</div><div class="sz-actbtns brpill-row">
+        <button class="dzbtn dzbtn-sec" id="sz-import" title="Add a session JSON someone else recorded for you to your own sessions"><img src="icons/Import.svg"><span>Import to my sessions</span></button>
+        <button class="dzbtn dzbtn-sec" id="sz-demo"><span>Demo session</span></button>
+      </div></div>
     </div>
     <div class="sz-ntabs" id="sz-ntabs"><button class="sz-ntab sel" data-nt="sess">Sessions</button><button class="sz-ntab" data-nt="cal">Calendar</button><button class="sz-ntab" data-nt="course" style="display:none;">Course</button></div>
     <div class="brpill prc-plan" id="sz-season" style="margin-bottom:14px;"></div>
@@ -12177,6 +12357,7 @@ async function showStartup(){
   const _oldBtn=document.getElementById('sz-oldacct');
   if(_oldBtn) _oldBtn.onclick=()=>{ if(AnalyserDrive.isLegacyLinked()){ runLegacyMigration(); return; } toast('Sign in with the same Google account'); AnalyserDrive.signInLegacy(); };
   document.getElementById('sz-coach').onclick=loadCoachSessions;
+  {const hb=document.getElementById('sz-h2h');if(hb)hb.onclick=()=>window.openAthleteCompare(true);}
   document.getElementById('sz-trends').onclick=showTrendsModal;
   document.getElementById('sz-squad').onclick=loadFromSquad;
   document.getElementById('sz-openfile').onclick=()=>document.getElementById('fin').click();
@@ -13406,43 +13587,52 @@ function applyFocusCards() {
 let _ac=null;
 const AC_METRICS=[['pace','Pace'],['rate','Rate'],['dps','DPS'],['hr','Heart rate'],['epower','Eff Power'],['rloss','Recovery Run'],['ratio','Ratio'],['impulse','Impulse']];
 function acClose(){
+  const home=!!(_ac&&_ac.fromHome);
   if(_ac){try{_ac.map&&_ac.map.remove();}catch(e){}try{_ac.ov.remove();}catch(e){}window.removeEventListener('resize',acDrawChart);}
   _ac=null;
+  if(home){try{showStartup();}catch(e){}}   // opened from Results: go back there, not into the last session added
 }
 window.closeAthleteCompare=acClose;
 function acName(s){
   let n=String((s&&s.label)||'Session');if(n.length>28)n=n.slice(0,25)+'…';
   const dt=_sessDate(s);return dt?n+' '+dt:n;
 }
-window.openAthleteCompare=function(){
-  if(!isPro()){showPlanModal('Athlete comparison is a Pro feature.');return;}
+window.openAthleteCompare=function(fromHome){
+  if(!isPro()){showPlanModal('Head to Head is a Pro feature.');return;}
   acClose();
   const ov=document.createElement('div');
   ov.id='_ac_modal';
   ov.style.cssText='position:fixed;inset:0;background:rgba(0,0,0,.78);z-index:9999;padding:8px;display:flex;';
   ov.innerHTML='<div style="background:var(--s1);border:1px solid var(--border);border-radius:10px;width:100%;height:100%;box-sizing:border-box;display:flex;flex-direction:column;overflow:hidden;padding:10px 12px;color:var(--text);">'
-    +'<div style="display:flex;align-items:center;gap:10px;margin-bottom:6px;flex-wrap:wrap;"><div style="font-size:14px;font-weight:700;">Compare athletes</div>'
-    +'<span id="_ac_msg" style="font-size:12px;font-weight:600;color:#ff2fd0;"></span>'
-    +'<span style="margin-left:auto;display:inline-flex;gap:6px;flex-wrap:wrap;">'
-    +'<button class="dzbtn dzbtn-pri" id="_ac_addsq" style="font-size:11px;">+ From squad</button>'
-    +'<button class="dzbtn dzbtn-pri" id="_ac_addfile" style="font-size:11px;">+ Files</button>'
-    +'<button class="dzbtn" id="_ac_adddrive" style="font-size:11px;">+ From Drive</button></span>'
+    /* 20 Nov: laid out as steps - 1 open sessions, 2 pick the stretch, then the results */
+    +'<div style="display:flex;align-items:center;gap:10px;margin-bottom:8px;"><div style="font-size:16px;font-weight:800;">Head to Head</div>'
+    +'<span style="font-size:11px;color:var(--muted);">Compare athletes and devices on the same stretch of water</span>'
+    +'<button class="hbtn" id="_ac_close" style="margin-left:auto;font-size:11px;">\u2715 Close</button></div>'
+    +'<div class="ac-step"><div class="ac-step-hd"><span class="ac-num">1</span>Open sessions from'
+    +'<button class="dzbtn dzbtn-pri" id="_ac_addsq">Squad</button>'
+    +'<button class="dzbtn dzbtn-pri" id="_ac_addfile">Files</button>'
+    +'<button class="dzbtn dzbtn-pri" id="_ac_adddrive">My Drive</button>'
+    +'<span class="ac-hint">Files: FIT, TCX, GPX or CSV from any watch or SpeedCoach. You can also drop them here.</span></div>'
     +'<input type="file" id="_ac_fin" accept=".fit,.tcx,.gpx,.csv,.txt,.json" multiple style="display:none">'
-    +'<button class="hbtn" id="_ac_reset" style="font-size:11px;">Clear start / finish</button>'
-    +'<button class="hbtn" id="_ac_close" style="font-size:11px;">✕ Close</button></div>'
-    +'<div id="_ac_legend" style="display:flex;flex-wrap:wrap;gap:6px;margin-bottom:6px;"></div>'
+    +'<div id="_ac_legend" style="display:flex;flex-wrap:wrap;gap:6px;margin-top:6px;"></div></div>'
+    +'<div class="ac-step"><div class="ac-step-hd"><span class="ac-num">2</span>Pick the stretch'
+    +'<select id="_ac_secsel" title="Use a saved sector" style="font-size:12px;max-width:260px;padding:4px 6px;border-radius:6px;"></select>'
+    +'<span class="ac-hint" style="margin:0;">or tap a start and a finish on the map</span>'
+    +'<span id="_ac_msg" style="font-size:12px;font-weight:700;color:#ff2fd0;"></span>'
+    +'<button class="hbtn" id="_ac_reset" style="margin-left:auto;font-size:11px;">Clear stretch</button></div></div>'
     +'<div id="_ac_map" style="flex:1 1 42%;min-height:200px;border-radius:10px;overflow:hidden;background:#030d1e;"></div>'
     +'<div id="_ac_res" style="flex:1 1 58%;min-height:0;overflow-y:auto;margin-top:8px;"></div></div>';
   document.body.appendChild(ov);
   const map=L.map('_ac_map',{zoomControl:true,attributionControl:true,doubleClickZoom:false});
   map.attributionControl.setPrefix('');
   addSatLayers(map);
-  _ac={ov,map,S:[],sel:[],marks:[],sec:null,metric:'pace',smooth:3,hoverD:null,nCol:0};
+  _ac={ov,map,S:[],sel:[],marks:[],sec:null,metric:'pace',smooth:3,hoverD:null,nCol:0,fromHome:fromHome===true};
   map.setView([-25,134],4);
   map.on('click',e=>acTap(e.latlng));
   document.getElementById('_ac_close').onclick=acClose;
   document.getElementById('_ac_reset').onclick=acReset;
   document.getElementById('_ac_addsq').onclick=acAddSquad;
+  document.getElementById('_ac_secsel').onchange=e=>{const sec=SECTORS_DB.find(z=>z.id===e.target.value&&!z.deleted);if(sec)acUseSector(sec);else acReset();};
   document.getElementById('_ac_adddrive').onclick=acAddDrive;
   const fin=document.getElementById('_ac_fin');
   document.getElementById('_ac_addfile').onclick=()=>fin.click();
@@ -13470,7 +13660,34 @@ function acSync(fit){
     if(c.sec){x.hits=scanTraceForSector(c.sec,x.tr)||[];acSetHit(x);}
   });
   if((fit||added)&&c.S.length&&!c.sec){try{c.map.fitBounds(L.featureGroup(c.S.filter(x=>x.on).map(x=>x.line)).getBounds(),{padding:[24,24]});}catch(e){}}
-  acStyleLines();acLegend();acRenderRes();
+  acStyleLines();acLegend();acRenderRes();acSecOptions();
+}
+/* 20 Nov: saved sectors as an alternative to tapping a start and finish.
+   Listed with how many loaded sessions cross them, most first. */
+function acSecOptions(){
+  const c=_ac,el=document.getElementById('_ac_secsel');if(!c||!el)return;
+  const cur=c.secId||'';
+  const list=(typeof SECTORS_DB!=='undefined'?SECTORS_DB:[]).filter(z=>z&&!z.deleted&&Array.isArray(z.ref)&&z.ref.length>1&&z.origin).map(z=>{
+    let n=0;c.S.forEach(x=>{try{if((scanTraceForSector(z,x.tr)||[]).length)n++;}catch(e){}});return {z,n};
+  }).sort((a,b)=>b.n-a.n||String(a.z.name).localeCompare(String(b.z.name)));
+  el.innerHTML='<option value="">'+(list.length?'Saved sectors\u2026':'No saved sectors')+'</option>'
+    +list.map(o=>'<option value="'+_secEsc(o.z.id)+'"'+(o.z.id===cur?' selected':'')+'>'+_secEsc(o.z.name)+' \u00b7 '+o.z.distance+' m'+(c.S.length?' \u00b7 '+o.n+'/'+c.S.length+' crossed':'')+'</option>').join('');
+}
+function acUseSector(sec){
+  const c=_ac;if(!c)return;
+  acReset();
+  c.secId=sec.id;
+  const el=document.getElementById('_ac_secsel');if(el)el.value=sec.id;
+  c.sec=Object.assign({},sec);
+  const o=sec.origin,ref=sec.ref.map(p=>sectorLatLon(p[0],p[1],o));
+  c.refLine=L.polyline(ref,{color:'#ffb020',weight:2,opacity:.85,dashArray:'6 6'}).addTo(c.map);
+  [[ref[0],'#2ee06a','Start'],[ref[ref.length-1],'#f54040','Finish']].forEach(([p,col,lb])=>{
+    c.marks.push(L.circleMarker(p,{radius:8,color:'#000',weight:2,fillColor:col,fillOpacity:1}).bindTooltip(lb,{permanent:true,direction:'top'}).addTo(c.map));
+  });
+  c.sel=[{k:-1,idx:0,d:0},{k:-1,idx:0,d:0}];
+  c.S.forEach(x=>{x.hits=scanTraceForSector(c.sec,x.tr)||[];x.pick=null;acSetHit(x);});
+  try{c.map.fitBounds(c.refLine.getBounds(),{padding:[40,40]});}catch(e){}
+  acStyleLines();acMsg();acRenderRes();
 }
 function acNameOf(f){return String(f||'Session').replace(/\.[^.]+$/,'').replace(/[_]+/g,' ').trim()||'Session';}
 /* GPX (Strava, Apple Watch and most apps export it). Heart rate and cadence
@@ -13627,14 +13844,26 @@ function acSquadPicker(code,metas){
 }
 function acMsg(){
   const el=document.getElementById('_ac_msg');if(!el||!_ac)return;
-  el.textContent=_ac.sel.length===0?'Tap the START on any track':_ac.sel.length===1?'Now tap the FINISH on the same track':'';
+  el.textContent=_ac.secId?'':_ac.sel.length===0?'Tap the START on any track, or pick a saved sector':_ac.sel.length===1?'Now tap the FINISH on the same track':'';
 }
 function acLegend(){
   const el=document.getElementById('_ac_legend');if(!el||!_ac)return;
-  el.innerHTML=_ac.S.map((x,k)=>'<label style="display:inline-flex;align-items:center;gap:5px;font-size:11px;padding:3px 8px;border:1px solid var(--border);border-radius:14px;cursor:pointer;opacity:'+(x.on?1:.45)+';"><input type="checkbox" data-ac="'+k+'"'+(x.on?' checked':'')+' style="margin:0;"><span style="width:10px;height:10px;border-radius:50%;background:'+x.col+';display:inline-block;"></span>'+_secEsc(x.name)+'<span data-acr="'+k+'" title="Rename" style="cursor:pointer;opacity:.6;margin-left:2px;">\u270e</span></label>').join('')
-    +(_ac.S.length?'':'<span style="font-size:12px;color:var(--muted);">No sessions with a GPS track yet. Add them with + From squad, + Files (or drop files here) or + From Drive.</span>');
+  el.innerHTML=_ac.S.map((x,k)=>'<label style="display:inline-flex;align-items:center;gap:5px;font-size:11px;padding:3px 8px;border:1px solid var(--border);border-radius:14px;cursor:pointer;opacity:'+(x.on?1:.45)+';"><input type="checkbox" data-ac="'+k+'"'+(x.on?' checked':'')+' style="margin:0;"><span style="width:10px;height:10px;border-radius:50%;background:'+x.col+';display:inline-block;"></span>'+_secEsc(x.name)+'<span data-acr="'+k+'" title="Rename" style="cursor:pointer;opacity:.6;margin-left:2px;">\u270e</span><span data-acx="'+k+'" title="Remove from the comparison" style="cursor:pointer;margin-left:2px;font-weight:800;color:#e74c3c;">\u2715</span></label>').join('')
+    +(_ac.S.length?'':'<span style="font-size:12px;color:var(--muted);">No sessions yet. Open some with the buttons above.</span>');
+  el.querySelectorAll('span[data-acx]').forEach(sp=>{sp.onclick=e=>{e.preventDefault();e.stopPropagation();acRemove(_ac.S[+sp.dataset.acx]);};});
   el.querySelectorAll('span[data-acr]').forEach(sp=>{sp.onclick=e=>{e.preventDefault();e.stopPropagation();const x=_ac.S[+sp.dataset.acr];const v=prompt('Name for this session',x.s.label);if(v==null||!v.trim())return;x.s.label=v.trim().slice(0,60);x.name=acName(x.s);try{renderSessionTabs();}catch(er){}acLegend();acRenderRes();};});
   el.querySelectorAll('input[data-ac]').forEach(cb=>{cb.onchange=()=>{const x=_ac.S[+cb.dataset.ac];x.on=cb.checked;acStyleLines();acLegend();acRenderRes();};});
+}
+/* Remove a session from the comparison: it is closed (taken out of the loaded
+   sessions), not just hidden. */
+function acRemove(x){
+  const c=_ac;if(!c||!x)return;
+  try{c.map.removeLayer(x.line);if(x.cutLine)c.map.removeLayer(x.cutLine);}catch(e){}
+  c.S=c.S.filter(y=>y!==x);
+  const i=SESSIONS.indexOf(x.s);
+  if(i>=0){if(SESSIONS.length>1)removeSession(i);else{try{resetApp();}catch(e){SESSIONS.length=0;}}}
+  if(!c.S.length)acReset();
+  acSync();acSecOptions();
 }
 function acStyleLines(){
   if(!_ac)return;
@@ -13650,6 +13879,8 @@ function acReset(){
   _ac.marks.forEach(m=>{try{_ac.map.removeLayer(m);}catch(e){}});_ac.marks=[];
   _ac.S.forEach(x=>{if(x.cutLine){try{_ac.map.removeLayer(x.cutLine);}catch(e){}x.cutLine=null;}x.hits=null;x.h=null;x.pick=null;});
   _ac.sel=[];_ac.sec=null;_ac.hoverD=null;
+  if(_ac.refLine){try{_ac.map.removeLayer(_ac.refLine);}catch(e){}_ac.refLine=null;}
+  if(_ac.secId){_ac.secId=null;const el=document.getElementById('_ac_secsel');if(el)el.value='';}
   acStyleLines();acMsg();acRenderRes();
 }
 function acNearest(ll,only){
@@ -13666,7 +13897,7 @@ function acNearest(ll,only){
 }
 function acTap(ll){
   if(!_ac)return;
-  if(_ac.sel.length>=2)acReset();
+  if(_ac.sel.length>=2||_ac.secId)acReset();
   if(_ac.sel.length===0){
     const n=acNearest(ll,null);
     if(!n||n.d>40){toast('Tap closer to a track');return;}
@@ -13710,6 +13941,36 @@ function acSetHit(x){
   const base=(h.startT<1e11)?(Date.parse((d.sum&&d.sum.start_time)||'')||0):0;   // watch files keep time from the session start; HR is wall clock
   x.pts=(d.strokes||[]).filter(s=>s&&s.ms!=null&&s.ms>=h.startT&&s.ms<=h.endT).sort((p,q)=>p.ms-q.ms).map(s=>({s,d:dAt(s.ms),hr:hr.length?_secCmpHRAt(hr,s.ms+base):null})).filter(o=>o.d!=null);
 }
+/* 20 Nov: PLAY THROUGH. Hands the cut sessions to the sector play-through
+   engine unchanged (_secCmpBuildView): same map, gates, boats, speeds, scrub,
+   follow, full screen and live cards. The stretch is a temporary sector. */
+function acPlay(){
+  const c=_ac;if(!c||!c.sec)return;
+  const out=[];
+  c.S.filter(x=>x.on&&x.h).sort((p,q)=>p.h.timeMs-q.h.timeMs).forEach(x=>{
+    const d=x.s.d||{},h=x.h;
+    const tr=_secCmpTrim(x.tr,h.startT,h.endT);if(tr.length<2)return;
+    const base=(h.startT<1e11)?(Date.parse((d.sum&&d.sum.start_time)||'')||0):0;   // watch files: put HR on the session clock
+    const hr=_secCmpHR(d.hr).map(b=>({t:b.t-base,b:b.b}));
+    const strokes=(d.strokes||[]).filter(st=>st&&st.ms!=null&&st.ms>=h.startT-10000&&st.ms<=h.endT).sort((p,q)=>p.ms-q.ms);
+    out.push({r:{key:'ac'+out.length,label:x.s.label,date:(d.sum&&d.sum.start_time)||null,timeMs:h.timeMs},h,tr,dtr:h.trace,strokes,hr,color:x.col});
+  });
+  if(!out.length){toast('No session crossed both lines');return;}
+  closeSectorCompare();
+  const sec=Object.assign({},c.sec,{name:'Selected stretch'});
+  const overlay=document.createElement('div');
+  overlay.id='_seccmp_modal';
+  overlay.style.cssText='position:fixed;inset:0;background:rgba(0,0,0,.78);display:flex;align-items:center;justify-content:center;z-index:9999;padding:16px;';
+  const panel=document.createElement('div');
+  panel.style.cssText='background:var(--s1);border:1px solid var(--border);border-radius:10px;max-width:1100px;width:100%;max-height:92vh;overflow-y:auto;padding:14px 16px;';
+  panel.innerHTML='<div style="display:flex;align-items:center;gap:10px;margin-bottom:10px;"><div style="font-size:13px;font-weight:600;color:var(--text);">'+_secEsc(sec.name)+' · '+sec.distance+'m</div><button id="_seccmp_close" style="margin-left:auto;background:var(--s3);border:1px solid var(--border);color:var(--muted);border-radius:6px;padding:4px 10px;font-size:11px;cursor:pointer;">Close</button></div><div id="_seccmp_body"></div>';
+  overlay.appendChild(panel);
+  overlay.onclick=e=>{if(e.target===overlay)closeSectorCompare();};
+  document.body.appendChild(overlay);
+  document.getElementById('_seccmp_close').onclick=closeSectorCompare;
+  _secCmp={sec,overlay,picked:new Set(),map:null,raf:null,sess:out,simT:0,dur:Math.max(...out.map(o=>o.h.timeMs)),speed:1,playing:false,lastFrame:0,lastCards:0,adhoc:true};
+  _secCmpBuildView();
+}
 function acMetricVal(o,k){
   if(k==='hr')return (o.hr>40&&o.hr<220)?o.hr:null;
   const m=METRIC_DEFS.find(z=>z.k===k);if(!m)return null;
@@ -13726,11 +13987,12 @@ function acAvg(x,k){
 }
 function acRenderRes(){
   const c=_ac,el=document.getElementById('_ac_res');if(!c||!el)return;
-  if(!c.sec){el.innerHTML='<div style="font-size:12px;color:var(--muted);padding:6px 2px;"><b>1.</b> Add sessions: + From squad (tick a whole day), + Files (FIT, TCX, GPX, CSV from any watch or SpeedCoach, or drop them here) or + From Drive. <b>2.</b> Every session is on the map. Tap a start point on any track, then a finish point further along it. Each session is cut at the same start and finish lines, and the chart below shows them all together. Untick a session above to hide it.</div>';return;}
+  if(!c.sec){el.innerHTML='<div style="font-size:12px;color:var(--muted);padding:6px 2px;">Once a stretch is picked, every session is cut at the same start and finish lines and the times, stroke chart and play-through appear here. Untick a session to hide it, or \u2715 to remove it.</div>';return;}
   const on=c.S.filter(x=>x.on),hit=on.filter(x=>x.h);
   const best=hit.length?Math.min(...hit.map(x=>x.h.timeMs)):0;
   const td='padding:5px 8px;border-bottom:1px solid var(--border);white-space:nowrap;font-size:11px;text-align:right;';
-  let h='<div style="font-size:12px;font-weight:700;margin-bottom:4px;">'+c.sec.distance+' m stretch · '+hit.length+' of '+on.length+' sessions crossed both lines</div>';
+  let h='<div style="display:flex;align-items:center;gap:10px;margin-bottom:4px;flex-wrap:wrap;"><div style="font-size:12px;font-weight:700;">'+c.sec.distance+' m stretch · '+hit.length+' of '+on.length+' sessions crossed both lines</div>'
+    +(hit.length?'<button class="dzbtn dzbtn-pri" id="_ac_play" style="font-size:11px;">\u25B6 Play through</button>':'')+'</div>';
   h+='<div class="twrap" style="margin-bottom:8px;"><table style="width:100%;"><thead><tr><th style="text-align:left;">Session</th><th>Time</th><th>Gap</th><th>Pace</th><th>Rate</th><th>DPS</th><th>HR</th><th>Pass</th></tr></thead><tbody>';
   on.slice().sort((p,q)=>(p.h?p.h.timeMs:1e15)-(q.h?q.h.timeMs:1e15)).forEach(x=>{
     const k=c.S.indexOf(x);
@@ -13750,6 +14012,7 @@ function acRenderRes(){
     +'<div style="font-size:10px;color:var(--muted);margin-top:3px;">x = metres from the start line. Move across the chart to read every session at the same point.</div>';
   el.innerHTML=h;
   el.querySelectorAll('select[data-acp]').forEach(s=>{s.onchange=()=>{const x=c.S[+s.dataset.acp];x.pick=+s.value;acSetHit(x);acRenderRes();};});
+  {const pb=document.getElementById('_ac_play');if(pb)pb.onclick=acPlay;}
   document.getElementById('_ac_metric').onchange=e=>{c.metric=e.target.value;acDrawChart();};
   document.getElementById('_ac_smooth').onchange=e=>{c.smooth=+e.target.value;acDrawChart();};
   const cv=document.getElementById('_ac_chart');
@@ -20411,7 +20674,7 @@ function rvLayout(W,H){
   const map={x:m,y:hdrH,w:W-2*m,h:chart.y-hdrH-m};
   return {mn,m,hdrH,chart,map};
 }
-async function rvBuildMap(lls,W,H,lay,onProg){
+async function rvBuildMap(lls,W,H,lay,onProg,lineLL){
   let a0=90,a1=-90,o0=180,o1=-180;
   lls.forEach(p=>{if(p[0]<a0)a0=p[0];if(p[0]>a1)a1=p[0];if(p[1]<o0)o0=p[1];if(p[1]>o1)o1=p[1];});
   const fw=lay.map.w*0.88, fh=lay.map.h*0.88;
@@ -20432,13 +20695,13 @@ async function rvBuildMap(lls,W,H,lay,onProg){
     done++;if(onProg)onProg(done,total);}};
   await Promise.all([0,1,2,3,4,5].map(run));
   g.fillStyle='rgba(0,0,0,.15)';g.fillRect(0,0,W,H);
-  const xy=lls.map(p=>proj(p[0],p[1]));
+  const xy=(lineLL||lls).map(p=>proj(p[0],p[1]));
   g.lineJoin='round';g.lineCap='round';
   g.strokeStyle='rgba(0,0,0,.55)';g.lineWidth=Math.max(5,W/180)+3;
   g.beginPath();xy.forEach((p,i)=>i?g.lineTo(p[0],p[1]):g.moveTo(p[0],p[1]));g.stroke();
   g.strokeStyle='rgba(255,255,255,.75)';g.lineWidth=Math.max(5,W/180);
   g.stroke();
-  return {bg,xy,ok,total};
+  return {bg,xy,ok,total,proj};
 }
 function rvSeries(strokes,tA){
   /* 3 s centred moving average of the valid stroke values. */
@@ -20544,6 +20807,7 @@ function rvFrame(ctx,W,H,lay,mp,D,p,dur){
   ctx.textAlign='right';ctx.fillText(fmtTime(Math.round(span/1000)),px+pw,C.y+C.h-pad);
   ctx.textAlign='center';ctx.fillStyle='rgba(255,255,255,.5)';ctx.fillText('boatrun.au',px+pw/2,C.y+C.h-pad);
 }
+window._rvKit={rvMime,rvBuildMap,rvRR,RV_SIZES,RV_FONT};   // 20 Nov: shared with the play-through video
 window.rvOpenExport=function(){
   const D=rvPrep();if(!D)return;
   const mime=rvMime();
@@ -20815,6 +21079,20 @@ body .hdr-tabs .hmenu,body.light .hdr-tabs .hmenu{background:#fff!important;bord
 @media (min-width:1100px){#startup .sz-list[data-prc="nav"] .sz-sumwrap{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:16px;align-items:stretch;max-width:none;}#startup .sz-list[data-prc="nav"] #sz-navempty{grid-column:1/-1;}#startup .sz-list[data-prc="nav"] #sz-sectors,#startup .sz-list[data-prc="nav"] #sz-nav{margin:0!important;box-sizing:border-box;}#startup .sz-list[data-prc="nav"] .sz-panelist{max-height:none!important;overflow:visible!important;}}   /* 19 Nov: two equal-height columns, lists at full length */
 #startup #sz-ntabs{display:none!important;}
 .sz-list:not([data-prc="row"]) .prc-row{display:none!important;}
+.ac-step{border:1px solid var(--border);border-radius:10px;padding:7px 10px;margin-bottom:8px;}
+.ac-step-hd{display:flex;align-items:center;gap:8px;flex-wrap:wrap;font-size:13px;font-weight:800;}
+.ac-step-hd .dzbtn{font-size:12px;padding:5px 12px;min-height:0;}
+.ac-num{display:inline-flex;align-items:center;justify-content:center;width:22px;height:22px;border-radius:50%;background:#6a3fb0;color:#fff;font-size:12px;font-weight:800;}
+.ac-hint{font-size:11px;font-weight:500;color:var(--muted);margin-left:4px;}
+.sz-rowacts{display:flex;gap:12px;flex-wrap:wrap;align-items:stretch;margin:0 0 14px;}
+.sz-h2h{display:flex;flex-direction:column;justify-content:center;align-items:flex-start;gap:4px;min-width:250px;max-width:360px;padding:12px 20px;border:0;border-radius:14px;background:linear-gradient(135deg,#6a3fb0,#d61fb5);color:#fff;cursor:pointer;box-shadow:0 4px 16px rgba(106,63,176,.5);text-align:left;font-family:Inter,-apple-system,sans-serif;}
+.sz-h2h .t{display:flex;align-items:center;gap:8px;font-size:17px;font-weight:800;letter-spacing:.04em;text-transform:uppercase;}
+.sz-h2h .s{font-size:11px;font-weight:600;opacity:.92;}
+.sz-h2h:hover{filter:brightness(1.1);transform:translateY(-1px);}
+.sz-actgrp{display:flex;flex-direction:column;gap:6px;padding:8px 12px 10px;border-radius:14px;background:#13254a;border:1px solid #3d5f95;}
+.sz-list > .brpill-row:not(:has(#sz-back)){display:none;}
+.sz-actlbl{font:800 10px Inter,-apple-system,sans-serif;letter-spacing:.08em;text-transform:uppercase;color:#c9d6f0;}
+.sz-actbtns{display:flex;gap:8px;flex-wrap:wrap;margin:0!important;}
 .sz-list:not([data-prc="plan"]) .prc-plan{display:none!important;}
 .sz-list:not([data-prc="coach"]) .prc-coach{display:none!important;}
 .sz-list[data-prc="coach"] .sz-grid{display:none!important;}
