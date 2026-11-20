@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
 <meta name="color-scheme" content="light dark"/>
-<meta name="br-build" content="Analyser_261120_19">
+<meta name="br-build" content="Analyser_261120_21">
 <title>BoatRun Analyser</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -6075,7 +6075,7 @@ window._secCmpVideo=function(){
   const all=ref.slice();c.sess.forEach(s=>s.tr.forEach(p=>all.push([p.lat,p.lon])));
   const keys=_secCmpKeys().slice(0,4);
   const FONT=K.RV_FONT;
-  let W=0,H=0,lay=null,mp=null,busy=false,rec=null,blob=null,url=null,gen=0;
+  let W=0,H=0,lay=null,mp=null,busy=false,rec=null,blob=null,url=null,gen=0,colMax=null;   // colMax: widest column text seen so far, so columns never jump
   const close=()=>{gen++;try{if(rec&&rec.state!=='inactive')rec.stop();}catch(e){}if(url)URL.revokeObjectURL(url);ov.remove();};
   $('_scv_close').onclick=close;
   const layout=(W,H)=>{
@@ -6084,7 +6084,7 @@ window._secCmpVideo=function(){
     const panel={x:m,y:H-panH-m,w:W-2*m,h:panH};
     return {mn,m,hdrH,rowH,panel,map:{x:m,y:hdrH+m,w:W-2*m,h:panel.y-hdrH-2*m}};
   };
-  const mval=(m,st)=>{if(!m||!st)return '—';try{if(m.filter(st))return m.fmtAvg(m.val(st));}catch(e){}return '—';};
+  const mval=(m,st)=>{if(!m||!st)return '—';try{if(m.filter(st))return _secCmpFmtV(m,m.val(st));}catch(e){}return '—';};
   const frame=t=>{
     ctx.drawImage(mp.bg,0,0);
     const P=(lat,lon)=>mp.proj(lat,lon),mn=lay.mn;
@@ -6114,30 +6114,46 @@ window._secCmpVideo=function(){
     ctx.fillStyle='rgba(8,18,36,.88)';K.rvRR(ctx,pnl.x,pnl.y,pnl.w,pnl.h,mn*0.02);ctx.fill();
     const lead=Math.max(...st.map(x=>x.d));
     const rows=st.slice().sort((a,b)=>(a.done&&b.done)?a.s.h.timeMs-b.s.h.timeMs:b.d-a.d);
-    const cols=[0.03,0.36,0.48].concat(keys.map((_,i)=>0.6+i*0.1)).map(f=>pnl.x+f*pnl.w);
-    ctx.font='700 '+Math.round(mn*0.019)+'px '+FONT;ctx.fillStyle='rgba(255,255,255,.6)';ctx.textAlign='left';
+    /* 20 Nov: columns sized from the widest text in each, and the whole table
+       scaled down if it does not fit (portrait is narrow). */
+    const cells=rows.map(o2=>{
+      const s=o2.s,gap=o2.d-lead,abs=s.h.startT+Math.min(t,s.h.timeMs),sk=_secCmpStrokeAt(s.strokes,abs);
+      return {o2,name:String(s.r.label||''),
+        gap:o2.done?fmtRecordTime(s.h.timeMs):(Math.abs(gap)<0.5?'Leader':Math.round(gap)+' m'),
+        gapCol:o2.done?'#2ee06a':(Math.abs(gap)<0.5?'#2ee06a':'#ff6b6b'),
+        vals:[Math.max(0,Math.round(sec.distance-o2.d))+' m'].concat(keys.map(k=>{if(k.k==='hr'){const bb=_secCmpHRAt(s.hr,abs);return bb!=null?f0(bb)+' bpm':'\u2014';}return mval(k,sk);}))};
+    });
+    const heads=['Gap','To go'].concat(keys.map(k=>_secCmpLbl(k)));
+    let fs=mn*0.026,hfs=mn*0.019;
+    const measure=()=>{
+      ctx.font='700 '+Math.round(fs)+'px '+FONT;
+      const nameW=Math.min(pnl.w*0.34,Math.max(...cells.map(cc=>ctx.measureText(cc.name).width),fs*4));
+      const colW=heads.map((h,i)=>{ctx.font='700 '+Math.round(fs)+'px '+FONT;let w=0;cells.forEach(cc=>{const v=i===0?cc.gap:cc.vals[i-1];w=Math.max(w,ctx.measureText(v).width);});ctx.font='700 '+Math.round(hfs)+'px '+FONT;return Math.max(w,ctx.measureText(h).width);});
+      if(colMax&&colMax.length===colW.length){colW.forEach((w,i)=>{colMax[i]=Math.max(colMax[i],w/fs);colW[i]=colMax[i]*fs;});}else colMax=colW.map(w=>w/fs);
+      return {nameW,colW};
+    };
+    let M=measure();const pad=mn*0.02,dia=mn*0.03;
+    const need=()=>pad*2+dia+M.nameW+M.colW.reduce((x,y)=>x+y+pad,0);
+    if(need()>pnl.w){const k=pnl.w/need();fs*=k;hfs*=k;M=measure();}
+    const x0=pnl.x+pad,xName=x0+dia,xs=[];let xc=xName+M.nameW+pad;M.colW.forEach(w=>{xs.push(xc);xc+=w+pad;});
+    const extra=Math.max(0,(pnl.x+pnl.w-pad)-(xc-pad));xs.forEach((_,i)=>xs[i]+=extra*(i+1)/(xs.length+1));
+    ctx.textAlign='left';ctx.fillStyle='rgba(255,255,255,.6)';ctx.font='700 '+Math.round(hfs)+'px '+FONT;
     const hy=pnl.y+m*0.4+rh*0.5;
-    ctx.fillText('Gap',cols[1],hy);ctx.fillText('To go',cols[2],hy);
-    keys.forEach((k,i)=>ctx.fillText(_secCmpLbl(k),cols[3+i],hy));
-    rows.forEach((o2,i)=>{
-      const s=o2.s,y=pnl.y+m*0.4+rh*(i+1.5),r=mn*0.011;
-      ctx.save();ctx.translate(cols[0]+r,y);ctx.rotate(Math.PI/4);ctx.fillStyle=s.color;ctx.fillRect(-r,-r,2*r,2*r);ctx.restore();
-      ctx.textAlign='left';ctx.fillStyle='#fff';ctx.font='700 '+Math.round(mn*0.026)+'px '+FONT;
-      let nm=String(s.r.label||'');const maxW=cols[1]-cols[0]-r*4;while(nm.length>3&&ctx.measureText(nm).width>maxW)nm=nm.slice(0,-2);
-      if(nm!==String(s.r.label||''))nm=nm.slice(0,-1)+'…';
-      ctx.fillText(nm,cols[0]+r*3,y);
-      const gap=o2.d-lead;
-      ctx.fillStyle=o2.done?'#2ee06a':(Math.abs(gap)<0.5?'#2ee06a':'#ff6b6b');
-      ctx.fillText(o2.done?fmtRecordTime(s.h.timeMs):(Math.abs(gap)<0.5?'Leader':Math.round(gap)+' m'),cols[1],y);
-      ctx.fillStyle='#fff';ctx.fillText(Math.max(0,Math.round(sec.distance-o2.d))+' m',cols[2],y);
-      const abs=s.h.startT+Math.min(t,s.h.timeMs),sk=_secCmpStrokeAt(s.strokes,abs);
-      keys.forEach((k,j)=>{let v;if(k.k==='hr'){const b=_secCmpHRAt(s.hr,abs);v=b!=null?f0(b)+' bpm':'—';}else v=mval(k,sk);ctx.fillText(v,cols[3+j],y);});
+    heads.forEach((h,i)=>ctx.fillText(h,xs[i],hy));
+    cells.forEach((cc,i)=>{
+      const s=cc.o2.s,y=pnl.y+m*0.4+rh*(i+1.5),r=Math.min(mn*0.011,fs*0.42);
+      ctx.save();ctx.translate(x0+r,y);ctx.rotate(Math.PI/4);ctx.fillStyle=s.color;ctx.fillRect(-r,-r,2*r,2*r);ctx.restore();
+      ctx.font='700 '+Math.round(fs)+'px '+FONT;ctx.fillStyle='#fff';
+      let nm=cc.name;if(ctx.measureText(nm).width>M.nameW){while(nm.length>2&&ctx.measureText(nm+'\u2026').width>M.nameW)nm=nm.slice(0,-1);nm+='\u2026';}
+      ctx.fillText(nm,xName,y);
+      ctx.fillStyle=cc.gapCol;ctx.fillText(cc.gap,xs[0],y);
+      ctx.fillStyle='#fff';cc.vals.forEach((v,j)=>ctx.fillText(v,xs[j+1],y));
     });
   };
   const resetOut=()=>{$('_scv_save').style.display='none';$('_scv_vid').style.display='none';cv.style.display='';if(url){URL.revokeObjectURL(url);url=null;}blob=null;};
   const build=async()=>{
     const my=++gen;busy=true;$('_scv_go').disabled=true;resetOut();
-    const sz=K.RV_SIZES[$('_scv_fmt').value];W=sz[0];H=sz[1];cv.width=W;cv.height=H;lay=layout(W,H);
+    const sz=K.RV_SIZES[$('_scv_fmt').value];W=sz[0];H=sz[1];cv.width=W;cv.height=H;lay=layout(W,H);colMax=null;
     ctx.fillStyle='#0b1a2e';ctx.fillRect(0,0,W,H);msg.textContent='Loading map…';
     const m=await K.rvBuildMap(all,W,H,lay,(d,n)=>{if(my===gen)msg.textContent='Loading map '+d+'/'+n+'…';},ref);
     if(my!==gen)return;
@@ -6187,6 +6203,8 @@ window._secCmpVideo=function(){
 const SECCMP_KEYS_LS='scull_seccmp_keys';
 function _secCmpKeySel(){let a=null;try{a=JSON.parse(localStorage.getItem(SECCMP_KEYS_LS)||'null');}catch(e){}return Array.isArray(a)?a:['pace','rate','dps','hr'];}
 /* The play-through shows heart rate at that moment, not an average */
+/* Live stroke rate in the play-through and its video: whole numbers */
+function _secCmpFmtV(m,v){return m.k==='rate'?Math.round(v)+' spm':m.fmtAvg(v);}
 function _secCmpLbl(m){return m.k==='hr'?'HR':m.l;}
 function _secCmpKeys(){const a=_secCmpKeySel();return METRIC_DEFS.filter(m=>a.includes(m.k)&&!ERG_ONLY_KEYS.includes(m.k));}
 function _secCmpMetPop(){
@@ -6330,7 +6348,7 @@ function _secCmpCards(){
   const lead=Math.max(...c.sess.map(s=>s.dNow||0));
   const keys=_secCmpKeys();
   const mdef=k=>METRIC_DEFS.find(m=>m.k===k);
-  const mval=(m,st)=>{if(!m||!st)return '\u2014';try{if(m.filter(st))return m.fmtAvg(m.val(st));}catch(e){}return '\u2014';};
+  const mval=(m,st)=>{if(!m||!st)return '\u2014';try{if(m.filter(st))return _secCmpFmtV(m,m.val(st));}catch(e){}return '\u2014';};
   const info=c.sess.map(s=>{
     const abs=s.h.startT+Math.min(c.simT,s.h.timeMs);
     const st=_secCmpStrokeAt(s.strokes,abs);
