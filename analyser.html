@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
 <meta name="color-scheme" content="light dark"/>
-<meta name="br-build" content="Analyser_261120_4">
+<meta name="br-build" content="Analyser_261120_5">
 <title>BoatRun Analyser</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -111,7 +111,17 @@ function adClearPendingOpen(){try{sessionStorage.removeItem('_ad_open');}catch(e
   #cards, #cards-fixed { display: grid; grid-template-columns: repeat(auto-fill, minmax(92px, 1fr)); gap: 7px; padding: 12px 16px; }
   #cards-fixed { padding-bottom: 0; margin-bottom: 8px; }
   #cards-fixed:empty { display: none; }
-  #cards-fixed #card-tload { grid-column: span 2; }
+  #cards-fixed #card-tload { grid-column: span 4; padding-top: 7px; padding-bottom: 7px; }
+  #cards-fixed .c-fdist { border-top: 3px solid #16a085; } #cards-fixed .c-fdist .val { color: #16a085; }
+  #cards-fixed .c-fdur { border-top: 3px solid #8e44ad; } #cards-fixed .c-fdur .val { color: #8e44ad; }
+  #cards-fixed .c-fwind { border-top: 3px solid #2980b9; } #cards-fixed .c-fwind .val { color: #2980b9; }
+  #cards-fixed .c-fload { border-top: 3px solid #e67e22; } #cards-fixed .c-fload .val { color: #e67e22; }
+  #card-tload .tl-row { display: flex; align-items: center; gap: 10px; }
+  #card-tload .tl-main { flex: 0 0 auto; min-width: 72px; }
+  #card-tload .tl-fields { display: flex; gap: 6px; flex: 1; min-width: 0; flex-wrap: wrap; justify-content: center; }
+  #card-tload .tl-f { display: flex; flex-direction: column; gap: 2px; align-items: stretch; }
+  #card-tload .tl-f input, #card-tload .tl-f select { width: 66px; box-sizing: border-box; padding: 2px 4px; background: var(--s2); border: 1px solid var(--border); border-radius: 5px; color: var(--text); font-size: 12px; font-family: inherit; text-align: center; }
+  @media (max-width: 520px) { #cards-fixed #card-tload { grid-column: 1 / -1; } }
   .card { background: var(--s1); border: 1px solid var(--border); border-radius: 12px; padding: 10px 11px; text-align: center; box-shadow: var(--sh); transition: box-shadow .2s, transform .15s, opacity .15s; }
   .card .lbl { font-size: 7.5px; color: var(--muted); text-transform: uppercase; letter-spacing: 1px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; font-weight: 500; }
   .card .val { font-size: 17px; font-family: -apple-system, BlinkMacSystemFont, Helvetica Neue, sans-serif; font-weight: 400; margin-top: 3px; letter-spacing: -.5px; line-height: 1.1; }
@@ -7761,9 +7771,9 @@ function buildCards(sum) {
   };
   /* 20 Nov: Distance, Duration, Wind and Training Load cannot be turned off, so they sit in their own row above the metric tiles */
   let fixedHtml=
-    card('cw','Distance',distDisp,distLbl,null,'Total distance travelled (GPS), in km or mi based on units setting.')+
-    card('cw','Duration',dur,ST.length+' strokes',null,'Total elapsed time of the session.')+
-    (()=>{try{const sd=SESSIONS[activeSessionIdx]&&SESSIONS[activeSessionIdx].d,ws=windSummary(sd);if(!ws)return '';return card('cw','Wind',windFmt(ws.ws),windDirName(ws.wd)+(ws.man?' \u00b7 set':(ws.g!=null?' \u00b7 gust '+windFmt(ws.g):'')),null,ws.man?'Wind set by hand for this session (on the water).':'Open-Meteo wind at 10 m, session average, from the direction shown. Used for the tide/current fit and Corrected values.');}catch(e){return '';}})()+
+    card('cw c-fdist','Distance',distDisp,distLbl,null,'Total distance travelled (GPS), in km or mi based on units setting.')+
+    card('cw c-fdur','Duration',dur,ST.length+' strokes',null,'Total elapsed time of the session.')+
+    (()=>{try{const sd=SESSIONS[activeSessionIdx]&&SESSIONS[activeSessionIdx].d,ws=windSummary(sd);if(!ws)return '';return card('cw c-fwind','Wind',windFmt(ws.ws),windDirName(ws.wd)+(ws.man?' \u00b7 set':(ws.g!=null?' \u00b7 gust '+windFmt(ws.g):'')),null,ws.man?'Wind set by hand for this session (on the water).':'Open-Meteo wind at 10 m, session average, from the direction shown. Used for the tide/current fit and Corrected values.');}catch(e){return '';}})()+
     (()=>{try{return tlCardHtml();}catch(e){return '';}})();
   let html=METRIC_DEFS.map(m=>(hid[m.k]||!CARD_BUILDERS[m.k])?'':CARD_BUILDERS[m.k]()).join('');
   {const fx=document.getElementById('cards-fixed');if(fx)fx.innerHTML=fixedHtml;else html=fixedHtml+html;}
@@ -15370,20 +15380,17 @@ function tlCardHtml(){
   const x=tlCurSess();if(!x)return '';
   try{tlCalibrate();}catch(e){}
   const k=tlSessKey(x),man=SESS_LOAD[k]||{},L=tlSessLoad(x),W=tlWSpec(),cw=tlWatch();
-  const IN='padding:3px 4px;background:var(--s2);border:1px solid var(--border);border-radius:5px;color:var(--text);font-size:12px;font-family:inherit;';
-  let opts='<option value="">Effort auto</option>';for(let i=1;i<=10;i++)opts+='<option value="'+i+'"'+(+man.rpe===i?' selected':'')+'>Effort '+i+'</option>';
-  return '<div class="card cw" id="card-tload" title="Training load for this session. Type the number your watch shows, or set the effort. Synced with Metrics and the Training load panel.">'
-    +'<div class="lbl">Training Load</div><div class="val"><span id="tl-card-v">'+L.load+'</span></div>'
-    +'<div class="sub"><span id="tl-card-src">'+_secEsc(L.src)+'</span></div>'
-    +'<div style="display:flex;gap:4px;margin-top:4px;flex-wrap:wrap;">'
-    +(W.eff?'':'<input id="tl-card-load" data-k="'+k+'" type="number" inputmode="numeric" min="0" max="3000" placeholder="'+_secEsc(W.n+' '+W.L.toLowerCase())+'" value="'+(man.load>0&&(man.w||'garmin')===cw?man.load:'')+'" style="'+IN+'width:104px;">')
-    +'<select id="tl-card-rpe" data-k="'+k+'" style="'+IN+'">'+opts+'</select></div>'
+  let opts='<option value="">auto</option>';for(let i=1;i<=10;i++)opts+='<option value="'+i+'"'+(+man.rpe===i?' selected':'')+'>'+i+'</option>';
+  const fld=(lbl,inner)=>'<label class="tl-f"><span class="lbl">'+lbl+'</span>'+inner+'</label>';
+  const te=(id,f,lbl)=>fld(lbl,'<input id="'+id+'" data-k="'+k+'" type="number" inputmode="decimal" min="0" max="5" step="0.1" placeholder="0-5" title="'+_secEsc(W.n)+' '+lbl.toLowerCase()+' training effect (0-5)" value="'+(man[f]!=null?(+man[f]).toFixed(1):'')+'">');
+  return '<div class="card cw c-fload" id="card-tload" title="Training load for this session. Type the numbers your watch shows, or set the effort. Synced with Metrics and the Training load panel.">'
+    +'<div class="tl-row"><div class="tl-main"><div class="lbl">Training Load</div><div class="val"><span id="tl-card-v">'+L.load+'</span></div><div class="sub"><span id="tl-card-src">'+_secEsc(L.src)+'</span></div></div>'
+    +'<div class="tl-fields">'
+    +(W.eff?'':fld(_secEsc(W.n+' '+W.L.toLowerCase()),'<input id="tl-card-load" data-k="'+k+'" type="number" inputmode="numeric" min="0" max="3000" placeholder="-" value="'+(man.load>0&&(man.w||'garmin')===cw?man.load:'')+'">'))
+    +fld('Effort','<select id="tl-card-rpe" data-k="'+k+'">'+opts+'</select>')
     /* 20 Nov: Garmin / Coros aerobic and anaerobic Training Effect (0-5), saved as ate / ante */
-    +(W.te?'<div style="display:flex;gap:4px;margin-top:4px;flex-wrap:wrap;">'
-      +'<input id="tl-card-ate" data-k="'+k+'" type="number" inputmode="decimal" min="0" max="5" step="0.1" placeholder="Aerobic TE" title="'+_secEsc(W.n)+' aerobic training effect (0-5)" value="'+(man.ate!=null?(+man.ate).toFixed(1):'')+'" style="'+IN+'width:96px;">'
-      +'<input id="tl-card-ante" data-k="'+k+'" type="number" inputmode="decimal" min="0" max="5" step="0.1" placeholder="Anaerobic TE" title="'+_secEsc(W.n)+' anaerobic training effect (0-5)" value="'+(man.ante!=null?(+man.ante).toFixed(1):'')+'" style="'+IN+'width:96px;">'
-      +'</div>':'')
-    +'</div>';
+    +(W.te?te('tl-card-ate','ate','Aerobic TE')+te('tl-card-ante','ante','Anaerobic TE'):'')
+    +'</div></div></div>';
 }
 function tlCardBind(){
   const x=tlCurSess();if(!x)return;
