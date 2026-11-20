@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
 <meta name="color-scheme" content="light dark"/>
-<meta name="br-build" content="Analyser_261120_1">
+<meta name="br-build" content="Analyser_261120_2">
 <title>BoatRun Analyser</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -7759,8 +7759,10 @@ function buildCards(sum) {
     card('cw','Distance',distDisp,distLbl,null,'Total distance travelled (GPS), in km or mi based on units setting.')+
     card('cw','Duration',dur,ST.length+' strokes',null,'Total elapsed time of the session.')+
     (()=>{try{const sd=SESSIONS[activeSessionIdx]&&SESSIONS[activeSessionIdx].d,ws=windSummary(sd);if(!ws)return '';return card('cw','Wind',windFmt(ws.ws),windDirName(ws.wd)+(ws.man?' \u00b7 set':(ws.g!=null?' \u00b7 gust '+windFmt(ws.g):'')),null,ws.man?'Wind set by hand for this session (on the water).':'Open-Meteo wind at 10 m, session average, from the direction shown. Used for the tide/current fit and Corrected values.');}catch(e){return '';}})()+
+    (()=>{try{return tlCardHtml();}catch(e){return '';}})()+
     METRIC_DEFS.map(m=>(hid[m.k]||!CARD_BUILDERS[m.k])?'':CARD_BUILDERS[m.k]()).join('');
   document.getElementById('cards').innerHTML=html;
+  try{tlCardBind();}catch(e){}
   document.querySelectorAll('#cards .card .val').forEach(v=>{
     if(v.children.length)return;
     const m=/^([\d:.,+\-\u2212]*\d)\s*([A-Za-z%\u00b0\/\u00b5].*)$/.exec(v.textContent.trim());
@@ -15346,6 +15348,39 @@ function tlFormWord(ratio,chronic){
   return ratio<0.8?['Low','#1E88E5']:ratio<=1.4?['Optimal','#27ae60']:['High','#e74c3c'];
 }
 function tlTE(man){const p=[];if(man&&man.ate!=null)p.push('aerobic TE '+(+man.ate).toFixed(1));if(man&&man.ante!=null)p.push('anaerobic TE '+(+man.ante).toFixed(1));return p.join(', ');}
+/* 20 Nov: TRAINING LOAD CARD in the session detail. Type the watch's load (or
+   set the effort) for the open session without going to the Training load
+   panel. Same store and key as the panel (SESS_LOAD 's'+minute), so Metrics,
+   the panel, calibration and the squad summary all see it. */
+function tlCurSess(){
+  const s=(typeof SESSIONS!=='undefined'&&activeSessionIdx>=0)?SESSIONS[activeSessionIdx]:null;if(!s||!s.d)return null;
+  const sum=s.d.sum||{},st=Date.parse(sum.start_time||'')||((typeof ST!=='undefined'&&ST.length)?ST[0].ms:0);if(!st)return null;
+  const F=tlFiles();let x=s.fileId?F.find(f=>f&&f.f&&f.f.id===s.fileId):null;
+  if(!x){let bd=3*60000;F.forEach(f=>{const d=Math.abs(((f&&f.p&&f.p.approxTs)||0)-st);if(f.p.approxTs&&d<bd){bd=d;x=f;}});}
+  if(!x){let erg=false;try{erg=isErgSession();}catch(e){}x={f:{id:s.fileId||''},p:{approxTs:Math.floor(st/60000)*60000,durS:+sum.duration_s||0,erg}};}
+  return x;
+}
+function tlCardHtml(){
+  const x=tlCurSess();if(!x)return '';
+  try{tlCalibrate();}catch(e){}
+  const k=tlSessKey(x),man=SESS_LOAD[k]||{},L=tlSessLoad(x),W=tlWSpec(),cw=tlWatch();
+  const IN='padding:3px 4px;background:var(--s2);border:1px solid var(--border);border-radius:5px;color:var(--text);font-size:12px;font-family:inherit;';
+  let opts='<option value="">Effort auto</option>';for(let i=1;i<=10;i++)opts+='<option value="'+i+'"'+(+man.rpe===i?' selected':'')+'>Effort '+i+'</option>';
+  return '<div class="card cw" id="card-tload" title="Training load for this session. Type the number your watch shows, or set the effort. Synced with Metrics and the Training load panel.">'
+    +'<div class="lbl">Training Load</div><div class="val"><span id="tl-card-v">'+L.load+'</span></div>'
+    +'<div class="sub"><span id="tl-card-src">'+_secEsc(L.src)+'</span></div>'
+    +'<div style="display:flex;gap:4px;margin-top:4px;flex-wrap:wrap;">'
+    +(W.eff?'':'<input id="tl-card-load" data-k="'+k+'" type="number" inputmode="numeric" min="0" max="3000" placeholder="'+_secEsc(W.n+' '+W.L.toLowerCase())+'" value="'+(man.load>0&&(man.w||'garmin')===cw?man.load:'')+'" style="'+IN+'width:104px;">')
+    +'<select id="tl-card-rpe" data-k="'+k+'" style="'+IN+'">'+opts+'</select></div></div>';
+}
+function tlCardBind(){
+  const x=tlCurSess();if(!x)return;
+  const upd=()=>{const L=tlSessLoad(x),v=document.getElementById('tl-card-v'),s=document.getElementById('tl-card-src');if(v)v.textContent=L.load;if(s)s.textContent=L.src;};
+  const li=document.getElementById('tl-card-load'),ri=document.getElementById('tl-card-rpe');
+  [li,ri].forEach(el=>{if(el)el.addEventListener('click',e=>e.stopPropagation());});
+  if(li)li.onchange=()=>{const v=Math.max(0,Math.min(3000,Math.round(+li.value||0)));if(!v)li.value='';tlSetSess(li.dataset.k,{load:v,w:tlWatch()});upd();};
+  if(ri)ri.onchange=()=>{tlSetSess(ri.dataset.k,{rpe:ri.value?+ri.value:0});upd();};
+}
 function tlSetSess(key,patch){SESS_LOAD[key]={...(SESS_LOAD[key]||{}),...patch,rev:Date.now()};tlSaveSess();renderLoadPanel();}
 function tlRenderSoon(){clearTimeout(_tlRenderT);_tlRenderT=setTimeout(()=>{try{renderLoadPanel();}catch(e){console.error(e);}},60);}
 function renderLoadPanel(){
