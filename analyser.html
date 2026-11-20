@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
 <meta name="color-scheme" content="light dark"/>
-<meta name="br-build" content="Analyser_261120_9">
+<meta name="br-build" content="Analyser_261120_11">
 <title>BoatRun Analyser</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -805,7 +805,7 @@ body.light .hdrname{color:#fff;}
   <div id="topBlock" class="secpill" data-pane="topBlock"><div class="pane-grip" title="Drag to move this pane"><span></span></div>
   <div id="unitsbar" class="brsettings"></div>
   <!-- 13 Nov: Coach tools for the open session -->
-  <div id="coachbar" style="display:flex;flex-wrap:wrap;align-items:center;gap:8px;margin:0 0 10px;padding:9px 12px;border:2px solid #6a3fb0;border-radius:12px;"><span style="font:800 12px Inter,-apple-system,sans-serif;letter-spacing:.05em;">COACH TOOLS</span><button class="coachtool" onclick="coachTool('pace')">What drives pace</button><button class="coachtool" onclick="coachTool('video')">Video overlay</button><button class="coachtool" onclick="coachTool('tpl')">Stroke template</button><button class="coachtool" onclick="coachTool('curves')">Curve comparison</button><button class="coachtool" onclick="coachTool('replay')">Export replay video</button><span style="font-size:11px;">Select strokes on the chart first</span></div>
+  <div id="coachbar" style="display:flex;flex-wrap:wrap;align-items:center;gap:8px;margin:0 0 10px;padding:9px 12px;border:2px solid #6a3fb0;border-radius:12px;"><span style="font:800 12px Inter,-apple-system,sans-serif;letter-spacing:.05em;">COACH TOOLS</span><button class="coachtool" onclick="coachTool('athletes')">Compare athletes</button><button class="coachtool" onclick="coachTool('pace')">What drives pace</button><button class="coachtool" onclick="coachTool('video')">Video overlay</button><button class="coachtool" onclick="coachTool('tpl')">Stroke template</button><button class="coachtool" onclick="coachTool('curves')">Curve comparison</button><button class="coachtool" onclick="coachTool('replay')">Export replay video</button><span style="font-size:11px;">Select strokes on the chart first</span></div>
   <!-- Summary cards -->
   <div id="cards-fixed"></div>
   <div id="cards"></div>
@@ -3334,6 +3334,7 @@ function addSessionFromData(d, label, replace, fileId, squadCode, notOwn) {
   if (fileId && !squadCode && !notOwn) updateRecords(recordsTrace(d), label, d.sum&&d.sum.start_time, fileId, (d.sum&&d.sum.session_mode==='erg')?'erg':'water');
   if (!squadCode && !notOwn) updateSectorsFromData(d, label, fileId);   // squad-cloud loads are other rowers' sessions; own ones are scanned from Drive
   switchSession(idx);
+  if (typeof _ac !== 'undefined' && _ac) { try { acSync(); } catch (e) { console.warn('acSync', e); } }
 }
 function bestEffortForDistance(pts, targetDist) {
   if (pts.length < 2) return null;
@@ -6236,6 +6237,7 @@ function renderSessionTabs() {
     const dt=_sessDate(s);
     return `<button class="sess-tab${i===activeSessionIdx?' on':''}" onclick="switchSession(${i})" title="${safe}${dt?' '+dt:''}"><span style="display:inline-flex;flex-direction:column;align-items:flex-start;line-height:1.2;vertical-align:middle;">${short}${dt?`<span style="font-size:.95em;font-weight:600;opacity:.85;">${dt}</span>`:''}</span><span class="sess-x" onclick="event.stopPropagation();removeSession(${i})">×</span></button>`;
   }).join('');
+  wrap.insertAdjacentHTML('beforeend','<button class="sess-tab" onclick="openAthleteCompare()" style="border-color:#6a3fb0;color:#6a3fb0;font-weight:800;" title="All loaded sessions on one map, cut to the same start and finish">Compare athletes</button>');
 }
 
 async function loadFromDrive() {
@@ -13397,7 +13399,409 @@ function applyFocusCards() {
   });
 }
 /* Open session: the Coach tools bar. */
+/* 20 Nov: COMPARE ATHLETES. Every loaded session (the tabs: Drive, squad or
+   files from any device) on one map. Tap a start and a finish on any track;
+   every session is cut at the same two gates by the sector scanner, then the
+   chart plots them all against distance from the start, one colour each. */
+let _ac=null;
+const AC_METRICS=[['pace','Pace'],['rate','Rate'],['dps','DPS'],['hr','Heart rate'],['epower','Eff Power'],['rloss','Recovery Run'],['ratio','Ratio'],['impulse','Impulse']];
+function acClose(){
+  if(_ac){try{_ac.map&&_ac.map.remove();}catch(e){}try{_ac.ov.remove();}catch(e){}window.removeEventListener('resize',acDrawChart);}
+  _ac=null;
+}
+window.closeAthleteCompare=acClose;
+function acName(s){
+  let n=String((s&&s.label)||'Session');if(n.length>28)n=n.slice(0,25)+'…';
+  const dt=_sessDate(s);return dt?n+' '+dt:n;
+}
+window.openAthleteCompare=function(){
+  if(!isPro()){showPlanModal('Athlete comparison is a Pro feature.');return;}
+  acClose();
+  const ov=document.createElement('div');
+  ov.id='_ac_modal';
+  ov.style.cssText='position:fixed;inset:0;background:rgba(0,0,0,.78);z-index:9999;padding:8px;display:flex;';
+  ov.innerHTML='<div style="background:var(--s1);border:1px solid var(--border);border-radius:10px;width:100%;height:100%;box-sizing:border-box;display:flex;flex-direction:column;overflow:hidden;padding:10px 12px;color:var(--text);">'
+    +'<div style="display:flex;align-items:center;gap:10px;margin-bottom:6px;flex-wrap:wrap;"><div style="font-size:14px;font-weight:700;">Compare athletes</div>'
+    +'<span id="_ac_msg" style="font-size:12px;font-weight:600;color:#ff2fd0;"></span>'
+    +'<span style="margin-left:auto;display:inline-flex;gap:6px;flex-wrap:wrap;">'
+    +'<button class="dzbtn dzbtn-pri" id="_ac_addsq" style="font-size:11px;">+ From squad</button>'
+    +'<button class="dzbtn dzbtn-pri" id="_ac_addfile" style="font-size:11px;">+ Files</button>'
+    +'<button class="dzbtn" id="_ac_adddrive" style="font-size:11px;">+ From Drive</button></span>'
+    +'<input type="file" id="_ac_fin" accept=".fit,.tcx,.gpx,.csv,.txt,.json" multiple style="display:none">'
+    +'<button class="hbtn" id="_ac_reset" style="font-size:11px;">Clear start / finish</button>'
+    +'<button class="hbtn" id="_ac_close" style="font-size:11px;">✕ Close</button></div>'
+    +'<div id="_ac_legend" style="display:flex;flex-wrap:wrap;gap:6px;margin-bottom:6px;"></div>'
+    +'<div id="_ac_map" style="flex:1 1 42%;min-height:200px;border-radius:10px;overflow:hidden;background:#030d1e;"></div>'
+    +'<div id="_ac_res" style="flex:1 1 58%;min-height:0;overflow-y:auto;margin-top:8px;"></div></div>';
+  document.body.appendChild(ov);
+  const map=L.map('_ac_map',{zoomControl:true,attributionControl:true,doubleClickZoom:false});
+  map.attributionControl.setPrefix('');
+  addSatLayers(map);
+  _ac={ov,map,S:[],sel:[],marks:[],sec:null,metric:'pace',smooth:3,hoverD:null,nCol:0};
+  map.setView([-25,134],4);
+  map.on('click',e=>acTap(e.latlng));
+  document.getElementById('_ac_close').onclick=acClose;
+  document.getElementById('_ac_reset').onclick=acReset;
+  document.getElementById('_ac_addsq').onclick=acAddSquad;
+  document.getElementById('_ac_adddrive').onclick=acAddDrive;
+  const fin=document.getElementById('_ac_fin');
+  document.getElementById('_ac_addfile').onclick=()=>fin.click();
+  fin.onchange=()=>{if(fin.files.length)acAddFiles(fin.files);fin.value='';};
+  ov.addEventListener('dragover',e=>{e.preventDefault();ov.style.outline='3px dashed #ff2fd0';});
+  ov.addEventListener('dragleave',e=>{if(e.target===ov)ov.style.outline='';});
+  ov.addEventListener('drop',e=>{e.preventDefault();ov.style.outline='';if(e.dataTransfer&&e.dataTransfer.files.length)acAddFiles(e.dataTransfer.files);});
+  window.addEventListener('resize',acDrawChart);
+  acSync(true);acMsg();
+};
+/* Keep the compare list in step with the loaded sessions (tabs). Called on open
+   and by addSessionFromData whenever a session is added while Compare is open. */
+function acSync(fit){
+  const c=_ac;if(!c)return;
+  const have=new Set(c.S.map(x=>x.s));
+  c.S=c.S.filter(x=>{if(SESSIONS.includes(x.s))return true;try{c.map.removeLayer(x.line);if(x.cutLine)c.map.removeLayer(x.cutLine);}catch(e){}return false;});
+  let added=0;
+  SESSIONS.forEach((s,i)=>{
+    if(have.has(s))return;
+    const tr=((s.d&&s.d.gpsTrace)||[]).filter(p=>p&&p.lat!=null&&p.lon!=null&&p.t!=null);
+    if(tr.length<10)return;
+    const x={i,s,tr,col:SECTOR_CMP_COLORS[c.nCol++%SECTOR_CMP_COLORS.length],name:acName(s),on:true,pick:null};
+    x.line=L.polyline(tr.map(p=>[p.lat,p.lon]),{color:x.col,weight:3,opacity:.85}).addTo(c.map);
+    c.S.push(x);added++;
+    if(c.sec){x.hits=scanTraceForSector(c.sec,x.tr)||[];acSetHit(x);}
+  });
+  if((fit||added)&&c.S.length&&!c.sec){try{c.map.fitBounds(L.featureGroup(c.S.filter(x=>x.on).map(x=>x.line)).getBounds(),{padding:[24,24]});}catch(e){}}
+  acStyleLines();acLegend();acRenderRes();
+}
+function acNameOf(f){return String(f||'Session').replace(/\.[^.]+$/,'').replace(/[_]+/g,' ').trim()||'Session';}
+/* GPX (Strava, Apple Watch and most apps export it). Heart rate and cadence
+   come from the Garmin TrackPoint extension when present. */
+function acParseGPX(text){
+  const doc=new DOMParser().parseFromString(text,'text/xml');
+  let pts=Array.from(doc.getElementsByTagName('trkpt'));if(!pts.length)pts=Array.from(doc.getElementsByTagName('rtept'));
+  const num=(el,n)=>{const e=el.getElementsByTagNameNS('*',n)[0]||el.getElementsByTagName(n)[0];return e?parseFloat(e.textContent):NaN;};
+  return pts.map(p=>{
+    const te=p.getElementsByTagName('time')[0];
+    return {tMs:te?Date.parse(te.textContent):null,lat:parseFloat(p.getAttribute('lat')),lon:parseFloat(p.getAttribute('lon')),hr:num(p,'hr'),cadence:num(p,'cad'),dist:null,speed:num(p,'speed')};
+  }).filter(r=>r.tMs!=null&&isFinite(r.lat)&&isFinite(r.lon));
+}
+/* Files with no speed (GPX, most TCX) get it from distance over a 5 s window,
+   so pace, DPS and the cut all work the same as a SpeedCoach or Garmin FIT. */
+function acFillSpeed(rec){
+  rec=rec.filter(r=>r&&r.tMs!=null).sort((a,b)=>a.tMs-b.tMs);
+  if(rec.length<3)return rec;
+  const hasSpd=rec.filter(r=>r.speed>0.05).length>rec.length*0.5;
+  let cum=0;
+  rec.forEach((r,i)=>{
+    if(r.dist==null||!isFinite(r.dist)){
+      if(i&&r.lat!=null&&rec[i-1].lat!=null){const R=6371000,k=Math.PI/180,a=rec[i-1];
+        const h=Math.sin((r.lat-a.lat)*k/2)**2+Math.cos(a.lat*k)*Math.cos(r.lat*k)*Math.sin((r.lon-a.lon)*k/2)**2;cum+=2*R*Math.asin(Math.sqrt(h));}
+      r._d=cum;
+    }else{r._d=r.dist;cum=r.dist;}
+  });
+  rec.forEach(r=>{if(r.dist==null||!isFinite(r.dist))r.dist=r._d;});
+  if(hasSpd)return rec;
+  let a=0,b=0;
+  rec.forEach((r,i)=>{
+    while(rec[a].tMs<r.tMs-2500)a++;
+    while(b<rec.length-1&&rec[b+1].tMs<=r.tMs+2500)b++;
+    const dt=(rec[b].tMs-rec[a].tMs)/1000;
+    r.speed=dt>0?Math.min(8,Math.max(0,(rec[b]._d-rec[a]._d)/dt)):NaN;
+  });
+  return rec;
+}
+function acParseFile(f){
+  return new Promise(res=>{
+    const name=f.name.toLowerCase(),rd=new FileReader();
+    const done=d=>{if(d&&d.strokes&&d.strokes.length){d.name=acNameOf(f.name);res(d);}else{toast('No data found in '+f.name);res(null);}};
+    rd.onerror=()=>{toast('Could not read '+f.name);res(null);};
+    if(name.endsWith('.fit')){
+      rd.onload=e=>{try{applySessionUnits(null);done(garminToAnalyserFmt(acFillSpeed(parseFIT(e.target.result)),f.name));}catch(err){toast('FIT error in '+f.name+': '+err.message);res(null);}};
+      rd.readAsArrayBuffer(f);return;
+    }
+    rd.onload=e=>{
+      try{
+        const t=e.target.result;let d;
+        if(name.endsWith('.gpx')){applySessionUnits(null);d=garminToAnalyserFmt(acFillSpeed(acParseGPX(t)),f.name);}
+        else if(name.endsWith('.tcx')){applySessionUnits(null);d=garminToAnalyserFmt(acFillSpeed(parseTCX(t)),f.name);}
+        else if(name.endsWith('.json')){const ss=JSON.parse(t),s0=Array.isArray(ss)?ss[0]:ss;applySessionUnits(s0);d=(s0.strokes&&s0.strokes.length&&typeof s0.strokes[0].elapsed==='number')?s0:sessionToAnalyserFmt(s0);}
+        else{applySessionUnits(null);d=parseCSV(t);}
+        done(d);
+      }catch(err){toast('Could not read '+f.name+': '+err.message);res(null);}
+    };
+    rd.readAsText(f);
+  });
+}
+async function acAddFiles(list){
+  const files=Array.from(list);let n=0;
+  for(const f of files){
+    toast('Reading '+f.name+'\u2026');
+    const d=await acParseFile(f);
+    if(!d)continue;
+    if(!d.gpsTrace||d.gpsTrace.filter(p=>p.lat!=null).length<10){toast(f.name+' has no GPS track - skipped',3500);continue;}
+    addSessionFromData(d,d.name,false,null,null,true);n++;   // another athlete's file: not your PBs or sectors
+  }
+  if(n)toast(n+' session'+(n>1?'s':'')+' added');
+}
+async function acAddDrive(){
+  try{
+    if(!AnalyserDrive.isSignedIn()){toast('Sign in to Google Drive first');return;}
+    toast('Fetching session list\u2026');
+    const files=await AnalyserDrive.list();
+    if(!files.length){toast('No sessions found on Drive');return;}
+    showDrivePicker(files,async(fileId,label)=>{
+      toast('Loading '+label+'\u2026');
+      try{const session=await AnalyserDrive.fetchSession(fileId);applySessionUnits(session);addSessionFromData(sessionToAnalyserFmt(session),label,false,fileId);}
+      catch(err){if(!driveAuthExpired(err))toast('Load failed: '+err.message);}
+    });
+  }catch(err){toast('Drive error: '+err.message);}
+}
+async function acAddSquad(change){
+  let code='';try{code=localStorage.getItem('_squad_code')||'';}catch(e){}
+  if(change===true||!code||code.length!==7)code=await promptSquadCode();
+  if(!code||code.length!==7)return;
+  try{localStorage.setItem('_squad_code',code);}catch(e){}
+  if(!(await ensureSquadUnlocked(code))){toast('Squad '+code+' is password protected');return;}
+  toast('Fetching squad sessions\u2026');
+  let metas;
+  try{metas=await fetchSquadMetas(code);}catch(e){toast('Fetch failed: '+e.message);return;}
+  if(!metas||!metas.length){toast('No sessions found for squad '+code);return;}
+  acSquadPicker(code,metas);
+}
+/* Squad sessions by day, newest first. Tick sessions, or Tick all for a day to
+   load the whole crew's row in one go. */
+function acSquadPicker(code,metas){
+  document.getElementById('_ac_sqpick')?.remove();
+  const loaded=new Set(SESSIONS.filter(s=>s.squadCode===code&&s._sqId).map(s=>s._sqId));
+  const list=metas.map(m=>({...m,_t:m.t||parseInt(m.id)||0})).filter(m=>m._t).sort((a,b)=>b._t-a._t);
+  const days=[];
+  list.forEach(m=>{const k=new Date(m._t).toDateString();let d=days.find(x=>x.k===k);if(!d){d={k,t:m._t,items:[]};days.push(d);}d.items.push(m);});
+  const ov=document.createElement('div');
+  ov.id='_ac_sqpick';
+  ov.style.cssText='position:fixed;inset:0;background:rgba(0,0,0,.6);z-index:9999;display:flex;align-items:center;justify-content:center;padding:16px;';
+  const tm=t=>new Date(t).toLocaleTimeString([],{hour:'2-digit',minute:'2-digit'});
+  let h='<div style="background:var(--s1);color:var(--text);border:1px solid var(--border);border-radius:10px;max-width:620px;width:100%;max-height:88vh;display:flex;flex-direction:column;padding:12px 14px;">'
+    +'<div style="display:flex;align-items:center;gap:8px;margin-bottom:8px;"><div style="font-size:14px;font-weight:700;">Squad '+_secEsc(code)+'</div><button class="hbtn" id="_acsq_chg" style="font-size:11px;">Change squad</button><button class="hbtn" id="_acsq_x" style="margin-left:auto;font-size:11px;">\u2715</button></div>'
+    +'<div style="overflow-y:auto;flex:1;">';
+  days.forEach((d,di)=>{
+    h+='<div style="display:flex;align-items:center;gap:8px;margin:8px 0 4px;"><div style="font-size:12px;font-weight:700;">'+new Date(d.t).toLocaleDateString('en-AU',{weekday:'short',day:'numeric',month:'short',year:'numeric'})+'</div>'
+      +'<button class="hbtn" data-day="'+di+'" style="font-size:10px;">Tick all ('+d.items.length+')</button></div>';
+    d.items.forEach(m=>{
+      const was=loaded.has(m.id);
+      h+='<label style="display:flex;align-items:center;gap:8px;padding:5px 6px;border-bottom:1px solid var(--border);font-size:12px;cursor:pointer;opacity:'+(was?.5:1)+';">'
+        +'<input type="checkbox" data-id="'+_secEsc(m.id)+'" data-d="'+di+'"'+(was?' disabled':'')+'>'
+        +'<b>'+_secEsc(m.rower||'Rower')+'</b><span>'+tm(m._t)+'</span>'
+        +'<span style="color:var(--muted);">'+(m.dist?m.dist+' m':'')+(m.dur?' \u00b7 '+Math.floor(m.dur/60)+' min':'')+(m.name?' \u00b7 '+_secEsc(m.name):'')+(was?' \u00b7 loaded':'')+'</span></label>';
+    });
+  });
+  h+='</div><div style="display:flex;gap:8px;align-items:center;margin-top:10px;"><button class="dzbtn dzbtn-pri" id="_acsq_go">Add 0 sessions</button><span id="_acsq_st" style="font-size:11px;color:var(--muted);"></span></div></div>';
+  ov.innerHTML=h;
+  document.body.appendChild(ov);
+  const boxes=()=>Array.from(ov.querySelectorAll('input[data-id]'));
+  const cnt=()=>{const n=boxes().filter(b=>b.checked).length;document.getElementById('_acsq_go').textContent='Add '+n+' session'+(n===1?'':'s');};
+  boxes().forEach(b=>b.onchange=cnt);
+  ov.querySelectorAll('button[data-day]').forEach(btn=>{btn.onclick=()=>{const bs=boxes().filter(b=>b.dataset.d===btn.dataset.day&&!b.disabled);const all=bs.every(b=>b.checked);bs.forEach(b=>b.checked=!all);cnt();};});
+  ov.onclick=e=>{if(e.target===ov)ov.remove();};
+  document.getElementById('_acsq_x').onclick=()=>ov.remove();
+  document.getElementById('_acsq_chg').onclick=()=>{ov.remove();acAddSquad(true);};
+  document.getElementById('_acsq_go').onclick=async()=>{
+    const pick=boxes().filter(b=>b.checked).map(b=>list.find(m=>m.id===b.dataset.id)).filter(Boolean);
+    if(!pick.length){toast('Tick at least one session');return;}
+    const st=document.getElementById('_acsq_st'),go=document.getElementById('_acsq_go');go.disabled=true;
+    let n=0;
+    for(let i=0;i<pick.length;i++){
+      const m=pick[i];if(st)st.textContent='Loading '+(i+1)+'/'+pick.length+'\u2026';
+      try{
+        const r=await fetch(sqProxy(code,'coach_sessions/'+m.id));
+        if(!r.ok)throw new Error('HTTP '+r.status);
+        const session=await r.json();if(!session)throw new Error('not found');
+        applySessionUnits(session);
+        const before=SESSIONS.length;
+        addSessionFromData(sessionToAnalyserFmt(session),(m.rower||'Rower')+' '+tm(m._t),false,null,code);
+        if(SESSIONS.length>before){SESSIONS[SESSIONS.length-1]._sqId=m.id;n++;}
+      }catch(e){toast((m.rower||'Rower')+': '+e.message);}
+    }
+    ov.remove();
+    if(n)toast(n+' squad session'+(n>1?'s':'')+' added');
+    if(_ac)acSync();
+  };
+}
+function acMsg(){
+  const el=document.getElementById('_ac_msg');if(!el||!_ac)return;
+  el.textContent=_ac.sel.length===0?'Tap the START on any track':_ac.sel.length===1?'Now tap the FINISH on the same track':'';
+}
+function acLegend(){
+  const el=document.getElementById('_ac_legend');if(!el||!_ac)return;
+  el.innerHTML=_ac.S.map((x,k)=>'<label style="display:inline-flex;align-items:center;gap:5px;font-size:11px;padding:3px 8px;border:1px solid var(--border);border-radius:14px;cursor:pointer;opacity:'+(x.on?1:.45)+';"><input type="checkbox" data-ac="'+k+'"'+(x.on?' checked':'')+' style="margin:0;"><span style="width:10px;height:10px;border-radius:50%;background:'+x.col+';display:inline-block;"></span>'+_secEsc(x.name)+'<span data-acr="'+k+'" title="Rename" style="cursor:pointer;opacity:.6;margin-left:2px;">\u270e</span></label>').join('')
+    +(_ac.S.length?'':'<span style="font-size:12px;color:var(--muted);">No sessions with a GPS track yet. Add them with + From squad, + Files (or drop files here) or + From Drive.</span>');
+  el.querySelectorAll('span[data-acr]').forEach(sp=>{sp.onclick=e=>{e.preventDefault();e.stopPropagation();const x=_ac.S[+sp.dataset.acr];const v=prompt('Name for this session',x.s.label);if(v==null||!v.trim())return;x.s.label=v.trim().slice(0,60);x.name=acName(x.s);try{renderSessionTabs();}catch(er){}acLegend();acRenderRes();};});
+  el.querySelectorAll('input[data-ac]').forEach(cb=>{cb.onchange=()=>{const x=_ac.S[+cb.dataset.ac];x.on=cb.checked;acStyleLines();acLegend();acRenderRes();};});
+}
+function acStyleLines(){
+  if(!_ac)return;
+  _ac.S.forEach(x=>{
+    if(!x.on){try{_ac.map.removeLayer(x.line);}catch(e){}if(x.cutLine)try{_ac.map.removeLayer(x.cutLine);}catch(e){}return;}
+    if(!_ac.map.hasLayer(x.line))x.line.addTo(_ac.map);
+    x.line.setStyle(_ac.sec?{weight:2,opacity:.3}:{weight:3,opacity:.85});
+    if(x.cutLine&&!_ac.map.hasLayer(x.cutLine))x.cutLine.addTo(_ac.map);
+  });
+}
+function acReset(){
+  if(!_ac)return;
+  _ac.marks.forEach(m=>{try{_ac.map.removeLayer(m);}catch(e){}});_ac.marks=[];
+  _ac.S.forEach(x=>{if(x.cutLine){try{_ac.map.removeLayer(x.cutLine);}catch(e){}x.cutLine=null;}x.hits=null;x.h=null;x.pick=null;});
+  _ac.sel=[];_ac.sec=null;_ac.hoverD=null;
+  acStyleLines();acMsg();acRenderRes();
+}
+function acNearest(ll,only){
+  const map=_ac.map,cp=map.latLngToContainerPoint(ll);let best=null;
+  _ac.S.forEach((x,k)=>{
+    if(!x.on||(only!=null&&k!==only.k))return;
+    const from=only?only.idx+1:0;
+    for(let i=from;i<x.tr.length;i++){
+      const q=map.latLngToContainerPoint([x.tr[i].lat,x.tr[i].lon]),d=Math.hypot(q.x-cp.x,q.y-cp.y);
+      if(!best||d<best.d)best={k,idx:i,d};
+    }
+  });
+  return best;
+}
+function acTap(ll){
+  if(!_ac)return;
+  if(_ac.sel.length>=2)acReset();
+  if(_ac.sel.length===0){
+    const n=acNearest(ll,null);
+    if(!n||n.d>40){toast('Tap closer to a track');return;}
+    _ac.sel.push(n);
+  }else{
+    const n=acNearest(ll,_ac.sel[0]);
+    if(!n||n.d>60){toast('Tap the finish further along the same track as the start');return;}
+    _ac.sel.push(n);
+  }
+  const x=_ac.S[_ac.sel[_ac.sel.length-1].k],p=x.tr[_ac.sel[_ac.sel.length-1].idx],first=_ac.sel.length===1;
+  _ac.marks.push(L.circleMarker([p.lat,p.lon],{radius:8,color:'#000',weight:2,fillColor:first?'#2ee06a':'#f54040',fillOpacity:1}).bindTooltip(first?'Start':'Finish',{permanent:true,direction:'top'}).addTo(_ac.map));
+  acMsg();
+  if(_ac.sel.length===2)acRun();
+}
+function acRun(){
+  const c=_ac;if(!c)return;
+  const a=c.sel[0],b=c.sel[1],ref=c.S[a.k];
+  const sec=buildSectorFromTrace(ref.tr,a.idx,b.idx,'Compare');
+  if(!sec){toast('Too short - pick a longer stretch');acReset();return;}
+  c.sec=sec;
+  c.S.forEach(x=>{
+    x.hits=scanTraceForSector(sec,x.tr)||[];
+    x.pick=null;acSetHit(x);
+  });
+  acStyleLines();acRenderRes();
+}
+function acSetHit(x){
+  const c=_ac;
+  if(x.cutLine){try{c.map.removeLayer(x.cutLine);}catch(e){}x.cutLine=null;}
+  x.h=null;if(!x.hits||!x.hits.length)return;
+  let i=x.pick;if(i==null||!x.hits[i]){i=0;x.hits.forEach((h,j)=>{if(h.timeMs<x.hits[i].timeMs)i=j;});x.pick=i;}
+  const h=x.h=x.hits[i],d=x.s.d||{};
+  const seg=_secCmpTrim(x.tr,h.startT,h.endT);
+  if(seg.length>1)x.cutLine=L.polyline(seg.map(p=>[p.lat,p.lon]),{color:x.col,weight:6,opacity:1});
+  if(x.cutLine&&x.on)x.cutLine.addTo(c.map);
+  const T=h.trace||[];
+  const dAt=ms=>{const ts=(ms-h.startT)/1000;if(!T.length)return null;if(ts<=T[0][0])return T[0][1];
+    for(let k=1;k<T.length;k++){if(T[k][0]>=ts){const f=(ts-T[k-1][0])/((T[k][0]-T[k-1][0])||1);return T[k-1][1]+f*(T[k][1]-T[k-1][1]);}}
+    return T[T.length-1][1];};
+  const hr=_secCmpHR(d.hr);
+  const base=(h.startT<1e11)?(Date.parse((d.sum&&d.sum.start_time)||'')||0):0;   // watch files keep time from the session start; HR is wall clock
+  x.pts=(d.strokes||[]).filter(s=>s&&s.ms!=null&&s.ms>=h.startT&&s.ms<=h.endT).sort((p,q)=>p.ms-q.ms).map(s=>({s,d:dAt(s.ms),hr:hr.length?_secCmpHRAt(hr,s.ms+base):null})).filter(o=>o.d!=null);
+}
+function acMetricVal(o,k){
+  if(k==='hr')return (o.hr>40&&o.hr<220)?o.hr:null;
+  const m=METRIC_DEFS.find(z=>z.k===k);if(!m)return null;
+  try{return m.filter(o.s)?m.val(o.s):null;}catch(e){return null;}
+}
+function acFmt(k,v){
+  if(v==null||!isFinite(v))return '—';
+  if(k==='hr')return Math.round(v)+' bpm';
+  const m=METRIC_DEFS.find(z=>z.k===k);return m?m.fmtAvg(v):String(v);
+}
+function acAvg(x,k){
+  const a=(x.pts||[]).map(o=>acMetricVal(o,k)).filter(v=>v!=null&&isFinite(v));
+  return a.length?a.reduce((p,q)=>p+q,0)/a.length:null;
+}
+function acRenderRes(){
+  const c=_ac,el=document.getElementById('_ac_res');if(!c||!el)return;
+  if(!c.sec){el.innerHTML='<div style="font-size:12px;color:var(--muted);padding:6px 2px;"><b>1.</b> Add sessions: + From squad (tick a whole day), + Files (FIT, TCX, GPX, CSV from any watch or SpeedCoach, or drop them here) or + From Drive. <b>2.</b> Every session is on the map. Tap a start point on any track, then a finish point further along it. Each session is cut at the same start and finish lines, and the chart below shows them all together. Untick a session above to hide it.</div>';return;}
+  const on=c.S.filter(x=>x.on),hit=on.filter(x=>x.h);
+  const best=hit.length?Math.min(...hit.map(x=>x.h.timeMs)):0;
+  const td='padding:5px 8px;border-bottom:1px solid var(--border);white-space:nowrap;font-size:11px;text-align:right;';
+  let h='<div style="font-size:12px;font-weight:700;margin-bottom:4px;">'+c.sec.distance+' m stretch · '+hit.length+' of '+on.length+' sessions crossed both lines</div>';
+  h+='<div class="twrap" style="margin-bottom:8px;"><table style="width:100%;"><thead><tr><th style="text-align:left;">Session</th><th>Time</th><th>Gap</th><th>Pace</th><th>Rate</th><th>DPS</th><th>HR</th><th>Pass</th></tr></thead><tbody>';
+  on.slice().sort((p,q)=>(p.h?p.h.timeMs:1e15)-(q.h?q.h.timeMs:1e15)).forEach(x=>{
+    const k=c.S.indexOf(x);
+    const dot='<span style="width:10px;height:10px;border-radius:50%;background:'+x.col+';display:inline-block;margin-right:6px;vertical-align:middle;"></span>';
+    if(!x.h){h+='<tr style="opacity:.5;"><td style="'+td+'text-align:left;">'+dot+_secEsc(x.name)+'</td><td style="'+td+'" colspan="7">did not cross both lines</td></tr>';return;}
+    const gap=x.h.timeMs-best;
+    const sel=x.hits.length>1?'<select data-acp="'+k+'" style="font-size:11px;">'+x.hits.map((hh,j)=>'<option value="'+j+'"'+(j===x.pick?' selected':'')+'>'+(j+1)+' of '+x.hits.length+' · '+fmtRecordTime(hh.timeMs)+'</option>').join('')+'</select>':'1';
+    h+='<tr><td style="'+td+'text-align:left;">'+dot+_secEsc(x.name)+'</td><td style="'+td+'font-weight:700;">'+fmtRecordTime(x.h.timeMs)+'</td><td style="'+td+'">'+(gap>0?'+'+(gap/1000).toFixed(1)+' s':'—')+'</td>'
+      +'<td style="'+td+'">'+fmtPaceU(sectorPace(x.h.timeMs,c.sec.distance))+'</td><td style="'+td+'">'+acFmt('rate',acAvg(x,'rate'))+'</td><td style="'+td+'">'+acFmt('dps',acAvg(x,'dps'))+'</td><td style="'+td+'">'+acFmt('hr',acAvg(x,'hr'))+'</td><td style="'+td+'">'+sel+'</td></tr>';
+  });
+  h+='</tbody></table></div>';
+  h+='<div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:4px;"><span style="font-size:12px;font-weight:700;">Stroke chart</span>'
+    +'<select id="_ac_metric" style="font-size:12px;">'+AC_METRICS.map(m=>'<option value="'+m[0]+'"'+(m[0]===c.metric?' selected':'')+'>'+m[1]+'</option>').join('')+'</select>'
+    +'<span style="font-size:11px;color:var(--muted);">Smooth</span><select id="_ac_smooth" style="font-size:12px;">'+[1,3,5,10].map(n=>'<option value="'+n+'"'+(n===c.smooth?' selected':'')+'>'+(n===1?'Off':n+' strokes')+'</option>').join('')+'</select>'
+    +'<span id="_ac_read" style="font-size:11px;margin-left:auto;"></span></div>'
+    +'<div style="position:relative;"><canvas id="_ac_chart" style="width:100%;height:280px;display:block;background:var(--s2);border-radius:8px;touch-action:none;"></canvas></div>'
+    +'<div style="font-size:10px;color:var(--muted);margin-top:3px;">x = metres from the start line. Move across the chart to read every session at the same point.</div>';
+  el.innerHTML=h;
+  el.querySelectorAll('select[data-acp]').forEach(s=>{s.onchange=()=>{const x=c.S[+s.dataset.acp];x.pick=+s.value;acSetHit(x);acRenderRes();};});
+  document.getElementById('_ac_metric').onchange=e=>{c.metric=e.target.value;acDrawChart();};
+  document.getElementById('_ac_smooth').onchange=e=>{c.smooth=+e.target.value;acDrawChart();};
+  const cv=document.getElementById('_ac_chart');
+  const mv=e=>{const r=cv.getBoundingClientRect(),g=c._geom;if(!g)return;const px=(e.clientX-r.left);c.hoverD=Math.max(0,Math.min(g.D,(px-g.l)/(g.w)*g.D));acDrawChart();};
+  cv.addEventListener('pointermove',mv);cv.addEventListener('pointerdown',mv);
+  cv.addEventListener('pointerleave',()=>{c.hoverD=null;acDrawChart();});
+  acDrawChart();
+}
+function acSeries(x,k,n){
+  const raw=(x.pts||[]).map(o=>({d:o.d,v:acMetricVal(o,k)})).filter(o=>o.v!=null&&isFinite(o.v));
+  if(n<=1)return raw;
+  const h=Math.floor(n/2);
+  return raw.map((o,i)=>{let s=0,m=0;for(let j=Math.max(0,i-h);j<=Math.min(raw.length-1,i+h);j++){s+=raw[j].v;m++;}return {d:o.d,v:s/m};});
+}
+function acDrawChart(){
+  const c=_ac;if(!c||!c.sec)return;
+  const cv=document.getElementById('_ac_chart');if(!cv)return;
+  const dpr=window.devicePixelRatio||1,W=cv.clientWidth,H=cv.clientHeight;
+  cv.width=Math.round(W*dpr);cv.height=Math.round(H*dpr);
+  const x=cv.getContext('2d');x.setTransform(dpr,0,0,dpr,0,0);x.clearRect(0,0,W,H);
+  const k=c.metric,inv=k==='pace',D=c.sec.distance;
+  const ser=c.S.filter(s=>s.on&&s.h).map(s=>({s,p:acSeries(s,k,c.smooth)})).filter(o=>o.p.length>1);
+  const l=58,r=10,t=10,b=24,w=W-l-r,hh=H-t-b;
+  c._geom={l,w,D};
+  const txt=getComputedStyle(document.body).getPropertyValue('--muted')||'#888';
+  x.font='11px -apple-system,Helvetica,sans-serif';x.fillStyle=txt;
+  if(!ser.length){x.textAlign='center';x.fillText('No '+(AC_METRICS.find(m=>m[0]===k)||['',''])[1].toLowerCase()+' data for this stretch',W/2,H/2);document.getElementById('_ac_read').innerHTML='';return;}
+  const all=[].concat(...ser.map(o=>o.p.map(q=>q.v))).sort((p,q)=>p-q);
+  const pc=f=>all[Math.max(0,Math.min(all.length-1,Math.round(f*(all.length-1))))];
+  let mn=pc(0.02),mx=pc(0.98);const pad=(mx-mn)*0.08||Math.abs(mx)*0.05||1;mn-=pad;mx+=pad;
+  const sx=d=>l+(d/D)*w,sy=v=>{const f=(v-mn)/(mx-mn);return inv?t+f*hh:t+hh-f*hh;};
+  x.strokeStyle='rgba(128,128,128,.25)';x.lineWidth=1;
+  for(let i=0;i<=4;i++){const v=mn+(mx-mn)*i/4,y=sy(v);x.beginPath();x.moveTo(l,y);x.lineTo(l+w,y);x.stroke();x.textAlign='right';x.fillText(acFmt(k,v),l-6,y+4);}
+  const step=D>3000?1000:D>1200?500:D>500?250:D>200?100:50;
+  x.textAlign='center';
+  for(let d=0;d<=D+0.1;d+=step){const X=sx(d);x.beginPath();x.moveTo(X,t);x.lineTo(X,t+hh);x.stroke();x.fillText(d+' m',X,H-6);}
+  ser.forEach(o=>{
+    x.strokeStyle=o.s.col;x.lineWidth=2.2;x.lineJoin='round';x.beginPath();
+    o.p.forEach((q,i)=>{const X=sx(q.d),Y=Math.max(t,Math.min(t+hh,sy(q.v)));i?x.lineTo(X,Y):x.moveTo(X,Y);});
+    x.stroke();
+  });
+  const rd=document.getElementById('_ac_read');
+  if(c.hoverD!=null){
+    const X=sx(c.hoverD);x.strokeStyle='rgba(255,255,255,.8)';x.lineWidth=1;x.beginPath();x.moveTo(X,t);x.lineTo(X,t+hh);x.stroke();
+    const vals=ser.map(o=>{let best=null;o.p.forEach(q=>{if(!best||Math.abs(q.d-c.hoverD)<Math.abs(best.d-c.hoverD))best=q;});
+      if(best){x.fillStyle=o.s.col;x.beginPath();x.arc(sx(best.d),Math.max(t,Math.min(t+hh,sy(best.v))),3.5,0,Math.PI*2);x.fill();}
+      return best?'<span style="color:'+o.s.col+';font-weight:700;margin-left:8px;">'+acFmt(k,best.v)+'</span>':'';}).join('');
+    if(rd)rd.innerHTML='<b>'+Math.round(c.hoverD)+' m</b>'+vals;
+  }else if(rd)rd.innerHTML='';
+}
 window.coachTool = function (k) {
+  if (k === 'athletes') { window.openAthleteCompare(); return; }
   const r = _selAbsRange();
   if (k === 'pace') { if (!r || r[1] - r[0] + 1 < 40) { toast('Drag across the stroke chart to select 40 or more strokes first', 3500); return; } showPaceCorr(); }
   else if (k === 'curves') { if (r) pinSelection(); const c = document.getElementById('curvesec'); if (c) c.scrollIntoView({ behavior: 'smooth', block: 'start' }); if (!r && !curveGroups.length) toast('Select strokes on the chart, then Add to comparison', 3500); }
