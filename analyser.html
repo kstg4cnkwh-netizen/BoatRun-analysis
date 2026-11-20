@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
 <meta name="color-scheme" content="light dark"/>
-<meta name="br-build" content="Analyser_261120_2">
+<meta name="br-build" content="Analyser_261120_4">
 <title>BoatRun Analyser</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -108,7 +108,10 @@ function adClearPendingOpen(){try{sessionStorage.removeItem('_ad_open');}catch(e
   #unitsbar { display: none; }
 
   /* ── Cards ── */
-  #cards { display: grid; grid-template-columns: repeat(auto-fill, minmax(92px, 1fr)); gap: 7px; padding: 12px 16px; }
+  #cards, #cards-fixed { display: grid; grid-template-columns: repeat(auto-fill, minmax(92px, 1fr)); gap: 7px; padding: 12px 16px; }
+  #cards-fixed { padding-bottom: 0; margin-bottom: 8px; }
+  #cards-fixed:empty { display: none; }
+  #cards-fixed #card-tload { grid-column: span 2; }
   .card { background: var(--s1); border: 1px solid var(--border); border-radius: 12px; padding: 10px 11px; text-align: center; box-shadow: var(--sh); transition: box-shadow .2s, transform .15s, opacity .15s; }
   .card .lbl { font-size: 7.5px; color: var(--muted); text-transform: uppercase; letter-spacing: 1px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; font-weight: 500; }
   .card .val { font-size: 17px; font-family: -apple-system, BlinkMacSystemFont, Helvetica Neue, sans-serif; font-weight: 400; margin-top: 3px; letter-spacing: -.5px; line-height: 1.1; }
@@ -293,7 +296,7 @@ function adClearPendingOpen(){try{sessionStorage.removeItem('_ad_open');}catch(e
   #tooltip .tt-ctable td.tt-dot { text-align: center; }
 
   @media (max-width: 700px) {
-    #cards { padding: 10px 12px; }
+    #cards, #cards-fixed { padding: 10px 12px; }
     .sec { padding: 0 12px 10px; }
     #statsstrip { margin-left: 12px; margin-right: 12px; }
     #map-stroke-row { padding: 0 12px 10px; flex-direction: column; flex-wrap: nowrap; }
@@ -590,7 +593,7 @@ body.light .hdrname{color:#fff;}
   .cbox{padding:14px 14px 6px;}
   .ovbox{padding:7px 14px 3px;margin-bottom:8px;}
   .hint{color:var(--muted);opacity:.75;font-size:9px;}
-  #cards{gap:8px;}
+  #cards, #cards-fixed{gap:8px;}
   #statsstrip{padding:12px 16px;}
   #stripcontext{color:var(--acc);letter-spacing:.12em;}
   #tooltip{border-radius:16px;}
@@ -714,7 +717,7 @@ body.light .hdrname{color:#fff;}
   .pane-drop-after{box-shadow:0 4px 0 #0a84ff,var(--pill-sh)!important;}
   #topBlock.secpill{margin-top:10px;}
   #topBlock .brsettings{margin:0 0 10px;}
-  #topBlock #cards{padding:0;}
+  #topBlock #cards, #topBlock #cards-fixed{padding:0;}
   body .hdr-tabs .hmenu, body.light .hdr-tabs .hmenu{background:#fc4c02;}
   body .hdr-tabs, body.light .hdr-tabs{background:#fc4c02;}
   .sz-list>.brpill,.sz-grid>.brpill,.sz-calcol>.brpill,.sz-sumwrap>.brpill{background:var(--sp-chart);}
@@ -791,6 +794,7 @@ body.light .hdrname{color:#fff;}
   <!-- 13 Nov: Coach tools for the open session -->
   <div id="coachbar" style="display:flex;flex-wrap:wrap;align-items:center;gap:8px;margin:0 0 10px;padding:9px 12px;border:2px solid #6a3fb0;border-radius:12px;"><span style="font:800 12px Inter,-apple-system,sans-serif;letter-spacing:.05em;">COACH TOOLS</span><button class="coachtool" onclick="coachTool('pace')">What drives pace</button><button class="coachtool" onclick="coachTool('video')">Video overlay</button><button class="coachtool" onclick="coachTool('tpl')">Stroke template</button><button class="coachtool" onclick="coachTool('curves')">Curve comparison</button><button class="coachtool" onclick="coachTool('replay')">Export replay video</button><span style="font-size:11px;">Select strokes on the chart first</span></div>
   <!-- Summary cards -->
+  <div id="cards-fixed"></div>
   <div id="cards"></div>
   </div>
   <div id="chartBlock" class="secpill" data-pane="chartBlock"><div class="pane-grip" title="Drag to move this pane"><span></span></div>
@@ -7755,15 +7759,17 @@ function buildCards(sum) {
     peakforce:()=>vals.peakforce?card('c-peakforce','Peak Force',f0(vals.peakforce.mean)+' N','max '+f0(vals.peakforce.max)+' N','peakforce',tipOf('peakforce')):'',
     drivelength:()=>vals.drivelength?card('c-drivelength','Stroke Length',f2(vals.drivelength.mean)+' m','','drivelength',tipOf('drivelength')):'',
   };
-  let html=
+  /* 20 Nov: Distance, Duration, Wind and Training Load cannot be turned off, so they sit in their own row above the metric tiles */
+  let fixedHtml=
     card('cw','Distance',distDisp,distLbl,null,'Total distance travelled (GPS), in km or mi based on units setting.')+
     card('cw','Duration',dur,ST.length+' strokes',null,'Total elapsed time of the session.')+
     (()=>{try{const sd=SESSIONS[activeSessionIdx]&&SESSIONS[activeSessionIdx].d,ws=windSummary(sd);if(!ws)return '';return card('cw','Wind',windFmt(ws.ws),windDirName(ws.wd)+(ws.man?' \u00b7 set':(ws.g!=null?' \u00b7 gust '+windFmt(ws.g):'')),null,ws.man?'Wind set by hand for this session (on the water).':'Open-Meteo wind at 10 m, session average, from the direction shown. Used for the tide/current fit and Corrected values.');}catch(e){return '';}})()+
-    (()=>{try{return tlCardHtml();}catch(e){return '';}})()+
-    METRIC_DEFS.map(m=>(hid[m.k]||!CARD_BUILDERS[m.k])?'':CARD_BUILDERS[m.k]()).join('');
+    (()=>{try{return tlCardHtml();}catch(e){return '';}})();
+  let html=METRIC_DEFS.map(m=>(hid[m.k]||!CARD_BUILDERS[m.k])?'':CARD_BUILDERS[m.k]()).join('');
+  {const fx=document.getElementById('cards-fixed');if(fx)fx.innerHTML=fixedHtml;else html=fixedHtml+html;}
   document.getElementById('cards').innerHTML=html;
   try{tlCardBind();}catch(e){}
-  document.querySelectorAll('#cards .card .val').forEach(v=>{
+  document.querySelectorAll('#cards .card .val, #cards-fixed .card .val').forEach(v=>{
     if(v.children.length)return;
     const m=/^([\d:.,+\-\u2212]*\d)\s*([A-Za-z%\u00b0\/\u00b5].*)$/.exec(v.textContent.trim());
     if(m)v.innerHTML=m[1]+'<span class="u">'+m[2]+'</span>';
@@ -15371,7 +15377,13 @@ function tlCardHtml(){
     +'<div class="sub"><span id="tl-card-src">'+_secEsc(L.src)+'</span></div>'
     +'<div style="display:flex;gap:4px;margin-top:4px;flex-wrap:wrap;">'
     +(W.eff?'':'<input id="tl-card-load" data-k="'+k+'" type="number" inputmode="numeric" min="0" max="3000" placeholder="'+_secEsc(W.n+' '+W.L.toLowerCase())+'" value="'+(man.load>0&&(man.w||'garmin')===cw?man.load:'')+'" style="'+IN+'width:104px;">')
-    +'<select id="tl-card-rpe" data-k="'+k+'" style="'+IN+'">'+opts+'</select></div></div>';
+    +'<select id="tl-card-rpe" data-k="'+k+'" style="'+IN+'">'+opts+'</select></div>'
+    /* 20 Nov: Garmin / Coros aerobic and anaerobic Training Effect (0-5), saved as ate / ante */
+    +(W.te?'<div style="display:flex;gap:4px;margin-top:4px;flex-wrap:wrap;">'
+      +'<input id="tl-card-ate" data-k="'+k+'" type="number" inputmode="decimal" min="0" max="5" step="0.1" placeholder="Aerobic TE" title="'+_secEsc(W.n)+' aerobic training effect (0-5)" value="'+(man.ate!=null?(+man.ate).toFixed(1):'')+'" style="'+IN+'width:96px;">'
+      +'<input id="tl-card-ante" data-k="'+k+'" type="number" inputmode="decimal" min="0" max="5" step="0.1" placeholder="Anaerobic TE" title="'+_secEsc(W.n)+' anaerobic training effect (0-5)" value="'+(man.ante!=null?(+man.ante).toFixed(1):'')+'" style="'+IN+'width:96px;">'
+      +'</div>':'')
+    +'</div>';
 }
 function tlCardBind(){
   const x=tlCurSess();if(!x)return;
@@ -15380,6 +15392,13 @@ function tlCardBind(){
   [li,ri].forEach(el=>{if(el)el.addEventListener('click',e=>e.stopPropagation());});
   if(li)li.onchange=()=>{const v=Math.max(0,Math.min(3000,Math.round(+li.value||0)));if(!v)li.value='';tlSetSess(li.dataset.k,{load:v,w:tlWatch()});upd();};
   if(ri)ri.onchange=()=>{tlSetSess(ri.dataset.k,{rpe:ri.value?+ri.value:0});upd();};
+  [['tl-card-ate','ate'],['tl-card-ante','ante']].forEach(([id,f])=>{
+    const el=document.getElementById(id);if(!el)return;
+    el.addEventListener('click',e=>e.stopPropagation());
+    el.onchange=()=>{const raw=String(el.value).trim(),v=Math.round(Math.max(0,Math.min(5,+raw))*10)/10;
+      const p={};p[f]=(raw===''||!isFinite(+raw))?null:v;if(p[f]!=null)el.value=v.toFixed(1);else el.value='';
+      tlSetSess(el.dataset.k,{...p,w:tlWatch()});};
+  });
 }
 function tlSetSess(key,patch){SESS_LOAD[key]={...(SESS_LOAD[key]||{}),...patch,rev:Date.now()};tlSaveSess();renderLoadPanel();}
 function tlRenderSoon(){clearTimeout(_tlRenderT);_tlRenderT=setTimeout(()=>{try{renderLoadPanel();}catch(e){console.error(e);}},60);}
