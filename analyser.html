@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
 <meta name="color-scheme" content="light dark"/>
-<meta name="br-build" content="Analyser_261120_21">
+<meta name="br-build" content="Analyser_261120_22">
 <title>BoatRun Analyser</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -13666,7 +13666,7 @@ window.openAthleteCompare=function(fromHome){
 function acSync(fit){
   const c=_ac;if(!c)return;
   const have=new Set(c.S.map(x=>x.s));
-  c.S=c.S.filter(x=>{if(SESSIONS.includes(x.s))return true;try{c.map.removeLayer(x.line);if(x.cutLine)c.map.removeLayer(x.cutLine);}catch(e){}return false;});
+  c.S=c.S.filter(x=>{if(SESSIONS.includes(x.s))return true;try{c.map.removeLayer(x.line);acCutRemove(x);}catch(e){}return false;});
   let added=0;
   SESSIONS.forEach((s,i)=>{
     if(have.has(s))return;
@@ -13703,7 +13703,7 @@ function acUseSector(sec){
     c.marks.push(L.circleMarker(p,{radius:8,color:'#000',weight:2,fillColor:col,fillOpacity:1}).bindTooltip(lb,{permanent:true,direction:'top'}).addTo(c.map));
   });
   c.sel=[{k:-1,idx:0,d:0},{k:-1,idx:0,d:0}];
-  c.S.forEach(x=>{x.hits=scanTraceForSector(c.sec,x.tr)||[];x.pick=null;acSetHit(x);});
+  c.S.forEach(x=>{x.hits=scanTraceForSector(c.sec,x.tr)||[];x.picks=null;acSetHit(x);});
   try{c.map.fitBounds(c.refLine.getBounds(),{padding:[40,40]});}catch(e){}
   acStyleLines();acMsg();acRenderRes();
 }
@@ -13876,7 +13876,7 @@ function acLegend(){
    sessions), not just hidden. */
 function acRemove(x){
   const c=_ac;if(!c||!x)return;
-  try{c.map.removeLayer(x.line);if(x.cutLine)c.map.removeLayer(x.cutLine);}catch(e){}
+  try{c.map.removeLayer(x.line);acCutRemove(x);}catch(e){}
   c.S=c.S.filter(y=>y!==x);
   const i=SESSIONS.indexOf(x.s);
   if(i>=0){if(SESSIONS.length>1)removeSession(i);else{try{resetApp();}catch(e){SESSIONS.length=0;}}}
@@ -13886,16 +13886,16 @@ function acRemove(x){
 function acStyleLines(){
   if(!_ac)return;
   _ac.S.forEach(x=>{
-    if(!x.on){try{_ac.map.removeLayer(x.line);}catch(e){}if(x.cutLine)try{_ac.map.removeLayer(x.cutLine);}catch(e){}return;}
+    if(!x.on){try{_ac.map.removeLayer(x.line);}catch(e){}(x.units||[]).forEach(u=>{if(u.cutLine)try{_ac.map.removeLayer(u.cutLine);}catch(e){}});return;}
     if(!_ac.map.hasLayer(x.line))x.line.addTo(_ac.map);
     x.line.setStyle(_ac.sec?{weight:2,opacity:.3}:{weight:3,opacity:.85});
-    if(x.cutLine&&!_ac.map.hasLayer(x.cutLine))x.cutLine.addTo(_ac.map);
+    (x.units||[]).forEach(u=>{if(u.cutLine&&!_ac.map.hasLayer(u.cutLine))u.cutLine.addTo(_ac.map);});
   });
 }
 function acReset(){
   if(!_ac)return;
   _ac.marks.forEach(m=>{try{_ac.map.removeLayer(m);}catch(e){}});_ac.marks=[];
-  _ac.S.forEach(x=>{if(x.cutLine){try{_ac.map.removeLayer(x.cutLine);}catch(e){}x.cutLine=null;}x.hits=null;x.h=null;x.pick=null;});
+  _ac.S.forEach(x=>{acCutRemove(x);x.units=[];x.hits=null;x.h=null;x.picks=null;});
   _ac.sel=[];_ac.sec=null;_ac.hoverD=null;
   if(_ac.refLine){try{_ac.map.removeLayer(_ac.refLine);}catch(e){}_ac.refLine=null;}
   if(_ac.secId){_ac.secId=null;const el=document.getElementById('_ac_secsel');if(el)el.value='';}
@@ -13938,26 +13938,40 @@ function acRun(){
   c.sec=sec;
   c.S.forEach(x=>{
     x.hits=scanTraceForSector(sec,x.tr)||[];
-    x.pick=null;acSetHit(x);
+    x.picks=null;acSetHit(x);
   });
   acStyleLines();acRenderRes();
 }
+/* 20 Nov: a session can go through the stretch more than once (repeats). Each
+   pass picked becomes its own line in the table, chart and play-through
+   ("units"). x.picks = pass indexes shown; default the fastest one. */
+function acCutRemove(x){(x.units||[]).forEach(u=>{if(u.cutLine){try{_ac.map.removeLayer(u.cutLine);}catch(e){}u.cutLine=null;}});}
+function acUnits(){return _ac?_ac.S.filter(x=>x.on).flatMap(x=>x.units||[]):[];}
 function acSetHit(x){
   const c=_ac;
-  if(x.cutLine){try{c.map.removeLayer(x.cutLine);}catch(e){}x.cutLine=null;}
-  x.h=null;if(!x.hits||!x.hits.length)return;
-  let i=x.pick;if(i==null||!x.hits[i]){i=0;x.hits.forEach((h,j)=>{if(h.timeMs<x.hits[i].timeMs)i=j;});x.pick=i;}
-  const h=x.h=x.hits[i],d=x.s.d||{};
-  const seg=_secCmpTrim(x.tr,h.startT,h.endT);
-  if(seg.length>1)x.cutLine=L.polyline(seg.map(p=>[p.lat,p.lon]),{color:x.col,weight:6,opacity:1});
-  if(x.cutLine&&x.on)x.cutLine.addTo(c.map);
-  const T=h.trace||[];
-  const dAt=ms=>{const ts=(ms-h.startT)/1000;if(!T.length)return null;if(ts<=T[0][0])return T[0][1];
-    for(let k=1;k<T.length;k++){if(T[k][0]>=ts){const f=(ts-T[k-1][0])/((T[k][0]-T[k-1][0])||1);return T[k-1][1]+f*(T[k][1]-T[k-1][1]);}}
-    return T[T.length-1][1];};
-  const hr=_secCmpHR(d.hr);
-  const base=(h.startT<1e11)?(Date.parse((d.sum&&d.sum.start_time)||'')||0):0;   // watch files keep time from the session start; HR is wall clock
-  x.pts=(d.strokes||[]).filter(s=>s&&s.ms!=null&&s.ms>=h.startT&&s.ms<=h.endT).sort((p,q)=>p.ms-q.ms).map(s=>({s,d:dAt(s.ms),hr:hr.length?_secCmpHRAt(hr,s.ms+base):null})).filter(o=>o.d!=null);
+  acCutRemove(x);x.units=[];x.h=null;
+  if(!x.hits||!x.hits.length)return;
+  let picks=(x.picks||[]).filter(i=>x.hits[i]);
+  if(!picks.length){let i=0;x.hits.forEach((h,j)=>{if(h.timeMs<x.hits[i].timeMs)i=j;});picks=[i];}
+  x.picks=picks.slice().sort((p,q)=>p-q);
+  x.pcol=x.pcol||{};
+  const d=x.s.d||{},hr=_secCmpHR(d.hr);
+  x.units=x.picks.map(pi=>{
+    const h=x.hits[pi];
+    if(!x.pcol[pi])x.pcol[pi]=Object.keys(x.pcol).length?SECTOR_CMP_COLORS[c.nCol++%SECTOR_CMP_COLORS.length]:x.col;
+    const u={x,s:x.s,tr:x.tr,pi,h,col:x.pcol[pi],name:x.hits.length>1?x.name+' · pass '+(pi+1):x.name};
+    const seg=_secCmpTrim(x.tr,h.startT,h.endT);
+    if(seg.length>1)u.cutLine=L.polyline(seg.map(p=>[p.lat,p.lon]),{color:u.col,weight:6,opacity:1});
+    if(u.cutLine&&x.on)u.cutLine.addTo(c.map);
+    const T=h.trace||[];
+    const dAt=ms=>{const ts=(ms-h.startT)/1000;if(!T.length)return null;if(ts<=T[0][0])return T[0][1];
+      for(let k=1;k<T.length;k++){if(T[k][0]>=ts){const f=(ts-T[k-1][0])/((T[k][0]-T[k-1][0])||1);return T[k-1][1]+f*(T[k][1]-T[k-1][1]);}}
+      return T[T.length-1][1];};
+    const base=(h.startT<1e11)?(Date.parse((d.sum&&d.sum.start_time)||'')||0):0;   // watch files keep time from the session start; HR is wall clock
+    u.pts=(d.strokes||[]).filter(s=>s&&s.ms!=null&&s.ms>=h.startT&&s.ms<=h.endT).sort((p,q)=>p.ms-q.ms).map(s=>({s,d:dAt(s.ms),hr:hr.length?_secCmpHRAt(hr,s.ms+base):null})).filter(o=>o.d!=null);
+    return u;
+  });
+  x.h=x.units[0].h;
 }
 /* 20 Nov: PLAY THROUGH. Hands the cut sessions to the sector play-through
    engine unchanged (_secCmpBuildView): same map, gates, boats, speeds, scrub,
@@ -13965,13 +13979,13 @@ function acSetHit(x){
 function acPlay(){
   const c=_ac;if(!c||!c.sec)return;
   const out=[];
-  c.S.filter(x=>x.on&&x.h).sort((p,q)=>p.h.timeMs-q.h.timeMs).forEach(x=>{
+  acUnits().sort((p,q)=>p.h.timeMs-q.h.timeMs).forEach(x=>{
     const d=x.s.d||{},h=x.h;
     const tr=_secCmpTrim(x.tr,h.startT,h.endT);if(tr.length<2)return;
     const base=(h.startT<1e11)?(Date.parse((d.sum&&d.sum.start_time)||'')||0):0;   // watch files: put HR on the session clock
     const hr=_secCmpHR(d.hr).map(b=>({t:b.t-base,b:b.b}));
     const strokes=(d.strokes||[]).filter(st=>st&&st.ms!=null&&st.ms>=h.startT-10000&&st.ms<=h.endT).sort((p,q)=>p.ms-q.ms);
-    out.push({r:{key:'ac'+out.length,label:x.s.label,date:(d.sum&&d.sum.start_time)||null,timeMs:h.timeMs},h,tr,dtr:h.trace,strokes,hr,color:x.col});
+    out.push({r:{key:'ac'+out.length,label:x.name,date:(d.sum&&d.sum.start_time)||null,timeMs:h.timeMs},h,tr,dtr:h.trace,strokes,hr,color:x.col});
   });
   if(!out.length){toast('No session crossed both lines');return;}
   closeSectorCompare();
@@ -14006,20 +14020,27 @@ function acAvg(x,k){
 function acRenderRes(){
   const c=_ac,el=document.getElementById('_ac_res');if(!c||!el)return;
   if(!c.sec){el.innerHTML='<div style="font-size:12px;color:var(--muted);padding:6px 2px;">Once a stretch is picked, every session is cut at the same start and finish lines and the times, stroke chart and play-through appear here. Untick a session to hide it, or \u2715 to remove it.</div>';return;}
-  const on=c.S.filter(x=>x.on),hit=on.filter(x=>x.h);
-  const best=hit.length?Math.min(...hit.map(x=>x.h.timeMs)):0;
+  const on=c.S.filter(x=>x.on),hit=on.filter(x=>x.units&&x.units.length),U=acUnits();
+  const best=U.length?Math.min(...U.map(u=>u.h.timeMs)):0;
   const td='padding:5px 8px;border-bottom:1px solid var(--border);white-space:nowrap;font-size:11px;text-align:right;';
   let h='<div style="display:flex;align-items:center;gap:10px;margin-bottom:4px;flex-wrap:wrap;"><div style="font-size:12px;font-weight:700;">'+c.sec.distance+' m stretch · '+hit.length+' of '+on.length+' sessions crossed both lines</div>'
-    +(hit.length?'<button class="dzbtn dzbtn-pri" id="_ac_play" style="font-size:11px;">\u25B6 Play through</button>':'')+'</div>';
-  h+='<div class="twrap" style="margin-bottom:8px;"><table style="width:100%;"><thead><tr><th style="text-align:left;">Session</th><th>Time</th><th>Gap</th><th>Pace</th><th>Rate</th><th>DPS</th><th>HR</th><th>Pass</th></tr></thead><tbody>';
-  on.slice().sort((p,q)=>(p.h?p.h.timeMs:1e15)-(q.h?q.h.timeMs:1e15)).forEach(x=>{
-    const k=c.S.indexOf(x);
+    +(U.length?'<button class="dzbtn dzbtn-pri" id="_ac_play" style="font-size:11px;">▶ Play through</button>':'')+'</div>';
+  h+='<div class="twrap" style="margin-bottom:8px;"><table style="width:100%;"><thead><tr><th style="text-align:left;">Session</th><th>Time</th><th>Gap</th><th>Pace</th><th>Rate</th><th>DPS</th><th>HR</th><th title="Passes through this stretch in that session. Tap to add or remove a pass.">Passes</th></tr></thead><tbody>';
+  const chipDone=new Set();
+  const chips=x=>{const k=c.S.indexOf(x);return x.hits.map((hh,j)=>{const onp=x.picks.includes(j);
+    return '<button data-acpx="'+k+'" data-pi="'+j+'" title="Pass '+(j+1)+' · '+fmtRecordTime(hh.timeMs)+(onp?' · tap to remove':' · tap to add')+'" style="font-size:10px;font-weight:700;min-width:22px;padding:2px 6px;margin-left:3px;border-radius:6px;cursor:pointer;border:1px solid '+(onp?(x.pcol[j]||x.col):'var(--border)')+';background:'+(onp?(x.pcol[j]||x.col):'transparent')+';color:'+(onp?'#000':'var(--text)')+';">'+(j+1)+'</button>';}).join('');};
+  U.slice().sort((p,q)=>p.h.timeMs-q.h.timeMs).forEach(u=>{
+    const x=u.x;
+    const dot='<span style="width:10px;height:10px;border-radius:50%;background:'+u.col+';display:inline-block;margin-right:6px;vertical-align:middle;"></span>';
+    const gap=u.h.timeMs-best;
+    let pc='1';
+    if(x.hits.length>1){if(!chipDone.has(x)){chipDone.add(x);pc=chips(x);}else pc='';}
+    h+='<tr><td style="'+td+'text-align:left;">'+dot+_secEsc(u.name)+'</td><td style="'+td+'font-weight:700;">'+fmtRecordTime(u.h.timeMs)+'</td><td style="'+td+'">'+(gap>0?'+'+(gap/1000).toFixed(1)+' s':'—')+'</td>'
+      +'<td style="'+td+'">'+fmtPaceU(sectorPace(u.h.timeMs,c.sec.distance))+'</td><td style="'+td+'">'+acFmt('rate',acAvg(u,'rate'))+'</td><td style="'+td+'">'+acFmt('dps',acAvg(u,'dps'))+'</td><td style="'+td+'">'+acFmt('hr',acAvg(u,'hr'))+'</td><td style="'+td+'">'+pc+'</td></tr>';
+  });
+  on.filter(x=>!(x.units&&x.units.length)).forEach(x=>{
     const dot='<span style="width:10px;height:10px;border-radius:50%;background:'+x.col+';display:inline-block;margin-right:6px;vertical-align:middle;"></span>';
-    if(!x.h){h+='<tr style="opacity:.5;"><td style="'+td+'text-align:left;">'+dot+_secEsc(x.name)+'</td><td style="'+td+'" colspan="7">did not cross both lines</td></tr>';return;}
-    const gap=x.h.timeMs-best;
-    const sel=x.hits.length>1?'<select data-acp="'+k+'" style="font-size:11px;">'+x.hits.map((hh,j)=>'<option value="'+j+'"'+(j===x.pick?' selected':'')+'>'+(j+1)+' of '+x.hits.length+' · '+fmtRecordTime(hh.timeMs)+'</option>').join('')+'</select>':'1';
-    h+='<tr><td style="'+td+'text-align:left;">'+dot+_secEsc(x.name)+'</td><td style="'+td+'font-weight:700;">'+fmtRecordTime(x.h.timeMs)+'</td><td style="'+td+'">'+(gap>0?'+'+(gap/1000).toFixed(1)+' s':'—')+'</td>'
-      +'<td style="'+td+'">'+fmtPaceU(sectorPace(x.h.timeMs,c.sec.distance))+'</td><td style="'+td+'">'+acFmt('rate',acAvg(x,'rate'))+'</td><td style="'+td+'">'+acFmt('dps',acAvg(x,'dps'))+'</td><td style="'+td+'">'+acFmt('hr',acAvg(x,'hr'))+'</td><td style="'+td+'">'+sel+'</td></tr>';
+    h+='<tr style="opacity:.5;"><td style="'+td+'text-align:left;">'+dot+_secEsc(x.name)+'</td><td style="'+td+'" colspan="7">did not cross both lines</td></tr>';
   });
   h+='</tbody></table></div>';
   h+='<div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:4px;"><span style="font-size:12px;font-weight:700;">Stroke chart</span>'
@@ -14029,7 +14050,9 @@ function acRenderRes(){
     +'<div style="position:relative;"><canvas id="_ac_chart" style="width:100%;height:280px;display:block;background:var(--s2);border-radius:8px;touch-action:none;"></canvas></div>'
     +'<div style="font-size:10px;color:var(--muted);margin-top:3px;">x = metres from the start line. Move across the chart to read every session at the same point.</div>';
   el.innerHTML=h;
-  el.querySelectorAll('select[data-acp]').forEach(s=>{s.onchange=()=>{const x=c.S[+s.dataset.acp];x.pick=+s.value;acSetHit(x);acRenderRes();};});
+  el.querySelectorAll('button[data-acpx]').forEach(b=>{b.onclick=()=>{const x=c.S[+b.dataset.acpx],j=+b.dataset.pi;
+    if(x.picks.includes(j)){if(x.picks.length===1){toast('Keep at least one pass - untick the session to hide it');return;}x.picks=x.picks.filter(v=>v!==j);}else x.picks=x.picks.concat(j);
+    acSetHit(x);acRenderRes();};});
   {const pb=document.getElementById('_ac_play');if(pb)pb.onclick=acPlay;}
   document.getElementById('_ac_metric').onchange=e=>{c.metric=e.target.value;acDrawChart();};
   document.getElementById('_ac_smooth').onchange=e=>{c.smooth=+e.target.value;acDrawChart();};
@@ -14052,7 +14075,7 @@ function acDrawChart(){
   cv.width=Math.round(W*dpr);cv.height=Math.round(H*dpr);
   const x=cv.getContext('2d');x.setTransform(dpr,0,0,dpr,0,0);x.clearRect(0,0,W,H);
   const k=c.metric,inv=k==='pace',D=c.sec.distance;
-  const ser=c.S.filter(s=>s.on&&s.h).map(s=>({s,p:acSeries(s,k,c.smooth)})).filter(o=>o.p.length>1);
+  const ser=acUnits().map(s=>({s,p:acSeries(s,k,c.smooth)})).filter(o=>o.p.length>1);
   const l=58,r=10,t=10,b=24,w=W-l-r,hh=H-t-b;
   c._geom={l,w,D};
   const txt=getComputedStyle(document.body).getPropertyValue('--muted')||'#888';
