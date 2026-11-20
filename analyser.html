@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
 <meta name="color-scheme" content="light dark"/>
-<meta name="br-build" content="Analyser_261120_22">
+<meta name="br-build" content="Analyser_261120_24">
 <title>BoatRun Analyser</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -805,7 +805,12 @@ body.light .hdrname{color:#fff;}
   <div id="topBlock" class="secpill" data-pane="topBlock"><div class="pane-grip" title="Drag to move this pane"><span></span></div>
   <div id="unitsbar" class="brsettings"></div>
   <!-- 13 Nov: Coach tools for the open session -->
-  <div id="coachbar" style="display:flex;flex-wrap:wrap;align-items:center;gap:8px;margin:0 0 10px;padding:9px 12px;border:2px solid #6a3fb0;border-radius:12px;"><span style="font:800 12px Inter,-apple-system,sans-serif;letter-spacing:.05em;">COACH TOOLS</span><button class="coachtool" onclick="coachTool('pace')">What drives pace</button><button class="coachtool" onclick="coachTool('video')">Video overlay</button><button class="coachtool" onclick="coachTool('tpl')">Stroke template</button><button class="coachtool" onclick="coachTool('curves')">Curve comparison</button><button class="coachtool" onclick="coachTool('replay')">Export replay video</button><span style="font-size:11px;">Select strokes on the chart first</span></div>
+  <div id="coachbar" style="display:flex;flex-wrap:wrap;align-items:center;gap:8px;margin:0 0 10px;padding:9px 12px;border:2px solid #6a3fb0;border-radius:12px;"><span style="font:800 12px Inter,-apple-system,sans-serif;letter-spacing:.05em;">COACH TOOLS</span><button class="coachtool" onclick="coachTool('pace')">What drives pace</button><button class="coachtool" onclick="coachTool('video')">Video overlay</button><button class="coachtool" onclick="coachTool('tpl')">Stroke template</button><button class="coachtool" onclick="coachTool('curves')">Curve comparison</button><span style="font-size:11px;">Select strokes on the chart first</span></div>
+  <!-- 20 Nov: replay video export, on its own and styled like Head to Head -->
+  <div id="rvbar" style="display:flex;margin:0 0 10px;"><button type="button" class="sz-h2h" id="rvbigbtn" onclick="coachTool('replay')" title="Select a section on the stroke chart, then make a shareable video of it">
+    <span class="t"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="5" width="14" height="14" rx="2"/><path d="M17 10l4-2.5v9L17 14"/></svg>Export replay video</span>
+    <span class="s">Drag across the stroke chart to pick the section, then make a video to share</span>
+  </button></div>
   <!-- Summary cards -->
   <div id="cards-fixed"></div>
   <div id="cards"></div>
@@ -6075,6 +6080,11 @@ window._secCmpVideo=function(){
   const all=ref.slice();c.sess.forEach(s=>s.tr.forEach(p=>all.push([p.lat,p.lon])));
   const keys=_secCmpKeys().slice(0,4);
   const FONT=K.RV_FONT;
+  /* 20 Nov: BoatRun logo in the header. Loaded as a bitmap from fetched bytes, so it can never
+     taint the canvas (a tainted canvas cannot be recorded); if it cannot load, no logo. */
+  let logo=null;
+  const logoP=fetch('icons/icon-192.png').then(r=>r.ok?r.blob():null).then(b=>b&&window.createImageBitmap?createImageBitmap(b):null).then(bm=>{logo=bm;}).catch(()=>{});
+  const logoOk=()=>!!logo;
   let W=0,H=0,lay=null,mp=null,busy=false,rec=null,blob=null,url=null,gen=0,colMax=null;   // colMax: widest column text seen so far, so columns never jump
   const close=()=>{gen++;try{if(rec&&rec.state!=='inactive')rec.stop();}catch(e){}if(url)URL.revokeObjectURL(url);ov.remove();};
   $('_scv_close').onclick=close;
@@ -6106,7 +6116,9 @@ window._secCmpVideo=function(){
     const m=lay.m;
     ctx.fillStyle='rgba(8,18,36,.88)';K.rvRR(ctx,m,m,W-2*m,lay.hdrH,mn*0.02);ctx.fill();
     ctx.fillStyle='#fff';ctx.textBaseline='middle';ctx.textAlign='left';
-    ctx.font='700 '+Math.round(mn*0.036)+'px '+FONT;ctx.fillText((sec.name||'Stretch')+' · '+sec.distance+' m',m*2,m+lay.hdrH*0.5);
+    let tx=m*2;
+    if(logoOk()){const ls=lay.hdrH*0.66,ly=m+(lay.hdrH-ls)/2;ctx.save();K.rvRR(ctx,tx,ly,ls,ls,ls*0.22);ctx.clip();ctx.drawImage(logo,tx,ly,ls,ls);ctx.restore();tx+=ls+m*0.8;}
+    ctx.font='700 '+Math.round(mn*0.036)+'px '+FONT;ctx.fillText((sec.name||'Stretch')+' · '+sec.distance+' m',tx,m+lay.hdrH*0.5);
     ctx.textAlign='right';ctx.font='700 '+Math.round(mn*0.05)+'px '+FONT;ctx.fillText(_secCmpFmtElapsed(t),W-m*2,m+lay.hdrH*0.5);
     ctx.font='600 '+Math.round(mn*0.02)+'px '+FONT;ctx.fillStyle='rgba(255,255,255,.7)';ctx.fillText('BoatRun',W-m*2,m+lay.hdrH*0.86);
     /* leaderboard */
@@ -6159,6 +6171,7 @@ window._secCmpVideo=function(){
     if(my!==gen)return;
     mp=m;
     try{if(document.fonts&&document.fonts.ready)await document.fonts.ready;}catch(e){}
+    await Promise.race([logoP,new Promise(r=>setTimeout(r,3000))]);
     frame(0);
     msg.textContent=(m.ok<m.total*0.5?'Satellite map could not load - drawn on a plain background. ':'')+'Ready. Keep this tab open and on screen while it records.';
     busy=false;$('_scv_go').disabled=false;
