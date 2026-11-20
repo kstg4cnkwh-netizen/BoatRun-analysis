@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
 <meta name="color-scheme" content="light dark"/>
-<meta name="br-build" content="Analyser_261120_6">
+<meta name="br-build" content="Analyser_261120_9">
 <title>BoatRun Analyser</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -109,21 +109,22 @@ function adClearPendingOpen(){try{sessionStorage.removeItem('_ad_open');}catch(e
 
   /* ── Cards ── */
   #cards, #cards-fixed { display: grid; grid-template-columns: repeat(auto-fill, minmax(92px, 1fr)); gap: 7px; padding: 12px 16px; }
-  #cards-fixed { padding-bottom: 0; margin-bottom: 8px; }
+  #cards-fixed { padding-bottom: 0; margin-bottom: 8px; display: flex; flex-wrap: wrap; }
+  #cards-fixed > .card { flex: 0 0 auto; min-width: 92px; box-sizing: border-box; }
   #cards-fixed:empty { display: none; }
-  #cards-fixed #card-tload { grid-column: span 4; padding-top: 6px; padding-bottom: 6px; }
+  #cards-fixed #card-tload { width: auto; padding: 6px 10px; }
   #cards-fixed .c-fdist { border-top: 3px solid #16a085; } #cards-fixed .c-fdist .val { color: #16a085; }
   #cards-fixed .c-fdur { border-top: 3px solid #8e44ad; } #cards-fixed .c-fdur .val { color: #8e44ad; }
   #cards-fixed .c-fwind { border-top: 3px solid #2980b9; } #cards-fixed .c-fwind .val { color: #2980b9; }
   #cards-fixed .c-fload { border-top: 3px solid #e67e22; } #cards-fixed .c-fload .val { color: #e67e22; }
-  #card-tload .tl-row { display: flex; align-items: center; gap: 10px; }
-  #card-tload .tl-main { flex: 0 0 auto; min-width: 72px; }
-  #card-tload .tl-fields { display: flex; gap: 12px; flex: 1; min-width: 0; flex-wrap: wrap; justify-content: center; }
-  #card-tload .tl-col { display: flex; flex-direction: column; gap: 3px; }
-  #card-tload .tl-f { display: flex; flex-direction: row; gap: 6px; align-items: center; justify-content: space-between; }
-  #card-tload .tl-f .lbl { text-align: left; }
-  #card-tload .tl-f input, #card-tload .tl-f select { width: 66px; box-sizing: border-box; padding: 2px 4px; background: var(--s2); border: 1px solid var(--border); border-radius: 5px; color: var(--text); font-size: 12px; font-family: inherit; text-align: center; }
-  @media (max-width: 520px) { #cards-fixed #card-tload { grid-column: 1 / -1; } }
+  #card-tload .tl-row { display: flex; align-items: center; justify-content: center; gap: 8px; flex-wrap: nowrap; }
+  #card-tload .tl-main { flex: 0 0 auto; min-width: 64px; }
+  #card-tload .tl-fields { display: flex; gap: 8px; flex: 0 0 auto; flex-wrap: nowrap; justify-content: center; }
+  #card-tload .tl-col { display: flex; flex-direction: column; gap: 4px; flex: 0 0 auto; }
+  #card-tload .tl-f { display: flex; flex-direction: column; gap: 1px; align-items: stretch; }
+  #card-tload .tl-f .lbl { text-align: center; }
+  #card-tload .tl-f input, #card-tload .tl-f select { width: 64px; box-sizing: border-box; padding: 2px 4px; background: var(--s2); border: 1px solid var(--border); border-radius: 5px; color: var(--text); font-size: 12px; font-family: inherit; text-align: center; }
+  @media (max-width: 520px) { #cards-fixed #card-tload { flex: 1 1 100%; } }
   .card { background: var(--s1); border: 1px solid var(--border); border-radius: 12px; padding: 10px 11px; text-align: center; box-shadow: var(--sh); transition: box-shadow .2s, transform .15s, opacity .15s; }
   .card .lbl { font-size: 7.5px; color: var(--muted); text-transform: uppercase; letter-spacing: 1px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; font-weight: 500; }
   .card .val { font-size: 17px; font-family: -apple-system, BlinkMacSystemFont, Helvetica Neue, sans-serif; font-weight: 400; margin-top: 3px; letter-spacing: -.5px; line-height: 1.1; }
