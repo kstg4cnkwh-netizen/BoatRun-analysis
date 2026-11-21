@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
 <meta name="color-scheme" content="light dark"/>
-<meta name="br-build" content="Analyser_261120_24">
+<meta name="br-build" content="Analyser_261120_30">
 <title>BoatRun Analyser</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -6066,6 +6066,7 @@ window._secCmpVideo=function(){
   let spDef=spOpts.find(v=>durS/v<=40)||spOpts[spOpts.length-1];
   pn.innerHTML='<div style="display:flex;align-items:center;gap:8px;margin-bottom:10px;"><b style="font-size:14px;">Save play-through video</b><button class="hbtn" id="_scv_close" style="margin-left:auto;font-size:11px;">✕</button></div>'
     +'<div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:10px;align-items:center;">'
+    +'<select id="_scv_view" style="font-size:12px;" title="Zoomed follows the boats like Centre in the play-through"><option value="zoom">Zoomed - follows the boats</option><option value="over">Overview - whole stretch</option></select>'
     +'<select id="_scv_fmt" style="font-size:12px;"><option value="landscape">Landscape 16:9</option><option value="portrait">Portrait 9:16</option><option value="square">Square 1:1</option></select>'
     +'<select id="_scv_spd" style="font-size:12px;">'+spOpts.map(v=>'<option value="'+v+'"'+(v===spDef?' selected':'')+'>'+v+'× · '+fmtTime(Math.max(1,Math.round(durS/v)))+'</option>').join('')+'</select>'
     +'<button class="dzbtn dzbtn-pri" id="_scv_go">Make video</button></div>'
@@ -6095,15 +6096,68 @@ window._secCmpVideo=function(){
     return {mn,m,hdrH,rowH,panel,map:{x:m,y:hdrH+m,w:W-2*m,h:panel.y-hdrH-2*m}};
   };
   const mval=(m,st)=>{if(!m||!st)return '—';try{if(m.filter(st))return _secCmpFmtV(m,m.val(st));}catch(e){}return '—';};
+  /* 21 Nov: ZOOMED view. One big satellite picture of the whole stretch at up
+     to zoom 17 is loaded once; each frame shows the part around the boats, with
+     the same camera as Centre in the play-through: fit the boats with a 15%
+     margin, never closer than zoom 17, glide the centre (0.3 s) and zoom
+     (out 0.35 s, in 1.8 s). */
+  let world=null,cam=null,camT=0;
+  const buildWorld=async(onProg)=>{
+    let a0=90,a1=-90,o0=180,o1=-180;all.forEach(p=>{if(p[0]<a0)a0=p[0];if(p[0]>a1)a1=p[0];if(p[1]<o0)o0=p[1];if(p[1]>o1)o1=p[1];});
+    const M=320;let z=17,pa,pb,w,h;
+    for(;z>8;z--){pa=K.rvLL2px(a1,o0,z);pb=K.rvLL2px(a0,o1,z);w=pb[0]-pa[0]+2*M;h=pb[1]-pa[1]+2*M;if(w<=6144&&h<=6144&&w*h<=24e6)break;}
+    const wx0=pa[0]-M,wy0=pa[1]-M,W0=Math.ceil(w),H0=Math.ceil(h);
+    const cv0=document.createElement('canvas');cv0.width=W0;cv0.height=H0;
+    const g=cv0.getContext('2d');g.fillStyle='#0b1a2e';g.fillRect(0,0,W0,H0);
+    const n=Math.pow(2,z),jobs=[];
+    for(let ty=Math.floor(wy0/256);ty<=Math.floor((wy0+H0)/256);ty++)for(let tx=Math.floor(wx0/256);tx<=Math.floor((wx0+W0)/256);tx++){if(ty>=0&&ty<n)jobs.push([tx,ty]);}
+    const total=jobs.length;let done=0,ok=0;
+    const run=async()=>{while(jobs.length){const j=jobs.shift();const xw=((j[0]%n)+n)%n;
+      const im=await K.rvImg('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/'+z+'/'+j[1]+'/'+xw);
+      if(im){g.drawImage(im,j[0]*256-wx0,j[1]*256-wy0,256,256);ok++;}
+      done++;if(onProg)onProg(done,total);}};
+    await Promise.all([0,1,2,3,4,5].map(run));
+    g.fillStyle='rgba(0,0,0,.15)';g.fillRect(0,0,W0,H0);
+    return {cv:cv0,z,wx0,wy0,W0,H0,ok,total};
+  };
+  const zoomView=st=>{
+    const z=world.z,mx=lay.map.x+lay.map.w/2,my=lay.map.y+lay.map.h/2,pad=lay.mn*0.11;
+    const ps=st.filter(o2=>o2.pos).map(o2=>K.rvLL2px(o2.pos[0],o2.pos[1],z));
+    if(ps.length){
+      let x0=1e12,x1=-1e12,y0=1e12,y1=-1e12;ps.forEach(p=>{if(p[0]<x0)x0=p[0];if(p[0]>x1)x1=p[0];if(p[1]<y0)y0=p[1];if(p[1]>y1)y1=p[1];});
+      const bw=x1-x0,bh=y1-y0;x0-=bw*0.15;x1+=bw*0.15;y0-=bh*0.15;y1+=bh*0.15;
+      const smax=Math.pow(2,17-z);
+      const st2=Math.min(smax,(lay.map.w-2*pad)/Math.max(1,x1-x0),(lay.map.h-2*pad)/Math.max(1,y1-y0));
+      const tz=Math.log2(st2),tc=[(x0+x1)/2,(y0+y1)/2],now=performance.now();
+      if(!cam){cam={c:tc,z:tz};camT=now;}
+      else{const dt=Math.min(100,Math.max(0,now-camT));camT=now;
+        const kC=1-Math.exp(-dt/300),kZ=1-Math.exp(-dt/(tz<cam.z?350:1800));
+        cam.c=[cam.c[0]+(tc[0]-cam.c[0])*kC,cam.c[1]+(tc[1]-cam.c[1])*kC];cam.z+=(tz-cam.z)*kZ;}
+    }
+    if(!cam)cam={c:[world.wx0+world.W0/2,world.wy0+world.H0/2],z:0};
+    const sc=Math.pow(2,cam.z);
+    ctx.fillStyle='#0b1a2e';ctx.fillRect(0,0,W,H);
+    ctx.imageSmoothingQuality='high';
+    ctx.drawImage(world.cv,cam.c[0]-mx/sc-world.wx0,cam.c[1]-my/sc-world.wy0,W/sc,H/sc,0,0,W,H);
+    const P=(lat,lon)=>{const p=K.rvLL2px(lat,lon,z);return [(p[0]-cam.c[0])*sc+mx,(p[1]-cam.c[1])*sc+my];};
+    /* course line drawn per frame so it stays thin at any zoom */
+    const xy=ref.map(p=>P(p[0],p[1]));
+    ctx.lineJoin='round';ctx.lineCap='round';
+    ctx.strokeStyle='rgba(0,0,0,.55)';ctx.lineWidth=Math.max(5,W/180)+3;ctx.beginPath();xy.forEach((p,i)=>i?ctx.lineTo(p[0],p[1]):ctx.moveTo(p[0],p[1]));ctx.stroke();
+    ctx.strokeStyle='rgba(255,255,255,.75)';ctx.lineWidth=Math.max(5,W/180);ctx.stroke();
+    return P;
+  };
   const frame=t=>{
-    ctx.drawImage(mp.bg,0,0);
-    const P=(lat,lon)=>mp.proj(lat,lon),mn=lay.mn;
-    [[ref[0],'#2ee06a'],[ref[ref.length-1],'#f54040']].forEach(([p,col])=>{const q=P(p[0],p[1]);ctx.beginPath();ctx.arc(q[0],q[1],mn*0.012,0,Math.PI*2);ctx.fillStyle=col;ctx.fill();ctx.lineWidth=3;ctx.strokeStyle='#000';ctx.stroke();});
+    const mn=lay.mn;
     const st=c.sess.map(s=>{
       const pos=_secCmpInterpPos(s.tr,t);
       let d=Math.min(sec.distance,_secCmpInterpD(s.dtr,t/1000));const done=t>=s.h.timeMs;if(done)d=sec.distance;
       return {s,pos,d,done};
     });
+    let P;
+    if(world){P=zoomView(st);}
+    else{ctx.drawImage(mp.bg,0,0);P=(lat,lon)=>mp.proj(lat,lon);}
+    [[ref[0],'#2ee06a'],[ref[ref.length-1],'#f54040']].forEach(([p,col])=>{const q=P(p[0],p[1]);ctx.beginPath();ctx.arc(q[0],q[1],mn*0.012,0,Math.PI*2);ctx.fillStyle=col;ctx.fill();ctx.lineWidth=3;ctx.strokeStyle='#000';ctx.stroke();});
     st.forEach(o2=>{
       const s=o2.s;ctx.lineJoin='round';ctx.lineCap='round';ctx.strokeStyle=s.color;ctx.lineWidth=Math.max(4,mn/160);
       ctx.beginPath();let first=true;for(const p of s.tr){if(p.t>t)break;const q=P(p.lat,p.lon);first?ctx.moveTo(q[0],q[1]):ctx.lineTo(q[0],q[1]);first=false;}
@@ -6167,9 +6221,12 @@ window._secCmpVideo=function(){
     const my=++gen;busy=true;$('_scv_go').disabled=true;resetOut();
     const sz=K.RV_SIZES[$('_scv_fmt').value];W=sz[0];H=sz[1];cv.width=W;cv.height=H;lay=layout(W,H);colMax=null;
     ctx.fillStyle='#0b1a2e';ctx.fillRect(0,0,W,H);msg.textContent='Loading map…';
-    const m=await K.rvBuildMap(all,W,H,lay,(d,n)=>{if(my===gen)msg.textContent='Loading map '+d+'/'+n+'…';},ref);
+    const prog=(d,n)=>{if(my===gen)msg.textContent='Loading map '+d+'/'+n+'\u2026';};
+    let m;
+    if($('_scv_view').value==='zoom'){world=await buildWorld(prog);m={ok:world.ok,total:world.total};}
+    else{world=null;m=await K.rvBuildMap(all,W,H,lay,prog,ref);}
     if(my!==gen)return;
-    mp=m;
+    mp=m;cam=null;
     try{if(document.fonts&&document.fonts.ready)await document.fonts.ready;}catch(e){}
     await Promise.race([logoP,new Promise(r=>setTimeout(r,3000))]);
     frame(0);
@@ -6177,17 +6234,18 @@ window._secCmpVideo=function(){
     busy=false;$('_scv_go').disabled=false;
   };
   $('_scv_fmt').onchange=build;
+  $('_scv_view').onchange=build;
   $('_scv_go').onclick=()=>{
     if(busy||!mp)return;
-    busy=true;['_scv_go','_scv_fmt','_scv_spd'].forEach(id=>$(id).disabled=true);resetOut();
+    busy=true;['_scv_go','_scv_fmt','_scv_spd','_scv_view'].forEach(id=>$(id).disabled=true);resetOut();cam=null;
     const spd=+$('_scv_spd').value,len=c.dur/1000/spd,my=gen,chunks=[];
     let stream;
     try{stream=cv.captureStream(30);rec=new MediaRecorder(stream,{mimeType:mime,videoBitsPerSecond:10000000});}
-    catch(e){toast('Recording failed: '+(e&&e.message||e));busy=false;['_scv_go','_scv_fmt','_scv_spd'].forEach(id=>$(id).disabled=false);return;}
+    catch(e){toast('Recording failed: '+(e&&e.message||e));busy=false;['_scv_go','_scv_fmt','_scv_spd','_scv_view'].forEach(id=>$(id).disabled=false);return;}
     rec.ondataavailable=e=>{if(e.data&&e.data.size)chunks.push(e.data);};
     rec.onstop=()=>{
       try{stream.getTracks().forEach(t=>t.stop());}catch(e){}
-      ['_scv_go','_scv_fmt','_scv_spd'].forEach(id=>$(id).disabled=false);busy=false;
+      ['_scv_go','_scv_fmt','_scv_spd','_scv_view'].forEach(id=>$(id).disabled=false);busy=false;
       if(my!==gen||!chunks.length)return;
       blob=new Blob(chunks,{type:mime.split(';')[0]});url=URL.createObjectURL(blob);
       const v=$('_scv_vid');v.src=url;v.style.display='';cv.style.display='none';$('_scv_save').style.display='flex';
@@ -12296,8 +12354,9 @@ async function showStartup(){
   if(adPeekPendingOpen())setTimeout(adRunPendingOpen,400);
   document.getElementById('app').style.display='none';
   el.innerHTML=`<div class="sz-list" data-ntab="prc" data-prc="row">
-    <div class="sz-prc" id="sz-prc"><button data-prc="plan">Planning</button><button data-prc="load">Load</button><button data-prc="row" class="sel">Results</button><button data-prc="coach">Trends</button><button data-prc="nav">Navigation</button></div>
+    <div class="sz-prc" id="sz-prc"><button data-prc="plan">Plan &amp; Load</button><button data-prc="row" class="sel">Results</button><button data-prc="coach">Trends</button><button data-prc="nav">Navigation</button></div>
     <div class="sz-prcsub" id="sz-prcsub"></div>
+    <div id="sz-planfor"></div>
     <div class="brpill-row">
       ${SESSIONS.length ? '<button class="dzbtn" id="sz-back" style="background:#fc4c02;border-color:#fc4c02;color:#fff;font-weight:800;box-shadow:0 3px 9px rgba(252,76,2,.45);"><span style="color:#fff;">&#10005; Back to session</span></button>' : ''}
       <button class="dzbtn dzbtn-sec" id="sz-trends" style="display:none;"><span>Trends</span></button>
@@ -12320,9 +12379,12 @@ async function showStartup(){
     </div>
     <div class="sz-ntabs" id="sz-ntabs"><button class="sz-ntab sel" data-nt="sess">Sessions</button><button class="sz-ntab" data-nt="cal">Calendar</button><button class="sz-ntab" data-nt="course" style="display:none;">Course</button></div>
     <div class="brpill prc-plan" id="sz-season" style="margin-bottom:14px;"></div>
+    <!-- 21 Nov: training load sits under the season plan in the one Plan & Load tab -->
+    <div class="prc-plan" id="sz-loadwrap"><div class="brpill" id="sz-sqload" style="display:none;margin-bottom:14px;"></div><div class="brpill" id="sz-load" style="display:none;margin-bottom:14px;"></div></div>
     <div class="sz-grid">
     <div class="sz-sumwrap" data-ct="sec"><div class="brpill prc-plan" id="sz-plancard"><div class="sz-lhd" style="margin-bottom:8px;">Workouts</div><div style="font-size:13px;line-height:1.5;margin-bottom:10px;">Build intervals and give them to a day on the calendar. Metrics offers the day\u2019s workout when you start.</div><div id="sz-planwk"></div><button class="dzbtn dzbtn-sec" id="sz-plan-wkt" style="display:none;"><span>Create / edit workouts</span></button></div><div class="sz-ctabs" id="sz-ctabs" style="display:none;"><button class="sz-ntab sel" data-ct="sec">Sectors</button><button class="sz-ntab" data-ct="nav">Navigation</button></div><div class="brpill" id="sz-sectors" style="display:none;"></div><div class="brpill" id="sz-nav" style="display:none;"></div><div class="brpill prc-nav" id="sz-navempty" style="display:none;"><div class="sz-lhd">Navigation</div><div style="font-size:13px;line-height:1.5;color:var(--muted);">Nothing here yet. Sectors and navigation lines (lanes, dividers, hazards) appear once you have set some up from a session, or once your club shares them.</div></div><div class="brpill prc-row" id="sz-focus" style="display:none;"></div><div class="brpill sz-sumcol"><div class="sz-lhd" style="margin-bottom:8px;">Summary</div><div id="sz-sumbody"></div></div></div>
-    <div class="sz-calcol"><div class="brpill" id="sz-cal"></div><div class="brpill" id="sz-calday" style="display:none;"></div><div class="brpill" id="sz-sqload" style="display:none;"></div><div class="brpill" id="sz-load" style="display:none;"></div></div>
+    <div class="sz-calcol"><div class="brpill" id="sz-cal"></div><div class="brpill" id="sz-calday" style="display:none;"></div></div>
+    <div class="brpill" id="sz-sqres"></div>
     <div class="brpill" id="sz-sesspill">
       <div class="sz-lhd">Sessions<span class="sz-count" id="sz-count"></span><button type="button" id="sz-refresh" title="Fetch the session list from Drive again" style="margin-left:10px;min-height:30px;padding:0 12px;border:0;border-radius:8px;background:#0d2b5e;color:#fff;font:700 12px Inter,-apple-system,sans-serif;letter-spacing:0;text-transform:none;cursor:pointer;vertical-align:middle;">&#8635; Refresh list</button><span class="sz-signout" id="sz-signout">Sign out</span></div>
       <input type="text" id="sz-search" class="brsearch" placeholder="Search sessions…" autocomplete="off">
@@ -12363,22 +12425,21 @@ async function showStartup(){
   /* 13 Nov: Plan / Row / Coach. Plan = calendar, workouts, course. Row = sessions,
      summary, focus metrics. Coach = trends (what drives pace per boat), compare. */
   {const lst=el.querySelector('.sz-list'),bar=document.getElementById('sz-prc'),sub=document.getElementById('sz-prcsub');
-   const SUB={plan:'Plan the season: loading cycles, workouts and the calendar',nav:'Courses, sectors and navigation lines',load:'Training load, fatigue and what to do today',row:'Your sessions, and what to watch in the boat',coach:'Find what makes the boat faster'};
+   const SUB={plan:'Plan the season and your training load: loading cycles, fitness and fatigue, workouts and the calendar',nav:'Courses, sectors and navigation lines',load:'Training load, fatigue and what to do today',row:'Your sessions, and what to watch in the boat',coach:'Find what makes the boat faster'};
    const setP=t=>{
      lst.dataset.prc=t;
      bar.querySelectorAll('button').forEach(b=>{const on=b.dataset.prc===t;b.classList.toggle('sel',on);b.setAttribute('aria-pressed',on?'true':'false');});
      sub.textContent=SUB[t];
      try{localStorage.setItem('_sz_prc',t);}catch(e){}
-     if(t==='coach'){const h=document.getElementById('sz-trhost');if(h&&!h.dataset.on){h.dataset.on='1';showTrendsModal(h);}else{try{window.dispatchEvent(new Event('resize'));}catch(e){}}}
-     if(t==='row'){try{szRenderFocus();}catch(e){}}
-     if(t==='load'){try{renderLoadPanel();}catch(e){}}
+     if(t==='coach'){const h=document.getElementById('sz-trhost'),key=_wktCtx||'me';if(h&&h.dataset.on!==key){h.dataset.on=key;showTrendsModal(h,_wktCtx||null);}else{try{window.dispatchEvent(new Event('resize'));}catch(e){}}}
+     if(t==='row'){try{szRenderFocus();}catch(e){}try{szSqResRender();}catch(e){}}
      if(t==='nav'){setTimeout(()=>{try{window.dispatchEvent(new Event('resize'));}catch(e){}try{if(typeof leafletMap!=='undefined'&&leafletMap&&leafletMap.invalidateSize)leafletMap.invalidateSize();}catch(e){}},60);}   // maps drawn while hidden need a resize
-     if(t==='plan'){try{sznRender();}catch(e){}}
+     if(t==='plan'){try{sznRender();}catch(e){}try{renderLoadPanel();}catch(e){}}
    };
    bar.onclick=e=>{const b=e.target.closest('button');if(b)setP(b.dataset.prc);};
    document.getElementById('sz-plan-wkt').onclick=()=>{const w=document.getElementById('wktbtn');if(w)w.click();};
    window._szSetPrc=setP;
-   let p0='row';try{const v=localStorage.getItem('_sz_prc');if(v==='plan'||v==='coach'||v==='row'||v==='load'||v==='nav')p0=v;}catch(e){}
+   let p0='row';try{const v=localStorage.getItem('_sz_prc');if(v==='plan'||v==='coach'||v==='row'||v==='nav')p0=v;else if(v==='load')p0='plan';}catch(e){}
    setP(p0);}
   szWideSummary();
   renderStartSectors();
@@ -13624,7 +13685,15 @@ function acClose(){
   if(home){try{showStartup();}catch(e){}}   // opened from Results: go back there, not into the last session added
 }
 window.closeAthleteCompare=acClose;
+/* 21 Nov: display names. ✎ only changes how a session is shown in Head to Head,
+   its play-through and video - never the session's own name (Drive file, squad
+   copy or tab). Saved on this device (br_h2h_names), keyed by the session's
+   start time and length, so the name comes back next time it is loaded. */
+function acKey(s){const d=(s&&s.d)||{},sm=d.sum||{};return String(sm.start_time||'')+'|'+((d.strokes||[]).length)+'|'+Math.round(+(sm.distance||sm.dist||0));}
+function acAliases(){try{return JSON.parse(localStorage.getItem('br_h2h_names')||'{}')||{};}catch(e){return {};}}
+function acAliasSet(s,v){const a=acAliases(),k=acKey(s);if(v)a[k]=v;else delete a[k];try{localStorage.setItem('br_h2h_names',JSON.stringify(a));}catch(e){}}
 function acName(s){
+  const al=acAliases()[acKey(s)];if(al)return al;
   let n=String((s&&s.label)||'Session');if(n.length>28)n=n.slice(0,25)+'…';
   const dt=_sessDate(s);return dt?n+' '+dt:n;
 }
@@ -13645,7 +13714,7 @@ window.openAthleteCompare=function(fromHome){
     +'<button class="dzbtn dzbtn-pri" id="_ac_adddrive">My Drive</button>'
     +'<span class="ac-hint">Files: FIT, TCX, GPX or CSV from any watch or SpeedCoach. You can also drop them here.</span></div>'
     +'<input type="file" id="_ac_fin" accept=".fit,.tcx,.gpx,.csv,.txt,.json" multiple style="display:none">'
-    +'<div id="_ac_legend" style="display:flex;flex-wrap:wrap;gap:6px;margin-top:6px;"></div></div>'
+    +'<div id="_ac_legend" style="display:flex;flex-direction:column;gap:6px;margin-top:8px;max-height:260px;overflow-y:auto;"></div></div>'
     +'<div class="ac-step"><div class="ac-step-hd"><span class="ac-num">2</span>Pick the stretch'
     +'<select id="_ac_secsel" title="Use a saved sector" style="font-size:12px;max-width:260px;padding:4px 6px;border-radius:6px;"></select>'
     +'<span class="ac-hint" style="margin:0;">or tap a start and a finish on the map</span>'
@@ -13879,10 +13948,15 @@ function acMsg(){
 }
 function acLegend(){
   const el=document.getElementById('_ac_legend');if(!el||!_ac)return;
-  el.innerHTML=_ac.S.map((x,k)=>'<label style="display:inline-flex;align-items:center;gap:5px;font-size:11px;padding:3px 8px;border:1px solid var(--border);border-radius:14px;cursor:pointer;opacity:'+(x.on?1:.45)+';"><input type="checkbox" data-ac="'+k+'"'+(x.on?' checked':'')+' style="margin:0;"><span style="width:10px;height:10px;border-radius:50%;background:'+x.col+';display:inline-block;"></span>'+_secEsc(x.name)+'<span data-acr="'+k+'" title="Rename" style="cursor:pointer;opacity:.6;margin-left:2px;">\u270e</span><span data-acx="'+k+'" title="Remove from the comparison" style="cursor:pointer;margin-left:2px;font-weight:800;color:#e74c3c;">\u2715</span></label>').join('')
-    +(_ac.S.length?'':'<span style="font-size:12px;color:var(--muted);">No sessions yet. Open some with the buttons above.</span>');
-  el.querySelectorAll('span[data-acx]').forEach(sp=>{sp.onclick=e=>{e.preventDefault();e.stopPropagation();acRemove(_ac.S[+sp.dataset.acx]);};});
-  el.querySelectorAll('span[data-acr]').forEach(sp=>{sp.onclick=e=>{e.preventDefault();e.stopPropagation();const x=_ac.S[+sp.dataset.acr];const v=prompt('Name for this session',x.s.label);if(v==null||!v.trim())return;x.s.label=v.trim().slice(0,60);x.name=acName(x.s);try{renderSessionTabs();}catch(er){}acLegend();acRenderRes();};});
+  /* 21 Nov: one large row per session, stacked, with big rename and remove buttons */
+  el.innerHTML=_ac.S.map((x,k)=>{const orig=String(x.s.label||''),al=acAliases()[acKey(x.s)];   // renamed: show the session's own name small beside it
+    return '<div class="ac-row'+(x.on?'':' off')+'"><label class="ac-row-main"><input type="checkbox" data-ac="'+k+'"'+(x.on?' checked':'')+'>'
+      +'<span class="ac-dot" style="background:'+x.col+';"></span><span class="ac-nm">'+_secEsc(x.name)+(al?'<span class="ac-orig">'+_secEsc(orig)+'</span>':'')+'</span></label>'
+      +'<button type="button" class="ac-ib" data-acr="'+k+'" title="Rename for Head to Head and the play-through only. The session\u2019s own name does not change." aria-label="Rename">\u270e</button>'
+      +'<button type="button" class="ac-ib ac-ix" data-acx="'+k+'" title="Remove from the comparison" aria-label="Remove">\u2715</button></div>';}).join('')
+    +(_ac.S.length?'<span style="font-size:11px;color:var(--muted);margin-top:2px;">\u270e renames a session only here, in the play-through and in the video (saved on this device). It does not change the session\u2019s own name.</span>':'<span style="font-size:12px;color:var(--muted);">No sessions yet. Open some with the buttons above.</span>');
+  el.querySelectorAll('[data-acx]').forEach(sp=>{sp.onclick=e=>{e.preventDefault();e.stopPropagation();acRemove(_ac.S[+sp.dataset.acx]);};});
+  el.querySelectorAll('[data-acr]').forEach(sp=>{sp.onclick=e=>{e.preventDefault();e.stopPropagation();const x=_ac.S[+sp.dataset.acr];const v=prompt('Name shown in Head to Head, the play-through and the video.\nThis does not change the session\u2019s own name. Saved on this device.\nLeave empty to go back to the original name.',x.name);if(v==null)return;acAliasSet(x.s,v.trim().slice(0,60));x.name=acName(x.s);(x.units||[]).forEach(u=>{u.name=x.hits&&x.hits.length>1?x.name+' \u00b7 pass '+(u.pi+1):x.name;});acLegend();acRenderRes();};});
   el.querySelectorAll('input[data-ac]').forEach(cb=>{cb.onchange=()=>{const x=_ac.S[+cb.dataset.ac];x.on=cb.checked;acStyleLines();acLegend();acRenderRes();};});
 }
 /* Remove a session from the comparison: it is closed (taken out of the loaded
@@ -14135,13 +14209,18 @@ function trNoteSession(d, fileId) {
     trSave();
   } catch (e) {}
 }
-async function showTrendsModal(host) {
+async function showTrendsModal(host, sq) {   // 21 Nov: sq = squad code - trends per athlete from the squad's sessions
   if (!isPro()) {
     if (host) { host.innerHTML = '<div class="brpill"><div class="sz-lhd" style="margin-bottom:8px;">Trends</div><div style="font-size:13px;line-height:1.5;margin-bottom:10px;">What makes each boat faster, pooled over all your sessions. Trends are a Pro feature.</div><button class="dzbtn dzbtn-sec" onclick="showPlanModal(\'Trends are a Pro feature.\')"><span>See plans</span></button></div>'; }
     else showPlanModal('Trends are a Pro feature.');
     return;
   }
-  if (!AnalyserDrive.isSignedIn()) { toast('Link Google Drive first'); return; }
+  if (!sq && !AnalyserDrive.isSignedIn()) { toast('Link Google Drive first'); return; }
+  const sqKey = sq ? TREND_KEY + '_sq_' + sq : null;
+  let sqDb = null;
+  const db0 = () => { if (!sq) return trDB(); if (!sqDb) { try { sqDb = JSON.parse(localStorage.getItem(sqKey) || '{}') || {}; } catch { sqDb = {}; } } return sqDb; };
+  let _sqT = null;
+  const save = now => { if (!sq) return trSave(now); clearTimeout(_sqT); const w = () => { try { localStorage.setItem(sqKey, JSON.stringify(sqDb || {})); } catch (e) {} }; if (now) w(); else _sqT = setTimeout(w, 1500); };
   document.getElementById('_trend_modal')?.remove();
   const ov = document.createElement('div');
   ov.id = '_trend_modal';
@@ -14150,7 +14229,7 @@ async function showTrendsModal(host) {
   pn.style.cssText = 'background:var(--s1);border:1px solid var(--border);display:flex;flex-direction:column;overflow:hidden;color:var(--text);font-family:-apple-system,BlinkMacSystemFont,Helvetica Neue,sans-serif;' + (host ? 'border-radius:12px;width:100%;' : 'border-radius:10px;width:min(96vw,1000px);height:min(94vh,960px);');
   pn.innerHTML =
     '<div style="display:flex;align-items:center;gap:10px;padding:10px 14px;border-bottom:1px solid var(--border);flex-shrink:0;">'
-    + '<div style="font-size:14px;font-weight:700;">Trends</div>'
+    + '<div style="font-size:14px;font-weight:700;">Trends' + (sq ? ' \u00b7 Squad ' + _secEsc(sq) : '') + '</div>'
     + '<div id="_tr_status" style="font-size:11px;color:var(--muted);flex:1;min-width:0;"></div>'
     + '<button id="_tr_scan" class="filt-chip" style="display:none;text-transform:none;"></button>'
     + '<button id="_tr_close" style="background:var(--s3);border:1px solid var(--border);color:var(--muted);border-radius:6px;padding:4px 10px;font-size:11px;cursor:pointer;">Close</button></div>'
@@ -14174,37 +14253,46 @@ async function showTrendsModal(host) {
   const $ = id => document.getElementById(id);
   const alive = () => document.body.contains(ov);
   let stop = false, scanning = false, pts = [];
-  const close = () => { stop = true; window.removeEventListener('resize', drawChart); document.getElementById('_pc_def')?.remove(); ov.remove(); if (host) delete host.dataset.on; trSave(true); };
+  const close = () => { stop = true; window.removeEventListener('resize', drawChart); document.getElementById('_pc_def')?.remove(); ov.remove(); if (host) delete host.dataset.on; save(true); };
   if (host) $('_tr_close').style.display = 'none';
   else { $('_tr_close').onclick = close; ov.onclick = e => { if (e.target === ov) close(); }; }
 
   $('_tr_status').textContent = 'Loading sessions…';
-  let files = AnalyserDrive.cachedList('RowSess_');
+  let files = null, water;
+  if (sq) {
+    let metas = [];
+    try { metas = await fetchSquadMetas(sq); } catch (e) { $('_tr_status').textContent = 'Could not list squad sessions'; return; }
+    if (!alive()) return;
+    water = metas.filter(m => m && m.id && !m.erg && m.mode !== 'erg').map(m => ({ f: { id: m.id, size: null }, ts: m.t || parseInt(m.id, 10) || 0, g: 'r:' + String(m.rower || 'Rower') }));
+  } else {
+  files = AnalyserDrive.cachedList('RowSess_');
   if (!files) { try { files = await AnalyserDrive.list(); } catch (e) { $('_tr_status').textContent = 'Could not list Drive sessions'; return; } }
   if (!alive()) return;
+  }
   const _ts = n => { const m = String(n).match(/RowSess_(\d{4})-(\d{2})-(\d{2})_(\d{2})(\d{2})/); return m ? new Date(+m[1], +m[2] - 1, +m[3], +m[4], +m[5]).getTime() : 0; };
-  const water = files.filter(f => !/_ERG(?:_|\.)/.test(f.name)).map(f => {
+  if (!sq) water = files.filter(f => !/_ERG(?:_|\.)/.test(f.name)).map(f => {
     const bt = boatFromFilename(f.name), mx = !!(bt && bt !== '1x' && boatMixedFromFilename(f.name)), cs = !!(bt && boatCoastalFromFilename(f.name));
     return { f, ts: _ts(f.name), g: bt ? bt + (mx ? 'M' : '') + (cs ? 'C' : '') : 'none' };
   });
   const gBt = g => g.replace(/[MC]+$/, '');
-  const gLabel = g => g === 'none' ? 'Untagged' : boatLabel(gBt(g), /M/.test(g.slice(2)), /C$/.test(g));
-  const gRank = g => { if (g === 'none') return 999; return boatRank(gBt(g), /M/.test(g.slice(2))) + (/C$/.test(g) ? 100 : 0); };
+  const gLabel = g => g.startsWith('r:') ? g.slice(2) : g === 'none' ? 'Untagged' : boatLabel(gBt(g), /M/.test(g.slice(2)), /C$/.test(g));
+  const gRank = g => { if (g.startsWith('r:')) return 0; if (g === 'none') return 999; return boatRank(gBt(g), /M/.test(g.slice(2))) + (/C$/.test(g) ? 100 : 0); };
   const gCount = {};
   water.forEach(w => { gCount[w.g] = (gCount[w.g] || 0) + 1; });
-  const groups = Object.keys(gCount).sort((a, b) => gRank(a) - gRank(b));
-  if (!groups.length) { $('_tr_status').textContent = 'No on-water sessions on Drive yet.'; return; }
+  const groups = Object.keys(gCount).sort((a, b) => gRank(a) - gRank(b) || gLabel(a).localeCompare(gLabel(b)));
+  if (!groups.length) { $('_tr_status').textContent = sq ? 'No on-water sessions in squad ' + sq + ' yet.' : 'No on-water sessions on Drive yet.'; return; }
 
   let ui = {};
-  try { ui = JSON.parse(localStorage.getItem(TREND_UI_KEY) || '{}') || {}; } catch {}
+  const uiKey = TREND_UI_KEY + (sq ? '_sq' : '');
+  try { ui = JSON.parse(localStorage.getItem(uiKey) || '{}') || {}; } catch {}
   if (!groups.includes(ui.g)) ui.g = groups.slice().sort((a, b) => gCount[b] - gCount[a])[0];
   if (!METRIC_DEFS.some(m => m.k === ui.k)) ui.k = 'pace';
   const PERIODS = [['3M', 91], ['6M', 182], ['1Y', 365], ['All', 0]];
   if (!PERIODS.some(p => p[0] === ui.p)) ui.p = '6M';
   if (!Array.isArray(ui.bands)) ui.bands = null;
-  const saveUI = () => { try { localStorage.setItem(TREND_UI_KEY, JSON.stringify(ui)); } catch {} };
+  const saveUI = () => { try { localStorage.setItem(uiKey, JSON.stringify(ui)); } catch {} };
   const cutoff = () => { const d = (PERIODS.find(p => p[0] === ui.p) || [0, 0])[1]; return d ? Date.now() - d * 86400000 : 0; };
-  const db = trDB();
+  const db = db0();
   const ok = f => { const d = db[f.id]; return !!(d && d.v === TREND_V && (!d.sz || !f.size || d.sz === String(f.size))); };
   const inView = () => water.filter(w => w.g === ui.g && (!cutoff() || w.ts >= cutoff()));
   const queue = () => inView().filter(w => !ok(w.f)).sort((a, b) => b.ts - a.ts);
@@ -14237,18 +14325,20 @@ async function showTrendsModal(host) {
       const w = q[0];
       status();
       try {
-        const s = await AnalyserDrive.fetchSession(w.f.id);
+        let s;
+        if (sq) { const r = await fetch(sqProxy(sq, 'coach_sessions/' + w.f.id)); if (!r.ok) throw new Error('HTTP ' + r.status); s = await r.json(); if (!s) throw new Error('not found'); }
+        else s = await AnalyserDrive.fetchSession(w.f.id);
         db[w.f.id] = trDigest(sessionToAnalyserFmt(s), w.f.size);
       } catch (e) {
         if (driveAuthExpired(e)) { stop = true; break; }
         db[w.f.id] = { v: TREND_V, sz: w.f.size != null ? String(w.f.size) : null, t: w.ts, b: {}, c: {}, fail: 1 };
       }
-      trSave();
+      save();
       if (++since >= 3) { since = 0; draw(); }
     }
     scanning = false;
-    trSave(true);
-    try { trPushFocus(); } catch (e) {}
+    save(true);
+    if (!sq) { try { trPushFocus(); } catch (e) {} }   // squad trends never set your in-boat focus
     if (alive()) { draw(); status(); }
   }
   const bandLbl = b => (+b) + '–' + (+b + TREND_BAND_W);
@@ -16701,7 +16791,79 @@ async function sqlRender(){
   const rf=document.getElementById('sql-refresh');if(rf)rf.onclick=()=>{sqlFetch(code,true).then(sqlRender);};
   el.querySelectorAll('[data-sql-row]').forEach(r=>{r.onclick=()=>{_sqlOpen=_sqlOpen===r.dataset.sqlRow?null:r.dataset.sqlRow;sqlRender();};});
 }
+/* 21 Nov: SHOWING - Me or one squad, for Plan & Load, Results and Trends.
+   Me: your season plan, load, calendar, workouts, your sessions and trends.
+   Squad: the squad calendar, workouts and each athlete's load; every squad
+   session under Results; trends per athlete. Never both on one screen.
+   The choice is remembered (br_pf) and the squad reopens after you open one
+   of its sessions or reload. */
+let _pfBusy=false;
+function _pfGet(){try{return localStorage.getItem('br_pf')||'';}catch(e){return '';}}
+function _pfSet(v){try{if(v)localStorage.setItem('br_pf',v);else localStorage.removeItem('br_pf');}catch(e){}}
+function szPlanForRender(){
+  const el=document.getElementById('sz-planfor');if(!el)return;
+  const want=_pfGet();
+  if(want&&!_wktCtx&&!_pfBusy){
+    _pfBusy=true;
+    try{localStorage.setItem('_squad_code',want);}catch(e){}
+    Promise.resolve(enterSquadCalendar(false)).catch(()=>{}).then(()=>{_pfBusy=false;if(!_wktCtx)_pfSet('');szPlanForRender();szPfAfter();});
+  }
+  const lst=el.closest('.sz-list');if(lst)lst.dataset.pf=_wktCtx?'sq':'me';
+  let codes=[];try{codes=calSqCodes();}catch(e){}
+  if(_wktCtx&&codes.indexOf(_wktCtx)<0)codes=codes.concat(_wktCtx);
+  const nm=c=>{try{const n=pvSqName(c);return n&&n!==c?n+' · '+c:c;}catch(e){return c;}};
+  el.innerHTML='<div class="pf-bar"><span class="pf-lbl">Showing</span>'
+    +'<button class="pf-b'+(!_wktCtx?' sel':'')+'" data-pf="me">Me</button>'
+    +codes.map(c=>'<button class="pf-b'+(_wktCtx===c?' sel':'')+'" data-pf="'+_secEsc(c)+'">Squad '+_secEsc(nm(c))+'</button>').join('')
+    +'<button class="pf-b pf-add" data-pf="+">+ Squad</button>'
+    +'<span class="pf-hint">'+(_pfBusy&&!_wktCtx?'Opening squad…':_wktCtx?'The squad’s plan and load, every squad session, and trends per athlete':'Your own plan, load, sessions and trends')+'</span></div>';
+  el.querySelectorAll('button[data-pf]').forEach(b=>{b.onclick=async()=>{
+    const v=b.dataset.pf;
+    if(v==='me'){_pfSet('');if(_wktCtx)leaveSquadCalendar();}
+    else if(v==='+'){await enterSquadCalendar(true);if(_wktCtx)_pfSet(_wktCtx);}
+    else if(v!==_wktCtx){try{localStorage.setItem('_squad_code',v);}catch(e){}await enterSquadCalendar(false);if(_wktCtx===v)_pfSet(v);}
+    szPlanForRender();szPfAfter();
+  };});
+}
+/* redraw what depends on the selection in the tab that is showing */
+function szPfAfter(){
+  try{sznRender();}catch(e){}try{renderLoadPanel();}catch(e){}
+  try{szSqResRender();}catch(e){}
+  const lst=document.querySelector('#startup .sz-list');
+  if(lst&&lst.dataset.prc==='coach'){const h=document.getElementById('sz-trhost'),key=_wktCtx||'me';if(h&&h.dataset.on!==key){h.dataset.on=key;showTrendsModal(h,_wktCtx||null);}}
+  else{const h=document.getElementById('sz-trhost');if(h&&h.dataset.on&&h.dataset.on!==(_wktCtx||'me')){delete h.dataset.on;h.innerHTML='';}}
+}
+/* Results with a squad selected: every squad session by day, newest first */
+let _sqResCache={code:null,list:null};
+async function szSqResRender(){
+  const el=document.getElementById('sz-sqres');if(!el)return;
+  const code=_wktCtx;if(!code){el.innerHTML='';return;}
+  if(_sqResCache.code!==code||!_sqResCache.list){
+    el.innerHTML='<div class="sz-lhd">Squad sessions</div><div style="font-size:13px;color:var(--muted);">Loading…</div>';
+    let metas=[];try{metas=await fetchSquadMetas(code);}catch(e){el.innerHTML='<div class="sz-lhd">Squad sessions</div><div style="font-size:13px;">Could not load: '+_secEsc(e.message)+'</div>';return;}
+    if(_wktCtx!==code)return;
+    _sqResCache={code,list:metas.map(m=>({...m,_t:m.t||parseInt(m.id,10)||0})).filter(m=>m._t).sort((a,b)=>b._t-a._t)};
+  }
+  const q=(el.querySelector('#sqres-q')||{}).value||'';
+  const L=_sqResCache.list.filter(m=>!q||((m.rower||'')+' '+(m.name||'')).toLowerCase().includes(q.toLowerCase()));
+  const tm=t=>new Date(t).toLocaleTimeString([],{hour:'2-digit',minute:'2-digit'});
+  let h='<div class="sz-lhd">Squad sessions<span class="sz-count">'+_sqResCache.list.length+'</span><button type="button" id="sqres-rf" style="margin-left:10px;min-height:30px;padding:0 12px;border:0;border-radius:8px;background:#0d2b5e;color:#fff;font:700 12px Inter,-apple-system,sans-serif;cursor:pointer;">Refresh</button></div>'
+    +'<input type="text" id="sqres-q" class="brsearch" placeholder="Search by athlete or name…" autocomplete="off" value="'+_secEsc(q)+'">';
+  let last='';
+  L.slice(0,300).forEach(m=>{
+    const d=new Date(m._t).toLocaleDateString('en-AU',{weekday:'short',day:'numeric',month:'short',year:'numeric'});
+    if(d!==last){h+='<div style="font-size:12px;font-weight:800;margin:10px 0 4px;">'+d+'</div>';last=d;}
+    h+='<div class="sqres-row" data-id="'+_secEsc(m.id)+'" style="display:flex;align-items:center;gap:10px;padding:8px 10px;border:1px solid var(--border);border-radius:10px;margin-bottom:6px;cursor:pointer;font-size:13px;">'
+      +'<b>'+_secEsc(m.rower||'Rower')+'</b><span>'+tm(m._t)+'</span><span style="color:var(--muted);">'+(m.dist?m.dist+' m':'')+(m.dur?' · '+Math.floor(m.dur/60)+' min':'')+(m.name?' · '+_secEsc(m.name):'')+'</span></div>';
+  });
+  if(!L.length)h+='<div style="font-size:13px;color:var(--muted);margin-top:8px;">'+(q?'No sessions match.':'No sessions in this squad yet.')+'</div>';
+  el.innerHTML=h;
+  const qi=el.querySelector('#sqres-q');if(qi){qi.oninput=()=>{const p=qi.selectionStart;szSqResRender().then(()=>{const n=document.getElementById('sqres-q');if(n){n.focus();try{n.setSelectionRange(p,p);}catch(e){}}});};}
+  const rf=el.querySelector('#sqres-rf');if(rf)rf.onclick=()=>{_sqResCache={code:null,list:null};szSqResRender();};
+  el.querySelectorAll('.sqres-row').forEach(r=>{r.onclick=()=>{const m=_sqResCache.list.find(x=>x.id===r.dataset.id);if(!m)return;sqOpenSession(code,m.id,{approxTs:m._t,rower:m.rower},r);};});
+}
 function renderStartupCalendar(){
+  try{szPlanForRender();}catch(e){}
   _sznDC=null;   // 18 Nov: fresh load figures for this render
   tlRenderSoon();   // 17 Nov: training load panel follows the calendar
   try{renderPlanWorkouts();}catch(e){console.error(e);}   // 18 Nov: workout list beside the calendar
@@ -17034,8 +17196,7 @@ async function sqManageOpen(c){
 }
 /* one line per squad on the calendar: your role, change it, owner tools */
 function calSqBarHtml(){
-  if(_wktCtx)return '';
-  const on=calSqOn();if(!on.length)return '';
+  const on=_wktCtx?[_wktCtx]:[];if(!on.length)return '';   // 21 Nov: role line for the squad being planned
   return '<div style="display:flex;flex-direction:column;gap:3px;margin:-2px 0 8px;font-size:11px;color:var(--muted);">'+on.map(c=>{
     const a=_sqAcc[c],r=sqRole(c);let you;
     if(r==='coach'){you=!a?'Coach (checking…)':a.me?'<b style="color:#6a3fb0;">Coach (owner)</b>':a.coach?'<b style="color:#6a3fb0;">Coach</b>':a.pending?'Coach access requested - athlete view until approved':'Coach - no access yet';}
@@ -17070,7 +17231,7 @@ let _calTgt='mine';const _csTried={};
 function calSqOff(){try{const v=JSON.parse(localStorage.getItem('br_cal_sq_off')||'{}');return v&&typeof v==='object'?v:{};}catch(e){return {};}}
 function calSqCodes(){return pvSquads().map(x=>String(x.code||'').toUpperCase()).filter(c=>c.length===7&&c!==DEMO_SQUAD_CODE_SAFE());}
 function DEMO_SQUAD_CODE_SAFE(){try{return DEMO_SQUAD_CODE;}catch(e){return '';}}
-function calSqOn(){if(_wktCtx)return [];const off=calSqOff();return calSqCodes().filter(c=>!off[c]&&_pv.sq[c]);}
+function calSqOn(){return [];}   // 21 Nov: squad plans are no longer overlaid on your own calendar - pick the squad in 'Planning for'
 function calSqToggle(c){const off=calSqOff();if(off[c])delete off[c];else off[c]=1;try{localStorage.setItem('br_cal_sq_off',JSON.stringify(off));}catch(e){}if(!off[c]&&!_pv.sq[c]){pvLoadSquad(c).then(ok=>{if(ok)renderStartupCalendar();});}if(off[c]&&_calTgt===c)_calTgt='mine';renderStartupCalendar();}
 async function calSqAutoLoad(){
   if(_wktCtx)return;
@@ -17086,6 +17247,7 @@ async function calSqAutoLoad(){
   try{await sqAccRefreshAll();}catch(e){}
 }
 function calSqChipsHtml(CH){
+  return '';   // 21 Nov: replaced by the 'Planning for' selector
   if(_wktCtx)return '<span style="display:flex;gap:4px;margin-left:8px;"><button id="cal-mine" class="filt-chip" style="'+CH+'">&larr; My calendar</button></span>';
   const off=calSqOff(),cs=calSqCodes(),mo=calMineOn();
   return '<span style="display:flex;gap:4px;margin-left:8px;flex-wrap:wrap;">'
@@ -17093,7 +17255,7 @@ function calSqChipsHtml(CH){
     +cs.map(c=>{const on=!off[c],ld=!!_pv.sq[c];
     return '<button data-calsq="'+c+'" class="filt-chip'+(on&&ld?' on':'')+'" style="'+CH+(on?'':'opacity:.55;')+'" title="'+(on?'Hide':'Show')+' this squad’s plan">'+pvMarker(pvCol(c),8)+_secEsc(pvSqName(c))+(on&&!ld?(_pv.loading[c]?' …':' \u{1F512}'):'')+'</button>';}).join('')+'</span>';
 }
-function calMineOn(){if(_wktCtx)return true;try{return localStorage.getItem('br_cal_mine_off')!=='1';}catch(e){return true;}}
+function calMineOn(){return true;try{return localStorage.getItem('br_cal_mine_off')!=='1';}catch(e){return true;}}
 function calSqWire(el){
   el.querySelectorAll('[data-calmine]').forEach(b=>{b.onclick=()=>{try{localStorage.setItem('br_cal_mine_off',calMineOn()?'1':'0');}catch(e){}renderStartupCalendar();};});
   el.querySelectorAll('[data-calsq]').forEach(b=>{b.onclick=async()=>{const c=b.dataset.calsq,off=calSqOff();
@@ -20861,7 +21023,7 @@ function rvFrame(ctx,W,H,lay,mp,D,p,dur){
   ctx.textAlign='right';ctx.fillText(fmtTime(Math.round(span/1000)),px+pw,C.y+C.h-pad);
   ctx.textAlign='center';ctx.fillStyle='rgba(255,255,255,.5)';ctx.fillText('boatrun.au',px+pw/2,C.y+C.h-pad);
 }
-window._rvKit={rvMime,rvBuildMap,rvRR,RV_SIZES,RV_FONT};   // 20 Nov: shared with the play-through video
+window._rvKit={rvMime,rvBuildMap,rvRR,RV_SIZES,RV_FONT,rvLL2px,rvImg};   // 20 Nov: shared with the play-through video
 window.rvOpenExport=function(){
   const D=rvPrep();if(!D)return;
   const mime=rvMime();
@@ -21115,7 +21277,6 @@ body .hdr-tabs .hmenu,body.light .hdr-tabs .hmenu{background:#fff!important;bord
 .sz-list[data-prc="load"]::before{border-color:#b5531c;}
 /* 18 Nov: LOAD tab - the training load panel on its own; Planning no longer shows it */
 .sz-list[data-prc="load"] .sz-sumwrap,.sz-list[data-prc="load"] #sz-sesspill,.sz-list[data-prc="load"] #sz-cal,.sz-list[data-prc="load"] #sz-calday{display:none!important;}
-.sz-list[data-prc="plan"] #sz-load,.sz-list[data-prc="plan"] #sz-sqload{display:none!important;}
 #startup .sz-list[data-prc="load"] .sz-grid{grid-template-columns:minmax(0,1fr)!important;grid-template-rows:auto!important;}
 #startup .sz-list[data-prc="load"] .sz-calcol{grid-column:1!important;grid-row:1!important;max-width:1100px;width:100%;margin:0 auto;}
 #startup #sz-season{margin-bottom:14px;}
@@ -21133,11 +21294,34 @@ body .hdr-tabs .hmenu,body.light .hdr-tabs .hmenu{background:#fff!important;bord
 @media (min-width:1100px){#startup .sz-list[data-prc="nav"] .sz-sumwrap{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:16px;align-items:stretch;max-width:none;}#startup .sz-list[data-prc="nav"] #sz-navempty{grid-column:1/-1;}#startup .sz-list[data-prc="nav"] #sz-sectors,#startup .sz-list[data-prc="nav"] #sz-nav{margin:0!important;box-sizing:border-box;}#startup .sz-list[data-prc="nav"] .sz-panelist{max-height:none!important;overflow:visible!important;}}   /* 19 Nov: two equal-height columns, lists at full length */
 #startup #sz-ntabs{display:none!important;}
 .sz-list:not([data-prc="row"]) .prc-row{display:none!important;}
+.ac-row{display:flex;align-items:center;gap:8px;padding:6px 8px 6px 12px;border:2px solid var(--border);border-radius:24px;background:var(--s2);}
+.ac-row.off{opacity:.5;}
+.ac-row-main{display:flex;align-items:center;gap:10px;flex:1;min-width:0;cursor:pointer;}
+.ac-row-main input{width:18px;height:18px;margin:0;flex:0 0 auto;}
+.ac-dot{width:16px;height:16px;border-radius:50%;flex:0 0 auto;border:2px solid rgba(0,0,0,.35);}
+.ac-nm{font-size:14px;font-weight:700;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+.ac-orig{font-size:11px;font-weight:500;color:var(--muted);margin-left:8px;}
+.ac-ib{flex:0 0 auto;width:36px;height:36px;border-radius:50%;border:1px solid var(--border);background:var(--s1);color:var(--text);font-size:17px;line-height:1;cursor:pointer;display:inline-flex;align-items:center;justify-content:center;}
+.ac-ib:hover{background:var(--s3,#e9ecf1);}
+.ac-ix{color:#e74c3c;font-weight:800;}
 .ac-step{border:1px solid var(--border);border-radius:10px;padding:7px 10px;margin-bottom:8px;}
 .ac-step-hd{display:flex;align-items:center;gap:8px;flex-wrap:wrap;font-size:13px;font-weight:800;}
 .ac-step-hd .dzbtn{font-size:12px;padding:5px 12px;min-height:0;}
 .ac-num{display:inline-flex;align-items:center;justify-content:center;width:22px;height:22px;border-radius:50%;background:#6a3fb0;color:#fff;font-size:12px;font-weight:800;}
 .ac-hint{font-size:11px;font-weight:500;color:var(--muted);margin-left:4px;}
+.pf-bar{display:flex;align-items:center;gap:6px;flex-wrap:wrap;margin:0 0 14px;padding:8px 10px;border-radius:12px;background:var(--s2,#f2f4f7);border:1px solid var(--border,#e3e6eb);}
+.pf-lbl{font:800 12px Inter,-apple-system,sans-serif;letter-spacing:.06em;text-transform:uppercase;margin-right:4px;}
+.pf-b{min-height:34px;padding:0 14px;border-radius:17px;border:2px solid #0b6e79;background:transparent;color:#0b6e79;font:700 13px Inter,-apple-system,sans-serif;cursor:pointer;}
+.pf-b.sel{background:#0b6e79;color:#fff;}
+.pf-b.pf-add{border-style:dashed;}
+.pf-hint{font:500 12px Inter,-apple-system,sans-serif;color:var(--muted,#667);margin-left:6px;}
+.sz-list[data-pf="me"] #sz-sqload,.sz-list[data-pf="me"] #sz-sqres{display:none!important;}
+.sz-list[data-pf="sq"] #sz-sesspill{display:none!important;}
+.sz-list[data-pf="sq"][data-prc="row"] .sz-sumwrap{display:none!important;}   /* your own summary and focus stay on Me */
+#startup .sz-list[data-pf="sq"][data-prc="row"] #sz-sqres{grid-column:1 / -1!important;}
+.sz-list:not([data-prc="row"]) #sz-sqres{display:none!important;}
+.sz-list[data-prc="nav"] #sz-planfor{display:none!important;}
+.sz-list[data-pf="sq"] #sz-season,.sz-list[data-pf="sq"] #sz-load{display:none!important;}
 .sz-rowacts{display:flex;gap:12px;flex-wrap:wrap;align-items:stretch;margin:0 0 14px;}
 .sz-h2h{display:flex;flex-direction:column;justify-content:center;align-items:flex-start;gap:4px;min-width:250px;max-width:360px;padding:12px 20px;border:0;border-radius:14px;background:linear-gradient(135deg,#6a3fb0,#d61fb5);color:#fff;cursor:pointer;box-shadow:0 4px 16px rgba(106,63,176,.5);text-align:left;font-family:Inter,-apple-system,sans-serif;}
 .sz-h2h .t{display:flex;align-items:center;gap:8px;font-size:17px;font-weight:800;letter-spacing:.04em;text-transform:uppercase;}
@@ -21158,6 +21342,8 @@ body .hdr-tabs .hmenu,body.light .hdr-tabs .hmenu{background:#fff!important;bord
 #startup .sz-list[data-prc="row"] .sz-grid{grid-template-columns:340px minmax(0,1fr)!important;grid-template-rows:auto!important;}
 #startup .sz-list[data-prc="row"] .sz-sumwrap{grid-column:1!important;grid-row:1!important;}
 #startup .sz-list[data-prc="row"] #sz-sesspill{grid-column:2!important;grid-row:1!important;}
+#startup .sz-list[data-prc="row"] #sz-sqres{grid-column:2!important;grid-row:1!important;}
+#startup #sz-sqres>.sz-lhd{font:600 20px 'Space Grotesk',-apple-system,sans-serif;letter-spacing:-.2px;text-transform:none;color:var(--ov-text);justify-content:flex-start;gap:10px;display:flex;align-items:center;}
 #startup #sz-plancard,#startup #sz-focus{margin-bottom:14px;}
 .coachtool{min-height:36px;padding:0 14px;border:none;border-radius:8px;background:#6a3fb0;color:#fff;font:700 12px Inter,-apple-system,sans-serif;cursor:pointer;}
 body:has(#startup .sz-list) .hdr-search{display:flex;}
