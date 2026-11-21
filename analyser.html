@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
 <meta name="color-scheme" content="light dark"/>
-<meta name="br-build" content="Analyser_261120_32">
+<meta name="br-build" content="Analyser_261120_33">
 <title>BoatRun Analyser</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -376,9 +376,9 @@ function adClearPendingOpen(){try{sessionStorage.removeItem('_ad_open');}catch(e
 .crs-card{position:relative;border-radius:12px;overflow:hidden;border:2px solid #fc4c02;background:#030d1e;margin-bottom:12px;cursor:pointer;box-shadow:0 6px 18px -8px rgba(252,76,2,.55);}
 .crs-card:hover{box-shadow:0 8px 24px -6px rgba(252,76,2,.75);}
 .crs-mini{height:150px;pointer-events:none;background:#030d1e;}
-.crs-badge{position:absolute;top:8px;left:8px;z-index:800;background:rgba(3,13,30,.86);color:#fff;border-radius:9px;padding:6px 10px;font-size:12px;font-weight:600;line-height:1.35;pointer-events:none;}
+.crs-badge{position:static;background:#030d1e;color:#fff;padding:8px 12px;font-size:12px;font-weight:600;line-height:1.35;pointer-events:none;border-bottom:1px solid rgba(255,255,255,.12);}   /* 21 Nov: above the map, not over the dots */
 .crs-badge b{color:#ff5fe0;font-size:18px;font-weight:800;}
-.crs-badge span{display:block;font-size:11px;color:rgba(255,255,255,.7);font-weight:500;}
+.crs-badge span{display:inline;margin-left:8px;font-size:11px;color:rgba(255,255,255,.7);font-weight:500;}
 .crs-cta{display:flex;width:100%;align-items:center;justify-content:center;gap:8px;padding:12px;border:none;background:#fc4c02;color:#fff;font-weight:800;font-size:13.5px;letter-spacing:.04em;cursor:pointer;font-family:inherit;}
 .crs-card .leaflet-control-attribution{font-size:8px;}
 .sz-lhd{font-size:.75rem;font-weight:600;letter-spacing:.1em;color:var(--muted);text-transform:uppercase;margin-bottom:2px;display:flex;align-items:center;justify-content:space-between;}
@@ -5728,8 +5728,8 @@ function crsCounts(){
 }
 function crsCardHtml(){
   return '<div class="crs-card" id="sz-crs-card" title="Ready-made courses from boatrun.au">'
-    +'<div class="crs-mini" id="sz-crs-map"></div>'
     +'<div class="crs-badge" id="sz-crs-badge"></div>'
+    +'<div class="crs-mini" id="sz-crs-map"></div>'
     +'<button class="crs-cta" id="sz-crs-go" type="button"></button></div>';
 }
 function crsMiniDraw(){
@@ -5757,7 +5757,8 @@ function crsMiniDraw(){
         L.circleMarker(p[0],{radius:6,color:'#fff',weight:2,fillColor:'#fc4c02',fillOpacity:1}).addTo(_crsMiniFg);}catch(e){}
     });
     /* 21 Nov: stay on the whole world - no zooming in to the courses */
-    const crsWorld=()=>{try{_crsMini.invalidateSize();const w=_crsMini.getSize().x||300;_crsMini.setView([5,150],Math.max(0,Math.log2(w/256)),{animate:false});}catch(e){}};   // whole world across the card
+    let cLat=-15,cLon=150;if(pts.length){cLat=Math.max(-50,Math.min(50,pts.reduce((a,p)=>a+p[0],0)/pts.length));cLon=pts.reduce((a,p)=>a+p[1],0)/pts.length;}
+    const crsWorld=()=>{try{_crsMini.invalidateSize();const w=_crsMini.getSize().x||300;_crsMini.setView([cLat,cLon],Math.max(0,Math.log2(w/256)),{animate:false});}catch(e){}};   // whole world across the card, centred on where the courses are
     crsWorld();setTimeout(crsWorld,120);
   }catch(e){}
 }
