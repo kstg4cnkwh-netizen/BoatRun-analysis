@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
 <meta name="color-scheme" content="light dark"/>
-<meta name="br-build" content="Analyser_261120_33">
+<meta name="br-build" content="Analyser_261120_34">
 <title>BoatRun Analyser</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -375,7 +375,7 @@ function adClearPendingOpen(){try{sessionStorage.removeItem('_ad_open');}catch(e
 #sz-sectors .hbtn:hover,#sz-nav .hbtn:hover{background:var(--acc,#1a5276);color:#fff;border:none;}
 .crs-card{position:relative;border-radius:12px;overflow:hidden;border:2px solid #fc4c02;background:#030d1e;margin-bottom:12px;cursor:pointer;box-shadow:0 6px 18px -8px rgba(252,76,2,.55);}
 .crs-card:hover{box-shadow:0 8px 24px -6px rgba(252,76,2,.75);}
-.crs-mini{height:150px;pointer-events:none;background:#030d1e;}
+.crs-mini{height:190px;pointer-events:none;background:#030d1e;}
 .crs-badge{position:static;background:#030d1e;color:#fff;padding:8px 12px;font-size:12px;font-weight:600;line-height:1.35;pointer-events:none;border-bottom:1px solid rgba(255,255,255,.12);}   /* 21 Nov: above the map, not over the dots */
 .crs-badge b{color:#ff5fe0;font-size:18px;font-weight:800;}
 .crs-badge span{display:inline;margin-left:8px;font-size:11px;color:rgba(255,255,255,.7);font-weight:500;}
@@ -5743,9 +5743,9 @@ function crsMiniDraw(){
   try{
     if(!_crsMini||_crsMini.getContainer()!==el){
       try{_crsMini&&_crsMini.remove();}catch(e){}
-      _crsMini=L.map(el,{zoomControl:false,attributionControl:true,dragging:false,scrollWheelZoom:false,doubleClickZoom:false,boxZoom:false,keyboard:false,touchZoom:false,tap:false,zoomSnap:0,minZoom:0,worldCopyJump:true});
+      _crsMini=L.map(el,{zoomControl:false,attributionControl:true,dragging:false,scrollWheelZoom:false,doubleClickZoom:false,boxZoom:false,keyboard:false,touchZoom:false,tap:false,zoomSnap:0,minZoom:-1,worldCopyJump:true});
       _crsMini.attributionControl.setPrefix('');
-      L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}',{maxZoom:19,attribution:'Esri'}).addTo(_crsMini);
+      L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}',{maxZoom:19,minZoom:-1,minNativeZoom:0,attribution:'Esri'}).addTo(_crsMini);
       _crsMiniFg=L.featureGroup().addTo(_crsMini);
       _crsMini.setView([5,150],0,{animate:false});
     }
@@ -5757,8 +5757,10 @@ function crsMiniDraw(){
         L.circleMarker(p[0],{radius:6,color:'#fff',weight:2,fillColor:'#fc4c02',fillOpacity:1}).addTo(_crsMiniFg);}catch(e){}
     });
     /* 21 Nov: stay on the whole world - no zooming in to the courses */
-    let cLat=-15,cLon=150;if(pts.length){cLat=Math.max(-50,Math.min(50,pts.reduce((a,p)=>a+p[0],0)/pts.length));cLon=pts.reduce((a,p)=>a+p[1],0)/pts.length;}
-    const crsWorld=()=>{try{_crsMini.invalidateSize();const w=_crsMini.getSize().x||300;_crsMini.setView([cLat,cLon],Math.max(0,Math.log2(w/256)),{animate:false});}catch(e){}};   // whole world across the card, centred on where the courses are
+    /* 21 Nov: show every course, like the courses browser, but never closer than zoom 3 */
+    const crsWorld=()=>{try{_crsMini.invalidateSize();
+      if(pts.length){_crsMini.fitBounds(L.latLngBounds(pts),{padding:[16,16],maxZoom:3,animate:false});}
+      else{const w=_crsMini.getSize().x||300;_crsMini.setView([5,150],Math.max(0,Math.log2(w/256)),{animate:false});}}catch(e){}};
     crsWorld();setTimeout(crsWorld,120);
   }catch(e){}
 }
