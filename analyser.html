@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
 <meta name="color-scheme" content="light dark"/>
-<meta name="br-build" content="Analyser_261120_30">
+<meta name="br-build" content="Analyser_261120_31">
 <title>BoatRun Analyser</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -5743,11 +5743,11 @@ function crsMiniDraw(){
   try{
     if(!_crsMini||_crsMini.getContainer()!==el){
       try{_crsMini&&_crsMini.remove();}catch(e){}
-      _crsMini=L.map(el,{zoomControl:false,attributionControl:true,dragging:false,scrollWheelZoom:false,doubleClickZoom:false,boxZoom:false,keyboard:false,touchZoom:false,tap:false});
+      _crsMini=L.map(el,{zoomControl:false,attributionControl:true,dragging:false,scrollWheelZoom:false,doubleClickZoom:false,boxZoom:false,keyboard:false,touchZoom:false,tap:false,zoomSnap:0.5,worldCopyJump:true});
       _crsMini.attributionControl.setPrefix('');
       L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}',{maxZoom:19,attribution:'Esri'}).addTo(_crsMini);
       _crsMiniFg=L.featureGroup().addTo(_crsMini);
-      _crsMini.setView([-31,146],4);
+      _crsMini.setView([12,150],1,{animate:false});
     }
     _crsMiniFg.clearLayers();
     const pts=[];
@@ -5756,8 +5756,9 @@ function crsMiniDraw(){
         L.polyline(p,{color:'#ff2fd0',weight:3,opacity:.9}).addTo(_crsMiniFg);
         L.circleMarker(p[0],{radius:6,color:'#fff',weight:2,fillColor:'#fc4c02',fillOpacity:1}).addTo(_crsMiniFg);}catch(e){}
     });
-    if(pts.length){const b=L.latLngBounds(pts);if(b.isValid())_crsMini.fitBounds(b,{padding:[28,28],maxZoom:11});}
-    setTimeout(()=>{try{_crsMini.invalidateSize();if(pts.length)_crsMini.fitBounds(L.latLngBounds(pts),{padding:[28,28],maxZoom:11});}catch(e){}},120);
+    /* 21 Nov: stay on the whole world - no zooming in to the courses */
+    const crsWorld=()=>{try{_crsMini.invalidateSize();_crsMini.setView([12,150],_crsMini.getSize().x>520?1.5:1,{animate:false});}catch(e){}};
+    crsWorld();setTimeout(crsWorld,120);
   }catch(e){}
 }
 function renderStartSectors(){
@@ -21309,6 +21310,7 @@ body .hdr-tabs .hmenu,body.light .hdr-tabs .hmenu{background:#fff!important;bord
 .ac-step-hd .dzbtn{font-size:12px;padding:5px 12px;min-height:0;}
 .ac-num{display:inline-flex;align-items:center;justify-content:center;width:22px;height:22px;border-radius:50%;background:#6a3fb0;color:#fff;font-size:12px;font-weight:800;}
 .ac-hint{font-size:11px;font-weight:500;color:var(--muted);margin-left:4px;}
+.crs-mini,#startup .leaflet-container{position:relative;z-index:0;isolation:isolate;}   /* 21 Nov: maps no longer slide over the header */
 .pf-bar{display:flex;align-items:center;gap:6px;flex-wrap:wrap;margin:0 0 14px;padding:8px 10px;border-radius:12px;background:var(--s2,#f2f4f7);border:1px solid var(--border,#e3e6eb);}
 .pf-lbl{font:800 12px Inter,-apple-system,sans-serif;letter-spacing:.06em;text-transform:uppercase;margin-right:4px;}
 .pf-b{min-height:34px;padding:0 14px;border-radius:17px;border:2px solid #0b6e79;background:transparent;color:#0b6e79;font:700 13px Inter,-apple-system,sans-serif;cursor:pointer;}
