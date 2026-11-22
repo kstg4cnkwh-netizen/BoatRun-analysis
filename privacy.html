@@ -28,7 +28,7 @@
 <body>
 
 <h1>BoatRun — Privacy Policy</h1>
-<p class="updated">Last updated: 12 November 2026</p>
+<p class="updated">Last updated: 22 November 2026</p>
 
 <p>BoatRun is a set of personal rowing performance tools (the BoatRun app for Row, Cox and Coach, the Analyser and the Viewer). This page explains what data BoatRun collects, how it's used, and how to delete it.</p>
 
@@ -37,6 +37,7 @@
   <li><strong>GPS location</strong> — recorded only while a session is actively running, to calculate speed, pace, distance and heading.</li>
   <li><strong>Motion sensor data</strong> — phone accelerometer and gyroscope, used on the device to detect stroke timing, technique metrics and boat heading. It is saved with the session on your device and in your own Google Drive (if linked); it is not sent anywhere else.</li>
   <li><strong>Heart rate</strong> — if you connect a heart rate strap, or import a Garmin FIT/TCX/GPX file.</li>
+  <li><strong>Garmin training numbers (optional)</strong> — if you connect Garmin, the training load, aerobic and anaerobic training effect and training effect label of your Garmin activities. See <em>Garmin Connect integration</em> below.</li>
   <li><strong>Session data you create</strong> — stroke rate, pace, distance, session names, notes, boat type, race flag and related rowing metrics generated from the above.</li>
   <li><strong>Account details (optional)</strong> — if you sign in with Google or Apple, BoatRun stores the account identifier supplied by that provider, together with your subscription tier, so Pro features can be unlocked on your devices. No password is ever created or held by BoatRun.</li>
 </ul>
@@ -74,10 +75,21 @@
   <li>You can disconnect at any time from BoatRun's settings, which removes the token from your device, or revoke BoatRun's access in your Concept2 Logbook account. Workouts already uploaded stay in your Logbook and must be deleted there.</li>
 </ul>
 
+<h2>Garmin Connect integration</h2>
+<p>If you choose to connect your Garmin account, BoatRun asks Garmin for permission to receive your activity data. We use it only to show Garmin's numbers beside the matching BoatRun session and in your training load and planning.</p>
+<ul>
+  <li><strong>What is received</strong> — for each Garmin activity: its start time, type, duration and distance, and Garmin's training load, aerobic training effect, anaerobic training effect and training effect label. If you send a planned workout to your watch, the workout's steps are sent to Garmin.</li>
+  <li><strong>How it is used</strong> — each activity is matched to the BoatRun session recorded at the same time (or the one you link by hand), and its numbers are saved with that session. They feed your training load chart, race planning and suggested workouts. If you join a squad and share with your coach, your coach can see them.</li>
+  <li><strong>Where it goes</strong> — Garmin sends activity data to BoatRun's own server (Cloudflare Workers), which also holds your Garmin access token. The matched numbers are kept in Firebase so your BoatRun apps can read them, and saved with your sessions on your device and in your own Google Drive app-data folder (if linked).</li>
+  <li>BoatRun does not use Garmin data for advertising, does not sell it, and does not pass it to any analytics or AI provider.</li>
+  <li>You can disconnect at any time from BoatRun's settings, or remove BoatRun in Garmin Connect. Disconnecting deletes your Garmin access token and the Garmin data held on BoatRun's server and in Firebase. Numbers already saved with your sessions stay with them until you clear them or delete the sessions.</li>
+  <li>Garmin and Garmin Connect are trademarks of Garmin Ltd. or its subsidiaries.</li>
+</ul>
+
 <h2>What is never done with your data</h2>
 <ul>
   <li>No data is sold or shared with advertisers.</li>
-  <li>Data is only passed to the services named on this page (Google Drive, Firebase, Strava and Concept2 if you connect them, OpenStreetMap and Open-Meteo), and only for the purposes described here.</li>
+  <li>Data is only passed to the services named on this page (Google Drive, Firebase, Cloudflare, Strava, Concept2 and Garmin if you connect them, OpenStreetMap and Open-Meteo), and only for the purposes described here.</li>
   <li>No analytics or tracking scripts are used.</li>
   <li>No ads.</li>
 </ul>
@@ -90,6 +102,7 @@
   <li>Your subscription tier / entitlement record stored in Firebase.</li>
   <li>Your live squad membership entry, so you no longer appear on any coach's screen.</li>
   <li>All BoatRun session files stored in your Google Drive app-data folder, if Drive is linked at the time of deletion.</li>
+  <li>Your Garmin connection, access token and any Garmin data held on BoatRun’s server and in Firebase.</li>
 </ul>
 <p>Sessions saved locally on your own device are not touched by account deletion — delete those separately from the in-app session log if you want them gone. Purchase and billing records held by Apple or Google are retained by those companies under their own policies and for the period required by law; BoatRun cannot delete them. Deleting your account does not cancel an active subscription — cancel that in the App Store or Google Play subscriptions screen.</p>
 <p>If you can no longer sign in, email <strong>bigwig.91mash@icloud.com</strong> from the address linked to your account and deletion will be carried out manually within 30 days.</p>
@@ -100,6 +113,7 @@
   <li><strong>Google Drive data</strong> — use the "Delete my Drive data" button in Metrics settings (while signed in) to permanently delete all session files from your Drive app folder. Revoking access at <code>myaccount.google.com/permissions</code> stops BoatRun from reading or writing the folder, but does not delete files already stored there — deletion must be done from within the app while signed in, since BoatRun has no separate server access to your Drive.</li>
   <li><strong>Strava connection</strong> — disconnect from BoatRun settings or from Strava directly; this also deletes the stored access token. Activities already uploaded to Strava remain in your Strava account and must be deleted there.</li>
   <li><strong>Concept2 Logbook connection</strong> — disconnect from BoatRun settings; this deletes the stored access token. Workouts already uploaded remain in your Logbook and must be deleted there.</li>
+  <li><strong>Garmin connection</strong> — disconnect from BoatRun settings or in Garmin Connect; this deletes the access token and the Garmin data held on BoatRun’s server and in Firebase. Your activities in Garmin Connect are not affected.</li>
 </ul>
 
 <h2>Contact</h2>
