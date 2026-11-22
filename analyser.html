@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
 <meta name="color-scheme" content="light dark"/>
-<meta name="br-build" content="Analyser_261122_1">
+<meta name="br-build" content="Analyser_261122_2">
 <title>BoatRun Analyser</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -16006,6 +16006,7 @@ async function gapiSync(loud){
       if(garminW&&a.load>0&&!(m.load>0))p.load=Math.round(a.load);
       if(a.ate!=null&&m.ate==null)p.ate=Math.round(a.ate*10)/10;
       if(a.ante!=null&&m.ante==null)p.ante=Math.round(a.ante*10)/10;
+      if(a.label&&!m.lbl&&(p.ate!=null||p.load))p.lbl=a.label;
       if(!Object.keys(p).length)return;
       if(p.load)p.w='garmin';p.gid=a.id;
       SESS_LOAD[k]={...m,...p,rev:Date.now()};n++;
@@ -16226,7 +16227,8 @@ function tlFormWord(ratio,chronic){
   if(chronic<30)return['Building history','var(--muted)'];
   return ratio<0.8?['Low','#1E88E5']:ratio<=1.4?['Optimal','#27ae60']:['High','#e74c3c'];
 }
-function tlTE(man){const p=[];if(man&&man.ate!=null)p.push('aerobic TE '+(+man.ate).toFixed(1));if(man&&man.ante!=null)p.push('anaerobic TE '+(+man.ante).toFixed(1));return p.join(', ');}
+function gLbl(k){const M={VO2MAX:'VO2 Max',NO_BENEFIT:'No Benefit'};k=String(k||'');return M[k]||k.toLowerCase().split('_').map(w=>w.charAt(0).toUpperCase()+w.slice(1)).join(' ');}
+function tlTE(man){const p=[];if(man&&man.ate!=null)p.push('aerobic TE '+(+man.ate).toFixed(1));if(man&&man.ante!=null)p.push('anaerobic TE '+(+man.ante).toFixed(1));if(man&&man.lbl)p.push(gLbl(man.lbl));return p.join(', ');}
 /* 20 Nov: TRAINING LOAD CARD in the session detail. Type the watch's load (or
    set the effort) for the open session without going to the Training load
    panel. Same store and key as the panel (SESS_LOAD 's'+minute), so Metrics,
@@ -16247,7 +16249,7 @@ function tlCardHtml(){
   const fld=(lbl,inner)=>'<label class="tl-f"><span class="lbl">'+lbl+'</span>'+inner+'</label>';
   const te=(id,f,lbl)=>fld(lbl,'<input id="'+id+'" data-k="'+k+'" type="number" inputmode="decimal" min="0" max="5" step="0.1" placeholder="0-5" title="'+_secEsc(W.n)+' '+lbl.toLowerCase()+' training effect (0-5)" value="'+(man[f]!=null?(+man[f]).toFixed(1):'')+'">');
   return '<div class="card cw c-fload" id="card-tload" title="Training load for this session. Type the numbers your watch shows, or set the effort. Synced with Metrics and the Training load panel.">'
-    +'<div class="tl-row"><div class="tl-main"><div class="lbl">Training Load</div><div class="val"><span id="tl-card-v">'+L.load+'</span></div><div class="sub"><span id="tl-card-src">'+_secEsc(L.src)+'</span></div></div>'
+    +'<div class="tl-row"><div class="tl-main"><div class="lbl">Training Load</div><div class="val"><span id="tl-card-v">'+L.load+'</span></div><div class="sub"><span id="tl-card-src">'+_secEsc(L.src)+'</span>'+(man.lbl?'<div style="font-weight:700;color:#1E88E5;">'+_secEsc(gLbl(man.lbl))+'</div>':'')+'</div></div>'
     +'<div class="tl-fields">'
     /* 20 Nov: two stacked columns - watch load over effort, aerobic TE over anaerobic TE */
     +'<div class="tl-col">'
