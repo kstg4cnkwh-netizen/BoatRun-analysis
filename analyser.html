@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
 <meta name="color-scheme" content="light dark"/>
-<meta name="br-build" content="Analyser_261122_7">
+<meta name="br-build" content="Analyser_261122_8">
 <title>BoatRun Analyser</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -15894,7 +15894,7 @@ function calItemEditor(day,type,id,onDone){
        Z4 3, Z5 5) - worked out when the session is opened here, then kept,
      - else minutes at effort 4 (estimate).
    "Other workouts" on the calendar carry minutes + effort, or a load.
-   Acute load = 7-day load, Chronic load = normal week (6-week average),
+   Acute load = 7-day load, Chronic load = normal week (4-week average),
    Load ratio = acute / chronic (0.8-1.4 optimal, as Garmin shows it).
    REGATTA FOCUS (17 Nov): a calendar event can be marked as an A, B or C
    race. The chart runs on past today to the next A race (at least 4 weeks),
@@ -16271,12 +16271,12 @@ function tlDaily(){
   const lim=new Date(todayK+'T12:00:00');lim.setDate(lim.getDate()-400);if(d<lim)d.setTime(lim.getTime());
   Object.keys(items).forEach(k=>items[k].sort((a,b)=>a.ts-b.ts));   // 17 Nov: first of the day at the bottom of the bar
   const out={days:[],load:[],fit:[],fat:[],form:[],n:nPast,ti:0,races,target,planned,items};
-  let fit=0,fat=0;
   while(d<=end){
     const k=_dayKey(d.getTime()),L=by[k]||0;
-    fit+=(L-fit)/42;fat+=(L-fat)/7;
     if(k===todayK)out.ti=out.days.length;
-    out.days.push(k);out.load.push(L);out.fit.push(fit*7);out.fat.push(fat*7);out.form.push(fit>0.5?fat/fit:0);   // weekly figures; form = load ratio
+    out.days.push(k);out.load.push(L);
+    const w=loadAcCh(out.load,out.load.length-1);
+    out.fit.push(w.ch);out.fat.push(w.ac);out.form.push(w.ch>3.5?w.ac/w.ch:0);   // weekly figures; form = load ratio (22 Nov: Garmin-style)
     d.setDate(d.getDate()+1);
   }
   return out;
@@ -16297,18 +16297,28 @@ const TL_KINDS={
 };
 const TL_GYM=['legs','pull','push','full','core'], TL_MTAU=2, TL_MSTEADY=1/(1-Math.exp(-1/TL_MTAU));
 /* What to do today, and which library workouts fit. */
-/* 18 Nov: OPTIMAL LOAD TODAY. The day's load that takes tomorrow's load ratio
-   (acute / chronic, from yesterday's figures) to the target for the suggested
-   type: easy below 1.0 (at most 60% of a normal day), steady 1.0-1.2, hard
-   1.2-1.4, short and sharp 0.9-1.1. Solves a' / c' = R with a' = a + (L-a)/7,
-   c' = c + (L-c)/42 (a, c per day): L = (41Rc - 36a) / (6 - R). Needs a
-   chronic load of 30+. */
-function tlOpt(a,c,t,done){
-  if(!(c*7>=30)||t==='race')return null;
-  const L=R=>Math.max(0,(41*R*c-36*a)/(6-R));
+/* 22 Nov: GARMIN-STYLE ACUTE AND CHRONIC LOAD (as Garmin Connect / Firstbeat).
+   Acute = the last 7 days, weighted so recent days count more (x e^-0.33 a day
+   back), as a week's load. Chronic = the last 28 days as an average week.
+   On David's Garmin loads this gives 592 / 660 against Garmin's 593 / 676; the
+   old 7- and 42-day running averages read acute 6% high and remembered too far
+   back. Ratio = acute / chronic. */
+const LOAD_AK=0.33,LOAD_AW=(()=>{let s=0;for(let i=0;i<7;i++)s+=Math.exp(-LOAD_AK*i);return s;})();
+function loadAcCh(L,i){let a=0,c=0;for(let j=0;j<28;j++){const v=i-j>=0?(+L[i-j]||0):0;if(j<7)a+=v*Math.exp(-LOAD_AK*j);c+=v;}return{ac:a/LOAD_AW*7,ch:c/4};}
+/* the load on day i that makes day i's ratio exactly R */
+function loadOptL(L,i,R){let A0=0,C0=0;for(let j=1;j<28;j++){const v=i-j>=0?(+L[i-j]||0):0;if(j<7)A0+=v*Math.exp(-LOAD_AK*j);C0+=v;}const den=1/LOAD_AW-R/28;return den>0?Math.max(0,(R*C0/28-A0/LOAD_AW)/den):0;}
+/* 18 Nov: OPTIMAL LOAD TODAY. The day's load that takes today's load ratio
+   to the target for the suggested type: easy below 1.0 (at most 60% of a
+   normal day), steady 1.0-1.2, hard 1.2-1.4, short and sharp 0.9-1.1.
+   22 Nov: solved on the Garmin-style acute/chronic (loadOptL). Needs a chronic
+   load of 30+. */
+function tlOpt(D,ti,t,done){
+  const ch=ti>0?D.fit[ti-1]:0;
+  if(!(ch>=30)||t==='race')return null;
+  const L=R=>loadOptL(D.load,ti,R);
   let lo,hi;
   if(t==='done'){lo=hi=done;}
-  else if(t==='easy'){lo=0;hi=Math.min(L(1.0),0.6*c);}
+  else if(t==='easy'){lo=0;hi=Math.min(L(1.0),0.6*ch/7);}
   else if(t==='steady'){lo=L(1.0);hi=L(1.2);}
   else if(t==='hard'){lo=L(1.2);hi=L(1.4);}
   else{lo=L(0.9);hi=L(1.1);}
@@ -16345,7 +16355,7 @@ function tlSuggest(D){
     if(doneL>0){if(type==='hard'||type==='sharp')type='steady';why.push('already '+Math.round(doneL)+' load done today');}
   }
   if(ready==null)why.push('no check-in for today has reached the Analyser yet');
-  const opt=tlOpt(ti>0?D.fat[ti-1]/7:0,ti>0?D.fit[ti-1]/7:0,type,doneL);
+  const opt=tlOpt(D,ti,type,doneL);
   const T={race:'Race. Warm up well and go.',done:'Done for today: rest and recover',easy:'Recovery: easy row or rest',steady:'Steady endurance',hard:'Hard session',sharp:'Short and sharp'}[type];
   const HINT={done:'Eat, sleep and stretch. Tomorrow\u2019s suggestion allows for today\u2019s load.',easy:'No easy workout in your library: 30 to 45 min at effort 3, or a day off.',steady:'No steady workout in your library: 60 to 80 min at effort 4 to 5.',hard:'No hard workout in your library: e.g. 4 x 2 km at race pace, effort 8.',sharp:'No short hard workout in your library: e.g. 6 x 250 m at race pace with full rest.',race:''}[type];
   let W;try{W=_pW();}catch(e){W=WORKOUTS_DB;}
@@ -16429,7 +16439,7 @@ function renderLoadPanel(){
   let h='<div class="sz-lhd" style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;">Training load<span style="font-size:12px;font-weight:700;color:'+fw[1]+';">'+fw[0]+'</span><span style="margin-left:auto;display:flex;gap:6px;flex-wrap:wrap;">'+'<select id="tl-watch" class="filt-chip" style="font-size:13px;padding:6px 10px;" title="Your watch: its load numbers train the model">'+Object.keys(WATCHES).map(k=>'<option value="'+k+'"'+(k===tlWatch()?' selected':'')+'>'+WATCHES[k].n+'</option>').join('')+'</select><button id="tl-hist" class="filt-chip" style="font-size:13px;padding:7px 14px;" title="Past sessions">'+(tlWSpec().eff?'Enter past efforts':'Enter '+tlWSpec().n+' loads')+'</button>'+(tlWatch()==='garmin'?'<button id="tl-gc" class="filt-chip" style="font-size:13px;padding:7px 14px;'+(gcIsOn()?'border-color:#27ae60;color:#27ae60;':'background:#1E88E5;border-color:#1E88E5;color:#fff;')+'" title="Garmin training effect and load fill in by themselves">'+(gcIsOn()?'Garmin connected \u2713':'Connect Garmin')+'</button>':'')+(gcSkipList().length?'<button id="tl-gcrest" class="filt-chip" style="font-size:13px;padding:7px 14px;" title="Garmin activities you deleted from the calendar">Restore Garmin ('+gcSkipList().length+')</button>':'')+(gapiCfg().url||tlWatch()==='garmin'?'<button id="tl-gapi" class="filt-chip" style="font-size:'+(gapiCfg().url?'13px;padding:7px 14px;border-color:#27ae60;color:#27ae60;':'11px;padding:5px 10px;opacity:.7;')+'" title="Personal Garmin API key (advanced, your own account only)">'+(gapiCfg().url?'Garmin key \u2713':'Personal key\u2026')+'</button>':'')+'</span></div>'
     +'<div style="display:flex;gap:8px;margin-bottom:8px;">'
     +box('Acute load',Math.round(fat),'#E53935','Load over the last 7 days (weighted to recent days)')
-    +box('Chronic load',Math.round(fit),'#1E88E5','Your normal week: 6-week average weekly load')
+    +box('Chronic load',Math.round(fit),'#1E88E5','Your normal week: the last 4 weeks as an average week')
     +box('Load ratio',fit>=30?form.toFixed(2):'&ndash;',fw[1]==='var(--muted)'?'var(--text)':fw[1],'Acute / chronic. 0.8 to 1.4 is optimal')+'</div>'
     +(()=>{
       const T=D.target;if(!T)return '<div style="font-size:11px;color:var(--muted);margin-bottom:8px;">No race ahead. Add a calendar event and mark it as an A, B or C race to plan towards it.</div>';
@@ -16489,7 +16499,7 @@ function renderLoadPanel(){
   ((it&&it.list)||[]).filter(x=>x.type==='other').forEach(x=>{const L=tlOtherLoad(x);
     h+='<div style="display:flex;align-items:center;gap:6px;font-size:12px;padding:5px 0;border-top:1px solid var(--border);"><span style="flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">'+_secEsc(x.text||'Other workout')+'</span><span style="text-align:right;">'+(L?'<b>'+L+'</b> <span style="color:var(--muted);">'+(x.load>0?'entered':x.min+' min, effort '+x.rpe)+'</span>':'<span style="color:var(--muted);">no load - edit it to add minutes and effort</span>')+'</span></div>';});
   if(!ss.length&&!pl.length&&!((it&&it.list)||[]).some(x=>x.type==='other'))h+='<div style="font-size:11px;color:var(--muted);">No sessions this day.</div>';
-  h+='<div style="font-size:10px;color:var(--muted);margin-top:8px;line-height:1.4;">Loads are on a Garmin-style scale (an easy hour is about 50-70, a hard hour 200+). Sessions with heart rate use HR zones once opened here; others are estimated at effort '+TL_DEF_RPE+' until you set an effort'+(tlWSpec().eff?'':' or type the '+tlWSpec().n+' number')+'. Chronic load needs about 6 weeks of history to settle.'
+  h+='<div style="font-size:10px;color:var(--muted);margin-top:8px;line-height:1.4;">Loads are on a Garmin-style scale (an easy hour is about 50-70, a hard hour 200+). Sessions with heart rate use HR zones once opened here; others are estimated at effort '+TL_DEF_RPE+' until you set an effort'+(tlWSpec().eff?'':' or type the '+tlWSpec().n+' number')+'. Chronic load needs 4 weeks of history to settle.'
     +(()=>{const L={hr:'HR sessions',est:'estimated sessions',eff:'effort sessions'},p=Object.keys(_tlCal).map(k=>L[k]+' x'+_tlCal[k].k.toFixed(2)+' (from '+_tlCal[k].n+')');const W=tlWSpec();return p.length?'<br>Calibrated to your '+(W.eff?'watch':W.n)+' numbers: '+p.join(', ')+'.':(W.eff?'<br>'+W.n+' has no load number to copy, so set the effort for each session.':'<br>Type the '+W.n+' '+W.L.toLowerCase()+' for 3 or more past sessions and the rest are scaled to match your watch.');})()
     +(()=>{const n=_wktCtx?0:rpeMissing().length;return n?'<br>'+n+' workout'+(n===1?' has':'s have')+' no planned effort, so a guess is used. <a href="#" id="tl-rpe" style="color:#8e44ad;font-weight:700;">Set efforts</a>':'';})()+'</div>';
   h+=sqlShareHtml();
