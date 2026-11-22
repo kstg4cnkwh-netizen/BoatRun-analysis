@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
 <meta name="color-scheme" content="light dark"/>
-<meta name="br-build" content="Analyser_261122_9">
+<meta name="br-build" content="Analyser_261122_10">
 <title>BoatRun Analyser</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -150,6 +150,7 @@ function adClearPendingOpen(){try{sessionStorage.removeItem('_ad_open');}catch(e
   .c-oar{border-top:3px solid var(--mc-oar)}.c-oar .val{color:var(--mc-oar)}
   .c-cdelta{border-top:3px solid var(--mc-cdelta)}.c-cdelta .val{color:var(--mc-cdelta)}
   .c-swing{border-top:3px solid #8e44ad}.c-swing .val{color:#8e44ad}
+  .c-ctime{border-top:3px solid #0e7490}.c-ctime .val{color:#0e7490}
   .c-rolldrive{border-top:3px solid #d35400}.c-rolldrive .val{color:#d35400}
   .c-rollrec{border-top:3px solid #16a085}.c-rollrec .val{color:#16a085}
   .c-cdur{border-top:3px solid var(--mc-cdur)}.c-cdur .val{color:var(--mc-cdur)}
@@ -2489,6 +2490,7 @@ const METRIC_DEFS = [
   {k:'schar',  l:'Stroke Char', c:'var(--mc-schar)', cat:'indep', filter:s=>!isNaN(s.schar)&&s.schar>0&&s.schar<=100, val:s=>s.schar,       fmtAvg:v=>f0(v)+'%',        fmtBest:null, tip:'Where the peak drive acceleration falls within the drive, as %: 0% = the moment the boat starts accelerating after the catch, 100% = blade exit. The peak time is interpolated between sensor samples and smoothed over 5 strokes. Under 40% = front-loaded, 40–60% = mid-drive, over 60% = back-loaded. Neither is inherently better — it\'s a technique style that varies by boat type and rower. Sessions recorded before Metrics 260915_3 used the impulse centroid, which reads closer to 50% — don\'t compare them directly.'},
   {k:'cdelta', l:'Vel Efficiency', c:'var(--mc-cdelta)',  cat:'boat',  filter:s=>!isNaN(s.checkDelta)&&s.checkDelta>=50&&s.checkDelta<=100, val:s=>s.checkDelta, fmtAvg:v=>f1(v)+'%', fmtBest:null, tip:'Hydrodynamic efficiency of the boat\'s speed profile within one stroke — 100% = perfectly steady hull, typical sculling 93–97%. Drag power rises with the cube of speed, so speed swings waste energy versus a constant speed. Higher is better. GPS-anchored IMU metric.'},
   {k:'swing', l:'Speed Swing', c:'#8e44ad', cat:'boat', filter:s=>!isNaN(s.speedSwing)&&s.speedSwing>0.05&&s.speedSwing<5, val:s=>s.speedSwing, fmtAvg:v=>f2(v)+' m/s', fmtBest:null, tip:'How much the boat speeds up and slows down inside one stroke: fastest minus slowest boat speed, from the accelerometer. Unlike Vel Efficiency it does not use GPS speed, so it is a fair technique measure at any pace. Lower = steadier hull. Most of the swing is momentum swapped between you and the hull (the boat speeds up as you slide toward the stern and gives it back at the catch), plus the push of the drive, so more swing often goes with a faster boat. Only the drag cost of the swing is lost, and that is small. Use it to compare pieces at the same rate and pressure, not as a number to drive down.'},
+  {k:'ctime', l:'Catch Timing', c:'#0e7490', cat:'indep', filter:s=>!isNaN(s.ctime)&&s.ctime>=0&&s.ctime<=100, val:s=>s.ctime, fmtAvg:v=>f0(v)+'%', fmtBest:null, tip:'Whether the crew catches together. A crew catching together gives one clean dip in boat speed at the catch; catching in two groups gives a dip, a pause and a second dip. 100% = one clean dip, from the last 8 strokes at the same rate. TOGETHER 90%+, FAIR 75-90%, SPLIT under 75%. For crew boats; a single reads near 100%.'},
   {k:'rolldrive', l:'Drive Roll', c:'#d35400', cat:'boat', filter:s=>!isNaN(s.rollDrive)&&Math.abs(s.rollDrive)<15, val:s=>s.rollDrive, fmtAvg:v=>fmtRoll(v), fmtBest:null, tip:'Boat roll at the middle of the drive, in degrees. + = stroke side down, - = bow side down. Read off the roll trace Metrics saves per stroke (1.2.10 or later), half way between the catch and the finish.'},
   {k:'rollrec', l:'Recovery Roll', c:'#16a085', cat:'boat', filter:s=>!isNaN(s.rollRec)&&Math.abs(s.rollRec)<15, val:s=>s.rollRec, fmtAvg:v=>fmtRoll(v), fmtBest:null, tip:'Boat roll at the middle of the recovery, in degrees. + = stroke side down, - = bow side down. Read off the roll trace Metrics saves per stroke (1.2.10 or later), half way between the finish and the next catch.'},
   {k:'hr',     l:'Avg HR',      c:'var(--mc-hr)',   cat:'indep', filter:s=>{const b=nearestHRAt(s.ms);return b!=null&&b>40&&b<220;}, val:s=>nearestHRAt(s.ms), fmtAvg:v=>f0(v)+' bpm', fmtBest:null, tip:'Session average heart rate \u2014 mean of all valid HR samples (40\u2013220 bpm). Matches HR Avg in the app log.'},
@@ -2552,10 +2554,66 @@ let curveRowHl=new Set(); // row labels highlighted yellow in the curve comparis
 let currentView=[];
 let viewS=0,viewE=0;
 let selS=-1,selE=-1;
+/* ── CATCH TIMING (22 Nov) ────────────────────────────────────────────────────
+   Whether a crew catches together. Averages the last 8 stroke curves at the
+   current rate (+-1.5 spm), then looks at the drop into the catch: a crew
+   catching together gives one clean dip; a crew catching in two groups gives a
+   steep drop, a pause (the slope eases off) and a second drop. Score = the size
+   of that second drop against the first, as 100% = one clean dip.
+   Tested 22 Nov on David's sessions: 1x 99, 2x 100, 4x 97, 2- 93, eights 58-80;
+   the curve groups he picked as poor (22 Nov, 5 Nov) 75 / 79 against 89 / 90.
+   TOGETHER 90+, FAIR 75-90, SPLIT under 75. On-water only. */
+const CT_N = 8, CT_MIN = 6, CT_TOL = 1.5, CT_BACK = 30, CT_PTS = 80;
+function ctResample(a, n) {
+  if (!a || a.length < 20) return null;
+  const out = new Array(n);
+  for (let i = 0; i < n; i++) {
+    const t = i / (n - 1) * (a.length - 1), lo = Math.floor(t), hi = Math.min(lo + 1, a.length - 1), f = t - lo;
+    out[i] = (+a[lo]) * (1 - f) + (+a[hi]) * f;
+  }
+  return out.every(v => isFinite(v)) ? out : null;
+}
+function ctScore(c) {
+  if (!c || c.length < 20) return null;
+  const w = Math.floor(c.length * 0.35);
+  let im = 0; for (let i = 1; i < w; i++) if (c[i] < c[im]) im = i;
+  if (!(c[im] <= -1) || im < 4) return null;
+  const d = []; for (let i = 0; i < im; i++) d.push(c[i + 1] - c[i]);
+  let k = 0; for (let i = 1; i < d.length; i++) if (d[i] < d[k]) k = i;
+  const steep = d[k]; if (!(steep < -0.05)) return null;
+  let best = 0;
+  for (let p = k + 1; p < d.length - 1; p++) {
+    let re = Infinity; for (let q = p + 1; q < d.length; q++) if (d[q] < re) re = d[q];
+    const s = (d[p] - re) / (-steep);
+    if (s > best) best = s;
+  }
+  return Math.max(0, Math.min(100, Math.round(100 - 100 * Math.min(best, 1))));
+}
+function ctAvg(curves) {
+  const rs = curves.map(c => ctResample(c, CT_PTS)).filter(Boolean);
+  if (rs.length < CT_MIN) return null;
+  const m = new Array(CT_PTS).fill(0);
+  for (const r of rs) for (let i = 0; i < CT_PTS; i++) m[i] += r[i] / rs.length;
+  return m;
+}
+/* Catch Timing at stroke i of list S (getC: stroke -> curve, getR: stroke -> rate) */
+function ctAt(S, i, getC, getR) {
+  const r0 = +getR(S[i]); if (!(r0 > 5) || !getC(S[i])) return null;
+  const cs = [];
+  for (let k = i; k >= Math.max(0, i - CT_BACK) && cs.length < CT_N; k--) {
+    const c = getC(S[k]), r = +getR(S[k]);
+    if (!c || !(r > 5) || Math.abs(r - r0) > CT_TOL) continue;
+    cs.push(c);
+  }
+  const a = ctAvg(cs);
+  return a ? ctScore(a) : null;
+}
+function ctBand(v) { return v >= 90 ? 'g' : (v >= 75 ? 'w' : 'b'); }
+function ctWord(v) { return v >= 90 ? 'TOGETHER' : (v >= 75 ? 'FAIR' : 'SPLIT'); }
 let activeLapTypes=new Set(); // lap types currently shown in the laps table filter (empty = All)
-let vis={pace:true,rate:true,slope:false,slopeneg:false,caccel:false,dps:false,impulse:false,rloss:false,schar:false,ratio:false,angle:false,cdelta:false,cdur:false,drivetime:false,driveaccel:false,recoveryaccel:false,hr:false,peakforce:false,drivelength:false,epower:false,swing:false,rolldrive:false,rollrec:false};
+let vis={ctime:false,pace:true,rate:true,slope:false,slopeneg:false,caccel:false,dps:false,impulse:false,rloss:false,schar:false,ratio:false,angle:false,cdelta:false,cdur:false,drivetime:false,driveaccel:false,recoveryaccel:false,hr:false,peakforce:false,drivelength:false,epower:false,swing:false,rolldrive:false,rollrec:false};
 try{const sv=JSON.parse(localStorage.getItem('br_tile_vis')||'null');if(sv&&typeof sv==='object')Object.assign(vis,sv);}catch{}
-let hid={pace:false,rate:false,slope:false,slopeneg:false,caccel:false,dps:false,impulse:false,rloss:false,schar:false,ratio:false,angle:false,cdelta:false,cdur:false,drivetime:false,driveaccel:false,recoveryaccel:false,hr:false,peakforce:false,drivelength:false,epower:false,swing:false,rolldrive:false,rollrec:false};
+let hid={ctime:false,pace:false,rate:false,slope:false,slopeneg:false,caccel:false,dps:false,impulse:false,rloss:false,schar:false,ratio:false,angle:false,cdelta:false,cdur:false,drivetime:false,driveaccel:false,recoveryaccel:false,hr:false,peakforce:false,drivelength:false,epower:false,swing:false,rolldrive:false,rollrec:false};
 try{const sh=JSON.parse(localStorage.getItem('br_tile_hidden')||'null');if(sh&&typeof sh==='object')Object.assign(hid,sh);}catch{}
 hid.pace=false; hid.rate=false;
 vis=new Proxy(vis,{get(t,k){return hid[k]?false:t[k];},set(t,k,v){t[k]=v;return true;}});
@@ -2888,6 +2946,10 @@ function sessionToAnalyserFmt(s) {
     const df=num(r.curveDriveFrac);
     st.rollDrive=!isNaN(num(r.rollDrive))?num(r.rollDrive):(st.roll&&df>0&&df<1?rollAtFracA(st.roll,df/2):NaN);
     st.rollRec=!isNaN(num(r.rollRec))?num(r.rollRec):(st.roll&&df>0&&df<1?rollAtFracA(st.roll,(1+df)/2):NaN);});
+  /* 22 Nov: Catch Timing - saved by Metrics 1.3.2+, else worked out from the saved curves */
+  {const R=s.strokes||[];const water=s.sessionMode!=='erg';
+   R.forEach((r,i)=>{const st=strokes[i];if(!st)return;const v=num(r.catchTiming);
+     st.ctime=!isNaN(v)?v:((water&&r.curve&&!r.forceCurve)?(ctAt(R,i,x=>(x&&!x.forceCurve)?x.curve:null,x=>x&&x.rate)??NaN):NaN);});}
   _retimeStrokeRates(s, strokes);
   const hr = (s.hrTrace||[]).map(h=>({ ts:new Date(h.t).toISOString(), bpm:h.hr }));
   const wlm=(s.sessionMode==='erg'&&_ergLapsFromIntervals(s.erg&&s.erg.intervals,s.hrTrace,s.startTime))||s.workoutLapMetrics||[];
@@ -8019,6 +8081,7 @@ function buildCards(sum) {
     dps:()=>vals.dps?card('c-dps','DPS'+_cwS(),fmtDPSU(vals.dps.mean),dpsULabelU()+'/stroke','dps',tipOf('dps')):'',
     rolldrive:()=>vals.rolldrive?card('c-rolldrive','Drive Roll',fmtRoll(vals.rolldrive.mean),'mid-drive · + stroke side down','rolldrive',tipOf('rolldrive')):'',
     rollrec:()=>vals.rollrec?card('c-rollrec','Recovery Roll',fmtRoll(vals.rollrec.mean),'mid-recovery · + stroke side down','rollrec',tipOf('rollrec')):'',
+    ctime:()=>vals.ctime?card('c-ctime','Catch Timing',f0(vals.ctime.mean)+'%',ctWord(Math.round(vals.ctime.mean)).toLowerCase()+' · crew together','ctime',tipOf('ctime')):'',
     swing:()=>vals.swing?card('c-swing','Speed Swing',f2(vals.swing.mean)+' m/s','fastest − slowest in stroke','swing',tipOf('swing')):'',
     cdelta:()=>vals.cdelta?`<div class="card clickable${!vis.cdelta?' dim':''}" id="card-cdelta" data-vis="cdelta" style="border-top:2px solid var(--mc-cdelta)" title="${tipOf('cdelta')}"><div class="lbl">Vel Efficiency</div><div class="val" style="color:var(--mc-cdelta)">${f1(vals.cdelta.mean)}%</div><div class="sub">vs steady hull</div></div>`:'',
     rloss:()=>vals.rloss?card('c-rloss','Recovery Run',fmtRunLossU(vals.rloss.mean),'avg/stroke','rloss',tipOf('rloss')):'',
@@ -8198,7 +8261,7 @@ window.panSlide=function(val){
 function emaSmooth(view,alpha){
   if(alpha>=1)return view;
   const out=view.map(s=>Object.assign({},s));
-  const fields=['pace','rate','slope','catchSlopeNeg','catchAccel','dps','impulse','rloss','schar','ratio','checkDelta','speedSwing','rollDrive','rollRec','catchDuration','driveAccel','recoveryAccel','driveTimeMs','peakforceN','drivelength','epower'];
+  const fields=['pace','rate','slope','catchSlopeNeg','catchAccel','dps','impulse','rloss','schar','ratio','checkDelta','speedSwing','ctime','rollDrive','rollRec','catchDuration','driveAccel','recoveryAccel','driveTimeMs','peakforceN','drivelength','epower'];
   for(const f of fields){let ema=NaN;for(let i=0;i<out.length;i++){const v=out[i][f];if(isNaN(v)||v==null){ema=NaN;continue;}ema=isNaN(ema)?v:alpha*v+(1-alpha)*ema;out[i][f]=ema;}}
   return out;
 }
@@ -8327,7 +8390,7 @@ function drawMain(){
   const xRng=xMax-xMin||1;
   const toX=v=>PL+(v-xMin)/xRng*pw;
 
-  const pv=[],rv=[],jv=[],jnv=[],cav=[],dv=[],iv=[],rlv=[],scv=[],ratv=[],cdv=[],cdurv=[],dtv=[],daccv=[],raccv=[],hrv=[],pfv=[],slv=[],epv=[],swv=[],rdv=[],rrv=[];
+  const pv=[],rv=[],jv=[],jnv=[],cav=[],dv=[],iv=[],rlv=[],scv=[],ratv=[],cdv=[],cdurv=[],dtv=[],daccv=[],raccv=[],hrv=[],pfv=[],slv=[],epv=[],swv=[],rdv=[],rrv=[],ctv=[];
   for(let i=0;i<N;i++){const s=sv[i];
     if(vis.pace&&s.pace>50&&s.pace<500)pv.push(s.pace);
     if(vis.rate&&s.rate>5&&s.rate<50)rv.push(s.rate);
@@ -8341,6 +8404,7 @@ function drawMain(){
     if(vis.ratio&&!isNaN(s.ratio)&&s.ratio>0.5&&s.ratio<5)ratv.push(s.ratio);
     if(vis.cdelta&&!isNaN(s.checkDelta)&&s.checkDelta>=50&&s.checkDelta<=100)cdv.push(s.checkDelta);
     if(vis.swing&&!isNaN(s.speedSwing)&&s.speedSwing>0.05&&s.speedSwing<5)swv.push(s.speedSwing);
+    if(vis.ctime&&!isNaN(s.ctime))ctv.push(s.ctime);
     if(vis.rolldrive&&!isNaN(s.rollDrive)&&Math.abs(s.rollDrive)<15)rdv.push(s.rollDrive);
     if(vis.rollrec&&!isNaN(s.rollRec)&&Math.abs(s.rollRec)<15)rrv.push(s.rollRec);
     if(vis.cdur&&!isNaN(s.catchDuration)&&s.catchDuration>0&&s.catchDuration<1500)cdurv.push(s.catchDuration);
@@ -8384,6 +8448,7 @@ function drawMain(){
   let ySwMin=0,ySwMax=2.5;
   if(swv.length){const[lo,hi]=pctBounds(swv,0.03,0.97,0.10);ySwMin=Math.max(0,lo);ySwMax=Math.min(5,hi);}
   const toYSw=v=>PT+ph-(v-ySwMin)/(ySwMax-ySwMin||1)*ph;
+  const toYCt=v=>PT+ph-((Math.max(30,Math.min(100,v))-30)/70)*ph;   // 22 Nov: Catch Timing, fixed 30-100%
   // 17 Nov: drive and recovery roll share one axis, centred on zero
   // 17 Nov: fixed +-10 deg, stroke side down = down (as in the curve comparison)
   const yRoMax=10;
@@ -8455,6 +8520,7 @@ function drawMain(){
   if(vis.ratio&&ratv.length){ctx.fillStyle=C.mc_ratio;for(let i=0;i<N;i++){const v=sv[i].ratio;if(isNaN(v)||v<0.5||v>5)continue;ctx.beginPath();ctx.arc(toX(xs[i]),toYRatio(v),2.2,0,6.283);ctx.fill();}}
   if(vis.cdelta&&cdv.length){ctx.fillStyle=C.mc_cdelta;for(let i=0;i<N;i++){const v=sv[i].checkDelta;if(isNaN(v)||v<50||v>100)continue;ctx.beginPath();ctx.arc(toX(xs[i]),toYCD(v),2.2,0,6.283);ctx.fill();}}
   if(vis.swing&&swv.length){ctx.fillStyle='#8e44ad';for(let i=0;i<N;i++){const v=sv[i].speedSwing;if(isNaN(v)||v<=0.05||v>=5)continue;ctx.beginPath();ctx.arc(toX(xs[i]),toYSw(v),2.2,0,6.283);ctx.fill();}}
+  if(vis.ctime&&ctv.length){ctx.fillStyle='#0e7490';for(let i=0;i<N;i++){const v=sv[i].ctime;if(isNaN(v))continue;ctx.beginPath();ctx.arc(toX(xs[i]),toYCt(v),2.2,0,6.283);ctx.fill();}}
   if((vis.rolldrive&&rdv.length)||(vis.rollrec&&rrv.length)){   // level line and scale for roll
     ctx.save();ctx.strokeStyle=C.gridLb;ctx.lineWidth=1.5;ctx.setLineDash([5,4]);ctx.beginPath();ctx.moveTo(PL,toYRo(0));ctx.lineTo(PL+pw,toYRo(0));ctx.stroke();ctx.setLineDash([]);
     ctx.strokeStyle=C.gridLn;ctx.lineWidth=1;[-5,5].forEach(v=>{ctx.beginPath();ctx.moveTo(PL,toYRo(v));ctx.lineTo(PL+pw,toYRo(v));ctx.stroke();});
@@ -8590,6 +8656,7 @@ function showTooltipAt(clientX, clientY, force, above){
     dps:()=>ttRow('DPS'+_cwS(),isNaN(s.dps)||s.dps<1?EM:fmtDPSU(s.dps)+dpsULabelU(),C.mc_dps),
     rolldrive:()=>ttRow('Drive Roll',isNaN(s.rollDrive)?EM:fmtRoll(s.rollDrive),'#d35400'),
     rollrec:()=>ttRow('Recovery Roll',isNaN(s.rollRec)?EM:fmtRoll(s.rollRec),'#16a085'),
+    ctime:()=>ttRow('Catch Timing',isNaN(s.ctime)?EM:f0(s.ctime)+'% '+ctWord(s.ctime).toLowerCase(),'#0e7490'),
     swing:()=>ttRow('Speed Swing',(!isNaN(s.speedSwing)&&s.speedSwing>0.05)?f2(s.speedSwing)+' m/s':EM,'#8e44ad'),
     cdelta:()=>ttRow('Vel Efficiency',(!isNaN(s.checkDelta)&&s.checkDelta>=50)?f1(s.checkDelta)+'%':EM,C.mc_cdelta),
     driveaccel:()=>ttRow('Drive Accel',isNaN(s.driveAccel)||s.driveAccel<=0?EM:f1(s.driveAccel)+' m/s²',C.mc_driveaccel),
@@ -10600,6 +10667,14 @@ function buildCurveStats(){
       }});
       continue;
     }
+    if(m.k==='ctime'){   // 22 Nov: from the group's own average curve - what you see drawn
+      if(curvesAreForce())continue;
+      rows.push({l:'Catch Timing', c:m.c, fn:g=>{
+        const c=computeGroupCurve(g.strokes),v=(c&&c.data)?ctScore(c.data):null;
+        return v!=null?v+'% <span style="font-size:10px;font-weight:700;color:'+(v>=90?'#27ae60':v>=75?'#e67e22':'#c0392b')+';">'+ctWord(v)+'</span>':EM;
+      }});
+      continue;
+    }
     rows.push({l:'Avg '+m.l+(m.k==='epower'?_cwS():''), c:m.c, fn:g=>{
       if(m.k==='rate'&&g.lap&&g.lap.rate)return m.fmtAvg(g.lap.rate);
       const arr=rowOnly(g.strokes).filter(m.filter).map(m.val);
@@ -11383,6 +11458,7 @@ const TBL_COLS={
   rate:{h:()=>'Rate', cell:s=>`<td style="color:var(--mc-rate)">${isNaN(s.rate)||s.rate<1?EM:f0(s.rate)}</td>`},
   dps:{h:()=>'DPS '+dpsULabelU()+_cwS(), cell:s=>`<td style="color:var(--mc-dps)">${isNaN(s.dps)||s.dps<1?EM:fmtDPSU(s.dps)}</td>`},
   cdelta:{h:()=>'Vel Eff %', cell:s=>`<td style="color:var(--mc-cdelta)">${(!isNaN(s.checkDelta)&&s.checkDelta>=50)?f1(s.checkDelta):EM}</td>`},
+  ctime:{h:()=>'Catch Timing %', cell:s=>`<td style="color:#0e7490">${isNaN(s.ctime)?EM:f0(s.ctime)}</td>`},
   rloss:{h:()=>'Recovery Run %', cell:s=>`<td style="color:var(--mc-rloss)">${isNaN(s.rloss)?EM:fmtRunLossU(s.rloss)}</td>`},
   impulse:{h:()=>'Impulse', cell:s=>`<td style="color:var(--mc-impulse)">${isNaN(s.impulse)||s.impulse<=0?EM:Math.round(s.impulse)}</td>`},
   epower:{h:()=>'Eff Power W/rower'+_cwS(), cell:s=>`<td style="color:var(--mc-epower)">${isNaN(s.epower)||s.epower<=0?EM:f0(s.epower)}</td>`},
@@ -13503,7 +13579,7 @@ let _sumOffsets={onwater:{m:0,w:0},erg:{m:0,w:0},combined:{m:0,w:0}};
    - bands: per 2-spm rate band trimmed means, for the "how has it moved" chart.
    The table ranks the drivers; Trend says whether each metric has moved the
    way that goes with a faster boat. Tap a row for its chart. */
-const TREND_V = 2, TREND_KEY = 'br_trend_v1', TREND_UI_KEY = 'br_trend_ui';
+const TREND_V = 3, TREND_KEY = 'br_trend_v1', TREND_UI_KEY = 'br_trend_ui';
 const TREND_BAND_W = 2, TREND_BAND_MIN = 14, TREND_BAND_MAX = 40, TREND_MIN_STROKES = 10;
 const TREND_COLS = ['#2e86de', '#8e44ad', '#e67e22', '#00acc1', '#c2185b', '#3949ab', '#d4ac0d', '#5d6d7e', '#ff7043', '#6d4c41', '#26a69a', '#f06292', '#7e57c2'];
 const TR_FROM_SPEED = { dps: 1, epower: 1, watts: 1, cdelta: 1 };
@@ -13621,7 +13697,7 @@ function trFocus(g) {
 /* 13 Nov: send the top two focus metrics per boat type to Metrics (prefs.focusTiles),
    which puts them in the last two tiles of LIVE, CURVE and MAP. Only pushed when
    the set changes. Analyser metric keys -> Metrics tile keys. */
-const TR_TO_METRICS = { swing: 'swing', caccel: 'catchaccel', schar: 'char', slope: 'catch', slopeneg: 'catchslopeneg', cdur: 'catchdur', drivetime: 'drivetime', rloss: 'runloss', ratio: 'ratio', recoveryaccel: 'recoveryaccel' };
+const TR_TO_METRICS = { ctime: 'catchtiming', swing: 'swing', caccel: 'catchaccel', schar: 'char', slope: 'catch', slopeneg: 'catchslopeneg', cdur: 'catchdur', drivetime: 'drivetime', rloss: 'runloss', ratio: 'ratio', recoveryaccel: 'recoveryaccel' };
 let _trPushT = null;
 function trPushFocus() {
   clearTimeout(_trPushT);
