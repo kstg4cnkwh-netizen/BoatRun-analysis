@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
 <meta name="color-scheme" content="light dark"/>
-<meta name="br-build" content="Analyser_261122_2">
+<meta name="br-build" content="Analyser_261122_5">
 <title>BoatRun Analyser</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -15795,7 +15795,10 @@ function calItemDelete(day,id){
   if(!calItemCanEdit())return;
   const list=calItemsOf(day);const x=list.find(i=>i.id===id);if(!x)return;
   const n=x.type==='event'?'event':(x.type==='other'?'other workout':'note');
-  if(!confirm('Delete this '+n+'?'))return;
+  if(x.gid&&!_wktCtx){   // 22 Nov: from Garmin - warn, remember, can be restored
+    if(!confirm('Delete \u201c'+(x.text||'Garmin activity')+'\u201d?\n\nIt came from Garmin, so its load'+(x.load?' ('+x.load+')':'')+' will no longer count in your training load. You can bring it back with Restore Garmin in the Training load panel.'))return;
+    gcSkipSet(x.gid,{name:x.text,load:x.load||0,t:tlItemTs(day,x)},1);
+  }else if(!confirm('Delete this '+n+'?'))return;
   calItemsSet(day,list.filter(i=>i.id!==id));
   renderStartupCalendar();
 }
@@ -15935,6 +15938,8 @@ function tlFromPrefs(p){
   try{sznFromPrefs(p);}catch(e){}
   try{sqlFromPrefs(p);}catch(e){}
   if(p.watch&&typeof p.watch==='object'&&WATCHES[p.watch.id]&&(p.watch.rev||0)>(tlWatchGet().rev||0)){try{localStorage.setItem('br_watch',JSON.stringify(p.watch));}catch(e){}}
+  if(p.gcLink&&typeof p.gcLink==='object'&&(p.gcLink.rev||0)>(gcLinkObj().rev||0)){try{localStorage.setItem('br_gc_link',JSON.stringify(p.gcLink));localStorage.removeItem('br_gc_on');}catch(e){}if(p.gcLink.id)setTimeout(()=>{try{gcCheck(false);}catch(e){}},800);}   // 22 Nov: Connect Garmin link from Metrics
+  if(p.gcSkip)try{gcSkipMerge(p.gcSkip);}catch(e){}   // 22 Nov: deleted Garmin activities
   if(p.sessLoad&&typeof p.sessLoad==='object'&&!Array.isArray(p.sessLoad)){SESS_LOAD=tlMerge(SESS_LOAD,p.sessLoad);try{localStorage.setItem('br_sess_load',JSON.stringify(SESS_LOAD));}catch(e){}}
   if(p.wellness&&typeof p.wellness==='object'&&!Array.isArray(p.wellness)){WELLNESS=tlMerge(WELLNESS,p.wellness);try{localStorage.setItem('br_wellness',JSON.stringify(WELLNESS));}catch(e){}}
   tlRenderSoon();
@@ -15986,20 +15991,124 @@ function gapiSetup(){
   try{localStorage.setItem('br_gapi',JSON.stringify({url:url.trim().replace(/\/+$/,''),key:key.trim()}));}catch(e){}
   renderLoadPanel();gapiSync(true);
 }
+/* 22 Nov: CONNECT GARMIN (Garmin Connect Developer Program). Same link as
+   Metrics (prefs.gcLink); the boatrun-garmin Worker reads TE and load from each
+   Garmin FIT file and /gc/acts returns them like the personal-key /acts. */
+const GC_WORKER='https://boatrun-garmin.davidmacready74.workers.dev';
+function gcLinkObj(){try{const o=JSON.parse(localStorage.getItem('br_gc_link')||'null');return o&&typeof o==='object'?o:{id:null,rev:0};}catch(e){return {id:null,rev:0};}}
+function gcLink(){const id=gcLinkObj().id;return /^[a-f0-9]{32}$/.test(id||'')?id:null;}
+function gcSetLink(id){const o={id:id||null,rev:Date.now()};try{localStorage.setItem('br_gc_link',JSON.stringify(o));}catch(e){}try{if(AnalyserDrive.isSignedIn())AnalyserDrive.pushPrefs({gcLink:o}).catch(()=>{});}catch(e){}}
+function gcIsOn(){return !!gcLink()&&localStorage.getItem('br_gc_on')==='1';}
+function gcNewId(){const a=new Uint8Array(16);crypto.getRandomValues(a);return Array.from(a,b=>b.toString(16).padStart(2,'0')).join('');}
+let _gcPoll=null;
+function gcConnect(){
+  let id=gcLink();if(!id){id=gcNewId();gcSetLink(id);}
+  window.open(GC_WORKER+'/gc/start?link='+id+'&app=analyser','_blank');
+  toast('Sign in to Garmin in the new tab and tap Agree',4000);
+  clearInterval(_gcPoll);let n=0;
+  _gcPoll=setInterval(async()=>{if(++n>100){clearInterval(_gcPoll);return;}if(await gcCheck(false)){clearInterval(_gcPoll);}},3000);
+}
+async function gcCheck(loud){
+  const id=gcLink();if(!id)return false;
+  try{
+    const r=await fetch(GC_WORKER+'/gc/status?link='+id,{cache:'no-store'});const d=await r.json();
+    const was=localStorage.getItem('br_gc_on')==='1';
+    try{localStorage.setItem('br_gc_on',d.connected?'1':'0');}catch(e){}
+    if(d.connected&&!was){toast('Garmin connected \u2713');gapiSync(false);}else if(loud)toast(d.connected?'Garmin connected \u2713':'Garmin not connected yet');
+    if(was!==!!d.connected){try{renderLoadPanel();}catch(e){}}
+    return !!d.connected;
+  }catch(e){return null;}
+}
+async function gcDisconnect(){
+  const id=gcLink();if(!id)return;
+  if(!confirm('Disconnect Garmin?\n\nBoatRun stops receiving training effect and load from Garmin. Numbers already on your sessions stay.'))return;
+  try{await fetch(GC_WORKER+'/gc/disconnect?link='+id,{method:'POST'});}catch(e){}
+  gcSetLink(null);try{localStorage.setItem('br_gc_on','0');}catch(e){}
+  renderLoadPanel();toast('Garmin disconnected');
+}
+async function gapiFetchActs(limit){
+  const out=new Map(),jobs=[],c=gapiCfg(),id=gcLink();
+  if(id)jobs.push(fetch(GC_WORKER+'/gc/acts?link='+id,{cache:'no-store'}).then(r=>r.json()).then(d=>{
+    try{localStorage.setItem('br_gc_on',d.connected?'1':'0');}catch(e){}
+    (d.acts||[]).forEach(a=>{if(a&&a.id!=null)out.set(String(a.id),a);});}));
+  if(c.url&&c.key)jobs.push(fetch(c.url+'/acts?limit='+limit,{headers:{'X-Key':c.key}}).then(async r=>{let d={};try{d=await r.json();}catch(e){}
+    if(!r.ok||!Array.isArray(d.acts))throw new Error(d.error||('HTTP '+r.status));
+    d.acts.forEach(a=>{if(!a||a.id==null)return;const k=String(a.id),p=out.get(k);out.set(k,p?{...p,...a}:a);});}));
+  if(!jobs.length)return null;
+  const res=await Promise.allSettled(jobs);
+  if(!out.size){const bad=res.find(x=>x.status==='rejected');if(bad)throw bad.reason;}
+  return Array.from(out.values());
+}
+/* 22 Nov: GARMIN ACTIVITIES THAT ARE NOT A BOATRUN SESSION (gym, run, ride, a
+   row without the phone) go on the calendar as done "other workouts" with
+   Garmin's load, so the training load is complete. One per Garmin activity
+   (gid). Skipped: imports (Concept2 / Strava copies), activities that overlap a
+   BoatRun session (link those on the session page), and activities already on
+   a session. An item whose activity later gets linked to a session is removed. */
+/* 22 Nov: deleted Garmin other workouts are remembered (prefs.gcSkip) so the
+   next sync does not add them back; "Restore Garmin activities" undoes it.
+   { gid: { off:1|0, name, t, rev } }, merged by rev between apps. */
+function gcSkipGet(){try{const v=JSON.parse(localStorage.getItem('br_gc_skip')||'{}');return v&&typeof v==='object'&&!Array.isArray(v)?v:{};}catch(e){return {};}}
+function gcSkipMerge(r){if(!r||typeof r!=='object'||Array.isArray(r))return;const o=gcSkipGet();Object.keys(r).forEach(k=>{const x=r[k];if(x&&typeof x==='object'&&(!o[k]||(x.rev||0)>(o[k].rev||0)))o[k]=x;});try{localStorage.setItem('br_gc_skip',JSON.stringify(o));}catch(e){}}
+function gcSkipSet(gid,info,off){
+  const o=gcSkipGet();o[String(gid)]={...(o[String(gid)]||{}),...(info||{}),off:off?1:0,rev:Date.now()};
+  try{localStorage.setItem('br_gc_skip',JSON.stringify(o));}catch(e){}
+  try{if(AnalyserDrive.isSignedIn())AnalyserDrive.pullPrefs().then(cur=>{if(cur&&cur.gcSkip)gcSkipMerge(cur.gcSkip);return AnalyserDrive.pushPrefs({gcSkip:gcSkipGet()});}).catch(()=>{});}catch(e){}
+}
+function gcSkipped(gid){const e=gcSkipGet()[String(gid)];return !!(e&&e.off);}
+function gcSkipList(){const o=gcSkipGet();return Object.keys(o).filter(k=>o[k]&&o[k].off).map(k=>({gid:k,...o[k]})).sort((a,b)=>(b.t||0)-(a.t||0));}
+function gcRestoreModal(){
+  document.getElementById('gc-rest-ov')?.remove();
+  const L=gcSkipList(),ov=document.createElement('div');ov.id='gc-rest-ov';
+  ov.style.cssText='position:fixed;inset:0;background:rgba(0,0,0,.6);z-index:100000;display:flex;align-items:flex-start;justify-content:center;padding:max(24px, env(safe-area-inset-top)) 16px 16px;overflow:auto;';
+  const esc=t=>String(t||'').replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+  ov.innerHTML='<div style="background:#fff;color:#000;border-radius:14px;padding:16px;width:100%;max-width:440px;font-family:-apple-system,Roboto,sans-serif;">'
+    +'<div style="font-size:16px;font-weight:800;margin-bottom:2px;">Restore Garmin activities</div><div style="font-size:12px;color:#555;margin-bottom:12px;">Garmin activities you deleted from the calendar. Restore puts them back with their load on the next Garmin check.</div>'
+    +(L.length?L.map(x=>'<div style="display:flex;align-items:center;gap:8px;padding:9px 0;border-bottom:1px solid #eee;"><span style="flex:1;font-size:13px;"><b>'+esc(x.name||'Garmin activity')+'</b><br><span style="color:#555;font-size:12px;">'+(x.t?new Date(x.t).toLocaleDateString('en-AU',{weekday:'short',day:'numeric',month:'short'})+' '+new Date(x.t).toLocaleTimeString('en-AU',{hour:'numeric',minute:'2-digit'}):'')+(x.load?' · load '+x.load:'')+'</span></span><button data-gcr="'+esc(x.gid)+'" style="padding:7px 12px;border-radius:8px;border:1.5px solid #1E88E5;background:#fff;color:#1E88E5;font-weight:800;font-size:12px;">RESTORE</button></div>').join(''):'<div style="font-size:13px;color:#555;padding:10px 0;">Nothing deleted.</div>')
+    +(L.length>1?'<button id="gc-rest-all" style="width:100%;margin-top:12px;padding:11px;border:none;border-radius:10px;background:#1E88E5;color:#fff;font-size:14px;font-weight:800;">RESTORE ALL</button>':'')
+    +'<button id="gc-rest-close" style="width:100%;margin-top:8px;padding:11px;border:1px solid #ccc;border-radius:10px;background:#fff;color:#333;font-size:14px;font-weight:700;">CLOSE</button></div>';
+  document.body.appendChild(ov);
+  const done=()=>{ov.remove();_gapiLast=0;gapiSync(true);};
+  ov.querySelector('#gc-rest-close').onclick=()=>ov.remove();
+  const all=ov.querySelector('#gc-rest-all');if(all)all.onclick=()=>{L.forEach(x=>gcSkipSet(x.gid,null,0));done();};
+  ov.querySelectorAll('[data-gcr]').forEach(b=>b.onclick=()=>{gcSkipSet(b.dataset.gcr,null,0);done();});
+}
+function gActName(a){const t=String(a.type||'').replace(/_V\d+$/,'').toLowerCase().split('_').filter(Boolean).map(w=>w.charAt(0).toUpperCase()+w.slice(1)).join(' ');return (a.name||t||'Activity')+' (Garmin)';}
+function gapiOthers(acts,S,onSess,getList,setList,dayKey){
+  const span=S.map(x=>[+x.start-5*60000,+x.start+(x.dur||0)*1000+5*60000]),touched={};let n=0;
+  const listOf=k=>touched[k]||getList(k).slice();
+  /* items whose activity is now on a session: remove */
+  const cut=Date.now()-60*86400e3;
+  acts.forEach(a=>{if(a&&a.t&&onSess.has(String(a.id))){const k=dayKey(a.t),L=listOf(k),keep=L.filter(x=>String(x.gid)!==String(a.id));if(keep.length!==L.length){touched[k]=keep;n++;}}});
+  acts.forEach(a=>{
+    if(!a||!a.t||a.t<cut||a.dev===false||onSess.has(String(a.id))||gcSkipped(a.id))return;   // deleted by the user: see gcRestoreModal
+    const dur=+(a.dur||a.fitDur||0),end=a.t+dur*1000;
+    if(span.some(([s,e])=>a.t<e&&end>s))return;
+    if(!(a.load>0)&&!(dur>60))return;
+    const d=new Date(a.t),k=dayKey(a.t),L=listOf(k),i=L.findIndex(x=>String(x.gid)===String(a.id));
+    const it={type:'other',text:gActName(a),min:Math.round(dur/60),load:a.load>0?Math.round(a.load):0,time:String(d.getHours()).padStart(2,'0')+':'+String(d.getMinutes()).padStart(2,'0'),done:1,gid:a.id,src:'garmin'};
+    if(a.ate!=null)it.ate=Math.round(a.ate*10)/10;if(a.ante!=null)it.ante=Math.round(a.ante*10)/10;
+    if(i>=0){const o=L[i];if(o.load===it.load&&o.min===it.min)return;L[i]={...o,load:it.load,min:it.min,ate:it.ate,ante:it.ante};}
+    else L.push({id:'gc'+a.id,...it});
+    touched[k]=L;n++;
+  });
+  Object.keys(touched).forEach(k=>setList(k,touched[k]));
+  return n;
+}
 let _gapiBusy=false,_gapiLast=0;
 async function gapiSync(loud){
-  const c=gapiCfg();if(!c.url||!c.key||_gapiBusy)return;
+  const c=gapiCfg();if(!(gcLink()||(c.url&&c.key))||_gapiBusy)return;
   if(!loud&&Date.now()-_gapiLast<10*60000)return;
   const F=tlFiles().filter(x=>x&&x.p&&x.p.approxTs);if(!F.length){if(loud)toast('Garmin auto: open your sessions first');return;}
   _gapiBusy=true;if(loud)toast('Garmin auto: checking…');
   try{
-    const r=await fetch(c.url+'/acts?limit=60',{headers:{'X-Key':c.key}});
-    let d={};try{d=await r.json();}catch(e){}
-    if(!r.ok||!Array.isArray(d.acts))throw new Error(d.error||('HTTP '+r.status));
+    const d={acts:(await gapiFetchActs(60))||[]};
     _gapiLast=Date.now();
-    const garminW=tlWatch()==='garmin';let n=0,seen=0;
+    d.acts.sort((a,b)=>(b.dev!==false)-(a.dev!==false));   // watch-recorded first: a Concept2/Strava import never takes the session
+    const garminW=tlWatch()==='garmin',linked={};Object.keys(SESS_LOAD).forEach(k=>{const e=SESS_LOAD[k];if(e&&e.gid&&(e.load>0||e.ate!=null))linked[e.gid]=k;});let n=0,seen=0;
     d.acts.forEach(a=>{
       if(!a||!a.t||(a.load==null&&a.ate==null&&a.ante==null))return;
+      if(linked[a.id])return;   // already on a session
       let best=null,bd=10*60000;F.forEach(x=>{const dd=Math.abs(x.p.approxTs-a.t);if(dd<bd){bd=dd;best=x;}});
       if(!best)return;seen++;
       const k=tlSessKey(best),m=SESS_LOAD[k]||{},p={};
@@ -16009,10 +16118,14 @@ async function gapiSync(loud){
       if(a.label&&!m.lbl&&(p.ate!=null||p.load))p.lbl=a.label;
       if(!Object.keys(p).length)return;
       if(p.load)p.w='garmin';p.gid=a.id;
-      SESS_LOAD[k]={...m,...p,rev:Date.now()};n++;
+      SESS_LOAD[k]={...m,...p,rev:Date.now()};n++;linked[a.id]=k;
     });
-    if(n){tlSaveSess();renderLoadPanel();try{const el=document.getElementById('card-tload');if(el){el.outerHTML=tlCardHtml();tlCardBind();}}catch(e){}}
-    if(loud)toast(n?'Garmin auto: filled '+n+' session'+(n===1?'':'s'):(seen?'Garmin auto: all matched sessions already have numbers':'Garmin auto: no Garmin activity matches your sessions'),3500);
+    if(n){tlSaveSess();try{const el=document.getElementById('card-tload');if(el){el.outerHTML=tlCardHtml();tlCardBind();}}catch(e){}}
+    let no=0;
+    if(garminW&&!_wktCtx){try{
+      no=gapiOthers(d.acts,F.map(x=>({start:x.p.approxTs,dur:x.p.durS||0})),new Set(Object.keys(linked).map(String)),k=>calItemsOf(k),(k,L)=>calItemsSet(k,L),_dayKey);}catch(e){console.warn('gapiOthers',e);}}
+    if(n||no){renderLoadPanel();try{renderStartupCalendar();}catch(e){}}
+    if(loud)toast(n||no?'Garmin: '+[n?n+' session'+(n===1?'':'s')+' filled':'',no?no+' other workout'+(no===1?'':'s')+' added to the calendar':''].filter(Boolean).join(', '):(seen?'Garmin: matched sessions already have numbers':'Garmin: nothing new'),3500);
   }catch(e){if(loud)toast('Garmin auto failed: '+String(e.message||e).slice(0,120),5000);console.warn('gapi',e);}
   finally{_gapiBusy=false;}
 }
@@ -16286,7 +16399,7 @@ function renderLoadPanel(){
   const SG=tlSuggest(D);
   const fit=D.fit[n-1],fat=D.fat[n-1],form=D.form[n-1],fw=tlFormWord(form,fit);
   const box=(l,v,c,t)=>'<div title="'+t+'" style="flex:1;min-width:0;padding:8px 10px;border-radius:8px;background:var(--s2);border:1px solid var(--border);border-top:3px solid '+c+';"><div style="font-size:10px;color:var(--muted);letter-spacing:.05em;text-transform:uppercase;">'+l+'</div><div style="font-size:20px;font-weight:800;color:'+c+';">'+v+'</div></div>';
-  let h='<div class="sz-lhd" style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;">Training load<span style="font-size:12px;font-weight:700;color:'+fw[1]+';">'+fw[0]+'</span><span style="margin-left:auto;display:flex;gap:6px;flex-wrap:wrap;">'+'<select id="tl-watch" class="filt-chip" style="font-size:13px;padding:6px 10px;" title="Your watch: its load numbers train the model">'+Object.keys(WATCHES).map(k=>'<option value="'+k+'"'+(k===tlWatch()?' selected':'')+'>'+WATCHES[k].n+'</option>').join('')+'</select><button id="tl-hist" class="filt-chip" style="font-size:13px;padding:7px 14px;" title="Past sessions">'+(tlWSpec().eff?'Enter past efforts':'Enter '+tlWSpec().n+' loads')+'</button><button id="tl-gapi" class="filt-chip" style="font-size:13px;padding:7px 14px;'+(gapiCfg().url?'border-color:#27ae60;color:#27ae60;':'')+'" title="Fill Garmin load and training effect automatically">'+(gapiCfg().url?'Garmin auto \u2713':'Garmin auto')+'</button></span></div>'
+  let h='<div class="sz-lhd" style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;">Training load<span style="font-size:12px;font-weight:700;color:'+fw[1]+';">'+fw[0]+'</span><span style="margin-left:auto;display:flex;gap:6px;flex-wrap:wrap;">'+'<select id="tl-watch" class="filt-chip" style="font-size:13px;padding:6px 10px;" title="Your watch: its load numbers train the model">'+Object.keys(WATCHES).map(k=>'<option value="'+k+'"'+(k===tlWatch()?' selected':'')+'>'+WATCHES[k].n+'</option>').join('')+'</select><button id="tl-hist" class="filt-chip" style="font-size:13px;padding:7px 14px;" title="Past sessions">'+(tlWSpec().eff?'Enter past efforts':'Enter '+tlWSpec().n+' loads')+'</button>'+(tlWatch()==='garmin'?'<button id="tl-gc" class="filt-chip" style="font-size:13px;padding:7px 14px;'+(gcIsOn()?'border-color:#27ae60;color:#27ae60;':'background:#1E88E5;border-color:#1E88E5;color:#fff;')+'" title="Garmin training effect and load fill in by themselves">'+(gcIsOn()?'Garmin connected \u2713':'Connect Garmin')+'</button>':'')+(gcSkipList().length?'<button id="tl-gcrest" class="filt-chip" style="font-size:13px;padding:7px 14px;" title="Garmin activities you deleted from the calendar">Restore Garmin ('+gcSkipList().length+')</button>':'')+(gapiCfg().url?'<button id="tl-gapi" class="filt-chip" style="font-size:13px;padding:7px 14px;border-color:#27ae60;color:#27ae60;" title="Personal Garmin API key (advanced)">Garmin key \u2713</button>':'')+'</span></div>'
     +'<div style="display:flex;gap:8px;margin-bottom:8px;">'
     +box('Acute load',Math.round(fat),'#E53935','Load over the last 7 days (weighted to recent days)')
     +box('Chronic load',Math.round(fit),'#1E88E5','Your normal week: 6-week average weekly load')
@@ -16360,6 +16473,8 @@ function renderLoadPanel(){
   el.querySelectorAll('[data-tl-load]').forEach(s=>{s.onchange=()=>{const v=Math.max(0,Math.min(3000,Math.round(+s.value||0)));tlSetSess(s.dataset.tlLoad,{load:v,w:tlWatch()});};});
   const ws=document.getElementById('tl-watch');if(ws)ws.onchange=()=>tlWatchSet(ws.value);
   const gb=document.getElementById('tl-gapi');if(gb)gb.onclick=gapiSetup;
+  const gr=document.getElementById('tl-gcrest');if(gr)gr.onclick=gcRestoreModal;
+  const gc=document.getElementById('tl-gc');if(gc)gc.onclick=()=>{if(gcIsOn())gcDisconnect();else gcConnect();};
   el.querySelectorAll('[data-tl-prpe]').forEach(s=>{s.onchange=()=>tlSetSess(s.dataset.tlPrpe,{rpe:(+s.value===+s.dataset.tlDef)?0:+s.value});});
   el.querySelectorAll('[data-tl-plan]').forEach(b=>{b.onclick=()=>{try{planAdd(todayK,b.dataset.tlPlan);}catch(e){}try{renderStartupCalendar();}catch(e){}renderLoadPanel();};});
   const tb=document.getElementById('tl-btp');if(tb)tb.onclick=btpOpen;
