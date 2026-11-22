@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
 <meta name="color-scheme" content="light dark"/>
-<meta name="br-build" content="Analyser_261120_34">
+<meta name="br-build" content="Analyser_261122_1">
 <title>BoatRun Analyser</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -12665,7 +12665,7 @@ async function showStartup(){
       catch(err){if(!driveAuthExpired(err)){toast('Load failed: '+err.message);if(el){el.style.opacity='';el.style.pointerEvents='';}}}
     };
     function renderList(){
-      {const _cf=fileList.map(f=>({f,p:parseFn(f.name)}));if(_wktCtx){_calPersonal={files:_cf,open:openSessFile};}else{_calFiles=_cf;_calOpen=openSessFile;renderStartupCalendar();}}
+      {const _cf=fileList.map(f=>({f,p:parseFn(f.name)}));if(_wktCtx){_calPersonal={files:_cf,open:openSessFile};}else{_calFiles=_cf;_calOpen=openSessFile;renderStartupCalendar();}setTimeout(()=>{try{gapiSync(false);}catch(e){}},1500);}
       renderSummary();
       renderRecords();
       container.innerHTML='';
@@ -15970,6 +15970,51 @@ function tlRecordHr(){
   tlSaveSess();tlRenderSoon();
 }
 function tlSessKey(x){return 's'+Math.round((x.p.approxTs||0)/60000);}
+/* 22 Nov: GARMIN AUTO LOAD. The boatrun-garmin Worker reads your own Garmin
+   Connect activities (Garmin Personal API). Each one is matched to the session
+   that started within 10 min of it, and fills load, aerobic TE and anaerobic TE
+   where they are still empty (numbers you typed are never replaced). Saved to
+   SESS_LOAD like typed numbers, so Metrics and the panel see them too. */
+function gapiCfg(){try{const c=JSON.parse(localStorage.getItem('br_gapi')||'{}');return c&&typeof c==='object'?c:{};}catch(e){return {};}}
+function gapiSetup(){
+  const c=gapiCfg();
+  const url=prompt('Garmin auto load\n\nWorker address (clear it to turn Garmin auto off):',c.url||'https://boatrun-garmin.davidmacready74.workers.dev');
+  if(url===null)return;
+  if(!url.trim()){try{localStorage.removeItem('br_gapi');}catch(e){}toast('Garmin auto off');renderLoadPanel();return;}
+  const key=prompt('Worker READ_KEY (the same text you saved in the Worker):',c.key||'');
+  if(key===null)return;
+  try{localStorage.setItem('br_gapi',JSON.stringify({url:url.trim().replace(/\/+$/,''),key:key.trim()}));}catch(e){}
+  renderLoadPanel();gapiSync(true);
+}
+let _gapiBusy=false,_gapiLast=0;
+async function gapiSync(loud){
+  const c=gapiCfg();if(!c.url||!c.key||_gapiBusy)return;
+  if(!loud&&Date.now()-_gapiLast<10*60000)return;
+  const F=tlFiles().filter(x=>x&&x.p&&x.p.approxTs);if(!F.length){if(loud)toast('Garmin auto: open your sessions first');return;}
+  _gapiBusy=true;if(loud)toast('Garmin auto: checking…');
+  try{
+    const r=await fetch(c.url+'/acts?limit=60',{headers:{'X-Key':c.key}});
+    let d={};try{d=await r.json();}catch(e){}
+    if(!r.ok||!Array.isArray(d.acts))throw new Error(d.error||('HTTP '+r.status));
+    _gapiLast=Date.now();
+    const garminW=tlWatch()==='garmin';let n=0,seen=0;
+    d.acts.forEach(a=>{
+      if(!a||!a.t||(a.load==null&&a.ate==null&&a.ante==null))return;
+      let best=null,bd=10*60000;F.forEach(x=>{const dd=Math.abs(x.p.approxTs-a.t);if(dd<bd){bd=dd;best=x;}});
+      if(!best)return;seen++;
+      const k=tlSessKey(best),m=SESS_LOAD[k]||{},p={};
+      if(garminW&&a.load>0&&!(m.load>0))p.load=Math.round(a.load);
+      if(a.ate!=null&&m.ate==null)p.ate=Math.round(a.ate*10)/10;
+      if(a.ante!=null&&m.ante==null)p.ante=Math.round(a.ante*10)/10;
+      if(!Object.keys(p).length)return;
+      if(p.load)p.w='garmin';p.gid=a.id;
+      SESS_LOAD[k]={...m,...p,rev:Date.now()};n++;
+    });
+    if(n){tlSaveSess();renderLoadPanel();try{const el=document.getElementById('card-tload');if(el){el.outerHTML=tlCardHtml();tlCardBind();}}catch(e){}}
+    if(loud)toast(n?'Garmin auto: filled '+n+' session'+(n===1?'':'s'):(seen?'Garmin auto: all matched sessions already have numbers':'Garmin auto: no Garmin activity matches your sessions'),3500);
+  }catch(e){if(loud)toast('Garmin auto failed: '+String(e.message||e).slice(0,120),5000);console.warn('gapi',e);}
+  finally{_gapiBusy=false;}
+}
 /* The model's own figure for a session, before any Garmin number: kind is
    'eff' (effort entered), 'hr' (heart rate) or 'est' (minutes at effort 4). */
 function tlModel(x){
@@ -16239,7 +16284,7 @@ function renderLoadPanel(){
   const SG=tlSuggest(D);
   const fit=D.fit[n-1],fat=D.fat[n-1],form=D.form[n-1],fw=tlFormWord(form,fit);
   const box=(l,v,c,t)=>'<div title="'+t+'" style="flex:1;min-width:0;padding:8px 10px;border-radius:8px;background:var(--s2);border:1px solid var(--border);border-top:3px solid '+c+';"><div style="font-size:10px;color:var(--muted);letter-spacing:.05em;text-transform:uppercase;">'+l+'</div><div style="font-size:20px;font-weight:800;color:'+c+';">'+v+'</div></div>';
-  let h='<div class="sz-lhd" style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;">Training load<span style="font-size:12px;font-weight:700;color:'+fw[1]+';">'+fw[0]+'</span><span style="margin-left:auto;display:flex;gap:6px;flex-wrap:wrap;">'+'<select id="tl-watch" class="filt-chip" style="font-size:13px;padding:6px 10px;" title="Your watch: its load numbers train the model">'+Object.keys(WATCHES).map(k=>'<option value="'+k+'"'+(k===tlWatch()?' selected':'')+'>'+WATCHES[k].n+'</option>').join('')+'</select><button id="tl-hist" class="filt-chip" style="font-size:13px;padding:7px 14px;" title="Past sessions">'+(tlWSpec().eff?'Enter past efforts':'Enter '+tlWSpec().n+' loads')+'</button></span></div>'
+  let h='<div class="sz-lhd" style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;">Training load<span style="font-size:12px;font-weight:700;color:'+fw[1]+';">'+fw[0]+'</span><span style="margin-left:auto;display:flex;gap:6px;flex-wrap:wrap;">'+'<select id="tl-watch" class="filt-chip" style="font-size:13px;padding:6px 10px;" title="Your watch: its load numbers train the model">'+Object.keys(WATCHES).map(k=>'<option value="'+k+'"'+(k===tlWatch()?' selected':'')+'>'+WATCHES[k].n+'</option>').join('')+'</select><button id="tl-hist" class="filt-chip" style="font-size:13px;padding:7px 14px;" title="Past sessions">'+(tlWSpec().eff?'Enter past efforts':'Enter '+tlWSpec().n+' loads')+'</button><button id="tl-gapi" class="filt-chip" style="font-size:13px;padding:7px 14px;'+(gapiCfg().url?'border-color:#27ae60;color:#27ae60;':'')+'" title="Fill Garmin load and training effect automatically">'+(gapiCfg().url?'Garmin auto \u2713':'Garmin auto')+'</button></span></div>'
     +'<div style="display:flex;gap:8px;margin-bottom:8px;">'
     +box('Acute load',Math.round(fat),'#E53935','Load over the last 7 days (weighted to recent days)')
     +box('Chronic load',Math.round(fit),'#1E88E5','Your normal week: 6-week average weekly load')
@@ -16312,6 +16357,7 @@ function renderLoadPanel(){
   el.querySelectorAll('[data-tl-rpe]').forEach(s=>{s.onchange=()=>tlSetSess(s.dataset.tlRpe,{rpe:s.value?+s.value:0});});
   el.querySelectorAll('[data-tl-load]').forEach(s=>{s.onchange=()=>{const v=Math.max(0,Math.min(3000,Math.round(+s.value||0)));tlSetSess(s.dataset.tlLoad,{load:v,w:tlWatch()});};});
   const ws=document.getElementById('tl-watch');if(ws)ws.onchange=()=>tlWatchSet(ws.value);
+  const gb=document.getElementById('tl-gapi');if(gb)gb.onclick=gapiSetup;
   el.querySelectorAll('[data-tl-prpe]').forEach(s=>{s.onchange=()=>tlSetSess(s.dataset.tlPrpe,{rpe:(+s.value===+s.dataset.tlDef)?0:+s.value});});
   el.querySelectorAll('[data-tl-plan]').forEach(b=>{b.onclick=()=>{try{planAdd(todayK,b.dataset.tlPlan);}catch(e){}try{renderStartupCalendar();}catch(e){}renderLoadPanel();};});
   const tb=document.getElementById('tl-btp');if(tb)tb.onclick=btpOpen;
