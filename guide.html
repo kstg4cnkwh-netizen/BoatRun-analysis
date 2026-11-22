@@ -110,11 +110,15 @@ img.inline{display:inline;margin:0 3px;vertical-align:-.32em;height:1.45em;width
 <div class="box">
 <p><strong>Changed in this version</strong></p>
 <ul>
+<li><strong>Garmin Connect</strong> <span class="new">NEW</span> - connect once and Garmin's load and training effect fill in on your sessions by themselves; your other Garmin activities count in your load. See <a href="#garmin-connect">Garmin Connect</a>.</li>
+<li><strong>Setups for watches, Strava, Garmin Connect and the Concept2 Logbook</strong>, so nothing turns up twice. See <a href="#connections">Watches and connections</a>.</li>
+<li><strong>The Analyser</strong>: Planning and Load are now one <strong>Plan &amp; Load</strong> tab, and <strong>Showing: Me or a squad</strong> switches Plan &amp; Load, Results and Trends between you and a squad. New <strong>Head to Head</strong> on Results, Trends per boat and per athlete, a courses map on Navigation, and the training load box in each session. See <a href="#analyser">Analyser</a>.</li>
+<li><strong>Auto lock on start</strong> - the screen locks when you tap Start, Resume or Lap. See <a href="#display-system">Screen Settings</a>.</li>
+<li>On iPhone, <strong>recording carries on</strong> if a splash or notification sends BoatRun to the background. See <a href="#record">Recording</a>.</li>
 <li><strong>Coaching is free.</strong> There is no Coach plan to buy any more - anyone can coach. What a coach receives depends on each rower's plan: a <strong>Pro</strong> rower sends everything, a <strong>Basic</strong> rower sends their position only. See <a href="#plans">Basic and Pro</a>.</li>
 <li><strong>Squad owners and coach access.</strong> Whoever creates a squad owns it, and approves anyone else who asks to coach it. Only the squad's coaches can plan it, set up its erg races and see each athlete's load. See <a href="#coach-access">Coach access</a>.</li>
 <li><strong>Training load.</strong> One load number per session on a Garmin-style scale, acute and chronic load, load ratio, a daily check-in, your watch's own numbers, and today's suggested workout with its optimal load. In the app under <strong>LOG → LOAD</strong>, and the Analyser's <strong>Load</strong> tab. See <a href="#load">Training load</a>.</li>
 <li><strong>Season plan.</strong> The Analyser lays your season out week by week in loading cycles - Medium, Hard and Recovery weeks - with a target load for each, lined up with every race. See <a href="#an-season">Season plan</a>.</li>
-<li><strong>The Analyser start page has five tabs</strong>: Planning, Load, Results, Trends and Navigation. Your squads' plans now sit on your own calendar, and workouts drag straight onto a day or a week. The separate planning window has gone. See <a href="#analyser">Analyser</a>.</li>
 <li><strong>Watch numbers</strong> - Garmin TE and load (or your Polar, Coros, Suunto or Fitbit load, or an effort for Apple Watch and Whoop) on the save card and each session's page.</li>
 </ul>
 </div>
@@ -272,8 +276,46 @@ img.inline{display:inline;margin:0 3px;vertical-align:-.32em;height:1.45em;width
 <li>Every finished session uploads by itself. On a new phone, sign in and link Drive and your sessions come back on their own. You never need to sync by hand. <strong>Sync now</strong> (Drive linked → Account &amp; Plan) is only there for when something you expect hasn't arrived.</li>
 </ul>
 
-<h2>Strava</h2>
-<p>Strava is linked separately in <strong>SETTINGS → STRAVA SYNC</strong> (Pro). Every session uploads after you finish. If your Garmin watch also uploads the row to Strava, tick <strong>Garmin watch also uploads to Strava</strong> and BoatRun adds its data to the Garmin activity instead of making a duplicate.</p>
+<h2 id="connections">Watches, Strava, Garmin Connect and Concept2 <span class="new">NEW</span></h2>
+<p>BoatRun can send your sessions to Strava and the Concept2 Logbook, and read training load from your watch. Watches, Strava, Garmin Connect and the Logbook can also send to each other, so the same row can easily turn up two or three times. <strong>The rule: every place gets each session from one source only.</strong> Find your setup below.</p>
+
+<div class="tblwrap">
+<table class="lead">
+<tr><th>Your setup</th><th>In BoatRun</th><th>Elsewhere</th><th>What you get</th></tr>
+<tr><td>Phone only, no watch</td><td>YOUR WATCH: <strong>No watch</strong>. STRAVA SYNC: on (Pro). Erg: CONCEPT2 LOGBOOK on.</td><td>Nothing.</td><td>One Strava activity per session. Load is worked out by BoatRun from your effort, heart rate or time.</td></tr>
+<tr><td>Garmin watch, recording the row on the watch too</td><td>YOUR WATCH: <strong>Garmin</strong>, then <strong>Garmin Connect → CONNECT</strong>. STRAVA SYNC: tick <strong>Garmin watch also uploads to Strava</strong>.</td><td>Garmin Connect → Strava: on. Concept2 Logbook: unlink it from Garmin Connect and Strava.</td><td>One Strava activity (Garmin's, with BoatRun's data added). Garmin's load and training effect on each session. Gym, runs and rides counted in your load.</td></tr>
+<tr><td>Garmin watch, but not recording rows on it</td><td>YOUR WATCH: <strong>Garmin</strong>, then <strong>Garmin Connect → CONNECT</strong>. STRAVA SYNC: on, <em>not</em> ticked.</td><td>Garmin Connect → Strava: on, for your other activities.</td><td>BoatRun's Strava activity for rows. Your other Garmin activities counted in your load.</td></tr>
+<tr><td>Apple Watch</td><td>YOUR WATCH: <strong>Apple Watch</strong> (you give each session an effort, 1-10). STRAVA SYNC: on.</td><td>Don't record the row on the watch, or turn off Strava's Apple Health import, or the row appears twice.</td><td>One Strava activity. Load from your effort and heart rate.</td></tr>
+<tr><td>Coros, Polar, Suunto or Fitbit</td><td>YOUR WATCH: your brand. Type the watch's load on the save card, or later.</td><td>If the watch uploads the row to Strava, turn off BoatRun's STRAVA SYNC, or the watch's Strava upload.</td><td>One Strava activity. Your watch's load on each session, typed in.</td></tr>
+<tr><td>Whoop</td><td>YOUR WATCH: <strong>Whoop</strong> (effort, 1-10). STRAVA SYNC: on.</td><td>Nothing.</td><td>One Strava activity. Load from your effort and heart rate.</td></tr>
+<tr><td>Erg, with the Concept2 Logbook</td><td>CONCEPT2 LOGBOOK: linked. Each erg piece uploads after you finish.</td><td>In the Logbook, Profile → Applications: unlink Garmin Connect and Strava.</td><td>One Logbook entry, one Strava activity, one Garmin activity (from the watch, if worn).</td></tr>
+</table>
+</div>
+
+<h3 id="garmin-connect">Garmin Connect</h3>
+<p class="where">Where: <b>HOME → SETTINGS → YOUR WATCH</b> (watch set to Garmin), or <b>Connect Garmin</b> in the Analyser's Training load panel</p>
+<ol>
+<li>Tap <strong>CONNECT</strong>. Garmin's own sign-in page opens.</li>
+<li>Sign in and tap <strong>Agree</strong>, then <strong>Done</strong> to come back to BoatRun.</li>
+<li>Connecting in the app also connects the Analyser, and the other way round.</li>
+</ol>
+<p>After your watch syncs, BoatRun fills in Garmin's <strong>load</strong>, <strong>aerobic training effect</strong> and <strong>anaerobic training effect</strong> on the session that started within 10 minutes of the Garmin activity. Numbers you typed yourself are never replaced.</p>
+<ul>
+<li><strong>Only activities recorded after you connect</strong> come through. Type older ones in, or use <strong>Enter Garmin loads</strong> in the Analyser.</li>
+<li><strong>Watch and phone started far apart?</strong> Open the session and tap <strong>LINK GARMIN ACTIVITY</strong>. Pick the right activity from those within 24 hours. Its numbers replace the session's.</li>
+<li><strong>Other activities</strong> - gym, runs, rides, or a row without the phone - go on the calendar as done other workouts with Garmin's load, named like "Strength Training (Garmin)". Activities copied in from the Concept2 Logbook or Strava are skipped, so nothing is counted twice.</li>
+<li><strong>Deleting one</strong> asks first, and is remembered so it doesn't come back. <strong>RESTORE GARMIN ACTIVITIES</strong> in YOUR WATCH (or <strong>Restore Garmin</strong> in the Analyser) puts it back.</li>
+<li><strong>DISCONNECT</strong> stops it and removes BoatRun from your Garmin account. Numbers already on your sessions stay. Deleting your BoatRun account disconnects Garmin too.</li>
+</ul>
+
+<h3>Strava</h3>
+<p>Linked in <strong>SETTINGS → STRAVA SYNC</strong> (Pro). Every session uploads after you finish. If your Garmin watch also uploads the row to Strava, tick <strong>Garmin watch also uploads to Strava</strong> and BoatRun adds its data to the Garmin activity instead of making a duplicate. This only works with Garmin. Turning off the Strava upload on the save card only stops BoatRun's upload - a watch or the Logbook linked to Strava still sends its own copy.</p>
+
+<h3>Concept2 Logbook</h3>
+<p>Linked in <strong>SETTINGS → CONCEPT2 LOGBOOK</strong>. Each erg piece uploads when it finishes; tap <strong>Upload to C2 Logbook</strong> on the save card to skip one. The Logbook can pass workouts on to Garmin Connect and Strava. If yours does, each erg piece shows up twice there - unlink them in the Logbook under <strong>Profile → Applications</strong>.</p>
+
+<h3>Apple Health</h3>
+<p>BoatRun doesn't read from or write to Apple Health. For Apple Watch load, set YOUR WATCH to Apple Watch and give each session an effort.</p>
 
 <hr/>
 
@@ -535,7 +577,7 @@ img.inline{display:inline;margin:0 3px;vertical-align:-.32em;height:1.45em;width
 <p>The sector result card works the same way - see <a href="#sectors">Sectors and courses</a>.</p>
 
 <h2>Protecting the screen from splashes</h2>
-<p>Use the <strong>LOCK</strong> button to stop water changing screens. You'll need to unlock to press LAP, change tabs or finish. For more protection, use Guided Access on iPhone (triple-click the side button) or Screen Pinning on Android.</p>
+<p>Use the <strong>LOCK</strong> button to stop water changing screens; slide to unlock. You'll need to unlock to press LAP, change tabs or finish. Turn on <strong>AUTO LOCK ON START</strong> in DISPLAY → Screen Settings and it locks by itself when you tap Start, Resume or Lap - hold the Lock button to switch auto lock on or off mid-session. On iPhone, if a splash or a notification sends BoatRun to the background, recording carries on and your full GPS track and distance are kept. For complete protection use Guided Access on iPhone (triple-click the side button) or Screen Pinning on Android.</p>
 
 <h2>Stopping and finishing</h2>
 <p><strong>STOP</strong> pauses, <strong>RESUME</strong> continues, <strong>FINISH</strong> ends and saves. Name the session, or tap NO NAME.</p>
@@ -622,6 +664,7 @@ img.inline{display:inline;margin:0 3px;vertical-align:-.32em;height:1.45em;width
 <tr><td>TEXT SIZE (HOME SCREEN)</td><td>STANDARD or LARGER for everything on HOME.</td></tr>
 <tr><td>LAP SUMMARY TIMEOUT</td><td>0–60 s, default 6. 0 = off.</td></tr>
 <tr><td>SECTOR RESULT TIMEOUT</td><td>0–60 s, default 10. 0 = off.</td></tr>
+<tr><td>AUTO LOCK ON START</td><td>OFF or ON. Locks the screen when you tap Start, Resume or Lap. Hold the Lock button on the live screen to turn it on or off mid-session.</td></tr>
 </table>
 </div>
 <p class="note">Units, clock, surge axis and target beeps are in <strong>SETTINGS → SYSTEM SETTINGS</strong> - see <a href="#settings">Settings reference</a>.</p>
@@ -788,7 +831,7 @@ img.inline{display:inline;margin:0 3px;vertical-align:-.32em;height:1.45em;width
 
 <!-- ==================== 13 ==================== -->
 <h1 id="calendar">13. Calendar, planning and training load <span class="chg">CHANGED</span></h1>
-<p class="where">Where: <b>HOME → LOG → CALENDAR</b> and <b>LOAD</b>, and the Analyser's <b>Planning</b> and <b>Load</b> tabs</p>
+<p class="where">Where: <b>HOME → LOG → CALENDAR</b> and <b>LOAD</b>, and the Analyser's <b>Plan &amp; Load</b> tab</p>
 
 <img class="w-md" src="screenshots/log-calendar.png" alt="Log calendar with sessions and planned workouts" loading="lazy"/>
 
@@ -807,24 +850,25 @@ img.inline{display:inline;margin:0 3px;vertical-align:-.32em;height:1.45em;width
 <p>On the day, when you open the app, a <strong>SUGGESTED WORKOUT</strong> card pops up with a <strong>LOAD</strong> button for each workout planned for today. Tap one, or <strong>NOT NOW</strong>. It only offers on-water workouts when you're rowing and erg workouts when you're on the erg, and never pops up mid-session.</p>
 
 <h2 id="load">Training load <span class="new">NEW</span></h2>
-<p class="where">Where: <b>HOME → LOG → LOAD</b>, and the Analyser's <b>Load</b> tab</p>
+<p class="where">Where: <b>HOME → LOG → LOAD</b>, and the Analyser's <b>Plan &amp; Load</b> tab</p>
 <p>Every session gets one load number on a Garmin-style scale - an easy hour is about 50-70, a hard hour 200 or more. From those numbers BoatRun works out:</p>
 <div class="tblwrap">
 <table class="lead">
-<tr><td>Acute load</td><td>Your last 7 days, weighted to the most recent.</td></tr>
-<tr><td>Chronic load</td><td>Your normal week - a 6-week average. Needs about 6 weeks of history to settle.</td></tr>
+<tr><td>Acute load</td><td>Your last 7 days as a week's load, with recent days counting more.</td></tr>
+<tr><td>Chronic load</td><td>Your normal week - the last 4 weeks as an average week. Needs 4 weeks of history to settle.</td></tr>
 <tr><td>Load ratio</td><td>Acute ÷ chronic. <strong>0.8 to 1.4 is optimal</strong>; under 0.8 there's room to add load, over 1.4 you're carrying more than usual.</td></tr>
 </table>
 </div>
+<p>These are worked out the way Garmin Connect does it, so with Garmin numbers on your sessions they come out within a few percent of Garmin's Training Load screen. They can still differ where BoatRun has sessions Garmin doesn't (rows without the watch, estimated loads) or the other way round.</p>
 <p><strong>Where each session's load comes from</strong>, in this order:</p>
 <ol>
-<li>Your watch's number, if you entered one (on the save card or the session's page).</li>
+<li>Your watch's number - typed on the save card or the session's page, or filled in by <a href="#garmin-connect">Garmin Connect</a>.</li>
 <li>An effort you set (1-10) × the minutes.</li>
 <li>Heart rate - every minute weighted by its HR zone.</li>
 <li>Otherwise an estimate: the minutes at effort 4.</li>
 </ol>
-<p>Once 3 or more sessions have a watch number, the rest are scaled to match your watch, separately for heart-rate, effort and estimated sessions. The app and the Analyser use the same numbers.</p>
-<p><strong>Your watch</strong> - pick it in <strong>SETTINGS → YOUR WATCH</strong> (also on LOG → LOAD and in the Analyser's Load tab). Each brand scores load its own way, so the load box is labelled with your watch's own figure and calibration only learns from that watch:</p>
+<p>Once 3 or more sessions have a watch number, the rest are scaled to match your watch, separately for heart-rate, effort and estimated sessions. With 5 or more it also follows the way your watch's load climbs faster on hard sessions. Session by session it won't match your watch exactly, but week totals come out close. The app and the Analyser use the same numbers. Other workouts count too - typed in, or brought in from Garmin.</p>
+<p><strong>Your watch</strong> - pick it in <strong>SETTINGS → YOUR WATCH</strong> (also on LOG → LOAD and in the Analyser's Plan &amp; Load tab). Each brand scores load its own way, so the load box is labelled with your watch's own figure and calibration only learns from that watch:</p>
 <div class="tblwrap">
 <table class="lead">
 <tr><th>Watch</th><th>What you enter</th></tr>
@@ -1100,7 +1144,7 @@ img.inline{display:inline;margin:0 3px;vertical-align:-.32em;height:1.45em;width
 <li><strong>Basic</strong> - your position only. Nothing else is sent.</li>
 </ul>
 <p>Your coach can send you workouts and templates and press lap for you. <strong>SHOW QR</strong> lets a crewmate scan the code off your phone.</p>
-<p><strong>SHARE TRAINING LOAD WITH COACH</strong> <span class="light">(Pro)</span> - in CONNECT SQUAD. Turn it on and the squad's coaches see your daily training load, load ratio and daily check-ins (sleep, soreness, energy, resting HR, HRV), so they can see how loaded you are. Off unless you turn it on; turn it off to remove it. It keeps updating after the live squad link drops, and you must be signed in. You can also turn it on from the Analyser's Load tab.</p>
+<p><strong>SHARE TRAINING LOAD WITH COACH</strong> <span class="light">(Pro)</span> - in CONNECT SQUAD. Turn it on and the squad's coaches see your daily training load, load ratio and daily check-ins (sleep, soreness, energy, resting HR, HRV), so they can see how loaded you are. Off unless you turn it on; turn it off to remove it. It keeps updating after the live squad link drops, and you must be signed in. You can also turn it on from the Analyser's Plan &amp; Load tab.</p>
 <p><strong>PROMPT TO JOIN SQUAD</strong> (in CONNECT SQUAD) opens the squad box for you - <strong>ON WATER</strong> as soon as the app opens on the live screen, <strong>ON ERG</strong> as soon as the PM5 connects, <strong>ALWAYS</strong>, or <strong>NEVER</strong>. Skipped if you're already in a squad.</p>
 <p class="note"><strong>Battery:</strong> a squad link stays open all session and uses noticeably more battery, especially when your coach is watching your curve. If you don't need to be watched live, don't connect - on Pro you can <strong>Send to squad</strong> from the log afterwards. Where phone reception is unreliable the live link may not work at all; recording carries on regardless.</p>
 <p><strong>AAAAAAA</strong> is an open test squad - no password, and sessions uploaded to it are deleted from the cloud after 7 days.</p>
@@ -1248,8 +1292,8 @@ img.inline{display:inline;margin:0 3px;vertical-align:-.32em;height:1.45em;width
 <p><strong>SESSIONS</strong> is the full list, newest first. Filter with <strong>All</strong>, <strong>On water</strong>, <strong>Erg</strong>, <strong>Squad</strong> (coach) and <strong>★</strong> favourites. Tap the star on a card to make it a favourite. Each card shows <strong>Synced</strong> once the Drive copy is confirmed, or <strong>Awaiting Sync</strong>. Tap a card to open it; swipe it left to reveal DELETE.</p>
 
 <h2>Session detail</h2>
-<p>Summary cards, colour-coded by what affects them - green independent, blue boat-dependent, red condition-dependent. Then lap tables, workout intervals, the sectors you rowed through, and charts for every metric.</p>
-<p><strong>RENAME</strong> names the session (the Drive copy updates too). <strong>Analyser ↗</strong> opens it in the Analyser. Your watch numbers (or effort) show near the top with <strong>EDIT</strong>, or a <strong>+</strong> button to add them - see <a href="#load">Training load</a>.</p>
+<p>Summary cards, colour-coded by what affects them - green independent, blue boat-dependent, red condition-dependent. Then lap tables, workout intervals, the sectors you rowed through, and charts of <strong>pace, stroke rate, DPS and heart rate</strong>, each with a dashed best-fit line showing which way it went through the session.</p>
+<p><strong>RENAME</strong> names the session (the Drive copy updates too). <strong>Analyser ↗</strong> opens it in the Analyser. Your watch numbers (or effort) show near the top with <strong>EDIT</strong>, or a <strong>+</strong> button to add them - see <a href="#load">Training load</a>. With Garmin Connect set up, <strong>LINK GARMIN ACTIVITY</strong> picks the Garmin activity for this session by hand - see <a href="#garmin-connect">Garmin Connect</a>.</p>
 
 <h2>Importing a session someone recorded for you</h2>
 <p>If someone else in the boat recorded the session, ask them to send you the <strong>JSON</strong> export. Tap <strong>IMPORT</strong> on the Log and pick the file (or several). It goes into your log and your Drive like a session you rowed yourself. Imported sessions aren't sent to Strava or Concept2 automatically. A session already in your log is skipped. The Analyser can import into your sessions too.</p>
@@ -1340,21 +1384,33 @@ img.inline{display:inline;margin:0 3px;vertical-align:-.32em;height:1.45em;width
 <li><strong>✕ Back to session</strong> - returns to the session you had open.</li>
 </ul>
 
-<h2>The start page - five tabs</h2>
+<h2>The start page - four tabs <span class="chg">CHANGED</span></h2>
 <div class="tblwrap">
 <table class="lead">
 <tr><th>Tab</th><th>What's in it</th></tr>
-<tr><td>Planning</td><td>The season plan, your workouts and the calendar. See <a href="#an-season">Season plan</a> and <a href="#an-calendar">Calendar</a>.</td></tr>
-<tr><td>Load</td><td>Training load, today's suggestion and, for coaches, the squad's load. See <a href="#an-load">Load</a>.</td></tr>
-<tr><td>Results</td><td>Your sessions, Summary and Personal Bests, and what to watch in the boat.</td></tr>
-<tr><td>Trends</td><td>What makes the boat faster, across your sessions.</td></tr>
-<tr><td>Navigation</td><td>Sectors, and lanes, dividers and hazards. See <a href="#an-sectors">Sectors</a> and <a href="#an-lines">Lanes and hazards</a>.</td></tr>
+<tr><td>Plan &amp; Load</td><td>The season plan, then training load underneath, then your workouts and the calendar - all in one tab. See <a href="#an-season">Season plan</a>, <a href="#an-load">Load</a> and <a href="#an-calendar">Calendar</a>.</td></tr>
+<tr><td>Results</td><td><strong>Head to Head</strong>, your sessions, Summary and Personal Bests. See <a href="#an-h2h">Head to Head</a>.</td></tr>
+<tr><td>Trends</td><td>What makes the boat faster, pooled across your sessions. See <a href="#an-trends">Trends</a>.</td></tr>
+<tr><td>Navigation</td><td>Sectors, lanes, dividers and hazards, and the courses map. See <a href="#an-nav">Navigation</a>.</td></tr>
 </table>
 </div>
-<p>The <strong>Sessions</strong> list (Results tab) shows every session as a card, newest first - a blue edge and wave icon for on-water, a red edge and erg icon for erg, with the boat type beside the date. Search from the box in the header. Filter by <strong>All / On water / Erg</strong>, <strong>★</strong> favourites, <strong>Boat</strong> (pick one boat type), <strong>Mixed</strong> and <strong>Coastal</strong>, and sort with <strong>Sort</strong>. <strong>Tag boats…</strong> puts a tick box on every session so you can set the boat type for several at once (sessions from a squad or with a workout can't be changed). <strong>Sign out</strong> is at the top of this pane.</p>
+
+<h3 id="an-showing">Showing: Me or a squad <span class="new">NEW</span></h3>
+<p>Under the tabs, <strong>Showing</strong> picks whose plan, load, results and trends you see: <strong>Me</strong>, or one of your squads. It's one or the other, never mixed on one screen, and your choice is remembered.</p>
+<div class="tblwrap">
+<table class="lead">
+<tr><th></th><th>Me</th><th>A squad</th></tr>
+<tr><td>Plan &amp; Load</td><td>Your season plan, your load, your calendar and workouts</td><td>The squad's calendar and workouts and, for the squad's coaches, each athlete's load</td></tr>
+<tr><td>Results</td><td>Your sessions</td><td>Every session sent to the squad</td></tr>
+<tr><td>Trends</td><td>Your trends</td><td>Trends for each athlete, from the squad's sessions</td></tr>
+</table>
+</div>
+<p>Opening a squad session and coming back keeps you on that squad. A squad with a password asks for it the first time.</p>
+
+<p>The <strong>Sessions</strong> list (Results tab, when showing Me) shows every session as a card, newest first - a blue edge and wave icon for on-water, a red edge and erg icon for erg, with the boat type beside the date. Search from the box in the header. Filter by <strong>All / On water / Erg</strong>, <strong>★</strong> favourites, <strong>Boat</strong> (pick one boat type), <strong>Mixed</strong> and <strong>Coastal</strong>, and sort with <strong>Sort</strong>. <strong>Tag boats…</strong> puts a tick box on every session so you can set the boat type for several at once (sessions from a squad or with a workout can't be changed). <strong>Sign out</strong> is at the top of this pane. <strong>Coach Sessions</strong>, <strong>From Squad</strong>, <strong>Open file</strong>, <strong>Import to my sessions</strong> and <strong>Demo session</strong> sit beside Head to Head.</p>
 
 <h2 id="an-season">Season plan <span class="new">NEW</span></h2>
-<p class="where">Where: <b>Planning</b> tab, top</p>
+<p class="where">Where: <b>Plan &amp; Load</b> tab, top</p>
 <p>Your season as a row of weeks you scroll sideways, from 8 weeks back to beyond your last race. Each week shows:</p>
 <ul>
 <li>a <strong>coloured bar</strong> on top for its block - Base, Build, Peak, Taper, Race, counted back from the next A race,</li>
@@ -1370,7 +1426,7 @@ img.inline{display:inline;margin:0 3px;vertical-align:-.32em;height:1.45em;width
 
 <h2 id="an-calendar">Workouts and calendar <span class="chg">CHANGED</span></h2>
 <img class="w-lg" src="screenshots/analyser-calendar.png" alt="Analyser start page calendar" loading="lazy"/>
-<p class="where">Where: <b>Planning</b> tab, under the season plan</p>
+<p class="where">Where: <b>Plan &amp; Load</b> tab, under the training load</p>
 <p><strong>The Workouts pane</strong> keeps your workout library on screen:</p>
 <ul>
 <li>Along the top: <strong>+ ON-WATER WORKOUT</strong> and <strong>+ ERG WORKOUT</strong> create a new workout; <strong>+ OTHER WORKOUT</strong>, <strong>+ EVENT</strong> and <strong>+ NOTE</strong> go on the selected day (today if none); <strong>EDIT WORKOUTS</strong> opens the library.</li>
@@ -1389,20 +1445,42 @@ img.inline{display:inline;margin:0 3px;vertical-align:-.32em;height:1.45em;width
 <p>A day's details list your completed sessions, notes and events, your planned workouts (drag to reorder) and each squad's plan. Everyone can <strong>IMPORT</strong> a squad workout to their own plan; only the squad's coaches can remove one. Squad workouts don't count in your own load until imported.</p>
 <p>Planning your own workouts switches on by itself once BoatRun on your phone has synced with Drive. Until then the Analyser says so - open the app, signed in with Drive linked, then come back.</p>
 
-<h2 id="an-load">Load <span class="new">NEW</span></h2>
-<p class="where">Where: <b>Load</b> tab</p>
+<h2 id="an-load">Load <span class="chg">CHANGED</span></h2>
+<p class="where">Where: <b>Plan &amp; Load</b> tab, under the season plan</p>
 <ul>
-<li><strong>Acute load, chronic load and load ratio</strong>, with your watch picker and <strong>Enter … loads</strong> (or <strong>Enter past efforts</strong> for Apple Watch and Whoop) to fill in past sessions.</li>
+<li><strong>Acute load, chronic load and load ratio</strong>, with your watch picker and <strong>Enter … loads</strong> (or <strong>Enter past efforts</strong> for Apple Watch and Whoop) to fill in past sessions. The list shows BoatRun's own calibrated figure beside each box, so you can see how close it is to your watch.</li>
+<li><strong>Connect Garmin</strong> - Garmin's load and training effect fill in by themselves, and your other Garmin activities are added as other workouts. Green <strong>Garmin connected ✓</strong> once linked; tap it to disconnect. <strong>Restore Garmin (n)</strong> brings back Garmin activities you deleted. See <a href="#garmin-connect">Garmin Connect</a>.</li>
 <li><strong>The race ahead</strong> - your projected acute, chronic and ratio on race day, and whether you'll be fresh.</li>
 <li><strong>Suggested today</strong> - the workout type, why, the optimal load for today, and up to three workouts with <strong>Plan today</strong>.</li>
 <li><strong>The chart</strong> - daily load stacked by session (water blue, erg red, other orange, planned faded) with acute, chronic and ratio lines, blocks along the top, race markers and check-in colours. Hover a bar for its detail and <strong>Open session</strong>.</li>
 <li><strong>The selected day</strong> - its check-in, each session with an effort box and a watch-load box, planned workouts (effort adjustable for that day), and other workouts.</li>
 <li><strong>Share my load</strong> with your squads (Pro), and - for a squad's coaches - the <strong>Squad load</strong> table: every sharing athlete's acute, chronic and ratio, today's check-in, 8 weeks of load and when they last updated, riskiest first. Tap an athlete for detail.</li>
 </ul>
+<p><strong>In a session</strong>, the header shows the distance, duration, wind and the session's <strong>training load</strong> above the summary tiles. The load box has the load (and whether it came from your watch or from BoatRun's effort or heart rate figure), with aerobic and anaerobic TE stacked underneath when your watch gives them. Type or change your watch's numbers there.</p>
 <p>How the numbers work: <a href="#load">Training load</a>.</p>
 
+<h2 id="an-h2h">Head to Head <span class="new">NEW</span></h2>
+<p class="where">Where: <b>Results</b> tab, the <b>Head to Head</b> button</p>
+<p>Put sessions from different athletes, or different devices, side by side on the same stretch of water, then replay it.</p>
+<ol>
+<li><strong>Add sessions</strong> from <strong>Squad</strong> (sessions sent to a squad), <strong>My Drive</strong>, or <strong>Files</strong> - FIT, TCX, GPX or CSV from any watch or SpeedCoach. You can also drop files onto it. They stack in a list; <strong>×</strong> removes one.</li>
+<li><strong>Pick the stretch</strong> - choose one of your sectors, or tap a start and a finish on the map. <strong>Clear stretch</strong> starts again. If a session passes through the stretch more than once, each pass is added, so repeats of the same piece line up.</li>
+<li><strong>Compare</strong> - time, pace, rate and heart rate for each, and a stroke-by-stroke chart.</li>
+<li><strong>Play</strong> - the same replay as the sector compare: every boat moving on the map from the start line together. Choose which metrics show beside each boat.</li>
+</ol>
+<p><strong>Names</strong> - tap the pencil to change the name shown for a session. It only changes what's shown here, not the session itself, and is saved on this device.</p>
+<p><strong>Save as video</strong> - <strong>Zoomed</strong> (the default) follows the boats, <strong>Overview</strong> shows the whole stretch. Landscape or portrait, with the BoatRun logo. The same choice is in the sector replay's <strong>Export replay video</strong>.</p>
+
+<h2 id="an-trends">Trends <span class="chg">CHANGED</span></h2>
+<p class="where">Where: <b>Trends</b> tab (Pro)</p>
+<p>What makes each boat faster, pooled over all your sessions, one boat type at a time. For each metric you can change while rowing, it shows which way goes faster and how strongly, adjusted for stroke rate. Each point on a chart is one session's average in a rate band (10 strokes or more); dashed lines are the trend. Showing a squad gives the same for each athlete, from the squad's sessions.</p>
+
+<h2 id="an-nav">Navigation <span class="chg">CHANGED</span></h2>
+<p class="where">Where: <b>Navigation</b> tab</p>
+<p>Two cards: <strong>Sectors</strong> and <strong>Lanes &amp; hazards</strong> (side by side on a wide screen, as tabs on a narrow one). With nothing set up yet, it shows a world map of the ready-made courses on boatrun.au, with how many are ready to row, and a link to browse them. See <a href="#an-sectors">Sectors</a> and <a href="#an-lines">Lanes, dividers and hazards</a>.</p>
+
 <h2>Workouts</h2>
-<p><strong>EDIT WORKOUTS</strong> creates, edits and reorders your workouts on a big screen, including each one's planned effort. They appear in the app's WORKOUTS list. <strong>Set efforts</strong> (in the Load tab and Block templates) lists workouts with no effort yet.</p>
+<p><strong>EDIT WORKOUTS</strong> creates, edits and reorders your workouts on a big screen, including each one's planned effort. They appear in the app's WORKOUTS list. <strong>Set efforts</strong> (in Plan &amp; Load and Block templates) lists workouts with no effort yet.</p>
 
 <h2>Summary and Personal Bests</h2>
 <img class="fr w-sm" src="screenshots/summary-tab.png" alt="Analyser summary, personal bests and sessions" loading="lazy"/>
@@ -1586,7 +1664,7 @@ img.inline{display:inline;margin:0 3px;vertical-align:-.32em;height:1.45em;width
 <tr><td>Stroke templates</td><td>Arm, rename, delete, IMPORT TEMPLATE…. <a href="#tpl-phone">Templates</a>.</td></tr>
 <tr><td>Hazards &amp; Lanes</td><td>HAZARD WARNING DISTANCE, ALL HAZARDS, OFF-LINE ALERT, your lines, CLUB LINES. <a href="#lines">Lanes and hazards</a>.</td></tr>
 <tr><td>Map Display</td><td>Landscape MAP tab arrangement. <a href="#map-display">Map Display</a>.</td></tr>
-<tr><td>Screen Settings</td><td>DISPLAY MODE, TEXT SIZE (HOME SCREEN), LAP SUMMARY TIMEOUT, SECTOR RESULT TIMEOUT. <a href="#display-system">Screen Settings</a>.</td></tr>
+<tr><td>Screen Settings</td><td>DISPLAY MODE, TEXT SIZE (HOME SCREEN), LAP SUMMARY TIMEOUT, SECTOR RESULT TIMEOUT, AUTO LOCK ON START. <a href="#display-system">Screen Settings</a>.</td></tr>
 </table>
 </div>
 
@@ -1600,11 +1678,12 @@ img.inline{display:inline;margin:0 3px;vertical-align:-.32em;height:1.45em;width
 <tr><td>CREATE A NEW SQUAD ▾</td><td>Coach role. <a href="#coach">Coach mode</a>.</td></tr>
 <tr><td>SQUAD PASSWORD ▾</td><td>Coach role, once a squad is set.</td></tr>
 <tr><td>ERGOMETER (CONCEPT2 PM5)</td><td>Erg role. Connect or disconnect the PM5. <a href="#erg">Erg mode</a>.</td></tr>
-<tr><td>YOUR WATCH</td><td>Which watch's training load numbers you enter. Not shown in Coach role. <a href="#load">Training load</a>.</td></tr>
+<tr><td>YOUR WATCH ▾</td><td>Which watch's training load numbers you use, Garmin Connect, RESTORE GARMIN ACTIVITIES, personal API key (advanced). Not shown in Coach role. <a href="#connections">Watches and connections</a>, <a href="#load">Training load</a>.</td></tr>
 <tr><td>HR ZONES ▾</td><td>Max HR, LTHR, resting HR, age, zone model. <a href="#hr">Heart rate</a>.</td></tr>
 <tr><td>SYSTEM SETTINGS ▾</td><td>SURGE AXIS (AUTO / LANDSCAPE / PORTRAIT), VIDEO folder (coach), WORKOUT TARGET BEEPS, UNITS (pace, distance, sub-units), CLOCK (AUTO / 12 / 24 hour), CALENDAR WEEK STARTS.</td></tr>
 <tr><td>ACCOUNT &amp; PLAN</td><td>Sign in, link Drive, link Apple/Google, plan level, upgrade. <a href="#sync">Signing in</a>, <a href="#plans">Plans</a>.</td></tr>
-<tr><td>STRAVA SYNC</td><td>Link Strava; Garmin merge. <a href="#sync">Strava</a>.</td></tr>
+<tr><td>STRAVA SYNC</td><td>Link Strava; Garmin merge. <a href="#connections">Watches and connections</a>.</td></tr>
+<tr><td>CONCEPT2 LOGBOOK</td><td>Link the Logbook for erg uploads. <a href="#connections">Watches and connections</a>.</td></tr>
 <tr><td>YOUR DATA ▾</td><td>Storage, re-process, delete Drive data, prune squad, delete account. <a href="#data">Your data</a>.</td></tr>
 <tr><td>METRIC DEFINITIONS</td><td>What every metric means. <a href="#metrics">Metrics reference</a>.</td></tr>
 </table>
@@ -1777,10 +1856,10 @@ img.inline{display:inline;margin:0 3px;vertical-align:-.32em;height:1.45em;width
 <p class="qa"><b>Squad plan not appearing.</b> Log calendar → ⚙ → FOLLOW A SQUAD PLAN. If the squad has a password you'll be asked for it. In the Analyser, check the squad's chip is on. <a href="#calendar">Calendar</a></p>
 <p class="qa"><b>Phone calendar events not appearing.</b> Log calendar → ⚙ → PHONE CALENDAR: check it's on and points at a calendar the phone syncs. Allow BoatRun calendar access in the phone's settings.</p>
 <p class="qa"><b>No beeps on a work interval.</b> Volume up, phone off silent, and SETTINGS → SYSTEM SETTINGS → WORKOUT TARGET BEEPS on.</p>
-<p class="qa"><b>A session's load looks too low or too high.</b> Enter your watch's number for it (session page, or the Analyser's Load tab). After 3 or more, the rest are scaled to your watch. <a href="#load">Training load</a></p>
+<p class="qa"><b>A session's load looks too low or too high.</b> Enter your watch's number for it (session page, or the Analyser's Plan &amp; Load tab). After 3 or more, the rest are scaled to your watch. <a href="#load">Training load</a></p>
 <p class="qa"><b>The Analyser suggests a hard session after a poor check-in.</b> The check-in hasn't reached it yet - it says "no check-in for today has reached the Analyser yet". It arrives within a few minutes of the phone getting signal.</p>
 <p class="qa"><b>Load ratio shows –.</b> It needs a chronic load of at least 30 - about two weeks of sessions.</p>
-<p class="qa"><b>Where's the Planning window?</b> Gone - your plan and your squads' plans are on one calendar in the Planning tab. <a href="#an-calendar">Calendar</a></p>
+<p class="qa"><b>Where's the Planning window?</b> Gone - your plan and your squads' plans are on one calendar in the Plan &amp; Load tab. <a href="#an-calendar">Calendar</a></p>
 
 <h2>Sectors and courses</h2>
 <p class="qa"><b>No sector pop-up.</b> Approach the start heading the right way, with no workout running, and <strong>Show live sectors</strong> ticked. Pre-arm it to skip the pop-up. <a href="#sectors">Sectors</a></p>
@@ -1839,6 +1918,9 @@ img.inline{display:inline;margin:0 3px;vertical-align:-.32em;height:1.45em;width
 <p class="qa"><b>A pane is in the wrong place.</b> <strong>View</strong> in the header → change the pane order. <a href="#analyser">Analyser</a></p>
 <p class="qa"><b>Video won't sync from the code.</b> Step to the frame where the digits change, type the time and tap <strong>Use</strong>, or sync from the chart instead. <a href="#video-sync">Video Sync</a></p>
 <p class="qa"><b>Strava upload not appearing.</b> Pro only, and Strava must be linked. With the Garmin merge ticked, BoatRun waits for the Garmin activity to arrive first. For a manual upload, export FIT and add it as a Rowing activity.</p>
+<p class="qa"><b>The same row shows up two or three times in Strava or Garmin Connect.</b> More than one thing is sending it - usually the Concept2 Logbook or a watch as well as BoatRun. Each place should get each session from one source only. <a href="#connections">Watches and connections</a></p>
+<p class="qa"><b>Garmin numbers not filling in.</b> Check YOUR WATCH is set to Garmin and Garmin Connect shows DISCONNECT (so it's connected). Let the watch sync to Garmin Connect, then open the app again. Only activities recorded after you connected come through, and only for a session that started within 10 minutes - otherwise use LINK GARMIN ACTIVITY on the session. <a href="#garmin-connect">Garmin Connect</a></p>
+<p class="qa"><b>A gym session or run from Garmin is on my calendar.</b> That's on purpose - it counts in your training load. Delete it if you don't want it; RESTORE GARMIN ACTIVITIES brings it back. <a href="#garmin-connect">Garmin Connect</a></p>
 
 <p><em>Found a bug or have an idea? Email <a href="mailto:bigwig.91mash@icloud.com?subject=BoatRun%20feedback">bigwig.91mash@icloud.com</a>.</em></p>
 
