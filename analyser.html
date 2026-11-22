@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
 <meta name="color-scheme" content="light dark"/>
-<meta name="br-build" content="Analyser_261122_5">
+<meta name="br-build" content="Analyser_261122_7">
 <title>BoatRun Analyser</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -16144,12 +16144,39 @@ function tlModel(x){
 /* 17 Nov: every session with a typed Garmin load trains the model. Per kind,
    the median of Garmin / model (3+ sessions needed, held to 0.3-3x) scales
    the sessions that have no Garmin number. */
+/* 22 Nov: calibration that follows Garmin's curve. Garmin's load climbs much
+   faster than minutes x zone weight as a session gets harder, so one scale
+   factor read hard sessions low (160 vs 104) and easy ones high. With 5+
+   sessions per kind, fit Garmin/min = a x (model/min)^b on logs; keep it only
+   if it beats the plain median factor on the same sessions. */
+function loadCalFit(pts){
+  const v=pts.map(p=>p.g/p.m).sort((x,y)=>x-y);if(v.length<3)return null;
+  const md=v.length%2?v[(v.length-1)/2]:(v[v.length/2-1]+v[v.length/2])/2;
+  const out={k:Math.max(0.3,Math.min(3,md)),n:v.length};
+  const P=pts.filter(p=>p.min>=5&&p.m>0&&p.g>0);
+  if(P.length>=5){
+    let sx=0,sy=0,sxx=0,sxy=0;const n=P.length;
+    P.forEach(p=>{const x=Math.log(p.m/p.min),y=Math.log(p.g/p.min);sx+=x;sy+=y;sxx+=x*x;sxy+=x*y;});
+    const vx=sxx/n-(sx/n)*(sx/n);
+    if(vx>0.004){
+      const b=Math.max(0.6,Math.min(2.5,(sxy/n-(sx/n)*(sy/n))/vx)),a=Math.exp(sy/n-b*sx/n);
+      const err=f=>{const e=P.map(p=>Math.abs(Math.log(f(p)/p.g))).sort((x,y)=>x-y);return e[Math.floor(e.length/2)];};
+      if(err(p=>p.min*a*Math.pow(p.m/p.min,b))<err(p=>p.m*out.k)){out.a=a;out.b=b;}
+    }
+  }
+  return out;
+}
+function loadCalApply(c,m,min){
+  if(!c||!(m>0))return m;
+  if(c.a>0&&c.b>0&&min>=5)return min*c.a*Math.pow(m/min,c.b);
+  return m*(c.k||1);
+}
 let _tlCal={};
 function tlCalibrate(){
   const r={hr:[],est:[],eff:[]},cw=tlWatch(),all=!!tlWSpec(cw).eff;   // 18 Nov: learn from the chosen watch only (an effort-only watch keeps any old numbers)
-  tlFiles().forEach(x=>{const man=SESS_LOAD[tlSessKey(x)]||{};if(!(man.load>0))return;if(!all&&(man.w||'garmin')!==cw)return;const m=tlModel(x);if(m.load>5)r[m.kind].push(man.load/m.load);});
+  tlFiles().forEach(x=>{const man=SESS_LOAD[tlSessKey(x)]||{};if(!(man.load>0))return;if(!all&&(man.w||'garmin')!==cw)return;const m=tlModel(x);if(m.load>5)r[m.kind].push({g:+man.load,m:m.load,min:(x.p.durS||0)/60});});
   const out={};
-  Object.keys(r).forEach(k=>{const v=r[k].sort((p,q)=>p-q);if(v.length>=3){const md=v.length%2?v[(v.length-1)/2]:(v[v.length/2-1]+v[v.length/2])/2;out[k]={k:Math.max(0.3,Math.min(3,md)),n:v.length};}});
+  Object.keys(r).forEach(k=>{const f=loadCalFit(r[k]);if(f)out[k]=f;});
   _tlCal=out;tlPushCal(out);return out;
 }
 let _tlCalPushT=null;
@@ -16165,7 +16192,7 @@ function tlSessLoad(x){
   const man=SESS_LOAD[tlSessKey(x)]||{};
   if(man.load>0)return{load:+man.load,src:tlWSpec(man.w||'garmin').n};
   const m=tlModel(x),c=_tlCal[m.kind];
-  return{load:Math.round(m.load*(c?c.k:1)),src:m.src+(c?' (calibrated)':'')};
+  return{load:Math.round(loadCalApply(c,m.load,(x.p.durS||0)/60)),src:m.src+(c?' (calibrated)':'')};
 }
 function tlOtherLoad(x){if(!x||x.type!=='other')return 0;if(x.load>0)return +x.load;if(x.min>0&&x.rpe>0)return Math.round(x.min*tlW(x.rpe));return 0;}
 function tlFiles(){try{if(_wktCtx)return (typeof _calPersonal!=='undefined'&&_calPersonal&&_calPersonal.files)||[];}catch(e){}return _calFiles||[];}
@@ -16399,7 +16426,7 @@ function renderLoadPanel(){
   const SG=tlSuggest(D);
   const fit=D.fit[n-1],fat=D.fat[n-1],form=D.form[n-1],fw=tlFormWord(form,fit);
   const box=(l,v,c,t)=>'<div title="'+t+'" style="flex:1;min-width:0;padding:8px 10px;border-radius:8px;background:var(--s2);border:1px solid var(--border);border-top:3px solid '+c+';"><div style="font-size:10px;color:var(--muted);letter-spacing:.05em;text-transform:uppercase;">'+l+'</div><div style="font-size:20px;font-weight:800;color:'+c+';">'+v+'</div></div>';
-  let h='<div class="sz-lhd" style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;">Training load<span style="font-size:12px;font-weight:700;color:'+fw[1]+';">'+fw[0]+'</span><span style="margin-left:auto;display:flex;gap:6px;flex-wrap:wrap;">'+'<select id="tl-watch" class="filt-chip" style="font-size:13px;padding:6px 10px;" title="Your watch: its load numbers train the model">'+Object.keys(WATCHES).map(k=>'<option value="'+k+'"'+(k===tlWatch()?' selected':'')+'>'+WATCHES[k].n+'</option>').join('')+'</select><button id="tl-hist" class="filt-chip" style="font-size:13px;padding:7px 14px;" title="Past sessions">'+(tlWSpec().eff?'Enter past efforts':'Enter '+tlWSpec().n+' loads')+'</button>'+(tlWatch()==='garmin'?'<button id="tl-gc" class="filt-chip" style="font-size:13px;padding:7px 14px;'+(gcIsOn()?'border-color:#27ae60;color:#27ae60;':'background:#1E88E5;border-color:#1E88E5;color:#fff;')+'" title="Garmin training effect and load fill in by themselves">'+(gcIsOn()?'Garmin connected \u2713':'Connect Garmin')+'</button>':'')+(gcSkipList().length?'<button id="tl-gcrest" class="filt-chip" style="font-size:13px;padding:7px 14px;" title="Garmin activities you deleted from the calendar">Restore Garmin ('+gcSkipList().length+')</button>':'')+(gapiCfg().url?'<button id="tl-gapi" class="filt-chip" style="font-size:13px;padding:7px 14px;border-color:#27ae60;color:#27ae60;" title="Personal Garmin API key (advanced)">Garmin key \u2713</button>':'')+'</span></div>'
+  let h='<div class="sz-lhd" style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;">Training load<span style="font-size:12px;font-weight:700;color:'+fw[1]+';">'+fw[0]+'</span><span style="margin-left:auto;display:flex;gap:6px;flex-wrap:wrap;">'+'<select id="tl-watch" class="filt-chip" style="font-size:13px;padding:6px 10px;" title="Your watch: its load numbers train the model">'+Object.keys(WATCHES).map(k=>'<option value="'+k+'"'+(k===tlWatch()?' selected':'')+'>'+WATCHES[k].n+'</option>').join('')+'</select><button id="tl-hist" class="filt-chip" style="font-size:13px;padding:7px 14px;" title="Past sessions">'+(tlWSpec().eff?'Enter past efforts':'Enter '+tlWSpec().n+' loads')+'</button>'+(tlWatch()==='garmin'?'<button id="tl-gc" class="filt-chip" style="font-size:13px;padding:7px 14px;'+(gcIsOn()?'border-color:#27ae60;color:#27ae60;':'background:#1E88E5;border-color:#1E88E5;color:#fff;')+'" title="Garmin training effect and load fill in by themselves">'+(gcIsOn()?'Garmin connected \u2713':'Connect Garmin')+'</button>':'')+(gcSkipList().length?'<button id="tl-gcrest" class="filt-chip" style="font-size:13px;padding:7px 14px;" title="Garmin activities you deleted from the calendar">Restore Garmin ('+gcSkipList().length+')</button>':'')+(gapiCfg().url||tlWatch()==='garmin'?'<button id="tl-gapi" class="filt-chip" style="font-size:'+(gapiCfg().url?'13px;padding:7px 14px;border-color:#27ae60;color:#27ae60;':'11px;padding:5px 10px;opacity:.7;')+'" title="Personal Garmin API key (advanced, your own account only)">'+(gapiCfg().url?'Garmin key \u2713':'Personal key\u2026')+'</button>':'')+'</span></div>'
     +'<div style="display:flex;gap:8px;margin-bottom:8px;">'
     +box('Acute load',Math.round(fat),'#E53935','Load over the last 7 days (weighted to recent days)')
     +box('Chronic load',Math.round(fit),'#1E88E5','Your normal week: 6-week average weekly load')
@@ -16501,7 +16528,7 @@ function tlHistoryOpen(){
     if(mo!==lastM){lastM=mo;rows+='<div style="font-size:11px;font-weight:800;letter-spacing:.05em;text-transform:uppercase;color:var(--muted);margin:10px 0 2px;">'+mo+'</div>';}
     rows+='<div style="display:flex;align-items:center;gap:8px;padding:5px 0;border-top:1px solid var(--border);font-size:13px;">'
       +'<span style="flex:1;min-width:0;">'+d.toLocaleDateString('en-AU',{weekday:'short',day:'numeric'})+' '+d.toLocaleTimeString('en-AU',{hour:'numeric',minute:'2-digit'})+' &middot; '+(x.p.erg?'Erg':'Row')+' &middot; '+Math.round((x.p.durS||0)/60)+' min'+(x.p.distM?' &middot; '+(x.p.distM/1000).toFixed(1)+' km':'')+(tlTE(man)?'<br><span style="font-size:11px;color:#1E88E5;">'+tlWSpec(man.w||'garmin').n+' '+tlTE(man)+'</span>':'')+(man.load>0&&(man.w||'garmin')!==cw?'<br><span style="font-size:11px;color:var(--muted);">'+tlWSpec(man.w||'garmin').n+' load '+man.load+'</span>':'')+'</span>'
-      +'<span style="font-size:11px;color:var(--muted);white-space:nowrap;">model '+Math.round(m.load)+' ('+m.src+')</span>'
+      +'<span style="font-size:11px;color:var(--muted);white-space:nowrap;" title="BoatRun\u2019s own figure, calibrated to your Garmin numbers">BoatRun '+Math.round(loadCalApply(_tlCal[m.kind],m.load,(x.p.durS||0)/60))+' ('+m.src+(_tlCal[m.kind]?', cal.':'')+')</span>'
       +(W.eff?'<select data-tl-he="'+k+'" style="'+IN+'width:96px;"><option value="">auto</option>'+[1,2,3,4,5,6,7,8,9,10].map(i=>'<option value="'+i+'"'+(+man.rpe===i?' selected':'')+'>Effort '+i+'</option>').join('')+'</select>'
         :'<input data-tl-h="'+k+'" type="number" inputmode="numeric" min="0" max="3000" placeholder="'+W.n+'" value="'+(man.load>0&&(man.w||'garmin')===cw?man.load:'')+'" style="'+IN+'">')+'</div>';
   });
