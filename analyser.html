@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
 <meta name="color-scheme" content="light dark"/>
-<meta name="br-build" content="Analyser_261122_11">
+<meta name="br-build" content="Analyser_261122_13">
 <title>BoatRun Analyser</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -2490,7 +2490,7 @@ const METRIC_DEFS = [
   {k:'schar',  l:'Stroke Char', c:'var(--mc-schar)', cat:'indep', filter:s=>!isNaN(s.schar)&&s.schar>0&&s.schar<=100, val:s=>s.schar,       fmtAvg:v=>f0(v)+'%',        fmtBest:null, tip:'Where the peak drive acceleration falls within the drive, as %: 0% = the moment the boat starts accelerating after the catch, 100% = blade exit. The peak time is interpolated between sensor samples and smoothed over 5 strokes. Under 40% = front-loaded, 40–60% = mid-drive, over 60% = back-loaded. Neither is inherently better — it\'s a technique style that varies by boat type and rower. Sessions recorded before Metrics 260915_3 used the impulse centroid, which reads closer to 50% — don\'t compare them directly.'},
   {k:'cdelta', l:'Vel Efficiency', c:'var(--mc-cdelta)',  cat:'boat',  filter:s=>!isNaN(s.checkDelta)&&s.checkDelta>=50&&s.checkDelta<=100, val:s=>s.checkDelta, fmtAvg:v=>f1(v)+'%', fmtBest:null, tip:'Hydrodynamic efficiency of the boat\'s speed profile within one stroke — 100% = perfectly steady hull, typical sculling 93–97%. Drag power rises with the cube of speed, so speed swings waste energy versus a constant speed. Higher is better. GPS-anchored IMU metric.'},
   {k:'swing', l:'Speed Swing', c:'#8e44ad', cat:'boat', filter:s=>!isNaN(s.speedSwing)&&s.speedSwing>0.05&&s.speedSwing<5, val:s=>s.speedSwing, fmtAvg:v=>f2(v)+' m/s', fmtBest:null, tip:'How much the boat speeds up and slows down inside one stroke: fastest minus slowest boat speed, from the accelerometer. Unlike Vel Efficiency it does not use GPS speed, so it is a fair technique measure at any pace. Lower = steadier hull. Most of the swing is momentum swapped between you and the hull (the boat speeds up as you slide toward the stern and gives it back at the catch), plus the push of the drive, so more swing often goes with a faster boat. Only the drag cost of the swing is lost, and that is small. Use it to compare pieces at the same rate and pressure, not as a number to drive down.'},
-  {k:'ctime', l:'Catch Timing', c:'#0e7490', cat:'indep', filter:s=>!isNaN(s.ctime)&&s.ctime>=0&&s.ctime<=100, val:s=>s.ctime, fmtAvg:v=>f0(v)+'%', fmtBest:null, tip:'Whether the crew catches together. A crew catching together gives one clean dip in boat speed at the catch; catching in two groups gives a dip, a pause and a second dip. 100% = one clean dip, from the last 8 strokes at the same rate. A small split merges into one long dip, so the drop time is checked too (a single takes about 250 ms): a clean dip longer than 320 ms reads LONG - too spread out to confirm together. TOGETHER 90%+ within 320 ms, LONG 90%+ over 320 ms, FAIR 75-90%, SPLIT under 75%.'},
+  {k:'ctime', l:'Catch Timing', c:'#0e7490', cat:'indep', filter:s=>!isNaN(s.ctime)&&s.ctime>=0&&s.ctime<=100, val:s=>s.ctime, fmtAvg:v=>f0(v)+'%', fmtBest:null, tip:'Whether the crew catches together. A crew catching together gives one clean dip in boat speed at the catch; catching in two groups gives a dip, a pause and a second dip. 100% = one clean dip, from the last 16 strokes at the same rate. A small split merges into one long dip, so the drop time is checked too (a single takes about 250 ms): a clean dip longer than 320 ms reads LONG - too spread out to confirm together. TOGETHER 90%+ within 320 ms, LONG 90%+ over 320 ms, FAIR 75-90%, SPLIT under 75%.'},
   {k:'rolldrive', l:'Drive Roll', c:'#d35400', cat:'boat', filter:s=>!isNaN(s.rollDrive)&&Math.abs(s.rollDrive)<15, val:s=>s.rollDrive, fmtAvg:v=>fmtRoll(v), fmtBest:null, tip:'Boat roll at the middle of the drive, in degrees. + = stroke side down, - = bow side down. Read off the roll trace Metrics saves per stroke (1.2.10 or later), half way between the catch and the finish.'},
   {k:'rollrec', l:'Recovery Roll', c:'#16a085', cat:'boat', filter:s=>!isNaN(s.rollRec)&&Math.abs(s.rollRec)<15, val:s=>s.rollRec, fmtAvg:v=>fmtRoll(v), fmtBest:null, tip:'Boat roll at the middle of the recovery, in degrees. + = stroke side down, - = bow side down. Read off the roll trace Metrics saves per stroke (1.2.10 or later), half way between the finish and the next catch.'},
   {k:'hr',     l:'Avg HR',      c:'var(--mc-hr)',   cat:'indep', filter:s=>{const b=nearestHRAt(s.ms);return b!=null&&b>40&&b<220;}, val:s=>nearestHRAt(s.ms), fmtAvg:v=>f0(v)+' bpm', fmtBest:null, tip:'Session average heart rate \u2014 mean of all valid HR samples (40\u2013220 bpm). Matches HR Avg in the app log.'},
@@ -2555,8 +2555,10 @@ let currentView=[];
 let viewS=0,viewE=0;
 let selS=-1,selE=-1;
 /* ── CATCH TIMING (22 Nov, v2) ────────────────────────────────────────────────
-   Whether a crew catches together. Averages the last 8 stroke curves at the
-   current rate (+-1.5 spm) and looks at the drop into the catch.
+   Whether a crew catches together. Averages the last 16 stroke curves at the
+   current rate (+-1.5 spm) and looks at the drop into the catch. 16 not 8:
+   single strokes are noisy and 8 gave a false 10-30 stroke cycle (1x read 95+-7;
+   16 reads 99+-3).
    1. Double dip: a crew catching in two groups gives a drop, a pause (the slope
       eases off) and a second drop - in either order, weak-then-strong or
       strong-then-weak. Score = size of the pause against the steepest drop,
@@ -2568,7 +2570,7 @@ let selS=-1,selE=-1;
       too spread out to confirm together.
    Labels: SPLIT under 75%, FAIR 75-90%, LONG 90%+ with drop over 320 ms,
    TOGETHER 90%+ within 320 ms. On-water only. */
-const CT_N = 8, CT_MIN = 6, CT_TOL = 1.5, CT_BACK = 30, CT_PTS = 80, CT_LONG = 320;
+const CT_N = 16, CT_MIN = 12, CT_TOL = 1.5, CT_BACK = 56, CT_PTS = 80, CT_LONG = 320;
 function ctResample(a, n) { if (!a || a.length < 20) return null; const out = new Array(n);
   for (let i = 0; i < n; i++) { const t = i / (n - 1) * (a.length - 1), lo = Math.floor(t), hi = Math.min(lo + 1, a.length - 1), f = t - lo; out[i] = (+a[lo]) * (1 - f) + (+a[hi]) * f; }
   return out.every(v => isFinite(v)) ? out : null; }
@@ -2936,11 +2938,10 @@ function sessionToAnalyserFmt(s) {
     const df=num(r.curveDriveFrac);
     st.rollDrive=!isNaN(num(r.rollDrive))?num(r.rollDrive):(st.roll&&df>0&&df<1?rollAtFracA(st.roll,df/2):NaN);
     st.rollRec=!isNaN(num(r.rollRec))?num(r.rollRec):(st.roll&&df>0&&df<1?rollAtFracA(st.roll,(1+df)/2):NaN);});
-  /* 22 Nov: Catch Timing - saved by Metrics 1.3.2+, else worked out from the saved curves */
+  /* 22 Nov: Catch Timing - Analyser only, always worked out from the saved curves
+     (ignores catchTiming/catchMs saved by test builds Metrics_261122_14-16) */
   {const R=s.strokes||[];const water=s.sessionMode!=='erg';
-   R.forEach((r,i)=>{const st=strokes[i];if(!st)return;const v=num(r.catchTiming),m=num(r.catchMs);
-     if(!isNaN(v)&&!isNaN(m)){st.ctime=v;st.ctms=m;return;}
-     const c=(water&&r.curve&&!r.forceCurve)?ctAt(R,i,x=>(x&&!x.forceCurve)?x.curve:null,x=>x&&x.rate):null;
+   R.forEach((r,i)=>{const st=strokes[i];if(!st)return;const c=(water&&r.curve&&!r.forceCurve)?ctAt(R,i,x=>(x&&!x.forceCurve)?x.curve:null,x=>x&&x.rate):null;
      st.ctime=c?c.v:NaN;st.ctms=c?c.ms:NaN;});}
   _retimeStrokeRates(s, strokes);
   const hr = (s.hrTrace||[]).map(h=>({ ts:new Date(h.t).toISOString(), bpm:h.hr }));
@@ -13573,7 +13574,7 @@ let _sumOffsets={onwater:{m:0,w:0},erg:{m:0,w:0},combined:{m:0,w:0}};
    - bands: per 2-spm rate band trimmed means, for the "how has it moved" chart.
    The table ranks the drivers; Trend says whether each metric has moved the
    way that goes with a faster boat. Tap a row for its chart. */
-const TREND_V = 4, TREND_KEY = 'br_trend_v1', TREND_UI_KEY = 'br_trend_ui';
+const TREND_V = 5, TREND_KEY = 'br_trend_v1', TREND_UI_KEY = 'br_trend_ui';
 const TREND_BAND_W = 2, TREND_BAND_MIN = 14, TREND_BAND_MAX = 40, TREND_MIN_STROKES = 10;
 const TREND_COLS = ['#2e86de', '#8e44ad', '#e67e22', '#00acc1', '#c2185b', '#3949ab', '#d4ac0d', '#5d6d7e', '#ff7043', '#6d4c41', '#26a69a', '#f06292', '#7e57c2'];
 const TR_FROM_SPEED = { dps: 1, epower: 1, watts: 1, cdelta: 1 };
@@ -13691,7 +13692,7 @@ function trFocus(g) {
 /* 13 Nov: send the top two focus metrics per boat type to Metrics (prefs.focusTiles),
    which puts them in the last two tiles of LIVE, CURVE and MAP. Only pushed when
    the set changes. Analyser metric keys -> Metrics tile keys. */
-const TR_TO_METRICS = { ctime: 'catchtiming', swing: 'swing', caccel: 'catchaccel', schar: 'char', slope: 'catch', slopeneg: 'catchslopeneg', cdur: 'catchdur', drivetime: 'drivetime', rloss: 'runloss', ratio: 'ratio', recoveryaccel: 'recoveryaccel' };
+const TR_TO_METRICS = { swing: 'swing', caccel: 'catchaccel', schar: 'char', slope: 'catch', slopeneg: 'catchslopeneg', cdur: 'catchdur', drivetime: 'drivetime', rloss: 'runloss', ratio: 'ratio', recoveryaccel: 'recoveryaccel' };
 let _trPushT = null;
 function trPushFocus() {
   clearTimeout(_trPushT);
