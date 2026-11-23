@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
 <meta name="color-scheme" content="light dark"/>
-<meta name="br-build" content="Analyser_261123_04">
+<meta name="br-build" content="Analyser_261123_05">
 <title>BoatRun Analyser</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -17091,6 +17091,28 @@ async function sqlRender(){
 let _pfBusy=false;
 function _pfGet(){try{return localStorage.getItem('br_pf')||'';}catch(e){return '';}}
 function _pfSet(v){try{if(v)localStorage.setItem('br_pf',v);else localStorage.removeItem('br_pf');}catch(e){}}
+/* 23 Nov: squads hidden from the Showing bar. They stay in the recent list. */
+function _pfHidden(){try{return JSON.parse(localStorage.getItem('br_pf_hide')||'{}')||{};}catch(e){return {};}}
+function _pfHide(c,on){const h=_pfHidden();if(on)h[c]=1;else delete h[c];try{localStorage.setItem('br_pf_hide',JSON.stringify(h));}catch(e){}}
+function szPfManage(){
+  document.getElementById('_pf_mng')?.remove();
+  let codes=[];try{codes=calSqCodes();}catch(e){}
+  const nm=c=>{try{const n=pvSqName(c);return n&&n!==c?n+' · '+c:c;}catch(e){return c;}};
+  const ov=document.createElement('div');ov.id='_pf_mng';
+  ov.style.cssText='position:fixed;inset:0;background:rgba(0,0,0,.6);z-index:9999;display:flex;align-items:center;justify-content:center;padding:16px;';
+  const draw=()=>{const h=_pfHidden();
+    ov.innerHTML='<div style="background:var(--s1);color:var(--text);border:1px solid var(--border);border-radius:12px;width:min(92vw,380px);max-height:80vh;display:flex;flex-direction:column;">'
+      +'<div style="display:flex;align-items:center;padding:12px 14px;border-bottom:1px solid var(--border);"><b style="font-size:14px;">Squad buttons</b><button id="_pf_mng_x" class="hbtn" style="margin-left:auto;font-size:11px;">Done</button></div>'
+      +'<div style="padding:8px 14px;font-size:12px;color:var(--muted);">Tick the squads to show as buttons. Unticked squads stay in your recent list.</div>'
+      +'<div style="overflow-y:auto;padding:0 14px 12px;">'
+      +(codes.length?codes.map(c=>'<label style="display:flex;align-items:center;gap:10px;padding:10px 0;border-bottom:1px solid var(--border);font-size:13px;cursor:pointer;"><input type="checkbox" data-c="'+_secEsc(c)+'"'+(h[c]?'':' checked')+' style="width:18px;height:18px;">'+_secEsc(nm(c))+'</label>').join(''):'<div style="padding:10px 0;font-size:13px;color:var(--muted);">No recent squads.</div>')
+      +'</div></div>';
+    ov.querySelectorAll('input[data-c]').forEach(i=>{i.onchange=()=>{_pfHide(i.dataset.c,!i.checked);szPlanForRender();};});
+    ov.querySelector('#_pf_mng_x').onclick=()=>ov.remove();
+  };
+  ov.onclick=e=>{if(e.target===ov)ov.remove();};
+  draw();document.body.appendChild(ov);
+}
 function szPlanForRender(){
   const el=document.getElementById('sz-planfor');if(!el)return;
   const want=_pfGet();
@@ -17101,17 +17123,20 @@ function szPlanForRender(){
   }
   const lst=el.closest('.sz-list');if(lst)lst.dataset.pf=_wktCtx?'sq':'me';
   let codes=[];try{codes=calSqCodes();}catch(e){}
+  {const _h=_pfHidden();codes=codes.filter(c=>!_h[c]||c===_wktCtx);}
   if(_wktCtx&&codes.indexOf(_wktCtx)<0)codes=codes.concat(_wktCtx);
   const nm=c=>{try{const n=pvSqName(c);return n&&n!==c?n+' · '+c:c;}catch(e){return c;}};
   el.innerHTML='<div class="pf-bar"><span class="pf-lbl">Showing</span>'
     +'<button class="pf-b'+(!_wktCtx?' sel':'')+'" data-pf="me">Me</button>'
     +codes.map(c=>'<button class="pf-b'+(_wktCtx===c?' sel':'')+'" data-pf="'+_secEsc(c)+'">Squad '+_secEsc(nm(c))+'</button>').join('')
     +'<button class="pf-b pf-add" data-pf="+">+ Squad</button>'
+    +'<button class="pf-b pf-add" data-pf="edit" title="Choose which squads show as buttons">Edit</button>'
     +'<span class="pf-hint">'+(_pfBusy&&!_wktCtx?'Opening squad…':_wktCtx?'The squad’s plan and load, every squad session, and trends per athlete':'Your own plan, load, sessions and trends')+'</span></div>';
   el.querySelectorAll('button[data-pf]').forEach(b=>{b.onclick=async()=>{
     const v=b.dataset.pf;
     if(v==='me'){_pfSet('');if(_wktCtx)leaveSquadCalendar();}
-    else if(v==='+'){await enterSquadCalendar(true);if(_wktCtx)_pfSet(_wktCtx);}
+    else if(v==='edit'){szPfManage();return;}
+    else if(v==='+'){await enterSquadCalendar(true);if(_wktCtx){_pfHide(_wktCtx,false);_pfSet(_wktCtx);}}
     else if(v!==_wktCtx){try{localStorage.setItem('_squad_code',v);}catch(e){}await enterSquadCalendar(false);if(_wktCtx===v)_pfSet(v);}
     szPlanForRender();szPfAfter();
   };});
