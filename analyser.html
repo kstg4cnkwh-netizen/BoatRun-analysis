@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
 <meta name="color-scheme" content="light dark"/>
-<meta name="br-build" content="Analyser_261122_15">
+<meta name="br-build" content="Analyser_261123_02">
 <title>BoatRun Analyser</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -765,7 +765,7 @@ body.light .hdrname{color:#fff;}
   <div class="hdr-tabs">
   <button class="hbtn hicon-btn" id="closeallbtn" title="Close all open sessions" style="display:none;margin-right:6px;background:#fc4c02;border-color:#fc4c02;color:#fff;font-weight:800;box-shadow:0 3px 9px rgba(252,76,2,.45);"><span class="hicon-txt" style="color:#fff;">&#10005; Close all sessions</span></button>
   <button class="hbtn hdr-act" id="resetbtn" style="display:none;" title="Open a different session"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"></path></svg><span>Open</span></button>
-  <button class="hbtn hdr-act hdr-act-pri" id="addcompbtn" style="display:none;" title="Add another session to compare with this one"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" aria-hidden="true"><path d="M12 5v14M5 12h14"></path></svg><span>Compare</span></button>
+  <button class="hbtn hdr-act hdr-act-pri" id="addcompbtn" style="display:none;" title="Add another session to compare with this one"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" aria-hidden="true"><path d="M12 5v14M5 12h14"></path></svg><span>Add session to compare</span></button>
   <div class="hmenu-wrap">
     <button class="hbtn hicon-btn" id="filemenubtn" style="display:none;"><img class="hicon-img" src="icons/Files.svg"><span class="hicon-txt">Files ▾</span></button>
     <div class="hmenu" id="filemenu">
@@ -779,7 +779,7 @@ body.light .hdrname{color:#fff;}
   <button class="hbtn hicon-btn" id="openbtn" style="display:none;"><img class="hicon-img" src="icons/Open.svg"><span class="hicon-txt">Open</span></button>
   <button class="hbtn hicon-btn" id="summarybtn" style="display:none;" title="Summary and personal bests"><img class="hicon-img" src="icons/Win.svg"><span class="hicon-txt">Summary</span></button>
   <button class="hbtn hicon-btn" id="wktbtn" title="Create and edit workouts for BoatRun Metrics"><svg class="hicon-img" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M4 6h10M4 12h16M4 18h7"/></svg><span class="hicon-txt">Workouts</span></button>
-  <button class="hbtn hicon-btn" id="gdrivebtn" title="Step 1 of 2: sign in to your BoatRun account"><span id="gdrivedot" style="display:inline-block;width:8px;height:8px;border-radius:50%;background:#e67e22;margin-right:5px;"></span><span class="hicon-txt" id="gdrivelabel">Sign in</span></button>
+  <button class="hbtn hicon-btn" id="gdrivebtn" title="Step 1 of 2: sign in to your BoatRun account"><span id="gdrivedot" class="src-ic src-ic-drive" style="color:#e67e22;margin-right:5px;"></span><span class="hicon-txt" id="gdrivelabel">Sign in</span></button>
   <div class="hmenu-wrap">
     <button class="hbtn hicon-btn" id="viewmenubtn" title="Tiles, dark or light mode, pane order"><img class="hicon-img" src="icons/Tiles.svg"><span class="hicon-txt">View ▾</span></button>
     <div class="hmenu" id="viewmenu">
@@ -6909,15 +6909,16 @@ async function showAddComparePicker() {
     content.style.cssText = 'padding:14px 16px;max-height:60vh;overflow-y:auto;';
     content.innerHTML = '<div class="sz-loading">Choose a source above to browse sessions.</div>';
     const srcDefs = [
-        { id: 'squad', label: '\ud83d\udce4 Squad' },
-        { id: 'drive', label: 'Google Drive' },
-        { id: 'device', label: '\ud83d\udcc2 Device' }
+        { id: 'drive', label: 'My Drive', ic: 'drive', col: 'var(--src-drive)' },
+        { id: 'squad', label: 'Squad', ic: 'squad', col: 'var(--src-squad)' },
+        { id: 'device', label: 'Files', ic: 'file', col: 'var(--src-file)' }
     ];
     const srcBtns = srcDefs.map(s => {
         const b = document.createElement('button');
         b.dataset.src = s.id;
-        b.textContent = s.label;
-        b.style.cssText = 'flex:1;padding:8px 4px;background:var(--s2);border:1px solid var(--border);border-radius:6px;color:var(--muted);cursor:pointer;font-family:inherit;font-size:12px;transition:border-color .15s,color .15s;';
+        b.innerHTML = '<span class="src-ic src-ic-' + s.ic + '"></span>' + s.label;
+        b.dataset.col = s.col;
+        b.style.cssText = 'flex:1;display:inline-flex;align-items:center;justify-content:center;gap:6px;padding:8px 4px;background:transparent;border:2px solid ' + s.col + ';border-radius:8px;color:' + s.col + ';cursor:pointer;font-family:inherit;font-size:12px;font-weight:600;transition:background .15s,color .15s;';
         b.onclick = () => showSource(s.id);
         srcRow.appendChild(b);
         return b;
@@ -6925,9 +6926,9 @@ async function showAddComparePicker() {
     function setSrcActive(id) {
         srcBtns.forEach(b => {
             const on = b.dataset.src === id;
-            b.style.borderColor = on ? 'var(--b)' : 'var(--border)';
-            b.style.color = on ? 'var(--b)' : 'var(--muted)';
-            b.style.fontWeight = on ? '700' : '400';
+            b.style.background = on ? b.dataset.col : 'transparent';
+            b.style.color = on ? '#fff' : b.dataset.col;
+            b.style.fontWeight = on ? '700' : '600';
         });
     }
     async function showSource(srcId) {
@@ -8927,7 +8928,7 @@ function updateStatsStrip(){
     const _tr=tplSelRate(strokes);
     html+='<button id="tpladdselbtn" onclick="tplAddSelection()" style="background:#ffc947;color:#000;border:none;border-radius:14px;padding:7px 15px;font-size:10px;font-weight:700;cursor:pointer;box-shadow:0 2px 5px rgba(0,0,0,.22);">＋ Add to template'+(_tr?' · '+_tr.toFixed(1)+' spm':'')+'</button>';
   }else if(curveGroups.length<MAX_GROUPS){
-    html+='<button id="addcurvebtn" onclick="pinSelection()">＋ Add to comparison</button>';
+    html+='<button id="addcurvebtn" onclick="pinSelection()">＋ Add to stroke comparison</button>';
   }
   if(strokes.length>1){
     html+='<button id="zoomselbtn" onclick="zoomToSelection()">⤢ Zoom to selection</button>';
@@ -11053,7 +11054,7 @@ function buildLaps(){
     `<button class="laptypebtn" data-type="" style="--btc:var(--b);border-color:var(--b);color:var(--b);margin-left:8px;" onclick="editLapTypes()" title="Change lap types, join laps, or restore the original laps">✎ Edit laps</button>`;
   const lapCurveBtns=_lapEditMode?'':
     `<button class="laptypebtn" id="lapMakeBtn" data-type="" style="--btc:var(--o);border-color:var(--o);color:var(--o);display:none;" onclick="makeLapFromSelection()" title="Turn the strokes selected on the chart into their own lap">✂ Make lap from selection</button>`+
-    `<button class="laptypebtn" id="lapAddCurveBtn" data-type="" style="--btc:var(--g);border-color:var(--g);color:var(--g);display:none;" onclick="addLapToCurves()" title="Add the selected lap to the curve comparison">＋ Add to comparison</button>`+
+    `<button class="laptypebtn" id="lapAddCurveBtn" data-type="" style="--btc:var(--g);border-color:var(--g);color:var(--g);display:none;" onclick="addLapToCurves()" title="Add the selected lap to the stroke comparison">＋ Add to stroke comparison</button>`+
     (hasWorkLaps?`<button class="laptypebtn" data-type="" style="--btc:var(--g);border-color:var(--g);color:var(--g);" onclick="addWorkLapsToCurves()" title="Add every work interval as its own curve group">＋ Add all work intervals to curves</button>`:'');
   document.getElementById('laptypebar').innerHTML=((hasType&&barTypes.length)?
     '<span style="font-size:10px;color:var(--muted);margin-right:2px;">Show:</span>'+
@@ -12423,8 +12424,8 @@ async function showStartup(){
       <h2>BoatRun Analyser</h2>
       <p>${AnalyserAuth.user ? 'Step 2 of 2: link Google Drive to access your sessions' : 'Step 1 of 2: sign in to your BoatRun account'}</p>
       <div class="brpill-row brpill-col">
-        <button class="dzbtn dzbtn-pri" id="sz-signin">${AnalyserAuth.user ? 'Link Google Drive \u00b7 Step 2 of 2' : 'Sign in \u00b7 Step 1 of 2'}</button>
-        <button class="dzbtn dzbtn-sec prc-row" id="sz-squad"><img src="icons/Import.svg"><span>From Squad</span></button>
+        <button class="dzbtn dzbtn-pri${AnalyserAuth.user ? ' src-btn src-drive' : ''}" id="sz-signin">${AnalyserAuth.user ? '<span class="src-ic src-ic-drive"></span>Link Google Drive \u00b7 Step 2 of 2' : 'Sign in \u00b7 Step 1 of 2'}</button>
+        <button class="dzbtn dzbtn-sec prc-row" id="sz-squad"><img src="icons/Squad.svg"><span>From Squad</span></button>
         <button class="dzbtn dzbtn-sec prc-row" id="sz-openfile"><img src="icons/Open.svg"><span>Open file</span></button>
         <button class="dzbtn dzbtn-sec prc-row" id="sz-demo"><span>See a demo session</span></button>
       </div>
@@ -12454,7 +12455,7 @@ async function showStartup(){
       </button>
       <div class="sz-actgrp"><div class="sz-actlbl">Open a session</div><div class="sz-actbtns brpill-row">
         <button class="dzbtn dzbtn-sec" id="sz-coach"><img src="icons/Import.svg"><span>Coach Sessions</span></button>
-        <button class="dzbtn dzbtn-sec" id="sz-squad"><img src="icons/Import.svg"><span>From Squad</span></button>
+        <button class="dzbtn dzbtn-sec" id="sz-squad"><img src="icons/Squad.svg"><span>From Squad</span></button>
         <button class="dzbtn dzbtn-sec" id="sz-openfile"><img src="icons/Open.svg"><span>Open file</span></button>
       </div></div>
       <div class="sz-actgrp"><div class="sz-actlbl">More</div><div class="sz-actbtns brpill-row">
@@ -12471,7 +12472,7 @@ async function showStartup(){
     <div class="sz-calcol"><div class="brpill" id="sz-cal"></div><div class="brpill" id="sz-calday" style="display:none;"></div></div>
     <div class="brpill" id="sz-sqres"></div>
     <div class="brpill" id="sz-sesspill">
-      <div class="sz-lhd">Sessions<span class="sz-count" id="sz-count"></span><button type="button" id="sz-refresh" title="Fetch the session list from Drive again" style="margin-left:10px;min-height:30px;padding:0 12px;border:0;border-radius:8px;background:#0d2b5e;color:#fff;font:700 12px Inter,-apple-system,sans-serif;letter-spacing:0;text-transform:none;cursor:pointer;vertical-align:middle;">&#8635; Refresh list</button><span class="sz-signout" id="sz-signout">Sign out</span></div>
+      <div class="sz-lhd"><span class="src-ic src-ic-drive" title="Your Google Drive sessions" style="color:var(--src-drive);width:18px;height:18px;margin-right:7px;vertical-align:-3px;"></span>Sessions<span class="sz-count" id="sz-count"></span><button type="button" id="sz-refresh" title="Fetch the session list from Drive again" style="margin-left:10px;min-height:30px;padding:0 12px;border:0;border-radius:8px;background:#0d2b5e;color:#fff;font:700 12px Inter,-apple-system,sans-serif;letter-spacing:0;text-transform:none;cursor:pointer;vertical-align:middle;">&#8635; Refresh list</button><span class="sz-signout" id="sz-signout">Sign out</span></div>
       <input type="text" id="sz-search" class="brsearch" placeholder="Search sessions…" autocomplete="off">
       <div id="sz-filterbar" style="display:flex;gap:6px;margin-bottom:10px;flex-wrap:wrap;"></div>
       <div id="sz-files" class="sz-loading">Loading…</div>
@@ -13794,9 +13795,9 @@ window.openAthleteCompare=function(fromHome){
     +'<span style="font-size:11px;color:var(--muted);">Compare athletes and devices on the same stretch of water</span>'
     +'<button class="hbtn" id="_ac_close" style="margin-left:auto;font-size:11px;">\u2715 Close</button></div>'
     +'<div class="ac-step"><div class="ac-step-hd"><span class="ac-num">1</span>Open sessions from'
-    +'<button class="dzbtn dzbtn-pri" id="_ac_addsq">Squad</button>'
-    +'<button class="dzbtn dzbtn-pri" id="_ac_addfile">Files</button>'
-    +'<button class="dzbtn dzbtn-pri" id="_ac_adddrive">My Drive</button>'
+    +'<button class="dzbtn src-btn src-drive" id="_ac_adddrive"><span class="src-ic src-ic-drive"></span>My Drive</button>'
+    +'<button class="dzbtn src-btn src-squad" id="_ac_addsq"><span class="src-ic src-ic-squad"></span>Squad</button>'
+    +'<button class="dzbtn src-btn src-file" id="_ac_addfile"><span class="src-ic src-ic-file"></span>Files</button>'
     +'<span class="ac-hint">Files: FIT, TCX, GPX or CSV from any watch or SpeedCoach. You can also drop them here.</span></div>'
     +'<input type="file" id="_ac_fin" accept=".fit,.tcx,.gpx,.csv,.txt,.json" multiple style="display:none">'
     +'<div id="_ac_legend" style="display:flex;flex-direction:column;gap:6px;margin-top:8px;max-height:260px;overflow-y:auto;"></div></div>'
@@ -18717,9 +18718,9 @@ function updateDriveBtn(){
   if(!dot||!label) return;
   let acct=false; try{ acct=!!AnalyserAuth.user; }catch{}
   const linked=AnalyserDrive.isSignedIn();
-  if(!acct){ dot.style.background='#e67e22'; label.textContent='Sign in'; if(btn) btn.title='Step 1 of 2: sign in to your BoatRun account'; }
-  else if(!linked){ dot.style.background='#e67e22'; label.textContent='Link Drive'; if(btn) btn.title='Step 2 of 2: link Google Drive'; }
-  else { dot.style.background='#2ecc71'; label.textContent=AnalyserDrive.isLegacyLinked()?'Drive linked +archive':'Drive linked'; if(btn) btn.title='Google Drive linked \u2014 tap to open sessions or unlink'; }
+  if(!acct){ dot.style.color='#e67e22'; label.textContent='Sign in'; if(btn) btn.title='Step 1 of 2: sign in to your BoatRun account'; }
+  else if(!linked){ dot.style.color='#e67e22'; label.textContent='Link Drive'; if(btn) btn.title='Step 2 of 2: link Google Drive'; }
+  else { dot.style.color='var(--src-drive)'; label.textContent=AnalyserDrive.isLegacyLinked()?'Drive linked +archive':'Drive linked'; if(btn) btn.title='Google Drive linked \u2014 tap to open sessions or unlink'; }
 }
 function handleDriveBtnTap(){
   if(!AnalyserAuth.user){ showPlanModal(); return; }
@@ -21498,7 +21499,15 @@ body{font-size:14px;}
   background:var(--bc,#007aff);color:#fff;border-color:var(--bc,#007aff);}
 .brpill-row .dzbtn-sec:hover img,.sz-prompt .dzbtn-sec:hover img{filter:brightness(0) invert(1);}
 .brpill-row .dzbtn-pri{background:var(--acc-g);color:#fff;border:2px solid var(--acc-g);font-weight:800;letter-spacing:.03em;text-transform:uppercase;}
-#sz-coach{--bc:#fc4c02;} #sz-squad{--bc:#27ae60;} #sz-import{--bc:#27ae60;} #sz-openfile{--bc:#007aff;} #sz-demo{--bc:#8e44ad;} #sz-oldacct{--bc:#636366;}
+/* 23 Nov source colours (shared with Metrics): Drive #007aff, Squad #27ae60, Files #8e8e93. Order everywhere: Drive, Squad, Files. */
+:root,body.light{--src-drive:#007aff;--src-squad:#27ae60;--src-file:#8e8e93;}
+.src-ic{display:inline-block;width:16px;height:16px;flex-shrink:0;background:currentColor;-webkit-mask:var(--ic) center/contain no-repeat;mask:var(--ic) center/contain no-repeat;}
+.src-ic-drive{--ic:url(icons/Drive.svg);} .src-ic-squad{--ic:url(icons/Squad.svg);} .src-ic-file{--ic:url(icons/Open.svg);}
+.src-btn{display:inline-flex!important;align-items:center;justify-content:center;gap:6px;border-radius:8px;}
+.src-btn.src-drive{background:var(--src-drive)!important;border:2px solid var(--src-drive)!important;color:#fff!important;}
+.src-btn.src-squad{background:transparent!important;border:2px solid var(--src-squad)!important;color:var(--src-squad)!important;}
+.src-btn.src-file{background:transparent!important;border:2px solid var(--src-file)!important;color:var(--src-file)!important;}
+#sz-coach{--bc:#fc4c02;} #sz-squad{--bc:var(--src-squad);} #sz-import{--bc:var(--src-drive);} #sz-openfile{--bc:var(--src-file);} #sz-demo{--bc:#8e44ad;} #sz-oldacct{--bc:#636366;}
 #sz-sectors .hbtn{--bc:#c0392b;}
 #sz-nav .hbtn{--bc:#fc4c02;}
 #sz-cal .filt-chip{--bc:#007aff;}
@@ -21828,7 +21837,7 @@ body:not(.light) #startup{--ov-wsec:#0F223C;--ov-esec:#2A1517;}
 #curvehint{font-size:12px!important;opacity:1!important;color:var(--text)!important;}
 
 /* Open session / Add for comparison: out of the Files menu, as clear buttons in the bar */
-#hdr .hdr-act{display:inline-flex;align-items:center;gap:6px;height:34px;padding:0 12px!important;margin-right:4px;border-radius:8px!important;border:1px solid rgba(255,255,255,.45)!important;background:transparent!important;color:#fff!important;font:600 13px Inter,-apple-system,sans-serif!important;letter-spacing:0!important;text-transform:none!important;box-shadow:none!important;}
+#hdr .hdr-act{display:inline-flex;align-items:center;gap:6px;height:34px;padding:0 12px!important;margin-right:4px;border-radius:8px!important;border:1px solid rgba(255,255,255,.45)!important;background:transparent!important;color:#fff!important;font:600 13px Inter,-apple-system,sans-serif!important;letter-spacing:0!important;text-transform:none!important;box-shadow:none!important;white-space:nowrap;}
 #hdr .hdr-act:hover{background:rgba(255,255,255,.12)!important;border-color:#fff!important;}
 #hdr .hdr-act-pri{background:#2FD3C6!important;border-color:#2FD3C6!important;color:#062B28!important;}
 #hdr .hdr-act-pri:hover{background:#5FE0D6!important;border-color:#5FE0D6!important;color:#062B28!important;}
