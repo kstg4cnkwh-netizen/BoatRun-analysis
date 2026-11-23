@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
 <meta name="color-scheme" content="light dark"/>
-<meta name="br-build" content="Analyser_261123_03">
+<meta name="br-build" content="Analyser_261123_04">
 <title>BoatRun Analyser</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -761,7 +761,7 @@ body.light .hdrname{color:#fff;}
   <h1><a href="https://boatrun.au" title="BoatRun home">⊳ BoatRun</a></h1>
   <div class="meta" id="hdrmeta"></div>
   <div class="sp"></div>
-  <label class="hdr-search" id="hdrsearchwrap"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><circle cx="11" cy="11" r="7"></circle><path d="M20 20l-4-4"></path></svg><input type="text" id="hdrsearch" placeholder="Search sessions" aria-label="Search sessions" autocomplete="off"></label>
+  <label class="hdr-search" id="hdrsearchwrap"><svg id="hdrsearchgo" style="cursor:pointer;" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><circle cx="11" cy="11" r="7"></circle><path d="M20 20l-4-4"></path></svg><input type="text" id="hdrsearch" placeholder="Search sessions" aria-label="Search sessions" autocomplete="off"></label>
   <div class="hdr-tabs">
   <button class="hbtn hicon-btn" id="closeallbtn" title="Close all open sessions" style="display:none;margin-right:6px;background:#fc4c02;border-color:#fc4c02;color:#fff;font-weight:800;box-shadow:0 3px 9px rgba(252,76,2,.45);"><span class="hicon-txt" style="color:#fff;">&#10005; Close all sessions</span></button>
   <button class="hbtn hdr-act" id="resetbtn" style="display:none;" title="Open a different session"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"></path></svg><span>Open</span></button>
@@ -12480,7 +12480,15 @@ async function showStartup(){
     </div>
   </div>`;
   {const hs=document.getElementById('hdrsearch'),ss=document.getElementById('sz-search');
-   if(hs&&ss){hs.value='';hs.oninput=()=>{ss.value=hs.value;ss.dispatchEvent(new Event('input'));};}}
+   if(hs&&ss){hs.value='';hs.oninput=()=>{ss.value=hs.value;ss.dispatchEvent(new Event('input'));};
+     /* 23 Nov: Enter or the magnifier opens Sessions with the results */
+     const go=()=>{ss.value=hs.value;ss.dispatchEvent(new Event('input'));
+       const pb=el.querySelector('#sz-prc [data-prc="row"]');if(pb&&!pb.classList.contains('sel'))pb.click();
+       const nb=el.querySelector('#sz-ntabs [data-nt="sess"]');if(nb&&!nb.classList.contains('sel'))nb.click();
+       const sp=document.getElementById('sz-sesspill');if(sp)setTimeout(()=>{try{sp.scrollIntoView({behavior:'smooth',block:'start'});}catch(e){}},50);
+       hs.blur();};
+     hs.onkeydown=e=>{if(e.key==='Enter'){e.preventDefault();go();}};
+     const hg=document.getElementById('hdrsearchgo');if(hg)hg.onclick=e=>{e.preventDefault();go();};}}
   /* Narrow screens: one section at a time, Sessions first. COURSE (sectors
      + navigation) only shows when there is something in it. On every width,
      the COURSE card has its own Sectors | Navigation tabs. */
