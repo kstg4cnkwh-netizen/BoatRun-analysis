@@ -28,7 +28,7 @@
 <body>
 
 <h1>BoatRun — Privacy Policy</h1>
-<p class="updated">Last updated: 22 November 2026</p>
+<p class="updated">Last updated: 23 November 2026</p>
 
 <p>BoatRun is a set of personal rowing performance tools (the BoatRun app for Row, Cox and Coach, the Analyser and the Viewer). This page explains what data BoatRun collects, how it's used, and how to delete it.</p>
 
@@ -36,7 +36,8 @@
 <ul>
   <li><strong>GPS location</strong> — recorded only while a session is actively running, to calculate speed, pace, distance and heading.</li>
   <li><strong>Motion sensor data</strong> — phone accelerometer and gyroscope, used on the device to detect stroke timing, technique metrics and boat heading. It is saved with the session on your device and in your own Google Drive (if linked); it is not sent anywhere else.</li>
-  <li><strong>Heart rate</strong> — if you connect a heart rate strap, or import a Garmin FIT/TCX/GPX file.</li>
+  <li><strong>Heart rate</strong> — if you connect a heart rate strap, import a Garmin FIT/TCX/GPX file, or connect Apple Health or Health Connect.</li>
+  <li><strong>Daily check-in and training load</strong> — sleep, soreness and energy scores you enter, plus resting heart rate and heart rate variability if you enter or import them, and the training load BoatRun works out from your sessions. Saved on your device and in your own Google Drive (if linked).</li>
   <li><strong>Garmin training numbers (optional)</strong> — if you connect Garmin, the training load, aerobic and anaerobic training effect and training effect label of your Garmin activities. See <em>Garmin Connect integration</em> below.</li>
   <li><strong>Session data you create</strong> — stroke rate, pace, distance, session names, notes, boat type, race flag and related rowing metrics generated from the above.</li>
   <li><strong>Account details (optional)</strong> — if you sign in with Google or Apple, BoatRun stores the account identifier supplied by that provider, together with your subscription tier, so Pro features can be unlocked on your devices. No password is ever created or held by BoatRun.</li>
@@ -48,6 +49,36 @@
   <li><strong>Your Google Drive (optional)</strong> — if you link Drive, sessions are backed up to a hidden app-data folder in your own Google Drive. This folder is private to BoatRun and not visible in your normal Drive view. No one else can access it.</li>
   <li><strong>Firebase (squads only)</strong> — if you join a squad session, your live stroke rate, pace, position and name are broadcast to your coach's screen (and to the Viewer, if the coach shares the squad code) in real time via Firebase, for the duration of the session. This is not stored permanently.</li>
   <li><strong>Firebase (account record)</strong> — if you sign in, a single record holding your account identifier and subscription tier is kept so Pro access follows you across devices.</li>
+  <li><strong>Firebase (shared training load, optional)</strong> — if you turn on sharing with a squad's coach, a training load summary is kept for that squad until you turn sharing off (see below).</li>
+</ul>
+
+<h2>Health and fitness data</h2>
+<ul>
+  <li><strong>Apple Health (iPhone) and Health Connect (Android)</strong> — only if you tap Connect in the app's settings and allow access on the system permission screen.
+    <ul>
+      <li><strong>What BoatRun writes:</strong> each saved session as a Rowing workout, with its start and end time, distance, heart rate and, for on-water sessions, the GPS route.</li>
+      <li><strong>What BoatRun reads:</strong> resting heart rate, heart rate variability and sleep time for the last 14 days, used only to fill blank fields in your daily check-in.</li>
+      <li>BoatRun reads nothing else from Apple Health or Health Connect. It does not read your other workouts, and data read from them is not sent to BoatRun's servers.</li>
+    </ul>
+  </li>
+  <li><strong>Sharing with a coach</strong> — off by default. If you turn on <em>Share training load with coach</em> for a squad, a summary is written to that squad in Firebase so its coach can see it. The summary contains:
+    <ul>
+      <li>your chosen name</li>
+      <li>your daily training load for the last 8 weeks, and your load ratio</li>
+      <li>daily session counts, distance and time</li>
+      <li>your last 14 daily check-ins</li>
+      <li>your next race</li>
+    </ul>
+    Anyone with the squad's password can see it. Turning sharing off deletes it.
+  </li>
+  <li><strong>What BoatRun never does with health data:</strong>
+    <ul>
+      <li>It is never used for advertising or marketing, never sold, and never given to data brokers.</li>
+      <li>It is never used for anything other than the training features described here.</li>
+      <li>It is never written to Apple Health or Health Connect without your permission.</li>
+    </ul>
+  </li>
+  <li>Garmin data is covered in <em>Garmin Connect integration</em> below.</li>
 </ul>
 
 <h2>Location names and weather</h2>
@@ -63,6 +94,14 @@
 <ul>
   <li>BoatRun does not read, store, or analyse your existing Strava activities or profile data beyond what's needed to complete the upload.</li>
   <li>You can revoke access at any time from BoatRun's settings, or directly at <code>strava.com/settings/apps</code>.</li>
+</ul>
+
+<h2>intervals.icu integration</h2>
+<p>If you paste your intervals.icu API key into BoatRun's settings (Pro):</p>
+<ul>
+  <li>Each saved session is uploaded to your intervals.icu account as an activity file (GPS track, heart rate, distance, laps, name and notes). You can turn automatic upload off and send sessions one at a time.</li>
+  <li>BoatRun reads your intervals.icu wellness entries (resting heart rate, HRV, sleep quality, soreness and fatigue) for the last 14 days, only to fill blank fields in your daily check-in.</li>
+  <li>Your key is kept only on your device and sent only to intervals.icu. Disconnecting in settings removes it. Activities already uploaded stay in your intervals.icu account and must be deleted there.</li>
 </ul>
 
 <h2>Concept2 Logbook integration</h2>
@@ -89,7 +128,8 @@
 <h2>What is never done with your data</h2>
 <ul>
   <li>No data is sold or shared with advertisers.</li>
-  <li>Data is only passed to the services named on this page (Google Drive, Firebase, Cloudflare, Strava, Concept2 and Garmin if you connect them, OpenStreetMap and Open-Meteo), and only for the purposes described here.</li>
+  <li>Data is only passed to the services named on this page (Google Drive, Firebase, Cloudflare, and Apple Health, Health Connect, Strava, intervals.icu, Concept2 and Garmin if you connect them, plus OpenStreetMap and Open-Meteo), and only for the purposes described here.</li>
+  <li>Health data is never used for advertising or marketing.</li>
   <li>No analytics or tracking scripts are used.</li>
   <li>No ads.</li>
 </ul>
@@ -111,7 +151,10 @@
 <ul>
   <li><strong>Local data</strong> — delete sessions from the in-app session log, or clear all app data from BoatRun's settings.</li>
   <li><strong>Google Drive data</strong> — use the "Delete my Drive data" button in Metrics settings (while signed in) to permanently delete all session files from your Drive app folder. Revoking access at <code>myaccount.google.com/permissions</code> stops BoatRun from reading or writing the folder, but does not delete files already stored there — deletion must be done from within the app while signed in, since BoatRun has no separate server access to your Drive.</li>
+  <li><strong>Apple Health / Health Connect</strong> — disconnect in BoatRun settings to stop new workouts being saved, and remove BoatRun in the Health app (Profile → Apps) or in Health Connect to revoke access. Workouts already saved there can be deleted in the Health app or Health Connect.</li>
+  <li><strong>Shared training load</strong> — turn sharing off for the squad in the Analyser or Metrics; the summary is deleted from Firebase.</li>
   <li><strong>Strava connection</strong> — disconnect from BoatRun settings or from Strava directly; this also deletes the stored access token. Activities already uploaded to Strava remain in your Strava account and must be deleted there.</li>
+  <li><strong>intervals.icu connection</strong> — disconnect from BoatRun settings; this deletes the stored key. Activities already uploaded remain in your intervals.icu account and must be deleted there.</li>
   <li><strong>Concept2 Logbook connection</strong> — disconnect from BoatRun settings; this deletes the stored access token. Workouts already uploaded remain in your Logbook and must be deleted there.</li>
   <li><strong>Garmin connection</strong> — disconnect from BoatRun settings or in Garmin Connect; this deletes the access token and the Garmin data held on BoatRun’s server and in Firebase. Your activities in Garmin Connect are not affected.</li>
 </ul>
