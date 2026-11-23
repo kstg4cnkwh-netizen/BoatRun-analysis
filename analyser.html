@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
 <meta name="color-scheme" content="light dark"/>
-<meta name="br-build" content="Analyser_261123_02">
+<meta name="br-build" content="Analyser_261123_03">
 <title>BoatRun Analyser</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -8935,9 +8935,6 @@ function updateStatsStrip(){
   }
   if(strokes.length>=40){
     html+='<button id="pacecorrbtn" onclick="showPaceCorr()" style="background:#1a5276;color:#fff;border:none;border-radius:14px;padding:7px 15px;font-size:10px;font-weight:700;cursor:pointer;margin-left:6px;box-shadow:0 2px 5px rgba(0,0,0,.22);">&#128200; What drives pace</button>';
-  }
-  if(strokes.length>2&&GPSTRACE.length>1&&!isErgSession()){
-    html+='<button id="rvexpbtn" onclick="window.rvOpenExport()" style="background:#6a3fb0;color:#fff;border:none;border-radius:14px;padding:7px 15px;font-size:10px;font-weight:700;cursor:pointer;margin-left:6px;box-shadow:0 2px 5px rgba(0,0,0,.22);">&#127916; Export replay video</button>';
   }
     if(strokes.length){
     const dur=strokes[strokes.length-1].elapsed-strokes[0].elapsed;
