@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
 <meta name="color-scheme" content="light dark"/>
-<meta name="br-build" content="Analyser_261124_08">
+<meta name="br-build" content="Analyser_261124_09">
 <title>BoatRun Analyser</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -739,6 +739,13 @@ body.light .hdrname{color:#fff;}
   #lapsec,#sectorsec{flex:1 1 auto;min-height:0;flex-direction:column;}
   #lapsec>.sec-hd,#lapsec>#lapcurvebar,#sectorsec>.sec-hd{flex:0 0 auto;}
   #lapsec>.twrap{flex:1 1 auto;min-height:0;overflow:auto !important;}
+  /* 24 Nov: race plan + laps share the pane as tabs, and the pane is taller */
+  #racesec{flex:1 1 auto;min-height:0;overflow:auto;}
+  .info-row.has-race .info-col{height:460px;}
+  #lrcol.lr-race #lapsec{display:none !important;}
+  #lrcol.lr-laps #racesec{display:none !important;}
+  #lrtabs .filt-chip.on{background:#1E88E5;color:#fff;border-color:#1E88E5;}
+  #racetbl td,#racetbl th{white-space:nowrap;}
   #sectorbody{flex:1 1 auto;min-height:0;overflow:auto;}
   .card.dim{opacity:1;background:#d6d6da;filter:grayscale(1);}
   .card.dim .lbl,.card.dim .sub{color:#4a4a50!important;}
@@ -888,7 +895,8 @@ body.light .hdrname{color:#fff;}
   <!-- Map (left) + Stroke data (right) -->
   <div id="map-stroke-row">
     <div class="info-row secpill" id="paneInfo" data-pane="paneInfo"><div class="pane-grip" title="Drag to move this pane"><span></span></div>
-    <div class="info-col info-wide info-fixed inpill">
+    <div class="info-col info-wide info-fixed inpill" id="lrcol">
+      <div id="lrtabs" style="display:none;gap:4px;margin-bottom:6px;flex:0 0 auto;"><button type="button" class="filt-chip on" data-lrtab="race" onclick="window.lrTab('race')">Race plan</button><button type="button" class="filt-chip" data-lrtab="laps" onclick="window.lrTab('laps')">Laps</button></div>
       <div id="lapsec" style="display:none;">
         <div class="sec-hd" style="padding:0 0 4px;"><h2>Laps</h2><span id="laptypebar" style="display:flex;flex-wrap:wrap;align-items:center;gap:4px;"></span></div>
         <div id="lapcurvebar" style="display:flex;flex-wrap:wrap;align-items:center;gap:4px;margin-bottom:6px;"></div>
@@ -12431,7 +12439,7 @@ function resetApp(){
   document.getElementById('startup').innerHTML='';
   document.getElementById('openbtn').style.display='';
   document.getElementById('summarybtn').style.display='none';
-  document.getElementById('lapsec').style.display='none';
+  document.getElementById('lapsec').style.display='none';try{const _rs=document.getElementById('racesec');if(_rs){_rs.style.display='none';_rs.innerHTML='';}_lrShow(false);}catch(e){}
   document.getElementById('mapsec').style.display='none';
   document.getElementById('map-stroke-row').classList.remove('on');
   document.getElementById('curvesec').style.display='none';
@@ -14998,9 +15006,27 @@ function racePlanOfSession(d){
 }
 /* Plan vs actual under the laps. The race laps are the first run of
    back-to-back work laps with the same count as the plan's splits. */
+/* Tabs for the laps / race plan pane: race plan first when the session has one. */
+let _lrTab='race',_lrSess=null;
+window.lrTab=function(t){
+  _lrTab=t==='laps'?'laps':'race';
+  const c=document.getElementById('lrcol'),tb=document.getElementById('lrtabs');
+  if(c){c.classList.toggle('lr-race',_lrTab==='race');c.classList.toggle('lr-laps',_lrTab==='laps');}
+  if(tb)tb.querySelectorAll('[data-lrtab]').forEach(b=>b.classList.toggle('on',b.dataset.lrtab===_lrTab));
+};
+function _lrShow(on){
+  const c=document.getElementById('lrcol'),tb=document.getElementById('lrtabs'),row=document.getElementById('paneInfo');
+  if(row)row.classList.toggle('has-race',!!on);
+  if(tb)tb.style.display=on?'flex':'none';
+  if(!on){if(c){c.classList.remove('lr-race','lr-laps');}return;}
+  const sk=activeSessionIdx+'|'+((SESSIONS[activeSessionIdx]||{}).fileId||'');
+  if(sk!==_lrSess){_lrSess=sk;_lrTab='race';}
+  window.lrTab(_lrTab);
+}
 function renderRacePlanCard(){
   const box=document.getElementById('racesec');if(!box)return;
   box.style.display='none';box.innerHTML='';
+  try{_lrShow(false);}catch(e){}
   const sess=SESSIONS[activeSessionIdx],d=sess&&sess.d;
   const plan=racePlanOfSession(d);if(!plan)return;
   const wl=(d.workoutLapMetrics||[]);
@@ -15019,25 +15045,42 @@ function renderRacePlanCard(){
   const hasP=plan.steps.every(x=>x.pace>0);
   const sgn=v=>(v>0?'+':v<0?'−':'')+Math.abs(v).toFixed(1);
   const col=v=>v==null?'':(v<=0?'color:#27ae60;':'color:#e74c3c;');
-  let pc=0,ac=0,acc=0,end=0,h='';
+  let pc=0,ac=0,acc=0,end=0,h='',tD=0,aT=0,aD=0,prW=0,prS=0,arW=0,arS=0,cD=0,cT=0;
   laps.forEach((l,i)=>{
-    const p=plan.steps[i];end+=p.d;
+    const p=plan.steps[i];end+=p.d;tD+=p.d;
+    if(l.time>0){aT+=l.time;aD+=(l.dist>0?l.dist:p.d);}
+    if(p.rate!=null){const w=hasP?p.pace*p.d/500:p.d;prW+=w;prS+=w*p.rate;}
+    if(l.rate!=null&&l.time>0){arW+=l.time;arS+=l.time*(+l.rate);}
     const ap=l.lapPace>0?l.lapPace:(l.dist>5?l.time/l.dist*500:null);
     const cp=corrP(l,ap);
     const pt=hasP?p.pace*p.d/500:null;
     if(hasP){pc+=pt;ac+=l.time;acc+=(cp!=null?cp*l.dist/500:l.time);}
+    if(cp!=null&&l.dist>0){cD+=l.dist;cT+=cp*l.dist/500;}
     const ds=hasP?l.time-pt:null;
-    h+='<tr><td>'+Math.round(end)+'</td>'
+    h+='<tr><td>'+Math.round(end)+' m</td>'
       +(hasP?'<td>'+racePaceTxt(p.pace)+'</td>':'')
       +'<td>'+racePaceTxt(ap)+'</td>'
       +(corrOn?'<td>'+(cp!=null?racePaceTxt(cp):'--')+'</td>':'')
       +(hasP?'<td style="'+col(ds)+'">'+sgn(ds)+'</td><td style="'+col(ac-pc)+'font-weight:700;">'+sgn(ac-pc)+'</td>':'')
       +'<td>'+(p.rate!=null?p.rate:'--')+'</td><td>'+(l.rate!=null?(+l.rate).toFixed(1):'--')+'</td></tr>';
   });
-  const tot=hasP?'<tr style="font-weight:700;border-top:2px solid var(--border);"><td>Total</td><td>'+racePaceTxt(pc)+'</td><td>'+racePaceTxt(ac)+'</td>'+(corrOn?'<td>'+racePaceTxt(acc)+'</td>':'')+'<td></td><td style="'+col(ac-pc)+'">'+sgn(ac-pc)+'</td><td></td><td></td></tr>':'';
-  box.innerHTML='<div class="sec-hd" style="padding:6px 0 4px;"><h2>Race plan</h2><span style="font-size:10px;color:var(--muted);">'+_secEsc(plan.name)+(corrOn?' · water = tide/wind corrected':'')+'</span></div>'
-    +'<div class="twrap" style="margin-bottom:8px;"><table id="racetbl"><thead><tr><th>m</th>'+(hasP?'<th>Plan</th>':'')+'<th>Pace</th>'+(corrOn?'<th>Water</th>':'')+(hasP?'<th>Split Δ</th><th>Gap</th>':'')+'<th>Plan spm</th><th>spm</th></tr></thead><tbody>'+h+tot+'</tbody></table></div>';
+  /* 24 Nov: total row = AVERAGE pace and AVERAGE rate over the race (rates
+     time-weighted); total times are on the line under the table. */
+  const avgPlanP=hasP&&tD>0?pc/tD*500:null,avgActP=aD>0?aT/aD*500:null,avgCorrP=cD>0?cT/cD*500:null;
+  const avgPlanR=prW>0?prS/prW:null,avgActR=arW>0?arS/arW:null;
+  const tot='<tr style="font-weight:700;border-top:2px solid var(--border);"><td>Avg · '+Math.round(tD)+' m</td>'
+    +(hasP?'<td>'+racePaceTxt(avgPlanP)+'</td>':'')+'<td>'+racePaceTxt(avgActP)+'</td>'+(corrOn?'<td>'+(avgCorrP?racePaceTxt(avgCorrP):'--')+'</td>':'')
+    +(hasP?'<td></td><td style="'+col(ac-pc)+'">'+sgn(ac-pc)+'</td>':'')
+    +'<td>'+(avgPlanR!=null?avgPlanR.toFixed(1):'--')+'</td><td>'+(avgActR!=null?avgActR.toFixed(1):'--')+'</td></tr>';
+  const timeLine='<div style="font-size:12px;color:var(--text);margin:-2px 0 8px;">'
+    +(hasP?'Plan time <b>'+racePaceTxt(pc)+'</b> · ':'')+'Actual time <b>'+racePaceTxt(aT)+'</b>'
+    +(hasP?' · <span style="'+col(ac-pc)+'font-weight:700;">'+sgn(ac-pc)+' s</span>':'')
+    +(corrOn&&hasP?' · corrected <b>'+racePaceTxt(acc)+'</b>':'')+'</div>';
+  box.innerHTML='<div class="sec-hd" style="padding:6px 0 4px;"><h2>Race plan</h2><span style="font-size:10px;color:var(--muted);">'+_secEsc(plan.name)+(corrOn?' · corrected = tide/wind corrected':'')+'</span></div>'
+    +'<div class="twrap" style="margin-bottom:8px;"><table id="racetbl"><thead><tr><th>Split end</th>'+(hasP?'<th>Plan pace</th>':'')+'<th>Actual pace</th>'+(corrOn?'<th>Corrected pace</th>':'')+(hasP?'<th>Split vs plan (s)</th><th>Total gap (s)</th>':'')+'<th>Plan spm</th><th>Actual spm</th></tr></thead><tbody>'+h+tot+'</tbody></table></div>'
+    +timeLine;
   box.style.display='';
+  try{_lrShow(true);}catch(e){}
 }
 window.renderRacePlanCard=renderRacePlanCard;
 /* ＋ Race plan from selection: pace and rate for every split of the selected
