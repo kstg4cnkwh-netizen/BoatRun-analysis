@@ -279,6 +279,15 @@ h2.section-h{font-family:'Space Grotesk',sans-serif;font-size:clamp(26px,3.4vw,3
 .app-link:after{content:"→";transition:transform .15s;}
 .app-link:hover:after{transform:translateX(3px);}
 
+.vid-pair{display:flex;gap:14px;justify-content:center;}
+.vid{flex:1;max-width:280px;margin:0;}
+.vid video{display:block;width:100%;aspect-ratio:9/16;object-fit:cover;border-radius:16px;border:1px solid rgba(255,255,255,.12);background:#101E3E;box-shadow:0 18px 40px rgba(0,0,0,.35);}
+.vid figcaption{font-family:'Roboto Mono',monospace;font-size:11px;letter-spacing:.06em;color:var(--ink-faint);text-align:center;margin-top:10px;}
+.int-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:16px;}
+@media(max-width:1000px){.int-grid{grid-template-columns:repeat(2,1fr);}}
+@media(max-width:560px){.int-grid{grid-template-columns:1fr;}}
+#head-to-head h2.section-h{color:var(--ink);}
+
 /* guides / resources */
 .res-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:16px;}
 @media(max-width:700px){.res-grid{grid-template-columns:1fr;}}
@@ -346,6 +355,9 @@ footer{background:var(--navy);color:var(--ink-faint);border-top:1px solid rgba(2
       <a href="#erg">Erg</a>
       <a href="#coaches">Coaches</a>
       <a href="#analysis">Analysis</a>
+      <a href="#head-to-head">Head to Head</a>
+      <a href="#trends">Trends</a>
+      <a href="#integrations">Integrations</a>
       <a href="#spectator">Spectator</a>
       <a href="#pricing">Plans</a>
       <a href="./clubs.html">Clubs</a>
@@ -367,7 +379,11 @@ footer{background:var(--navy);color:var(--ink-faint);border-top:1px solid rgba(2
     <a href="#planning">Season Planning &amp; Training Load</a>
     <a href="#erg">Erg &amp; Squad Erg</a>
     <a href="#coaches">Coaches &mdash; free</a>
-    <a href="#analysis">Analysis</a>
+    <a href="#analysis">Web Analyser</a>
+    <a href="#head-to-head">Head to Head</a>
+    <a href="#load">Training Load</a>
+    <a href="#trends">Trends &amp; Personal Bests</a>
+    <a href="#integrations">Partner Integrations</a>
     <a href="#spectator">Spectator</a>
     <a href="#pricing">Plans</a>
     <a href="./clubs.html">Clubs</a>
@@ -427,7 +443,7 @@ footer{background:var(--navy);color:var(--ink-faint);border-top:1px solid rgba(2
       <ul class="checklist">
         <li><b>Lanes</b> are one-way, drawn with direction arrows. Get an alert if you drift off the lane or row it the wrong way</li>
         <li><b>Dividers</b> can be passed on either side. Get an alert if you get too close</li>
-        <li><b>Hazards</b> are a single point like a post, or a line like a sandbank. A loud warning sounds when your course will pass within 5 m of one in the next 10 seconds</li>
+        <li><b>Hazards</b> are a single point like a post, or a line like a sandbank. A loud warning sounds when your course will pass within your warning distance (10 m by default) in the next 10 seconds</li>
         <li>Live readout with an arrow pointing to the line, the distance in metres, and ON LANE or WRONG WAY</li>
         <li>Choose your off-line alert distance — 5, 10, 20 or 30 m, or off</li>
         <li>Draw lines in the app or the Web Analyser, and share them with one tap</li>
@@ -649,20 +665,111 @@ footer{background:var(--navy);color:var(--ink-faint);border-top:1px solid rgba(2
     <div>
       <span class="eyebrow section-eyebrow">Deep Analysis</span>
       <h2 class="section-h">The Web-Based Analyser</h2>
-      <p class="section-p">Your data deserves a bigger screen. Sessions sync straight to your desktop or tablet for close study, in five tabs: Planning, Load, Results, Trends and Navigation.</p>
+      <p class="section-p">Your data deserves a bigger screen. Every session syncs to your desktop or tablet, in four tabs: Plan &amp; Load, Sessions, Trends and Navigation. Nothing to install &mdash; open it in any browser and sign in with the same Google account as the app.</p>
       <ul class="checklist">
-        <li>Compare stroke curves between different crews, dates and templates</li>
-        <li>Create stroke templates for consistent training</li>
-        <li>Overlay stroke curves and metrics on auto-synced video</li>
-        <li>Season plan with loading cycles, block templates and drag-and-drop workouts</li>
-        <li>Training load, fatigue and load ratio, with today's suggestion and optimal load</li>
-        <li>Your plan and your squads' plans on one calendar</li>
-        <li>Draw lanes, dividers, hazards and sectors on a full-size map</li>
-      </ul>      <a class="btn btn-coral" style="margin-top:8px;" href="https://boatrun.au/analyser.html">Launch Web Analyser</a>
+        <li><b>Plan &amp; Load</b> &mdash; season plan, training load, today's suggestion and your calendar</li>
+        <li><b>Sessions</b> &mdash; every row and erg piece, with focus metrics, laps, race plans and personal bests by boat</li>
+        <li><b>Head to Head</b> &mdash; race any sessions against each other over the same stretch, then save it as a video</li>
+        <li><b>Trends</b> &mdash; what actually makes each of your boats faster</li>
+        <li><b>Navigation</b> &mdash; draw lanes, dividers, hazards and sectors on a full-size map</li>
+        <li>Compare stroke curves between crews, dates and templates, and overlay them on auto-synced video</li>
+      </ul>
+      <a class="btn btn-coral" style="margin-top:8px;" href="https://boatrun.au/analyser.html">Launch Web Analyser</a>
       <br><a class="btn" style="margin-top:8px;background:transparent;color:var(--coral);border:2px solid var(--coral);" href="https://boatrun.au/analyser.html?demo=demo1">Launch Demo Session</a>
     </div>
     <div class="fr-media">
-      <div class="shot"><img src="screenshot-analyser.png" alt="BoatRun web analyser dashboard"></div>
+      <div class="shot"><img src="screenshot-analyser-sessions.jpg" alt="BoatRun Analyser sessions list with focus metrics" loading="lazy"></div>
+    </div>
+  </div>
+</section>
+
+<!-- HEAD TO HEAD -->
+<section id="head-to-head" class="on-navy" style="background:var(--navy);color:var(--ink);">
+  <div class="wrap feature-row">
+    <div>
+      <span class="eyebrow" style="color:var(--teal);border-color:rgba(47,211,198,.35);background:rgba(47,211,198,.1);">Head to Head</span>
+      <h2 class="section-h">Race Anyone, Any Day</h2>
+      <p class="section-p">Line up any sessions on the same water &mdash; your heat against your final, this week against last month, or your whole squad on regatta day &mdash; and watch them race again, stroke by stroke.</p>
+      <ul class="checklist">
+        <li>Add sessions from your squad, your Google Drive, or FIT, TCX, GPX and CSV files from any rowing computer or watch</li>
+        <li>Pick a stretch on the map or a saved sector &mdash; 380 m sprint or 5 km head race</li>
+        <li>Live leaderboard with gap, distance to go, pace, rate, distance per stroke and heart rate</li>
+        <li>Replay at any speed, then save as a video: zoomed or overview, landscape or portrait for social</li>
+      </ul>
+    </div>
+    <div class="fr-media">
+      <div class="vid-pair">
+        <figure class="vid"><video src="h2h-380m.mp4" poster="h2h-380m.jpg" autoplay muted loop playsinline preload="metadata" aria-label="Head to head replay of seven boats over 380 m"></video><figcaption>380 m &middot; seven crews, regatta day</figcaption></figure>
+        <figure class="vid"><video src="h2h-5000m.mp4" poster="h2h-5000m.jpg" autoplay muted loop playsinline preload="metadata" aria-label="Head to head replay of two scullers over 5000 m"></video><figcaption>5000 m &middot; two scullers, two days</figcaption></figure>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- TRAINING LOAD -->
+<section id="load">
+  <div class="wrap feature-row rev">
+    <div>
+      <span class="eyebrow section-eyebrow">Plan &amp; Load</span>
+      <h2 class="section-h">Train Hard, Arrive Fresh</h2>
+      <p class="section-p">Build the season around your races, then let your load tell you how hard to go today.</p>
+      <ul class="checklist">
+        <li>Season plan in loading cycles &mdash; build, peak and taper &mdash; with block templates and drag-and-drop workouts</li>
+        <li>Acute load, chronic load and load ratio on the same Garmin-style scale, from every row, erg and other session</li>
+        <li>Today's suggestion with an optimal load range, and a projection of how fresh you'll be on race day</li>
+        <li>Daily check-in for sleep, soreness, energy, resting HR and HRV</li>
+        <li>One calendar for your own plan and your squads' plans, planned up to a year ahead</li>
+        <li>Share load and check-ins with your coach &mdash; only if you turn it on</li>
+      </ul>
+    </div>
+    <div class="fr-media">
+      <div class="shot"><img src="screenshot-analyser-load.jpg" alt="BoatRun training load chart with acute, chronic and load ratio" loading="lazy"></div>
+      <div class="shot-pair" style="margin-top:12px;">
+        <div class="shot"><img src="screenshot-analyser-season.jpg" alt="BoatRun season plan with build, peak and taper" loading="lazy"></div>
+        <div class="shot"><img src="screenshot-analyser-calendar.jpg" alt="BoatRun workouts and calendar" loading="lazy"></div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- TRENDS -->
+<section id="trends" style="background:#EFEDE6;">
+  <div class="wrap feature-row">
+    <div>
+      <span class="eyebrow section-eyebrow">Trends</span>
+      <h2 class="section-h">What Makes Your Boat Fast</h2>
+      <p class="section-p">Trends looks across every session in each boat and finds which parts of your stroke move the needle on pace.</p>
+      <ul class="checklist">
+        <li>Ranks each metric by how strongly it drives pace, for each boat type</li>
+        <li>Allows for rate, heading and time in the session, so a tailwind or a sprint finish doesn't fool it</li>
+        <li>Shows which way is faster &mdash; and whether you're improving or slipping</li>
+        <li>Personal bests for every distance, filtered by boat: 1x, 2x, 4x, coastal and mixed</li>
+      </ul>
+    </div>
+    <div class="fr-media">
+      <div class="shot"><img src="screenshot-analyser-trends.jpg" alt="BoatRun Trends — what drives pace" loading="lazy"></div>
+      <div class="shot" style="margin-top:12px;"><img src="screenshot-analyser-pbs.jpg" alt="BoatRun personal bests by boat type" loading="lazy"></div>
+    </div>
+  </div>
+</section>
+
+<!-- INTEGRATIONS -->
+<section id="integrations" class="apps-band">
+  <div class="wrap">
+    <div class="section-head on-navy">
+      <span class="eyebrow" style="color:var(--teal);border-color:rgba(47,211,198,.35);background:rgba(47,211,198,.1);">Partner Integrations</span>
+      <h2 class="section-h">Plays Well With Your Other Apps</h2>
+      <p class="section-p">Bring in what you already track and send your rows where you want them. Every connection is off until you turn it on, and you can disconnect at any time.</p>
+    </div>
+    <div class="int-grid">
+      <div class="app-card"><span class="app-tag">Load</span><h3>Garmin Connect</h3><p>Garmin training load links to the matching row automatically, even when two phones recorded it, and your sleep score, resting HR and HRV fill in the daily check-in.</p></div>
+      <div class="app-card"><span class="app-tag">Share</span><h3>Strava</h3><p>Post your rows to Strava with your track, pace, heart rate and lap table.</p></div>
+      <div class="app-card"><span class="app-tag">Erg</span><h3>Concept2 Logbook</h3><p>Erg pieces upload to your Concept2 Logbook so your rankings and history stay in one place.</p></div>
+      <div class="app-card"><span class="app-tag">Load</span><h3>intervals.icu</h3><p>Send rows to intervals.icu with track, pace, heart rate, stroke rate and laps, ready for its load, fitness and form charts.</p></div>
+      <div class="app-card"><span class="app-tag">Health</span><h3>Apple Health &amp; Health Connect</h3><p>Every row is saved to Health as a rowing workout with its time and heart rate.</p></div>
+      <div class="app-card"><span class="app-tag">Sync</span><h3>Google Drive</h3><p>Sessions and settings live in your own Drive, so they follow you to every phone, tablet and computer.</p></div>
+      <div class="app-card"><span class="app-tag">Plan</span><h3>Calendar</h3><p>Planned workouts and races show up in your phone or Google calendar.</p></div>
+      <div class="app-card"><span class="app-tag">Any watch</span><h3>Polar, Coros, Suunto, Whoop &amp; more</h3><p>Type in the load from any watch or band and BoatRun puts it on the same scale. Import FIT, TCX or GPX files for Head to Head.</p></div>
     </div>
   </div>
 </section>
