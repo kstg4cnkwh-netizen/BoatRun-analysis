@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
 <meta name="color-scheme" content="light dark"/>
-<meta name="br-build" content="Analyser_261123_08">
+<meta name="br-build" content="Analyser_261124_05">
 <title>BoatRun Analyser</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -2054,13 +2054,37 @@ function _normRecords(obj) {
   if (!out.erg.dur) out.erg.dur = {};
   out.gen = (obj && obj.gen) || 0;
   out.excl = (obj && obj.excl && typeof obj.excl === 'object') ? { ...obj.excl } : {};
+  /* 24 Nov: on-water bests per boat type, wb = { '1x': {500:{..}, dur:{..}}, ... } */
+  out.wb = {};
+  if (obj && obj.wb && typeof obj.wb === 'object') Object.keys(obj.wb).forEach(b => { const x = obj.wb[b]; if (x && typeof x === 'object') out.wb[b] = { ...x, dur: { ...(x.dur || {}) } }; });
   return out;
 }
+/* Personal-best boat filter ('' = all boats). */
+let REC_BOAT = (() => { try { return localStorage.getItem('br_rec_boat') || ''; } catch (e) { return ''; } })();
+function recSrc(mode) {
+  if (mode !== 'erg' && REC_BOAT) { const w = (RECORDS_DB.wb || {})[REC_BOAT]; return w || { dur: {} }; }
+  return RECORDS_DB[mode === 'erg' ? 'erg' : 'water'] || { dur: {} };
+}
+function recBoatChips() {
+  const have = BOAT_ORDER.filter(b => RECORDS_DB.wb && RECORDS_DB.wb[b]);
+  if (!have.length && !REC_BOAT) return '<div style="font-size:11px;color:var(--muted);margin:2px 0 6px;">Boat filter: run Scan All for Records to sort your bests by boat type.</div>';
+  const chip = (v, t) => '<button type="button" class="filt-chip' + (REC_BOAT === v ? ' on' : '') + '" onclick="window.setRecBoat(\'' + v + '\')" style="padding:3px 10px;font-size:11px;font-weight:700;border-radius:12px;border:1px solid var(--border,#ccc);background:' + (REC_BOAT === v ? '#1E88E5' : 'transparent') + ';color:' + (REC_BOAT === v ? '#fff' : 'inherit') + ';cursor:pointer;">' + t + '</button>';
+  return '<div style="display:flex;flex-wrap:wrap;gap:6px;margin:2px 0 8px;">' + chip('', 'All boats') + have.map(b => chip(b, b)).join('') + (REC_BOAT && !have.includes(REC_BOAT) ? chip(REC_BOAT, REC_BOAT) : '') + '</div>';
+}
+window.setRecBoat = function (b) {
+  REC_BOAT = b || ''; try { localStorage.setItem('br_rec_boat', REC_BOAT); } catch (e) {}
+  try { renderRecords(); } catch (e) {}
+  if (typeof window._sumRender === 'function' && (document.getElementById('_summary_modal') || document.getElementById('sz-sumbody'))) { try { window._sumRender(); } catch (e) {} }
+};
 /* Manually excluded results, keyed mode|target|session. An excluded session
    can never set that PB again, so a rescan finds the next best instead. */
 function recExclKey(m, target, fileId, dateISO) { return m + '|' + target + '|' + (fileId || dateISO || ''); }
 function recIsExcl(db, m, target, fileId, dateISO) { return !!(db.excl && db.excl[recExclKey(m, target, fileId, dateISO)]); }
 function recDropExcluded(db) {
+  Object.keys(db.wb || {}).forEach(b => { const x = db.wb[b];
+    Object.keys(x || {}).forEach(d => { if (d === 'dur') return; const r = x[d]; if (r && recIsExcl(db, 'water', d, r.fileId, r.date)) delete x[d]; });
+    Object.keys((x && x.dur) || {}).forEach(ms => { const r = x.dur[ms]; if (r && recIsExcl(db, 'water', 'dur' + ms, r.fileId, r.date)) delete x.dur[ms]; });
+  });
   ['water', 'erg'].forEach(m => {
     Object.keys(db[m] || {}).forEach(d => {
       if (d === 'dur') return;
@@ -2087,6 +2111,9 @@ function purgeForeignRecords(files){
     return isFinite(t)&&stamps.some(s=>s.erg===(m==='erg')&&Math.abs(s.t-t)<=120000);
   };
   let n=0;
+  Object.keys(RECORDS_DB.wb||{}).forEach(b=>{const db=RECORDS_DB.wb[b]||{};
+    Object.keys(db).forEach(k=>{if(k==='dur')return;if(!own(db[k],'water')){delete db[k];n++;}});
+    Object.keys(db.dur||{}).forEach(k=>{if(!own(db.dur[k],'water')){delete db.dur[k];n++;}});});
   ['water','erg'].forEach(m=>{
     const db=RECORDS_DB[m]||{};
     Object.keys(db).forEach(k=>{if(k==='dur')return;if(!own(db[k],m)){delete db[k];n++;}});
@@ -2123,7 +2150,9 @@ function mergeRecords(a, b) {
     out.dur = mergeDur(am.dur, bm.dur);
     return out;
   }
-  return recDropExcluded({ water: mergeMode(A.water, B.water), erg: mergeMode(A.erg, B.erg), gen: A.gen, excl: { ...A.excl, ...B.excl } });
+  const wb = {};
+  new Set([...Object.keys(A.wb || {}), ...Object.keys(B.wb || {})]).forEach(b => { wb[b] = mergeMode(A.wb[b] || { dur: {} }, B.wb[b] || { dur: {} }); });
+  return recDropExcluded({ water: mergeMode(A.water, B.water), erg: mergeMode(A.erg, B.erg), wb, gen: A.gen, excl: { ...A.excl, ...B.excl } });
 }
 let _recordsPushTimer = null;
 function schedulePushRecordsToPrefs() {
@@ -3402,7 +3431,7 @@ function addSessionFromData(d, label, replace, fileId, squadCode, notOwn) {
   SESSIONS.push({label, d, fileId: fileId||null, squadCode: squadCode || d.squadCode || null});
   /* Personal bests only come from the user's own sessions on Drive - never
      squad, coach or opened-from-file sessions. */
-  if (fileId && !squadCode && !notOwn) updateRecords(recordsTrace(d), label, d.sum&&d.sum.start_time, fileId, (d.sum&&d.sum.session_mode==='erg')?'erg':'water');
+  if (fileId && !squadCode && !notOwn) updateRecords(recordsTrace(d), label, d.sum&&d.sum.start_time, fileId, (d.sum&&d.sum.session_mode==='erg')?'erg':'water', d.sum&&d.sum.boat_type);
   if (!squadCode && !notOwn) updateSectorsFromData(d, label, fileId);   // squad-cloud loads are other rowers' sessions; own ones are scanned from Drive
   switchSession(idx);
   if (typeof _ac !== 'undefined' && _ac) { try { acSync(); } catch (e) { console.warn('acSync', e); } }
@@ -3484,30 +3513,35 @@ function computeBestDurations(gpsTrace) {
   if(pts.length>1){ const dd=pts[pts.length-1].dist-pts[0].dist, tt=pts[pts.length-1].t-pts[0].t; if(dd>0){ out.max=dd; out._maxT=tt; } }
   return out;
 }
-function updateRecords(gpsTrace, label, dateISO, fileId, mode) {
+function updateRecords(gpsTrace, label, dateISO, fileId, mode, boat) {
   const m = mode==='erg' ? 'erg' : 'water';
   const efforts=computeBestEfforts(gpsTrace);
   const durations=computeBestDurations(gpsTrace);
   let changed=false;
+  const apply=T=>{
   Object.keys(efforts).forEach(d=>{
-    const cur=RECORDS_DB[m][d];
+    const cur=T[d];
     if (recIsExcl(RECORDS_DB, m, d, fileId, dateISO)) return;
     if (!cur || efforts[d]<cur.timeMs) {
-      RECORDS_DB[m][d]={timeMs:efforts[d], date:dateISO||null, label:label||'', fileId:fileId||null};
+      T[d]={timeMs:efforts[d], date:dateISO||null, label:label||'', fileId:fileId||null};
       changed=true;
     }
   });
-  if(!RECORDS_DB[m].dur) RECORDS_DB[m].dur={};
+  if(!T.dur) T.dur={};
   Object.keys(durations).forEach(ms=>{
     if (ms==='_maxT') return;
-    const cur=RECORDS_DB[m].dur[ms];
+    const cur=T.dur[ms];
     if (recIsExcl(RECORDS_DB, m, 'dur' + ms, fileId, dateISO)) return;
     if (!cur || durations[ms]>cur.distM) {
-      RECORDS_DB[m].dur[ms]={distM:durations[ms], date:dateISO||null, label:label||'', fileId:fileId||null};
-      if (ms==='max' && durations._maxT>0) RECORDS_DB[m].dur[ms].timeMs=durations._maxT;
+      T.dur[ms]={distM:durations[ms], date:dateISO||null, label:label||'', fileId:fileId||null};
+      if (ms==='max' && durations._maxT>0) T.dur[ms].timeMs=durations._maxT;
       changed=true;
     }
   });
+  };
+  apply(RECORDS_DB[m]);
+  /* 24 Nov: on-water bests also kept per boat type for the boat filter. */
+  if (m==='water' && boat && BOAT_ORDER.includes(boat)) { if(!RECORDS_DB.wb) RECORDS_DB.wb={}; if(!RECORDS_DB.wb[boat]) RECORDS_DB.wb[boat]={dur:{}}; apply(RECORDS_DB.wb[boat]); }
   if (changed) {
     try{localStorage.setItem('br_records',JSON.stringify(RECORDS_DB));}catch{}
     renderRecords();
@@ -3553,9 +3587,9 @@ function renderRecords() {
   if (!el) return;
   const targets=[500,1000,2000,5000,10000];
   function grpHTML(title,mode){
-    let h='<div class="sumgrp"><div class="sumgrp-hd">'+title+'</div><div class="sumgrp-cards">';
+    let h='<div class="sumgrp"><div class="sumgrp-hd">'+title+(mode==='water'&&REC_BOAT?' · '+REC_BOAT:'')+'</div>'+(mode==='water'?recBoatChips():'')+'<div class="sumgrp-cards">';
     targets.forEach(d=>{
-      const r=RECORDS_DB[mode][d];
+      const r=recSrc(mode)[d];
       const lbl=d>=1000?(d/1000)+'km':d+'m';
       const val=r?fmtRecordTime(r.timeMs):'—';
       const dateStr=r?fmtRecordDate(r.date):'';
@@ -3570,7 +3604,7 @@ function renderRecords() {
 window.excludeRecord=function(mode, target){
   const m = mode==='erg' ? 'erg' : 'water';
   const isDur = String(target).startsWith('dur');
-  const r = isDur ? (RECORDS_DB[m].dur||{})[String(target).slice(3)] : RECORDS_DB[m][target];
+  const r = isDur ? (recSrc(m).dur||{})[String(target).slice(3)] : recSrc(m)[target];
   if (!r) return;
   if (!confirm('Exclude this result'+(r.label?' ('+r.label+')':'')+'? The next best will be found by rescanning.')) return;
   if (!RECORDS_DB.excl) RECORDS_DB.excl = {};
@@ -3666,11 +3700,11 @@ async function loadRecordEntry(r, mode){
 }
 window.loadRecordSession=async function(dist, mode){
   const m = mode==='erg' ? 'erg' : 'water';
-  await loadRecordEntry(RECORDS_DB[m]&&RECORDS_DB[m][dist], m);
+  await loadRecordEntry(recSrc(m)[dist], m);
 };
 window.loadRecordDurationSession=async function(ms, mode){
   const m = mode==='erg' ? 'erg' : 'water';
-  await loadRecordEntry(RECORDS_DB[m]&&RECORDS_DB[m].dur&&RECORDS_DB[m].dur[ms], m);
+  await loadRecordEntry(recSrc(m).dur&&recSrc(m).dur[ms], m);
 };
 // ══════════════════════════════════════════════════════════════════════════
 // SECTORS — datum track, gate crossings, session results, bests
@@ -7324,7 +7358,7 @@ function importOwnSessionsPick() {
         try {
           const d = sessionToAnalyserFmt(JSON.parse(JSON.stringify(s)));
           const lbl = s.name || meta.name.replace('RowSess_', '').replace('.json', '');
-          updateRecords(recordsTrace(d), lbl, d.sum && d.sum.start_time, id, s.sessionMode === 'erg' ? 'erg' : 'water');
+          updateRecords(recordsTrace(d), lbl, d.sum && d.sum.start_time, id, s.sessionMode === 'erg' ? 'erg' : 'water', d.sum && d.sum.boat_type);
           updateSectorsFromData(d, lbl, id);
         } catch (e) {}
       } catch (e) { if (driveAuthExpired(e)) return; bad++; lastErr = f.name + ': ' + e.message; }
@@ -13563,7 +13597,7 @@ function _sumGroupHTML(title,groupKey,list,monthOff,weekOff){
 function _sumRecordsCardsHTML(mode){
   const targets=[500,1000,2000,5000,10000];
   let out=targets.map(d=>{
-    const r=RECORDS_DB[mode][d];
+    const r=recSrc(mode)[d];
     const lbl=d>=1000?(d/1000)+'km':d+'m';
     const val=r?fmtRecordTime(r.timeMs):'—';
     const dateStr=r?fmtRecordDate(r.date):'';
@@ -13571,7 +13605,7 @@ function _sumRecordsCardsHTML(mode){
   }).join('');
   const durTargets=[{ms:1800000,lbl:'30 min'},{ms:3600000,lbl:'1 hour'},{ms:'max',lbl:'Longest session'}];
   out+=durTargets.map(t=>{
-    const r=RECORDS_DB[mode].dur&&RECORDS_DB[mode].dur[t.ms];
+    const r=recSrc(mode).dur&&recSrc(mode).dur[t.ms];
     const val=r?fmtRecordDist(r.distM,mode):'—';
     const dateStr=r?fmtRecordDate(r.date):'';
     return '<div class="card cb" style="cursor:'+(r&&(r.fileId||r.date)?'pointer':'default')+';" onclick="'+(r&&(r.fileId||r.date)?'window.loadRecordDurationSession(\''+t.ms+'\',\''+mode+'\');document.getElementById(\'_summary_modal\')?.remove();':'')+'"><div class="lbl">'+(r?'<button title="Exclude this result" onclick="event.stopPropagation();window.excludeRecord(\''+mode+'\',\''+'dur'+t.ms+'\')" style="float:right;margin:-4px -4px 0 0;background:none;border:0;color:var(--muted);font-size:14px;line-height:1;padding:2px 4px;cursor:pointer;">\u2715</button>':'')+t.lbl+'</div><div class="val">'+val+'</div>'+recDurPaceLine(r,t.ms)+'<div class="sub">'+(t.ms==='max'&&r&&r.timeMs?fmtRecordTime(r.timeMs).replace(/\.\d$/,'')+' \u00b7 ':'')+dateStr+'</div></div>';
@@ -14748,7 +14782,7 @@ async function renderSummaryInto(body){
     html+=_sumGroupHTML('Erg','erg',erg,_sumOffsets.erg.m,_sumOffsets.erg.w);
     html+=_sumGroupHTML('Combined','combined',files,_sumOffsets.combined.m,_sumOffsets.combined.w);
     html+='<div class="brpill-row" style="margin-bottom:10px;"><button class="dzbtn dzbtn-sec" id="_sum-rescan"><img src="icons/Scan.svg"><span>Scan All for Records</span></button><button class="dzbtn dzbtn-sec" id="_sum-resetrecords"><img src="icons/Reset.svg"><span>Reset Records</span></button>'+(Object.keys(RECORDS_DB.excl||{}).length?'<button class="dzbtn dzbtn-sec" id="_sum-clearexcl"><span>Clear Exclusions ('+Object.keys(RECORDS_DB.excl).length+')</span></button>':'')+'</div>';
-    html+='<div class="brpill sumsec sumsec-water">'+sumSecHd('water','On water \u00b7 personal bests')+'<div class="sumgrp"><div class="sumgrp-cards">'+_sumRecordsCardsHTML('water')+'</div></div></div>'
+    html+='<div class="brpill sumsec sumsec-water">'+sumSecHd('water','On water \u00b7 personal bests'+(REC_BOAT?' \u00b7 '+REC_BOAT:''))+'<div class="sumgrp">'+recBoatChips()+'<div class="sumgrp-cards">'+_sumRecordsCardsHTML('water')+'</div></div></div>'
       +'<div class="brpill sumsec sumsec-erg">'+sumSecHd('erg','Erg \u00b7 personal bests')+'<div class="sumgrp"><div class="sumgrp-cards">'+_sumRecordsCardsHTML('erg')+'</div></div></div>';
     body.innerHTML=html;
     body.querySelectorAll('button[data-nav]').forEach(btn=>{
@@ -14772,7 +14806,7 @@ async function renderSummaryInto(body){
           const session=await AnalyserDrive.fetchSession(f.id);
           applySessionUnits(session);
           const conv=sessionToAnalyserFmt(session);
-          updateRecords(recordsTrace(conv), nameFromFilename(f.name)||conv.name||f.name, conv.sum&&conv.sum.start_time, f.id, (conv.sum&&conv.sum.session_mode==='erg')?'erg':'water');
+          updateRecords(recordsTrace(conv), nameFromFilename(f.name)||conv.name||f.name, conv.sum&&conv.sum.start_time, f.id, (conv.sum&&conv.sum.session_mode==='erg')?'erg':'water', conv.sum&&conv.sum.boat_type);
           updateSectorsFromData(conv, nameFromFilename(f.name)||conv.name||f.name, f.id);
         }catch(err){}
       }
@@ -15313,7 +15347,9 @@ window.showWorkoutsModal=function(opts){
     +'<div style="font-size:17px;font-weight:800;flex:1;">'+t+'</div>'
     +'<button data-a="close" style="border:none;background:#e5e5ea;color:#555;border-radius:14px;width:28px;height:28px;font-size:15px;cursor:pointer;">&#215;</button></div>';
 
-  const renderList=()=>{
+  let _wktOnList=false;   /* 24 Nov: the Drive refresh only redraws the list if the list is showing - it was swapping + ON-WATER WORKOUT's new-workout panel for the list */
+  const renderList=()=>{_wktOnList=true;_renderList();};
+  const _renderList=()=>{
     const all=_wktOrdered();
     let todayIds=[];try{todayIds=planIds(_dayKey(Date.now()));}catch(e){}
     const list=all.filter(w=>(isErgW(w)?'erg':'water')===_wktVenueView)
@@ -15393,6 +15429,7 @@ window.showWorkoutsModal=function(opts){
      the full step builder. Works for on-water and erg. */
   let newVenue='erg';
   const renderNew=v=>{
+    _wktOnList=false;
     newVenue=v==='water'?'water':'erg';
     const col=newVenue==='erg'?ERG:'#27ae60';
     const qi=(k,t,sub)=>'<button type="button" data-a="quick" data-m="'+k+'" style="display:flex;align-items:center;gap:10px;width:100%;text-align:left;background:#fff;border:1px solid #e0e0e5;border-left:4px solid '+col+';border-radius:12px;box-shadow:0 1px 3px rgba(0,0,0,.07);padding:12px;margin-bottom:8px;font-family:inherit;font-size:15px;font-weight:800;color:#000;cursor:pointer;">'
@@ -15409,6 +15446,7 @@ window.showWorkoutsModal=function(opts){
   };
   const renderNewErg=()=>renderNew('erg');
   const renderQuick=()=>{
+    _wktOnList=false;
     const q=quick;
     const T={dist:'Single Distance',time:'Single Time',const:'Constant Intervals',var:'Variable Intervals',race:'Race Plan'}[q.kind];
     if(q.kind==='race')racePlanRegen(q);
@@ -15810,7 +15848,7 @@ window.showWorkoutsModal=function(opts){
     _wktVenueView=erg?'erg':'water';
     renderNew(erg?'erg':'water');
   }else renderList();
-  if(AnalyserDrive.isSignedIn())AnalyserDrive.pullPrefs().then(cur=>{if(!cur)return;applyWorkoutsFromPrefs(cur.workouts);if(!edit&&!opts.viewId&&!opts.viewW&&document.getElementById('_wkt_modal'))renderList();}).catch(()=>{});
+  if(AnalyserDrive.isSignedIn())AnalyserDrive.pullPrefs().then(cur=>{if(!cur)return;applyWorkoutsFromPrefs(cur.workouts);if(_wktOnList&&!edit&&!quick&&!opts.viewId&&!opts.viewW&&document.getElementById('_wkt_modal'))renderList();}).catch(()=>{});
 };
 document.getElementById('wktbtn').onclick=window.showWorkoutsModal;
 wktUpdateBtn();
@@ -16346,19 +16384,26 @@ async function gapiSync(loud){
     _gapiLast=Date.now();
     d.acts.sort((a,b)=>(b.dev!==false)-(a.dev!==false));   // watch-recorded first: a Concept2/Strava import never takes the session
     const garminW=tlWatch()==='garmin',linked={};Object.keys(SESS_LOAD).forEach(k=>{const e=SESS_LOAD[k];if(e&&e.gid&&(e.load>0||e.ate!=null))linked[e.gid]=k;});let n=0,seen=0;
+    /* 24 Nov: two phones on the same row - the Garmin went to the closest start only.
+       Now every session starting within 10 min of the activity or overlapping half of
+       it gets it; a session already holding a different Garmin activity keeps that. */
+    const _gMatch=a=>{const ad=+(a.dur||a.fitDur||0)*1000;return F.filter(x=>{const s0=x.p.approxTs,sd=(x.p.durS||0)*1000;if(Math.abs(s0-a.t)<10*60000)return true;if(!(ad>0)||!(sd>0))return false;return Math.min(a.t+ad,s0+sd)-Math.max(a.t,s0)>=0.5*Math.min(ad,sd);});};
+    const _gDone=new Set();
     d.acts.forEach(a=>{
       if(!a||!a.t||(a.load==null&&a.ate==null&&a.ante==null))return;
-      if(linked[a.id])return;   // already on a session
-      let best=null,bd=10*60000;F.forEach(x=>{const dd=Math.abs(x.p.approxTs-a.t);if(dd<bd){bd=dd;best=x;}});
-      if(!best)return;seen++;
+      _gMatch(a).forEach(best=>{
+      seen++;
       const k=tlSessKey(best),m=SESS_LOAD[k]||{},p={};
+      if(_gDone.has(k))return;
+      if(m.gid!=null&&String(m.gid)!==String(a.id))return;
       if(garminW&&a.load>0&&!(m.load>0))p.load=Math.round(a.load);
       if(a.ate!=null&&m.ate==null)p.ate=Math.round(a.ate*10)/10;
       if(a.ante!=null&&m.ante==null)p.ante=Math.round(a.ante*10)/10;
       if(a.label&&!m.lbl&&(p.ate!=null||p.load))p.lbl=a.label;
       if(!Object.keys(p).length)return;
       if(p.load)p.w='garmin';p.gid=a.id;
-      SESS_LOAD[k]={...m,...p,rev:Date.now()};n++;linked[a.id]=k;
+      SESS_LOAD[k]={...m,...p,rev:Date.now()};n++;linked[a.id]=k;_gDone.add(k);
+      });
     });
     if(n){tlSaveSess();try{const el=document.getElementById('card-tload');if(el){el.outerHTML=tlCardHtml();tlCardBind();}}catch(e){}}
     let no=0;
@@ -16488,20 +16533,30 @@ function tlRaces(){
 }
 function tlItemTs(k,x){const m=/^(\d{1,2}):(\d{2})/.exec(String(x&&x.time||''));return new Date(k+'T'+(m?String(m[1]).padStart(2,'0')+':'+m[2]:'12:00')+':00').getTime();}   // other workouts: their time, else midday
 function tlAddDays(k,n){const d=new Date(k+'T12:00:00');d.setDate(d.getDate()+n);return _dayKey(d.getTime());}
+/* 24 Nov: the same row recorded on two phones counted twice in the load. Sessions
+   that overlap by half of the shorter one are one row: keep the one with Garmin
+   numbers, else the longer one. */
+function tlDedupe(F){
+  const gOf=x=>{const e=SESS_LOAD[tlSessKey(x)];return e&&e.gid!=null?1:0;};
+  const L=F.filter(x=>x&&x.p&&x.p.approxTs).sort((a,b)=>(gOf(b)-gOf(a))||((b.p.durS||0)-(a.p.durS||0))),keep=new Set(),K=[];
+  L.forEach(x=>{const s0=x.p.approxTs,sd=(x.p.durS||0)*1000;
+    if(!(sd>0)||!K.some(k=>{const k0=k.p.approxTs,kd=(k.p.durS||0)*1000;return kd>0&&Math.min(s0+sd,k0+kd)-Math.max(s0,k0)>=0.5*Math.min(sd,kd);})){K.push(x);keep.add(x);}});
+  return F.filter(x=>!(x&&x.p&&x.p.approxTs)||keep.has(x));
+}
 function tlDaily(){
   tlCalibrate();
   const by={},todayK=_dayKey(Date.now());let first=todayK;
   const add=(k,v)=>{if(!(v>0))return;by[k]=(by[k]||0)+v;if(k<first)first=k;};
   const sessDays={};
   const items={},push=(k,o)=>{if(o.load>0)(items[k]=items[k]||[]).push(o);};   // 17 Nov: per-day pieces for the stacked bars
-  tlFiles().forEach(x=>{if(!x.p.approxTs)return;const k=_dayKey(x.p.approxTs);if(k>todayK)return;sessDays[k]=1;const r=tlSessLoad(x);add(k,r.load);push(k,{load:r.load,c:x.p.erg?'erg':'water',x,src:r.src,ts:x.p.approxTs});});
+  tlDedupe(tlFiles()).forEach(x=>{if(!x.p.approxTs)return;const k=_dayKey(x.p.approxTs);if(k>todayK)return;sessDays[k]=1;const r=tlSessLoad(x);add(k,r.load);push(k,{load:r.load,c:x.p.erg?'erg':'water',x,src:r.src,ts:x.p.approxTs});});
   const it=tlItems();Object.keys(it).forEach(k=>{const e=it[k];if(e&&Array.isArray(e.list))e.list.forEach(x=>{const L=tlOtherLoad(x);add(k,L);if(k<=todayK)push(k,{load:L,c:'other',o:x,ts:tlItemTs(k,x)});});});
   const nPast=Object.keys(by).filter(k=>k<=todayK).length;
-  /* ahead: to the next A race (else the next race), at least 4 weeks, at most 26 */
+  /* ahead: to the next A race (else the next race), at least 4 weeks, at most 53 */
   const races=tlRaces(),ahead=races.filter(r=>r.day>=todayK),target=ahead.find(r=>r.pri==='A')||ahead[0]||null;
   let endK=tlAddDays(todayK,28);
   if(target){const e2=tlAddDays(target.day,3);if(e2>endK)endK=e2;}
-  const capK=tlAddDays(todayK,182);if(endK>capK)endK=capK;
+  const capK=tlAddDays(todayK,371);if(endK>capK)endK=capK;   // 24 Nov: a year ahead (was 182 days)
   let planned=0;
   for(let k=todayK;k<=endK;k=tlAddDays(k,1)){
     if(k===todayK&&sessDays[k])continue;            // today already rowed: the session counts, not the plan
@@ -17195,7 +17250,7 @@ function wrMe(k0){
   const days=wrDays(k0),todayK=_dayKey(Date.now()),D=tlDaily();
   const prev=wrDays(tlAddDays(k0,-7));
   const sumLoad=ks=>ks.reduce((a,k)=>{const i=D.days.indexOf(k);return a+(i>=0&&k<=todayK?D.load[i]:0);},0);
-  const it=tlItems(),files=tlFiles();
+  const it=tlItems(),files=tlDedupe(tlFiles());
   const T={water:0,erg:0,other:0,km:0,min:0,load:0,pd:0,pdone:0,ck:0,cks:0};
   const rows=days.map(k=>{
     const ss=files.filter(x=>x.p&&x.p.approxTs&&_dayKey(x.p.approxTs)===k).sort((a,b)=>a.p.approxTs-b.p.approxTs).map(x=>{const L=tlSessLoad(x);return{kind:x.p.erg?'Erg':'Row',name:x.p.workout||x.p.name||'',dist:x.p.distM||0,min:(x.p.durS||0)/60,load:L.load};});
@@ -17589,13 +17644,13 @@ function renderStartupCalendar(){
   let h;
   if(wide){
     /* Wide screens: one scrolling strip of months, from the first session
-       (at most 3 years back) to 3 months ahead. */
+       (at most 3 years back) to 12 months ahead (24 Nov: was 3). */
     const back=isFinite(firstTs)?Math.min(36,Math.max(1,(now.getFullYear()-new Date(firstTs).getFullYear())*12+now.getMonth()-new Date(firstTs).getMonth())):6;
     h='<div class="sz-lhd" style="display:flex;align-items:center;gap:6px;flex-wrap:wrap;">Calendar'+calSqChipsHtml(CH)
       +'<span style="margin-left:auto;display:flex;align-items:center;gap:6px;">'+((!_wktCtx&&WKT_ENABLED)?'<button id="cal-sqsync" class="filt-chip" style="'+CH+'" title="Copy the squad plan into your calendar">&#x21BB; From squad</button>':'')
       +'<button id="sz-phonesync" class="filt-chip" style="'+CH+'" title="Fetch new sessions, workouts and calendar items from the app"><span>&#x21BB; Sync with app</span></button>'+'<button id="cal-today" class="filt-chip" style="'+CH+'">Today</button></span></div>'+sqBar
       +'<div id="cal-scroll" style="height:min(440px,62vh);overflow-y:auto;padding-right:4px;position:relative;">';
-    for(let o=-back;o<=3;o++){
+    for(let o=-back;o<=12;o++){
       const b=new Date(now.getFullYear(),now.getMonth()+o,1);
       h+='<div data-month="'+o+'" style="margin-bottom:12px;"><div style="font-size:.8rem;font-weight:700;margin:4px 0 6px;">'+mLabel(b.getFullYear(),b.getMonth())+'</div>'+monthGrid(b.getFullYear(),b.getMonth())+'</div>';
     }
@@ -18060,7 +18115,7 @@ function sznAnchors(all,todayK){const A=all.filter(r=>r.pri==='A');return (A.len
 function sznBlockAt(k,anc){const nx=anc.find(a=>a.r.day>=k);if(!nx)return anc.some(a=>a.r.day<k)?'post':'general';return k===nx.r.day?'race':btpBlockFor(sznDays(k,nx.r.day));}
 function sznModel(){
   const D=sznD(),todayK=_dayKey(Date.now()),W0=sznWkStart(todayK),all=tlRaces(),anc=sznAnchors(all,todayK);
-  let endW=tlAddDays(W0,7*16);all.forEach(r=>{if(r.day<todayK)return;const e=tlAddDays(sznWkStart(r.day),14);if(e>endW)endW=e;});
+  let endW=tlAddDays(W0,7*52);all.forEach(r=>{if(r.day<todayK)return;const e=tlAddDays(sznWkStart(r.day),14);if(e>endW)endW=e;});
   const cap=tlAddDays(W0,7*52);if(endW>cap)endW=cap;
   const startW=tlAddDays(W0,-7*8),map=sznDayMap(D);
   const iW=D.days.indexOf(tlAddDays(W0,-1)),chW=iW>=0?D.fit[iW]:(D.fit[D.ti]||0);
