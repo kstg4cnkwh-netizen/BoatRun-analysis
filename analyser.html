@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
 <meta name="color-scheme" content="light dark"/>
-<meta name="br-build" content="Analyser_261124_09">
+<meta name="br-build" content="Analyser_261124_10">
 <title>BoatRun Analyser</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -3005,8 +3005,27 @@ function sessionToAnalyserFmt(s) {
      st.ctime=c?c.v:NaN;st.ctms=c?c.ms:NaN;});}
   _retimeStrokeRates(s, strokes);
   const hr = (s.hrTrace||[]).map(h=>({ ts:new Date(h.t).toISOString(), bpm:h.hr }));
-  const wlm=(s.sessionMode==='erg'&&_ergLapsFromIntervals(s.erg&&s.erg.intervals,s.hrTrace,s.startTime))||s.workoutLapMetrics||[];
-  const lapSrc=wlm.length?wlm:(s.laps||[]);
+  let wlm=(s.sessionMode==='erg'&&_ergLapsFromIntervals(s.erg&&s.erg.intervals,s.hrTrace,s.startTime))||s.workoutLapMetrics||[];
+  let lapSrc=wlm.length?wlm:(s.laps||[]);
+  /* 24 Nov: MISSING LAST LAP. Metrics up to 261124_09 dropped everything after
+     END WORKOUT (23 Nov race: 3 laps, then 21 min of rowing with no lap). On-water
+     sessions whose laps stop 30 s+ / 50 m+ before the session ends get the rest
+     added as a final lap (a cool-down after a workout). Not done once laps have
+     been edited here (lapsOrig). */
+  if(s.sessionMode!=='erg'&&lapSrc.length&&!(s.lapsOrig&&typeof s.lapsOrig==='object')&&s.duration>0&&s.distance>0){
+    try{
+      let endT=0,endD=0,cT=0,cD=0;
+      lapSrc.forEach(l=>{const st=l.startT!=null?+l.startT:cT,sd=l.startD!=null?+l.startD:cD;cT=st+(+l.time||0);cD=sd+(+l.dist||0);if(cT>endT)endT=cT;if(cD>endD)endD=cD;});
+      const tT=s.duration-endT,tD=s.distance-endD;
+      if(tT>30&&tD>50){
+        const rs=(s.strokes||[]).filter(r=>{const e=(r.t-s.startTime)/1000;return e>=endT&&e<=s.duration+5&&+r.rate>10&&+r.rate<50;}).map(r=>+r.rate);
+        const rate=rs.length?+(rs.reduce((a,b)=>a+b,0)/rs.length).toFixed(1):null;
+        const tail={n:lapSrc.length+1,type:wlm.length?'cooldown':null,startT:Math.round(endT),startD:Math.round(endD),dist:Math.round(tD),time:Math.round(tT),
+          pace:tT/tD*500,lapPace:tT/tD*500,rate,avgRate:rate,strokes:rs.length,autoTail:1};
+        if(wlm.length){wlm=wlm.concat([tail]);lapSrc=wlm;}else lapSrc=lapSrc.concat([tail]);
+      }
+    }catch(e){}
+  }
   /* start_time_s / start_dist_m are the absolute elapsed and distance at the
      step's start, as recorded by Metrics. Without them a consumer has to
      accumulate from zero, which puts every lap too early whenever the lap list
