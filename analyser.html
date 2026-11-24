@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
 <meta name="color-scheme" content="light dark"/>
-<meta name="br-build" content="Analyser_261124_05">
+<meta name="br-build" content="Analyser_261124_08">
 <title>BoatRun Analyser</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -1187,7 +1187,14 @@ const SZ_BIN_SVG='<svg width="16" height="16" viewBox="0 0 24 24" fill="none" st
 const VEN_SVG={water:'<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M2 15c2.5 0 2.5-2 5-2s2.5 2 5 2 2.5-2 5-2 2.5 2 5 2"></path><path d="M2 20c2.5 0 2.5-2 5-2s2.5 2 5 2 2.5-2 5-2 2.5 2 5 2"></path><path d="M5 10l14-6"></path></svg>',erg:'<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="6" cy="12" r="4"></circle><path d="M10 14h12"></path><path d="M15 11.5h4"></path><path d="M8 16v3M20 14v5"></path><path d="M6 12l5-4"></path></svg>',all:'<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M4 20V10M10 20V4M16 20v-7M22 20H2"></path></svg>'};
 /* Section header for the summary: icon tile + title, coloured by venue. */
 function sumSecHd(kind,title){return '<div class="sumsec-hd"><span class="sumsec-ico '+kind+'">'+VEN_SVG[kind]+'</span><span>'+title+'</span></div>';}
-function boatLabel(t, mixed, coastal) { return t ? t + (mixed && t !== '1x' ? ' \u00b7 Mixed' : '') + (coastal ? ' \u00b7 Coastal' : '') : ''; }
+/* 24 Nov: boat label as in Metrics - C = coastal before, (M) = mixed after (C2x(M)).
+   Badge: dark blue = standard, purple = coastal, red = erg, white text. */
+function boatLabel(t, mixed, coastal) { return t ? (coastal ? 'C' : '') + t + (mixed && t !== '1x' ? '(M)' : '') : ''; }
+function boatBadgeHtml(t, mixed, coastal, attrs) { return t ? '<span class="br-boat' + (coastal ? ' cst' : '') + '"' + (attrs || '') + '>' + boatLabel(t, mixed, coastal) + '</span>' : ''; }
+function ergBadgeHtml() { return '<span class="br-boat erg">ERG</span>'; }
+/* PB boat key (CM2x) -> badge */
+function recBoatBadge(k) { const m = /^(C?)(M?)(.+)$/.exec(String(k || '')); return m ? boatBadgeHtml(m[3], !!m[2], !!m[1]) : ''; }
+function recBoatText(k) { const m = /^(C?)(M?)(.+)$/.exec(String(k || '')); return m ? boatLabel(m[3], !!m[2], !!m[1]) : ''; }
 /* Sort key: the order above, mixed straight after the same boat. No boat = null. */
 function boatRank(t, mixed) { const i = BOAT_ORDER.indexOf(t); return i < 0 ? null : i * 2 + (mixed ? 1 : 0); }
 /* The filename with its boat marker replaced (no bt = marker removed). */
@@ -2055,21 +2062,26 @@ function _normRecords(obj) {
   out.gen = (obj && obj.gen) || 0;
   out.excl = (obj && obj.excl && typeof obj.excl === 'object') ? { ...obj.excl } : {};
   /* 24 Nov: on-water bests per boat type, wb = { '1x': {500:{..}, dur:{..}}, ... } */
-  out.wb = {};
-  if (obj && obj.wb && typeof obj.wb === 'object') Object.keys(obj.wb).forEach(b => { const x = obj.wb[b]; if (x && typeof x === 'object') out.wb[b] = { ...x, dur: { ...(x.dur || {}) } }; });
+  out.wb2 = {};
+  if (obj && obj.wb2 && typeof obj.wb2 === 'object') Object.keys(obj.wb2).forEach(b => { const x = obj.wb2[b]; if (x && typeof x === 'object') out.wb2[b] = { ...x, dur: { ...(x.dur || {}) } }; });
   return out;
 }
+/* 24 Nov v2: boat class label - C = coastal, M = mixed (not 1x), e.g. 1x, C1x, M2x, CM2x.
+   Stored under wb2 (wb held plain types with coastal mixed in). */
+function recBoatLbl(sum){const bt=sum&&sum.boat_type;if(!bt||!BOAT_ORDER.includes(bt))return null;return (sum.boat_coastal?'C':'')+(sum.boat_mixed&&bt!=='1x'?'M':'')+bt;}
+function recBoatBase(l){return String(l||'').replace(/^[CM]+/,'');}
+function recBoatOk(l){return !!l&&/^C?M?(1x|2-|2x|4\+|4-|4x|8\+)$/.test(l);}
 /* Personal-best boat filter ('' = all boats). */
 let REC_BOAT = (() => { try { return localStorage.getItem('br_rec_boat') || ''; } catch (e) { return ''; } })();
 function recSrc(mode) {
-  if (mode !== 'erg' && REC_BOAT) { const w = (RECORDS_DB.wb || {})[REC_BOAT]; return w || { dur: {} }; }
+  if (mode !== 'erg' && REC_BOAT) { const w = (RECORDS_DB.wb2 || {})[REC_BOAT]; return w || { dur: {} }; }
   return RECORDS_DB[mode === 'erg' ? 'erg' : 'water'] || { dur: {} };
 }
 function recBoatChips() {
-  const have = BOAT_ORDER.filter(b => RECORDS_DB.wb && RECORDS_DB.wb[b]);
+  const have = Object.keys(RECORDS_DB.wb2 || {}).filter(recBoatOk).sort((a, b) => (BOAT_ORDER.indexOf(recBoatBase(a)) - BOAT_ORDER.indexOf(recBoatBase(b))) || (a.length - b.length) || (a < b ? -1 : 1));
   if (!have.length && !REC_BOAT) return '<div style="font-size:11px;color:var(--muted);margin:2px 0 6px;">Boat filter: run Scan All for Records to sort your bests by boat type.</div>';
   const chip = (v, t) => '<button type="button" class="filt-chip' + (REC_BOAT === v ? ' on' : '') + '" onclick="window.setRecBoat(\'' + v + '\')" style="padding:3px 10px;font-size:11px;font-weight:700;border-radius:12px;border:1px solid var(--border,#ccc);background:' + (REC_BOAT === v ? '#1E88E5' : 'transparent') + ';color:' + (REC_BOAT === v ? '#fff' : 'inherit') + ';cursor:pointer;">' + t + '</button>';
-  return '<div style="display:flex;flex-wrap:wrap;gap:6px;margin:2px 0 8px;">' + chip('', 'All boats') + have.map(b => chip(b, b)).join('') + (REC_BOAT && !have.includes(REC_BOAT) ? chip(REC_BOAT, REC_BOAT) : '') + '</div>';
+  return '<div style="display:flex;flex-wrap:wrap;gap:6px;margin:2px 0 8px;">' + chip('', 'All boats') + have.map(b => chip(b, recBoatText(b))).join('') + (REC_BOAT && !have.includes(REC_BOAT) ? chip(REC_BOAT, recBoatText(REC_BOAT)) : '') + '</div>';
 }
 window.setRecBoat = function (b) {
   REC_BOAT = b || ''; try { localStorage.setItem('br_rec_boat', REC_BOAT); } catch (e) {}
@@ -2081,7 +2093,7 @@ window.setRecBoat = function (b) {
 function recExclKey(m, target, fileId, dateISO) { return m + '|' + target + '|' + (fileId || dateISO || ''); }
 function recIsExcl(db, m, target, fileId, dateISO) { return !!(db.excl && db.excl[recExclKey(m, target, fileId, dateISO)]); }
 function recDropExcluded(db) {
-  Object.keys(db.wb || {}).forEach(b => { const x = db.wb[b];
+  Object.keys(db.wb2 || {}).forEach(b => { const x = db.wb2[b];
     Object.keys(x || {}).forEach(d => { if (d === 'dur') return; const r = x[d]; if (r && recIsExcl(db, 'water', d, r.fileId, r.date)) delete x[d]; });
     Object.keys((x && x.dur) || {}).forEach(ms => { const r = x.dur[ms]; if (r && recIsExcl(db, 'water', 'dur' + ms, r.fileId, r.date)) delete x.dur[ms]; });
   });
@@ -2111,7 +2123,7 @@ function purgeForeignRecords(files){
     return isFinite(t)&&stamps.some(s=>s.erg===(m==='erg')&&Math.abs(s.t-t)<=120000);
   };
   let n=0;
-  Object.keys(RECORDS_DB.wb||{}).forEach(b=>{const db=RECORDS_DB.wb[b]||{};
+  Object.keys(RECORDS_DB.wb2||{}).forEach(b=>{const db=RECORDS_DB.wb2[b]||{};
     Object.keys(db).forEach(k=>{if(k==='dur')return;if(!own(db[k],'water')){delete db[k];n++;}});
     Object.keys(db.dur||{}).forEach(k=>{if(!own(db.dur[k],'water')){delete db.dur[k];n++;}});});
   ['water','erg'].forEach(m=>{
@@ -2150,9 +2162,9 @@ function mergeRecords(a, b) {
     out.dur = mergeDur(am.dur, bm.dur);
     return out;
   }
-  const wb = {};
-  new Set([...Object.keys(A.wb || {}), ...Object.keys(B.wb || {})]).forEach(b => { wb[b] = mergeMode(A.wb[b] || { dur: {} }, B.wb[b] || { dur: {} }); });
-  return recDropExcluded({ water: mergeMode(A.water, B.water), erg: mergeMode(A.erg, B.erg), wb, gen: A.gen, excl: { ...A.excl, ...B.excl } });
+  const wb2 = {};
+  new Set([...Object.keys(A.wb2 || {}), ...Object.keys(B.wb2 || {})]).forEach(b => { wb2[b] = mergeMode(A.wb2[b] || { dur: {} }, B.wb2[b] || { dur: {} }); });
+  return recDropExcluded({ water: mergeMode(A.water, B.water), erg: mergeMode(A.erg, B.erg), wb2, gen: A.gen, excl: { ...A.excl, ...B.excl } });
 }
 let _recordsPushTimer = null;
 function schedulePushRecordsToPrefs() {
@@ -3306,7 +3318,7 @@ function buildPickRow(f, p, opts) {
   star.onclick = ev => { ev.stopPropagation(); favTapOptimistic(f, star, v => { star.title = v ? 'Remove favourite' : 'Add favourite'; star.className = 'asc-fav' + (v ? ' on' : ''); }); };
   scol.appendChild(star); btn.appendChild(scol);
   const ven = document.createElement('div'); ven.className = 'asc-venue ' + (p.erg ? 'erg' : 'water');
-  if (!p.erg && p.boat) { ven.classList.add('boat'); ven.title = boatLabel(p.boat, p.mixed, p.coastal); ven.textContent = String(p.boat) + (p.mixed && p.boat !== '1x' ? 'M' : '') + (p.coastal ? 'C' : ''); }
+  if (!p.erg && p.boat) { ven.classList.add('boat'); if (p.coastal) ven.classList.add('cst'); ven.title = 'Boat type ' + boatLabel(p.boat, p.mixed, p.coastal); ven.textContent = boatLabel(p.boat, p.mixed, p.coastal); }
   else { ven.title = p.erg ? 'Erg session' : 'On-water session'; ven.innerHTML = p.erg ? VEN_SVG.erg : VEN_SVG.water; }
   btn.appendChild(ven);
   if (p.name) { const nd = document.createElement('div'); nd.className = 'asc-name'; nd.textContent = p.name; btn.appendChild(nd); }
@@ -3431,7 +3443,7 @@ function addSessionFromData(d, label, replace, fileId, squadCode, notOwn) {
   SESSIONS.push({label, d, fileId: fileId||null, squadCode: squadCode || d.squadCode || null});
   /* Personal bests only come from the user's own sessions on Drive - never
      squad, coach or opened-from-file sessions. */
-  if (fileId && !squadCode && !notOwn) updateRecords(recordsTrace(d), label, d.sum&&d.sum.start_time, fileId, (d.sum&&d.sum.session_mode==='erg')?'erg':'water', d.sum&&d.sum.boat_type);
+  if (fileId && !squadCode && !notOwn) updateRecords(recordsTrace(d), label, d.sum&&d.sum.start_time, fileId, (d.sum&&d.sum.session_mode==='erg')?'erg':'water', recBoatLbl(d.sum));
   if (!squadCode && !notOwn) updateSectorsFromData(d, label, fileId);   // squad-cloud loads are other rowers' sessions; own ones are scanned from Drive
   switchSession(idx);
   if (typeof _ac !== 'undefined' && _ac) { try { acSync(); } catch (e) { console.warn('acSync', e); } }
@@ -3518,22 +3530,26 @@ function updateRecords(gpsTrace, label, dateISO, fileId, mode, boat) {
   const efforts=computeBestEfforts(gpsTrace);
   const durations=computeBestDurations(gpsTrace);
   let changed=false;
+  const bt=(m==='water'&&recBoatOk(boat))?boat:null;
   const apply=T=>{
   Object.keys(efforts).forEach(d=>{
     const cur=T[d];
     if (recIsExcl(RECORDS_DB, m, d, fileId, dateISO)) return;
     if (!cur || efforts[d]<cur.timeMs) {
       T[d]={timeMs:efforts[d], date:dateISO||null, label:label||'', fileId:fileId||null};
+      if (bt) T[d].boat=bt;
       changed=true;
-    }
+    } else if (bt && cur.boat!==bt && fileId && cur.fileId===fileId) { cur.boat=bt; changed=true; }   // 24 Nov: boat type added to an existing best on rescan
   });
   if(!T.dur) T.dur={};
   Object.keys(durations).forEach(ms=>{
     if (ms==='_maxT') return;
     const cur=T.dur[ms];
     if (recIsExcl(RECORDS_DB, m, 'dur' + ms, fileId, dateISO)) return;
+    if (bt && cur && cur.boat!==bt && fileId && cur.fileId===fileId && !(durations[ms]>cur.distM)) { cur.boat=bt; changed=true; }
     if (!cur || durations[ms]>cur.distM) {
       T.dur[ms]={distM:durations[ms], date:dateISO||null, label:label||'', fileId:fileId||null};
+      if (bt) T.dur[ms].boat=bt;
       if (ms==='max' && durations._maxT>0) T.dur[ms].timeMs=durations._maxT;
       changed=true;
     }
@@ -3541,7 +3557,7 @@ function updateRecords(gpsTrace, label, dateISO, fileId, mode, boat) {
   };
   apply(RECORDS_DB[m]);
   /* 24 Nov: on-water bests also kept per boat type for the boat filter. */
-  if (m==='water' && boat && BOAT_ORDER.includes(boat)) { if(!RECORDS_DB.wb) RECORDS_DB.wb={}; if(!RECORDS_DB.wb[boat]) RECORDS_DB.wb[boat]={dur:{}}; apply(RECORDS_DB.wb[boat]); }
+  if (m==='water' && bt) { if(!RECORDS_DB.wb2) RECORDS_DB.wb2={}; if(!RECORDS_DB.wb2[bt]) RECORDS_DB.wb2[bt]={dur:{}}; apply(RECORDS_DB.wb2[bt]); }
   if (changed) {
     try{localStorage.setItem('br_records',JSON.stringify(RECORDS_DB));}catch{}
     renderRecords();
@@ -3587,12 +3603,12 @@ function renderRecords() {
   if (!el) return;
   const targets=[500,1000,2000,5000,10000];
   function grpHTML(title,mode){
-    let h='<div class="sumgrp"><div class="sumgrp-hd">'+title+(mode==='water'&&REC_BOAT?' · '+REC_BOAT:'')+'</div>'+(mode==='water'?recBoatChips():'')+'<div class="sumgrp-cards">';
+    let h='<div class="sumgrp"><div class="sumgrp-hd">'+title+(mode==='water'&&REC_BOAT?' · '+recBoatText(REC_BOAT):'')+'</div>'+(mode==='water'?recBoatChips():'')+'<div class="sumgrp-cards">';
     targets.forEach(d=>{
       const r=recSrc(mode)[d];
       const lbl=d>=1000?(d/1000)+'km':d+'m';
       const val=r?fmtRecordTime(r.timeMs):'—';
-      const dateStr=r?fmtRecordDate(r.date):'';
+      const dateStr=r?fmtRecordDate(r.date)+(r.boat?' '+recBoatBadge(r.boat):''):'';
       h+='<div class="card cb" style="cursor:'+(r&&(r.fileId||r.date)?'pointer':'default')+';" onclick="'+(r&&(r.fileId||r.date)?'window.loadRecordSession(\''+d+'\',\''+mode+'\')':'')+'"><div class="lbl">'+lbl+'</div><div class="val">'+val+'</div>'+recPaceLine(r,d)+'<div class="sub">'+dateStr+'</div></div>';
     });
     h+='</div></div>';
@@ -7358,7 +7374,7 @@ function importOwnSessionsPick() {
         try {
           const d = sessionToAnalyserFmt(JSON.parse(JSON.stringify(s)));
           const lbl = s.name || meta.name.replace('RowSess_', '').replace('.json', '');
-          updateRecords(recordsTrace(d), lbl, d.sum && d.sum.start_time, id, s.sessionMode === 'erg' ? 'erg' : 'water', d.sum && d.sum.boat_type);
+          updateRecords(recordsTrace(d), lbl, d.sum && d.sum.start_time, id, s.sessionMode === 'erg' ? 'erg' : 'water', recBoatLbl(d.sum));
           updateSectorsFromData(d, lbl, id);
         } catch (e) {}
       } catch (e) { if (driveAuthExpired(e)) return; bad++; lastErr = f.name + ': ' + e.message; }
@@ -7925,7 +7941,7 @@ function buildMeta(fname,sum) {
   if(!bt&&_cs&&_cs.fileId){const o=boatOfFid(_cs.fileId);if(o&&o.t){bt=o.t;bm=o.m;bc=o.c;}}
   const _canBoat=!!(_cs&&_cs.fileId&&!(sum&&sum.session_mode==='erg'));   // 12 Nov: squad sessions in your own Drive can change boat too
   const btBadge=bt
-    ?' <span title="Boat type'+(_canBoat?' \u2013 tap to change':'')+'"'+(_canBoat?' onclick="editSessionBoat()"':'')+' style="'+(_canBoat?'cursor:pointer;':'')+'font-size:12px;font-weight:800;background:#fff;border-radius:4px;padding:1px 7px;color:#1a5276;letter-spacing:.04em;vertical-align:middle;">'+boatLabel(bt,bm,bc)+'</span>'
+    ?' '+boatBadgeHtml(bt,bm,bc,' title="Boat type'+(_canBoat?' \u2013 tap to change':'')+'"'+(_canBoat?' onclick="editSessionBoat()"':'')+' style="'+(_canBoat?'cursor:pointer;':'')+'box-shadow:0 0 0 1px rgba(255,255,255,.6);"')
     :(_canBoat?' <span title="Set the boat type" onclick="editSessionBoat()" style="cursor:pointer;font-size:11px;font-weight:700;border:1px dashed rgba(255,255,255,.6);border-radius:4px;padding:1px 7px;color:rgba(255,255,255,.85);vertical-align:middle;">+ Boat</span>':'');
  const _locName=(sum&&sum.loc_name)||(_cs&&_cs.fileId&&(()=>{let n=_fidNames[_cs.fileId];if(!n){try{const f=(AnalyserDrive.cachedList('RowSess_')||[]).find(x=>x.id===_cs.fileId);if(f)n=f.name;}catch(e){}}return n?locFromFilename(n):null;})())||null;
  const _isRace=(sum&&sum.race!=null)?!!sum.race:!!(_cs&&_cs.fileId&&raceOfFid(_cs.fileId));
@@ -12938,8 +12954,8 @@ async function showStartup(){
         {const vc=document.createElement('div');vc.className='asc-vcol';
          const ven=document.createElement('div');ven.className='asc-venue '+(p.erg?'erg':'water');
          if(!p.erg&&p.boat){
-           ven.classList.add('boat');ven.title=boatLabel(p.boat,p.mixed,p.coastal);
-           ven.textContent=String(p.boat)+(p.mixed&&p.boat!=='1x'?'M':'')+(p.coastal?'C':'');
+           ven.classList.add('boat');if(p.coastal)ven.classList.add('cst');ven.title='Boat type '+boatLabel(p.boat,p.mixed,p.coastal);
+           ven.textContent=boatLabel(p.boat,p.mixed,p.coastal);
          }else{ven.title=p.erg?'Erg session':'On-water session';ven.innerHTML=p.erg?VEN_SVG.erg:VEN_SVG.water;}
          vc.appendChild(ven);
          scol.after(vc);}
@@ -13600,14 +13616,14 @@ function _sumRecordsCardsHTML(mode){
     const r=recSrc(mode)[d];
     const lbl=d>=1000?(d/1000)+'km':d+'m';
     const val=r?fmtRecordTime(r.timeMs):'—';
-    const dateStr=r?fmtRecordDate(r.date):'';
+    const dateStr=r?fmtRecordDate(r.date)+(r.boat?' '+recBoatBadge(r.boat):''):'';
     return '<div class="card cb" style="cursor:'+(r&&(r.fileId||r.date)?'pointer':'default')+';" onclick="'+(r&&(r.fileId||r.date)?'window.loadRecordSession(\''+d+'\',\''+mode+'\');document.getElementById(\'_summary_modal\')?.remove();':'')+'"><div class="lbl">'+(r?'<button title="Exclude this result" onclick="event.stopPropagation();window.excludeRecord(\''+mode+'\',\''+d+'\')" style="float:right;margin:-4px -4px 0 0;background:none;border:0;color:var(--muted);font-size:14px;line-height:1;padding:2px 4px;cursor:pointer;">\u2715</button>':'')+lbl+'</div><div class="val">'+val+'</div>'+recPaceLine(r,d)+'<div class="sub">'+dateStr+'</div></div>';
   }).join('');
   const durTargets=[{ms:1800000,lbl:'30 min'},{ms:3600000,lbl:'1 hour'},{ms:'max',lbl:'Longest session'}];
   out+=durTargets.map(t=>{
     const r=recSrc(mode).dur&&recSrc(mode).dur[t.ms];
     const val=r?fmtRecordDist(r.distM,mode):'—';
-    const dateStr=r?fmtRecordDate(r.date):'';
+    const dateStr=r?fmtRecordDate(r.date)+(r.boat?' '+recBoatBadge(r.boat):''):'';
     return '<div class="card cb" style="cursor:'+(r&&(r.fileId||r.date)?'pointer':'default')+';" onclick="'+(r&&(r.fileId||r.date)?'window.loadRecordDurationSession(\''+t.ms+'\',\''+mode+'\');document.getElementById(\'_summary_modal\')?.remove();':'')+'"><div class="lbl">'+(r?'<button title="Exclude this result" onclick="event.stopPropagation();window.excludeRecord(\''+mode+'\',\''+'dur'+t.ms+'\')" style="float:right;margin:-4px -4px 0 0;background:none;border:0;color:var(--muted);font-size:14px;line-height:1;padding:2px 4px;cursor:pointer;">\u2715</button>':'')+t.lbl+'</div><div class="val">'+val+'</div>'+recDurPaceLine(r,t.ms)+'<div class="sub">'+(t.ms==='max'&&r&&r.timeMs?fmtRecordTime(r.timeMs).replace(/\.\d$/,'')+' \u00b7 ':'')+dateStr+'</div></div>';
   }).join('');
   return out;
@@ -14782,7 +14798,7 @@ async function renderSummaryInto(body){
     html+=_sumGroupHTML('Erg','erg',erg,_sumOffsets.erg.m,_sumOffsets.erg.w);
     html+=_sumGroupHTML('Combined','combined',files,_sumOffsets.combined.m,_sumOffsets.combined.w);
     html+='<div class="brpill-row" style="margin-bottom:10px;"><button class="dzbtn dzbtn-sec" id="_sum-rescan"><img src="icons/Scan.svg"><span>Scan All for Records</span></button><button class="dzbtn dzbtn-sec" id="_sum-resetrecords"><img src="icons/Reset.svg"><span>Reset Records</span></button>'+(Object.keys(RECORDS_DB.excl||{}).length?'<button class="dzbtn dzbtn-sec" id="_sum-clearexcl"><span>Clear Exclusions ('+Object.keys(RECORDS_DB.excl).length+')</span></button>':'')+'</div>';
-    html+='<div class="brpill sumsec sumsec-water">'+sumSecHd('water','On water \u00b7 personal bests'+(REC_BOAT?' \u00b7 '+REC_BOAT:''))+'<div class="sumgrp">'+recBoatChips()+'<div class="sumgrp-cards">'+_sumRecordsCardsHTML('water')+'</div></div></div>'
+    html+='<div class="brpill sumsec sumsec-water">'+sumSecHd('water','On water \u00b7 personal bests'+(REC_BOAT?' \u00b7 '+recBoatText(REC_BOAT):''))+'<div class="sumgrp">'+recBoatChips()+'<div class="sumgrp-cards">'+_sumRecordsCardsHTML('water')+'</div></div></div>'
       +'<div class="brpill sumsec sumsec-erg">'+sumSecHd('erg','Erg \u00b7 personal bests')+'<div class="sumgrp"><div class="sumgrp-cards">'+_sumRecordsCardsHTML('erg')+'</div></div></div>';
     body.innerHTML=html;
     body.querySelectorAll('button[data-nav]').forEach(btn=>{
@@ -14806,7 +14822,7 @@ async function renderSummaryInto(body){
           const session=await AnalyserDrive.fetchSession(f.id);
           applySessionUnits(session);
           const conv=sessionToAnalyserFmt(session);
-          updateRecords(recordsTrace(conv), nameFromFilename(f.name)||conv.name||f.name, conv.sum&&conv.sum.start_time, f.id, (conv.sum&&conv.sum.session_mode==='erg')?'erg':'water', conv.sum&&conv.sum.boat_type);
+          updateRecords(recordsTrace(conv), nameFromFilename(f.name)||conv.name||f.name, conv.sum&&conv.sum.start_time, f.id, (conv.sum&&conv.sum.session_mode==='erg')?'erg':'water', recBoatLbl(conv.sum));
           updateSectorsFromData(conv, nameFromFilename(f.name)||conv.name||f.name, f.id);
         }catch(err){}
       }
@@ -17681,7 +17697,7 @@ function renderStartupCalendar(){
       const dist=p.distM!=null?(p.erg?Math.round(p.distM)+'m':(p.distM/1000).toFixed(2)+'km'):'';
       h+='<div class="asc'+(p.erg?' erg':'')+'" data-calsess="'+i+'" style="margin-bottom:6px;cursor:pointer;">'
         +(p.name?'<div style="font-weight:700;font-size:.85rem;color:var(--text);margin-bottom:2px;">'+(p.favourite?'<span style="color:#ffcc00;text-shadow:0 0 2px rgba(184,134,11,.8);margin-right:4px;">★</span>':'')+_secEsc(p.name)+'</div>':'')
-        +'<div class="asc-date">'+(!p.name&&p.favourite?'<span style="color:#ffcc00;text-shadow:0 0 2px rgba(184,134,11,.8);font-size:1rem;">★</span>':'')+'<span>'+t+'</span>'+(p.erg?'<span class="asc-badge">ERG</span>':'')+(p.workout?'<span class="asc-badge asc-wkt">'+_secEsc(p.workout)+'</span>':'')+'</div>'
+        +'<div class="asc-date">'+(!p.name&&p.favourite?'<span style="color:#ffcc00;text-shadow:0 0 2px rgba(184,134,11,.8);font-size:1rem;">★</span>':'')+'<span>'+t+'</span>'+(p.erg?ergBadgeHtml():(p.boat?boatBadgeHtml(p.boat,p.mixed,p.coastal):''))+(p.workout?'<span class="asc-badge asc-wkt">'+_secEsc(p.workout)+'</span>':'')+'</div>'
         +'<div class="asc-stats">'+(dist?'<div><span class="asc-v">'+dist+'</span></div>':'')+(p.durS!=null?'<div><span class="asc-v">'+fmtTime(p.durS)+'</span><span class="asc-l">time</span></div>':'')+'</div>'
         +((x.f&&typeof x.f.description==='string'&&x.f.description.trim())?'<div style="font-size:12px;color:var(--text);opacity:.85;white-space:pre-wrap;margin-top:4px;">📝 '+_secEsc(x.f.description.trim())+'</div>':'')
         +'</div>';
@@ -22180,12 +22196,12 @@ body:has(#startup .sz-list) #sz-search{display:none!important;}
 #startup #sz-sectors .sz-lhd>span,#startup #sz-nav .sz-lhd>span{flex-wrap:wrap;gap:6px!important;}
 
 /* venue: icon tile + badge on every row */
-#startup .asc,#startup .asc:hover,#startup .asc.erg,#startup .asc.erg:hover{grid-template-columns:24px 36px minmax(0,1fr) auto!important;grid-template-areas:"star ven name stats" "star ven date stats" "star ven note note"!important;}
+#startup .asc,#startup .asc:hover,#startup .asc.erg,#startup .asc.erg:hover{grid-template-columns:24px 54px minmax(0,1fr) auto!important;grid-template-areas:"star ven name stats" "star ven date stats" "star ven note note"!important;}
 #startup .asc>.asc-vcol{grid-area:ven;display:flex;flex-direction:column;align-items:center;gap:3px;align-self:center;}
 #startup .asc-vcol>.asc-venue{width:36px;height:36px;border-radius:9px;display:flex;align-items:center;justify-content:center;}
 /* Picker rows in the start-page style (buildPickRow). */
 .szfmt{display:flex;align-items:center;gap:8px;margin:0;border-bottom:1px solid var(--border);}
-.szfmt>.asc,.szfmt>.asc:hover,.szfmt>.asc.erg,.szfmt>.asc.erg:hover{flex:1;min-width:0;display:grid;grid-template-columns:22px 34px minmax(0,1fr);grid-template-areas:"star ven name" "star ven date" "star ven stats";column-gap:10px;row-gap:2px;align-items:center;background:transparent!important;border:none!important;box-shadow:none!important;margin:0!important;padding:9px 4px!important;cursor:pointer;}
+.szfmt>.asc,.szfmt>.asc:hover,.szfmt>.asc.erg,.szfmt>.asc.erg:hover{flex:1;min-width:0;display:grid;grid-template-columns:22px 54px minmax(0,1fr);grid-template-areas:"star ven name" "star ven date" "star ven stats";column-gap:10px;row-gap:2px;align-items:center;background:transparent!important;border:none!important;box-shadow:none!important;margin:0!important;padding:9px 4px!important;cursor:pointer;}
 .szfmt>.asc:hover{background:rgba(127,127,127,.08)!important;}
 .szfmt .asc-scol{grid-area:star;display:flex;flex-direction:column;align-items:center;gap:3px;}
 .szfmt .asc-scol>.asc-fav{float:none;padding:0;font-size:18px;}
@@ -22212,7 +22228,7 @@ body:has(#startup .sz-list) #sz-search{display:none!important;}
 #startup .asc-venue.erg{background:var(--ov-ebg);color:var(--ov-efg);}
 #startup .asc-date .asc-badge.asc-water{background:var(--ov-wbg);border-color:var(--ov-wbg);color:var(--ov-wfg)!important;}
 @container sess (max-width:600px){
-  #startup .asc,#startup .asc:hover,#startup .asc.erg,#startup .asc.erg:hover{grid-template-columns:22px 32px minmax(0,1fr)!important;grid-template-areas:"star ven name" "star ven date" "star ven stats" "star ven note"!important;}
+  #startup .asc,#startup .asc:hover,#startup .asc.erg,#startup .asc.erg:hover{grid-template-columns:22px 50px minmax(0,1fr)!important;grid-template-areas:"star ven name" "star ven date" "star ven stats" "star ven note"!important;}
   #startup .asc>.asc-vcol{align-self:start;}
   #startup .asc-vcol>.asc-venue{width:32px;height:32px;}
 }
@@ -22279,4 +22295,11 @@ body:not(.light) #startup{--ov-wsec:#0F223C;--ov-esec:#2A1517;}
 #hdr .hdr-act-pri{background:#2FD3C6!important;border-color:#2FD3C6!important;color:#062B28!important;}
 #hdr .hdr-act-pri:hover{background:#5FE0D6!important;border-color:#5FE0D6!important;color:#062B28!important;}
 #hdr .hdr-act span{color:inherit!important;}
+/* 24 Nov: boat badges as in Metrics - dark blue standard, purple coastal, red erg, white text */
+.br-boat{display:inline-block;background:#1a5276;color:#fff!important;font:800 12px Inter,-apple-system,sans-serif;letter-spacing:.04em;padding:2px 8px;border-radius:6px;vertical-align:middle;line-height:1.3;margin-left:4px;white-space:nowrap;}
+.br-boat.cst{background:#8e44ad;}
+.br-boat.erg{background:#c0392b;}
+#startup .asc-venue.boat,.szfmt .asc-venue.boat{background:#1a5276!important;color:#fff!important;width:auto!important;min-width:36px;padding:0 6px;box-sizing:border-box;font:800 12px Inter,-apple-system,sans-serif!important;letter-spacing:.02em;white-space:nowrap;justify-self:start;}
+#startup .asc-venue.boat.cst,.szfmt .asc-venue.boat.cst{background:#8e44ad!important;}
+#startup .asc-venue.erg,.szfmt .asc-venue.erg{background:#c0392b!important;color:#fff!important;}
 </style>
