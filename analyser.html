@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
 <meta name="color-scheme" content="light dark"/>
-<meta name="br-build" content="Analyser_261124_10">
+<meta name="br-build" content="Analyser_261124_11">
 <title>BoatRun Analyser</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -2077,6 +2077,14 @@ function _normRecords(obj) {
 /* 24 Nov v2: boat class label - C = coastal, M = mixed (not 1x), e.g. 1x, C1x, M2x, CM2x.
    Stored under wb2 (wb held plain types with coastal mixed in). */
 function recBoatLbl(sum){const bt=sum&&sum.boat_type;if(!bt||!BOAT_ORDER.includes(bt))return null;return (sum.boat_coastal?'C':'')+(sum.boat_mixed&&bt!=='1x'?'M':'')+bt;}
+/* 24 Nov: boats tagged with Tag boats... (or by Metrics) are written into the Drive
+   file NAME only, so the session content had no boat and those bests never reached
+   the boat filter (4x: 10 km+ rows missing). The file name wins, then the content. */
+function recBoatLblF(sum,fileId,fname){
+  try{let n=fname||null;if(!n&&fileId){n=_fidNames[fileId];if(!n){const f=(AnalyserDrive.cachedList('RowSess_')||[]).find(x=>x.id===fileId);if(f)n=f.name;}}
+    if(n){const t=boatFromFilename(n);if(t)return (boatCoastalFromFilename(n)?'C':'')+(t!=='1x'&&boatMixedFromFilename(n)?'M':'')+t;}}catch(e){}
+  return recBoatLbl(sum);
+}
 function recBoatBase(l){return String(l||'').replace(/^[CM]+/,'');}
 function recBoatOk(l){return !!l&&/^C?M?(1x|2-|2x|4\+|4-|4x|8\+)$/.test(l);}
 /* Personal-best boat filter ('' = all boats). */
@@ -3470,7 +3478,7 @@ function addSessionFromData(d, label, replace, fileId, squadCode, notOwn) {
   SESSIONS.push({label, d, fileId: fileId||null, squadCode: squadCode || d.squadCode || null});
   /* Personal bests only come from the user's own sessions on Drive - never
      squad, coach or opened-from-file sessions. */
-  if (fileId && !squadCode && !notOwn) updateRecords(recordsTrace(d), label, d.sum&&d.sum.start_time, fileId, (d.sum&&d.sum.session_mode==='erg')?'erg':'water', recBoatLbl(d.sum));
+  if (fileId && !squadCode && !notOwn) updateRecords(recordsTrace(d), label, d.sum&&d.sum.start_time, fileId, (d.sum&&d.sum.session_mode==='erg')?'erg':'water', recBoatLblF(d.sum,fileId));
   if (!squadCode && !notOwn) updateSectorsFromData(d, label, fileId);   // squad-cloud loads are other rowers' sessions; own ones are scanned from Drive
   switchSession(idx);
   if (typeof _ac !== 'undefined' && _ac) { try { acSync(); } catch (e) { console.warn('acSync', e); } }
@@ -14849,7 +14857,7 @@ async function renderSummaryInto(body){
           const session=await AnalyserDrive.fetchSession(f.id);
           applySessionUnits(session);
           const conv=sessionToAnalyserFmt(session);
-          updateRecords(recordsTrace(conv), nameFromFilename(f.name)||conv.name||f.name, conv.sum&&conv.sum.start_time, f.id, (conv.sum&&conv.sum.session_mode==='erg')?'erg':'water', recBoatLbl(conv.sum));
+          updateRecords(recordsTrace(conv), nameFromFilename(f.name)||conv.name||f.name, conv.sum&&conv.sum.start_time, f.id, (conv.sum&&conv.sum.session_mode==='erg')?'erg':'water', recBoatLblF(conv.sum,f.id,f.name));
           updateSectorsFromData(conv, nameFromFilename(f.name)||conv.name||f.name, f.id);
         }catch(err){}
       }
