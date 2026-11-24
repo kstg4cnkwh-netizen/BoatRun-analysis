@@ -103,7 +103,7 @@ Account deletion permanently removes:
 
 Sessions saved locally on your device are not affected and can be deleted separately from the in-app session log. Purchase and billing records held by Apple or Google are retained by those companies under their own policies and for the period required by law; BoatRun cannot delete them. Deleting your account does not cancel an active subscription — cancel that in the App Store or Google Play subscriptions screen.
 
-If you are unable to sign in, email bigwig.91mash@icloud.com from the address linked to your account and deletion will be carried out manually within 30 days.
+If you are unable to sign in, email support@boatrun.au from the address linked to your account and deletion will be carried out manually within 30 days.
 
 ## Third-party services used
 
@@ -139,4 +139,4 @@ We may update this policy as the app evolves. Material changes will be reflected
 
 ## Contact
 
-[bigwig.91mash@icloud.com]
+[support@boatrun.au]
