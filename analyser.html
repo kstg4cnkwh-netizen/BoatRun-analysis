@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
 <meta name="color-scheme" content="light dark"/>
-<meta name="br-build" content="Analyser_261125_05">
+<meta name="br-build" content="Analyser_261125_07">
 <title>BoatRun Analyser</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -17421,14 +17421,14 @@ function wrMe(k0){
   const prev=wrDays(tlAddDays(k0,-7));
   const sumLoad=ks=>ks.reduce((a,k)=>{const i=D.days.indexOf(k);return a+(i>=0&&k<=todayK?D.load[i]:0);},0);
   const it=tlItems(),files=tlDedupe(tlFiles());
-  const T={water:0,erg:0,other:0,km:0,min:0,load:0,pd:0,pdone:0,ck:0,cks:0};
+  const T={water:0,erg:0,other:0,km:0,min:0,load:0,pd:0,pdone:0,ck:0,cks:0,hrv:0,hrvN:0,rhr:0,rhrN:0};
   const rows=days.map(k=>{
     const ss=files.filter(x=>x.p&&x.p.approxTs&&_dayKey(x.p.approxTs)===k).sort((a,b)=>a.p.approxTs-b.p.approxTs).map(x=>{const L=tlSessLoad(x);return{kind:x.p.erg?'Erg':'Row',name:x.p.workout||x.p.name||'',dist:x.p.distM||0,min:(x.p.durS||0)/60,load:L.load};});
     const ot=((it[k]&&it[k].list)||[]).filter(x=>x.type==='other').map(x=>({kind:'Other',name:x.text||'Other workout',dist:0,min:x.min||0,load:tlOtherLoad(x)}));
     const done=ss.concat(ot),plan=tlPlanFor(k);
     done.forEach(d=>{if(d.kind==='Row')T.water++;else if(d.kind==='Erg')T.erg++;else T.other++;T.km+=d.dist;T.min+=d.min;T.load+=d.load;});
     if(plan.length&&k<=todayK){T.pd++;if(done.length)T.pdone++;}
-    const w=WELLNESS[k],rd=w?tlReady(w):null;if(rd!=null){T.ck++;T.cks+=rd;}
+    const w=WELLNESS[k],rd=w?tlReady(w):null;if(rd!=null){T.ck++;T.cks+=rd;}if(w&&w.hrv>0){T.hrv+=+w.hrv;T.hrvN++;}if(w&&w.rhr>0){T.rhr+=+w.rhr;T.rhrN++;}
     return{k,done,plan,w,rd};
   });
   const endK=days[6]<=todayK?days[6]:todayK,ei=D.days.indexOf(endK);
@@ -17442,29 +17442,31 @@ function wrMeHtml(R,print){
     +box('Distance',wrKm(T.km)+' km','','#27ae60')
     +box('Time',wrHm(T.min),'','#8e44ad')
     +box('Load',Math.round(T.load),R.prevLoad>0?wrPct(T.load,R.prevLoad)+' on last week':'','#E53935')
+    +box('HRV / RHR',(T.hrvN?Math.round(T.hrv/T.hrvN):'–')+' / '+(T.rhrN?Math.round(T.rhr/T.rhrN):'–'),(T.hrvN||T.rhrN)?'week average':'','#c2185b')
     +box('Ratio',R.ra!=null?R.ra.toFixed(2):'–',R.ac!=null?'acute '+Math.round(R.ac)+' · chronic '+Math.round(R.ch)+(fw[0]?' · '+fw[0]:''):'','#1E88E5')
     +box('Plan',T.pd?T.pdone+'/'+T.pd:'–',T.pd?'planned days rowed':'nothing planned','#e67e22')
     +box('Check-ins',T.ck+'/7',T.ck?'readiness '+(T.cks/T.ck).toFixed(1)+' / 5':'','#16a085')
     +'</div>';
   const TH='text-align:left;font-size:10px;font-weight:700;letter-spacing:.05em;text-transform:uppercase;opacity:.7;padding:5px 6px;border-bottom:1px solid #d9dde3;';
   const TD='padding:6px;border-bottom:1px solid #e6e8ec;vertical-align:top;font-size:12px;';
-  h+='<table style="width:100%;border-collapse:collapse;"><tr><th style="'+TH+'">Day</th><th style="'+TH+'">Planned</th><th style="'+TH+'">Done</th><th style="'+TH+'text-align:right;">km</th><th style="'+TH+'text-align:right;">Time</th><th style="'+TH+'text-align:right;">Load</th><th style="'+TH+'">Check-in</th></tr>';
+  h+='<table style="width:100%;border-collapse:collapse;"><tr><th style="'+TH+'">Day</th><th style="'+TH+'">Planned</th><th style="'+TH+'">Done</th><th style="'+TH+'text-align:right;">km</th><th style="'+TH+'text-align:right;">Time</th><th style="'+TH+'text-align:right;">Load</th><th style="'+TH+'text-align:right;">HRV</th><th style="'+TH+'text-align:right;">RHR</th><th style="'+TH+'">Check-in</th></tr>';
   R.rows.forEach(r=>{
     const km=r.done.reduce((a,d)=>a+d.dist,0),mn=r.done.reduce((a,d)=>a+d.min,0),ld=r.done.reduce((a,d)=>a+d.load,0);
     h+='<tr><td style="'+TD+'font-weight:700;white-space:nowrap;">'+wrLbl(r.k)+'</td>'
       +'<td style="'+TD+'">'+(r.plan.map(p=>_secEsc(_wktDispName(p.w))).join('<br>')||'<span style="opacity:.5;">–</span>')+'</td>'
       +'<td style="'+TD+'">'+(r.done.map(d=>'<b>'+d.kind+'</b> '+_secEsc(d.name||'')+(d.dist?' · '+wrKm(d.dist)+' km':'')+' · '+Math.round(d.min)+' min').join('<br>')||'<span style="opacity:.5;">rest</span>')+'</td>'
       +'<td style="'+TD+'text-align:right;">'+(km?wrKm(km):'')+'</td><td style="'+TD+'text-align:right;">'+(mn?wrHm(mn):'')+'</td><td style="'+TD+'text-align:right;font-weight:700;">'+(ld?Math.round(ld):'')+'</td>'
+      +'<td style="'+TD+'text-align:right;">'+(r.w&&r.w.hrv>0?Math.round(r.w.hrv):'')+'</td><td style="'+TD+'text-align:right;">'+(r.w&&r.w.rhr>0?Math.round(r.w.rhr):'')+'</td>'
       +'<td style="'+TD+'">'+(r.rd!=null?'<span style="display:inline-block;width:10px;height:10px;border-radius:50%;background:'+tlReadyCol(r.rd)+';vertical-align:middle;margin-right:4px;"></span>'+[r.w.sleep>0?'sleep '+r.w.sleep:'',r.w.sore>0?'sore '+r.w.sore:'',r.w.energy>0?'energy '+r.w.energy:''].filter(Boolean).join(', '):'')+'</td></tr>';
   });
   return h+'</table>';
 }
 function wrMeCsv(R){
   const q=v=>'"'+String(v==null?'':v).replace(/"/g,'""')+'"';
-  const L=[['Day','Planned','Kind','Session','km','Minutes','Load','Sleep','Soreness','Energy'].map(q).join(',')];
-  R.rows.forEach(r=>{const pl=r.plan.map(p=>_wktDispName(p.w)).join(' / ');const ck=r.w?[r.w.sleep||'',r.w.sore||'',r.w.energy||'']:['','',''];
+  const L=[['Day','Planned','Kind','Session','km','Minutes','Load','HRV','RHR','Sleep','Soreness','Energy'].map(q).join(',')];
+  R.rows.forEach(r=>{const pl=r.plan.map(p=>_wktDispName(p.w)).join(' / ');const ck=r.w?[r.w.hrv>0?Math.round(r.w.hrv):'',r.w.rhr>0?Math.round(r.w.rhr):'',r.w.sleep||'',r.w.sore||'',r.w.energy||'']:['','','','',''];
     if(!r.done.length)L.push([r.k,pl,'','','','','',...ck].map(q).join(','));
-    r.done.forEach((d,i)=>L.push([r.k,i?'':pl,d.kind,d.name,wrKm(d.dist),Math.round(d.min),Math.round(d.load),...(i?['','','']:ck)].map(q).join(',')));});
+    r.done.forEach((d,i)=>L.push([r.k,i?'':pl,d.kind,d.name,wrKm(d.dist),Math.round(d.min),Math.round(d.load),...(i?['','','','','']:ck)].map(q).join(',')));});
   return L.join('\n');
 }
 /* ── Squad ── */
@@ -17784,7 +17786,7 @@ function renderStartupCalendar(){
     if(x.p.favourite)return '<svg width="19" height="19" viewBox="0 0 24 24" style="display:inline-block;flex-shrink:0;margin:-3px -1px;filter:drop-shadow(0 0 2px rgba(255,200,0,.75));"><path d="'+STAR+'" style="fill:#ffcc00;stroke:#b8860b;stroke-width:1.4;stroke-linejoin:round;"/><circle cx="12" cy="12.6" r="3.6" style="fill:'+col+';stroke:#fff;stroke-width:.8;"/></svg>';
     return '<span style="width:7px;height:7px;border-radius:50%;background:'+col+';display:inline-block;align-self:center;"></span>';
   };
-  const _szc=sznCalCtx();   // 18 Nov: block edge + day load on each cell
+  const _szc=sznCalCtx();   // 18 Nov: week-type edge + day load on each cell
   const _dCi=(()=>{try{return calItemCanEdit();}catch(e){return false;}})(),_dPl=planDragOk();   // 25 Nov: drag items between days
   const _dA=v=>' draggable="true" data-cdrag="'+_secEsc(v)+'" ';
   const monthGrid=(y,m)=>{
@@ -18481,16 +18483,18 @@ function sznFillWeek(x,M){
   toast('Filled '+n+' day'+(n===1?'':'s')+' (Undo is in Block templates)');
   renderStartupCalendar();
 }
-/* Calendar cells: the block as a coloured top edge (today to the race), and
-   the day's load - done, and ~planned. */
+/* Calendar cells: the week type (Medium / Hard / Recovery...) as a coloured top
+   edge - the same colour as that week in the season plan (26 Nov: was the block
+   colour) - and the day's load - done, and ~planned. */
 function sznCalCtx(){
   const no={top:()=>'',cell:()=>''};
   if(_wktCtx)return no;
   let D;try{D=sznD();}catch(e){return no;}
   const todayK=_dayKey(Date.now()),map=sznDayMap(D),anc=sznAnchors(tlRaces(),todayK),pc={};
   const pl=k=>{if(!(k in pc))pc[k]=sznPlanned(k,map,todayK);return pc[k];};
+  let wt=null;
   return{
-    top:k=>{if(k<todayK||!anc.some(a=>a.r.day>=k))return '';return 'border-top:3px solid '+SZN_BLK[sznBlockAt(k,anc)][1]+';';},
+    top:k=>{if(wt===null){wt={};try{sznModel().weeks.forEach(x=>{wt[x.w]=x.t;});}catch(e){}}const t=wt[sznWkStart(k)];return (t&&SZN_T[t])?'border-top:3px solid '+SZN_T[t][2]+';':'';},
     cell:(k,big)=>{const a=k<=todayK?Math.round(map.a[k]||0):0,p=k>=todayK?Math.round(pl(k)):0;if(!a&&!p)return '';
       return '<div title="Training load: done'+(p?' + planned':'')+'" style="font-size:'+(big?10:9)+'px;font-weight:700;text-align:right;margin-top:2px;color:var(--muted);line-height:1.2;">'+(a?'<span style="color:var(--text);">'+a+'</span>':'')+(a&&p?' + ':'')+(p?'~'+p:'')+'</div>';}
   };
@@ -19077,7 +19081,7 @@ function pvRender(){
   c+='<div style="display:grid;grid-template-columns:repeat(7,minmax(0,1fr));gap:4px;padding-right:10px;">';
   [0,1,2,3,4,5,6].map(i=>['Sun','Mon','Tue','Wed','Thu','Fri','Sat'][(i+_ws)%7]).forEach(d=>{c+='<div style="font-size:11px;color:#EFF3FA;opacity:.8;text-align:center;padding:2px 0;font-weight:700;">'+d+'</div>';});
   c+='</div>';
-  const _szc=_pv.combined?{top:()=>'',cell:()=>''}:sznCalCtx();   // 18 Nov: block edge + day load
+  const _szc=_pv.combined?{top:()=>'',cell:()=>''}:sznCalCtx();   // 18 Nov: week-type edge + day load
   c+='<div id="pv-cal" style="height:'+(wideL?'calc(100vh - 150px)':'70vh')+';overflow-y:auto;padding-right:4px;position:relative;">';
   for(let o=-PV_BACK;o<=PV_FWD;o++){
   const mb=new Date(now.getFullYear(),now.getMonth()+o,1),y=mb.getFullYear(),m=mb.getMonth();
