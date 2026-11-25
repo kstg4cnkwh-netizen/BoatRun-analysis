@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
 <meta name="color-scheme" content="light dark"/>
-<meta name="br-build" content="Analyser_261125_02">
+<meta name="br-build" content="Analyser_261125_04">
 <title>BoatRun Analyser</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -1916,7 +1916,27 @@ const AnalyserDrive = {
     if (v === null) this._ppP = null;
     return v;
   },
-  async pushPrefs(patch) {
+
+  /* 25 Nov: settings writes are batched. Calls within 2.5 s share one Drive
+     read + one write (each patch merged in order), and writes never overlap,
+     so two saves can't overwrite each other. Leaving the screen sends at once. */
+  _pq: null, _pchain: Promise.resolve(),
+  pushPrefs(patch) {
+      if (!this._pq) {
+          this._pq = { patch: {}, waiters: [], timer: null };
+          this._pq.timer = setTimeout(() => this.flushPrefs(), 2500);
+          if (!this._pqHide) { this._pqHide = 1; try { document.addEventListener('visibilitychange', () => { if (document.hidden) this.flushPrefs(); }); window.addEventListener('pagehide', () => this.flushPrefs()); } catch (e) {} }
+      }
+      Object.assign(this._pq.patch, patch || {});
+      return new Promise(res => this._pq.waiters.push(res));
+  },
+  flushPrefs() {
+      const q = this._pq; if (!q) return this._pchain;
+      this._pq = null; clearTimeout(q.timer);
+      this._pchain = this._pchain.then(() => this._pushNow(q.patch)).catch(() => false).then(ok => { q.waiters.forEach(r => { try { r(ok); } catch (e) {} }); return ok; });
+      return this._pchain;
+  },
+  async _pushNow(patch) {
     if (!(await this.ensureToken())) return false;
     try {
       const x = await this._prefsRaw();
@@ -1933,7 +1953,7 @@ const AnalyserDrive = {
       const r = await this._api(url, { method: fid ? 'PATCH' : 'POST', body: form }, 'Prefs', 15000);
       if (!r.ok) return false;
       const rd = await r.json();
-      this._ppP = null;
+      this._ppP = Promise.resolve(merged); this._ppT = Date.now();   // 25 Nov: keep the read copy current instead of re-reading
       if (rd && rd.id) localStorage.setItem('_ad_prefs_fid', rd.id);
       for (const id of x.ids.slice(1)) {
         try { await this._api(`https://www.googleapis.com/drive/v3/files/${id}`, { method: 'DELETE' }, 'Prefs', 10000); } catch {}
@@ -16713,8 +16733,36 @@ function tlOptTxt(o){
   if(o.done>0)s+=' · done '+o.done+(o.done>=o.hi?', that’s enough':', '+(Math.max(0,o.lo-o.done)?Math.max(0,o.lo-o.done)+'–':'up to ')+(o.hi-o.done)+' to go');
   return s;
 }
+/* 25 Nov: HRV TREND. The 7-day average HRV against your normal: the 60 days
+   before that week (mean ± half a standard deviation). Needs HRV on 3 of the last
+   7 days and 14 of the 60 before. Well below normal (a standard deviation or
+   more) = not recovering: today's suggestion goes to easy. */
+function hrvTrendOf(W,todayK,addDays){
+  const v=k=>{const w=W&&W[k];return w&&+w.hrv>0?+w.hrv:null;};
+  const r=[],b=[];
+  for(let i=0;i<7;i++){const x=v(addDays(todayK,-i));if(x!=null)r.push(x);}
+  for(let i=7;i<67;i++){const x=v(addDays(todayK,-i));if(x!=null)b.push(x);}
+  if(!r.length)return null;
+  if(r.length<3||b.length<14)return {wait:1,n7:r.length,nb:b.length};
+  const mean=a=>a.reduce((p,q)=>p+q,0)/a.length,a7=mean(r),m=mean(b);
+  const sd=Math.max(Math.sqrt(mean(b.map(x=>(x-m)*(x-m)))),m*0.03),z=(a7-m)/sd,td=v(todayK);
+  return {a7:Math.round(a7),m:Math.round(m),lo:Math.round(m-0.5*sd),hi:Math.round(m+0.5*sd),z,
+    st:z<=-1?'low':z<=-0.5?'dip':z>=1?'high':'normal',today:td,todayLow:td!=null&&td<m-1.5*sd};
+}
+function hrvTrendCol(st){return {low:'#e74c3c',dip:'#e6a100',normal:'#27ae60',high:'#1E88E5'}[st]||'#8e8e93';}
+function hrvTrendHtml(h){
+  if(!h)return '';
+  if(h.wait)return '<b>HRV trend</b> starts once there are readings on 3 of the last 7 days and 14 of the 2 months before (now '+h.n7+' and '+h.nb+').';
+  const W={low:'HRV LOW',dip:'HRV SLIGHTLY LOW',normal:'HRV NORMAL',high:'HRV ABOVE NORMAL'}[h.st];
+  const T={low:'Your body is not recovering well. Keep today easy and look at sleep, stress and illness.',
+    dip:'Starting to drop. Go easier if it keeps falling.',normal:'Recovering normally.',high:'Well recovered.'}[h.st];
+  return '<b style="color:'+hrvTrendCol(h.st)+';">'+W+'</b> &middot; 7-day average '+h.a7+' ms, your normal '+h.lo+'&ndash;'+h.hi+' ms. '+T
+    +(h.todayLow?' This morning ('+h.today+' ms) is well below normal.':'');
+}
+function tlHrv(){return hrvTrendOf(WELLNESS,_dayKey(Date.now()),tlAddDays);}
 function tlSuggest(D){
   const todayK=_dayKey(Date.now()),ti=D.ti,ch=D.fit[ti],ratio=ch>=30?D.form[ti]:null,ready=tlReady(WELLNESS[todayK]);
+  const hv=(()=>{try{const x=tlHrv();return x&&!x.wait?x:null;}catch(e){return null;}})();
   const yHard=ti>0&&ch>=30&&D.load[ti-1]>=1.5*ch/7;
   const dd=D.target?D.days.indexOf(D.target.day)-ti:null;
   const phase=dd==null?'general':dd<=10?'taper':dd<=24?'peak':dd<=66?'build':'base';
@@ -16724,6 +16772,7 @@ function tlSuggest(D){
   if(dd===0){type='race';why.push('Race day: '+D.target.text);}
   else if(doneL>=hardThr){type='done';why.push('a hard session is already done today (load '+Math.round(doneL)+')');}
   else if(ready!=null&&ready<2.7){type='easy';why.push('this morning’s check-in is poor');}
+  else if(hv&&hv.st==='low'){type='easy';why.push('HRV is low ('+hv.a7+' ms against your normal '+hv.lo+'-'+hv.hi+')');}   // 25 Nov
   else if(ratio!=null&&ratio>1.4){type='easy';why.push('load ratio is high ('+ratio.toFixed(2)+')');}
   else{
     if(phase==='taper'){type=(dd<=2||yHard)?'easy':'sharp';why.push('taper: '+dd+' day'+(dd===1?'':'s')+' to the '+D.target.pri+' race');}
@@ -16734,6 +16783,7 @@ function tlSuggest(D){
     else if(ratio!=null&&ratio<0.8)why.push('load ratio is low ('+ratio.toFixed(2)+'), so there is room to add load');
     if(ready!=null&&ready>=3.7)why.push('check-in is good');
     if(doneL>0){if(type==='hard'||type==='sharp')type='steady';why.push('already '+Math.round(doneL)+' load done today');}
+    if(hv&&(hv.st==='dip'||hv.todayLow)){if(type==='hard'||type==='sharp')type='steady';why.push(hv.st==='dip'?'HRV is slightly below normal':'this morning’s HRV is low');}   // 25 Nov
   }
   if(ready==null)why.push('no check-in for today has reached the Analyser yet');
   const opt=tlOpt(D,ti,type,doneL);
@@ -16845,6 +16895,7 @@ function renderLoadPanel(){
       if(!SG.picks.length&&SG.hint)s+='<div style="margin-top:4px;">'+SG.hint+'</div>';
       return s+'</div>';
     })()
+    +(()=>{try{const hv=tlHrv();if(!hv)return '';return '<div style="font-size:12px;margin-bottom:8px;padding:8px 10px;border-radius:8px;background:var(--s2);border:1px solid var(--border);border-left:5px solid '+(hv.wait?'var(--border)':hrvTrendCol(hv.st))+';line-height:1.5;">'+hrvTrendHtml(hv)+'</div>';}catch(e){return '';}})()   // 25 Nov: HRV trend
     +'<canvas id="tl-chart" style="display:block;width:100%;height:210px;"></canvas>'
     +'<div style="display:flex;gap:12px;flex-wrap:wrap;font-size:10px;color:var(--muted);margin:4px 0 8px;">'
     +'<span><span style="display:inline-block;width:9px;height:9px;background:#007aff;vertical-align:middle;"></span> water <span style="display:inline-block;width:9px;height:9px;background:#c0392b;vertical-align:middle;"></span> erg <span style="display:inline-block;width:9px;height:9px;background:#fc4c02;vertical-align:middle;"></span> other (faded = planned; hover a bar)</span>'
