@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
 <meta name="color-scheme" content="light dark"/>
-<meta name="br-build" content="Analyser_261125_04">
+<meta name="br-build" content="Analyser_261125_05">
 <title>BoatRun Analyser</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -326,6 +326,11 @@ function adClearPendingOpen(){try{sessionStorage.removeItem('_ad_open');}catch(e
 .br-plot-cur{position:absolute;z-index:650;pointer-events:none;display:none;}
 .br-plot-ring{background:rgba(0,0,0,.72);color:#fff;border-radius:8px;padding:5px 8px;font:600 11px -apple-system,BlinkMacSystemFont,Helvetica Neue,sans-serif;display:flex;align-items:center;gap:6px;}
 .br-plot-ring select{font:inherit;background:#fff;color:#000;border:none;border-radius:5px;padding:2px 4px;cursor:pointer!important;}
+/* 26 Nov: (i) info buttons replace long helper text in the Plan & Load panes */
+.ib{display:inline-flex;align-items:center;justify-content:center;flex-shrink:0;width:18px;height:18px;padding:0;margin:0 0 0 4px;border-radius:50%;border:1.5px solid var(--muted);background:none;color:var(--muted);font:italic 700 11px Georgia,serif;letter-spacing:0;text-transform:none;line-height:1;cursor:pointer;vertical-align:middle;}
+.ib:hover,.ib.on{border-color:var(--b,#1E88E5);color:var(--b,#1E88E5);}
+.ib-tip{position:fixed;z-index:100000;max-width:300px;padding:10px 12px;border-radius:10px;background:var(--s1,#fff);color:var(--text,#111);border:1px solid var(--border,#ccc);box-shadow:0 8px 24px rgba(0,0,0,.22);font:400 12px/1.5 -apple-system,Roboto,sans-serif;letter-spacing:normal;text-transform:none;white-space:normal;}
+.ib-tip p{margin:0 0 6px;}.ib-tip p:last-child{margin:0;}
 </style>
 <style>
 #startup{min-height:calc(100vh - 52px);display:flex;flex-direction:column;align-items:center;justify-content:flex-start;padding:28px 16px 40px;box-sizing:border-box;}
@@ -3862,6 +3867,28 @@ let SECTORS_DB=(()=>{try{const v=JSON.parse(localStorage.getItem('br_sectors')||
 try{if(SECTORS_DB.map(sectorDedupe).some(Boolean))localStorage.setItem('br_sectors',JSON.stringify(SECTORS_DB));}catch(e){}
 let _sectorLayers=[], _sectorCreate=null, _sectorScanBusy=false, _sectorsPushTimer=null;
 const SECTOR_CORRIDOR_M=100, SECTOR_GATE_HALF_M=100, SECTOR_OFFTRACK_MS=3000, SECTOR_STOP_MS=40000, SECTOR_BACKTRACK_M=20, SECTOR_MIN_M=100;
+/* 26 Nov: ib(html) = a small (i) button; tapping it shows the html in a popover.
+   The html is ours (escaped user text only), paragraphs split on \n. */
+function ib(html){return '<button type="button" class="ib" aria-label="More info" data-ib="'+_secEsc(html)+'">i</button>';}
+(function(){
+  const kill=()=>{document.querySelectorAll('.ib-tip').forEach(t=>t.remove());document.querySelectorAll('.ib.on').forEach(b=>b.classList.remove('on'));};
+  document.addEventListener('click',e=>{
+    const b=e.target.closest&&e.target.closest('.ib');
+    if(!b){if(!e.target.closest||!e.target.closest('.ib-tip'))kill();return;}
+    e.preventDefault();e.stopPropagation();
+    const was=b.classList.contains('on');kill();if(was)return;
+    b.classList.add('on');
+    const t=document.createElement('div');t.className='ib-tip';t.setAttribute('role','tooltip');
+    t.innerHTML=String(b.dataset.ib||'').split('\n').map(x=>'<p>'+x+'</p>').join('');
+    document.body.appendChild(t);
+    const r=b.getBoundingClientRect(),tw=t.offsetWidth,th=t.offsetHeight,vw=window.innerWidth,vh=window.innerHeight;
+    let x=Math.min(Math.max(8,r.left+r.width/2-tw/2),vw-tw-8),y=r.bottom+6;if(y+th>vh-8)y=Math.max(8,r.top-th-6);
+    t.style.left=x+'px';t.style.top=y+'px';
+  },true);
+  document.addEventListener('keydown',e=>{if(e.key==='Escape')kill();});
+  window.addEventListener('scroll',kill,true);
+  window.addEventListener('resize',kill);
+})();
 function _secEsc(s){return String(s==null?'':s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));}
 function saveSectors(){
   try{localStorage.setItem('br_sectors',JSON.stringify(SECTORS_DB));}catch{toast('Sectors not saved — storage error');}
@@ -12575,7 +12602,7 @@ async function showStartup(){
     <!-- 21 Nov: training load sits under the season plan in the one Plan & Load tab -->
     <div class="prc-plan" id="sz-loadwrap"><div class="brpill" id="sz-sqload" style="display:none;margin-bottom:14px;"></div><div class="brpill" id="sz-load" style="display:none;margin-bottom:14px;"></div></div>
     <div class="sz-grid">
-    <div class="sz-sumwrap" data-ct="sec"><div class="brpill prc-plan" id="sz-plancard"><div class="sz-lhd" style="margin-bottom:8px;">Workouts</div><div style="font-size:13px;line-height:1.5;margin-bottom:10px;">Build intervals and give them to a day on the calendar. Metrics offers the day\u2019s workout when you start.</div><div id="sz-planwk"></div><button class="dzbtn dzbtn-sec" id="sz-plan-wkt" style="display:none;"><span>Create / edit workouts</span></button></div><div class="sz-ctabs" id="sz-ctabs" style="display:none;"><button class="sz-ntab sel" data-ct="sec">Sectors</button><button class="sz-ntab" data-ct="nav">Navigation</button></div><div class="brpill" id="sz-sectors" style="display:none;"></div><div class="brpill" id="sz-nav" style="display:none;"></div><div class="brpill prc-nav" id="sz-navempty" style="display:none;"><div class="sz-lhd">Navigation</div><div style="font-size:13px;line-height:1.5;color:var(--muted);">Nothing here yet. Sectors and navigation lines (lanes, dividers, hazards) appear once you have set some up from a session, or once your club shares them.</div></div><div class="brpill prc-row" id="sz-focus" style="display:none;"></div><div class="brpill sz-sumcol"><div class="sz-lhd" style="margin-bottom:8px;">Summary</div><div id="sz-sumbody"></div></div></div>
+    <div class="sz-sumwrap" data-ct="sec"><div class="brpill prc-plan" id="sz-plancard"><div class="sz-lhd" style="margin-bottom:8px;justify-content:flex-start;">Workouts<button type="button" class="ib" aria-label="More info" data-ib="Build interval workouts and put them on a day: drag one onto the calendar or the season plan.&#10;Metrics offers the day&#8217;s workout when you start.">i</button></div><div id="sz-planwk"></div><button class="dzbtn dzbtn-sec" id="sz-plan-wkt" style="display:none;"><span>Create / edit workouts</span></button></div><div class="sz-ctabs" id="sz-ctabs" style="display:none;"><button class="sz-ntab sel" data-ct="sec">Sectors</button><button class="sz-ntab" data-ct="nav">Navigation</button></div><div class="brpill" id="sz-sectors" style="display:none;"></div><div class="brpill" id="sz-nav" style="display:none;"></div><div class="brpill prc-nav" id="sz-navempty" style="display:none;"><div class="sz-lhd">Navigation</div><div style="font-size:13px;line-height:1.5;color:var(--muted);">Nothing here yet. Sectors and navigation lines (lanes, dividers, hazards) appear once you have set some up from a session, or once your club shares them.</div></div><div class="brpill prc-row" id="sz-focus" style="display:none;"></div><div class="brpill sz-sumcol"><div class="sz-lhd" style="margin-bottom:8px;">Summary</div><div id="sz-sumbody"></div></div></div>
     <div class="sz-calcol"><div class="brpill" id="sz-cal"></div><div class="brpill" id="sz-calday" style="display:none;"></div></div>
     <div class="brpill" id="sz-sqres"></div>
     <div class="brpill" id="sz-sesspill">
@@ -12626,7 +12653,7 @@ async function showStartup(){
   /* 13 Nov: Plan / Row / Coach. Plan = calendar, workouts, course. Row = sessions,
      summary, focus metrics. Coach = trends (what drives pace per boat), compare. */
   {const lst=el.querySelector('.sz-list'),bar=document.getElementById('sz-prc'),sub=document.getElementById('sz-prcsub');
-   const SUB={plan:'Plan the season and your training load: loading cycles, fitness and fatigue, workouts and the calendar',nav:'Courses, sectors and navigation lines',load:'Training load, fatigue and what to do today',row:'Your sessions, and what to watch in the boat',coach:'Find what makes the boat faster'};
+   const SUB={plan:'Season, workouts and calendar',nav:'Courses, sectors and navigation lines',load:'Training load, fatigue and what to do today',row:'Your sessions, and what to watch in the boat',coach:'Find what makes the boat faster'};
    const setP=t=>{
      lst.dataset.prc=t;
      bar.querySelectorAll('button').forEach(b=>{const on=b.dataset.prc===t;b.classList.toggle('sel',on);b.setAttribute('aria-pressed',on?'true':'false');});
@@ -16870,26 +16897,29 @@ function renderLoadPanel(){
   const SG=tlSuggest(D);
   const fit=D.fit[n-1],fat=D.fat[n-1],form=D.form[n-1],fw=tlFormWord(form,fit);
   const box=(l,v,c,t)=>'<div title="'+t+'" style="flex:1;min-width:0;padding:8px 10px;border-radius:8px;background:var(--s2);border:1px solid var(--border);border-top:3px solid '+c+';"><div style="font-size:10px;color:var(--muted);letter-spacing:.05em;text-transform:uppercase;">'+l+'</div><div style="font-size:20px;font-weight:800;color:'+c+';">'+v+'</div></div>';
-  let h='<div class="sz-lhd" style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;">Training load<span style="font-size:12px;font-weight:700;color:'+fw[1]+';">'+fw[0]+'</span><span style="margin-left:auto;display:flex;gap:6px;flex-wrap:wrap;">'+'<select id="tl-watch" class="filt-chip" style="font-size:13px;padding:6px 10px;" title="Your watch: its load numbers train the model">'+Object.keys(WATCHES).map(k=>'<option value="'+k+'"'+(k===tlWatch()?' selected':'')+'>'+WATCHES[k].n+'</option>').join('')+'</select><button id="tl-hist" class="filt-chip" style="font-size:13px;padding:7px 14px;" title="Past sessions">'+(tlWSpec().eff?'Enter past efforts':'Enter '+tlWSpec().n+' loads')+'</button>'+(tlWatch()==='garmin'?'<button id="tl-gc" class="filt-chip" style="font-size:13px;padding:7px 14px;'+(gcIsOn()?'border-color:#27ae60;color:#27ae60;':'background:#1E88E5;border-color:#1E88E5;color:#fff;')+'" title="Garmin training effect and load fill in by themselves">'+(gcIsOn()?'Garmin connected \u2713':'Connect Garmin')+'</button>':'')+(gcSkipList().length?'<button id="tl-gcrest" class="filt-chip" style="font-size:13px;padding:7px 14px;" title="Garmin activities you deleted from the calendar">Restore Garmin ('+gcSkipList().length+')</button>':'')+(gapiCfg().url||tlWatch()==='garmin'?'<button id="tl-gapi" class="filt-chip" style="font-size:'+(gapiCfg().url?'13px;padding:7px 14px;border-color:#27ae60;color:#27ae60;':'11px;padding:5px 10px;opacity:.7;')+'" title="Personal Garmin API key (advanced, your own account only)">'+(gapiCfg().url?'Garmin key \u2713':'Personal key\u2026')+'</button>':'')+'</span></div>'
+  const LOAD_INFO='<b>Acute</b> = load over the last 7 days. <b>Chronic</b> = your normal week (last 4 weeks). <b>Ratio</b> = acute / chronic; 0.8 to 1.4 is best.\nLoads are on a Garmin-style scale: an easy hour is about 50-70, a hard hour 200+. Sessions with heart rate use HR zones once opened here; others are estimated at effort '+TL_DEF_RPE+' until you set an effort'+(tlWSpec().eff?'':' or type the '+tlWSpec().n+' number')+'. Chronic load needs 4 weeks of history to settle.'
+    +(()=>{const L={hr:'HR sessions',est:'estimated sessions',eff:'effort sessions'},p=Object.keys(_tlCal).map(k=>L[k]+' x'+_tlCal[k].k.toFixed(2)+' (from '+_tlCal[k].n+')');const W=tlWSpec();return p.length?'\nCalibrated to your '+(W.eff?'watch':W.n)+' numbers: '+p.join(', ')+'.':(W.eff?'\n'+W.n+' has no load number to copy, so set the effort for each session.':'\nType the '+W.n+' '+W.L.toLowerCase()+' for 3 or more past sessions and the rest are scaled to match your watch.');})();
+  const CHART_INFO='<b>Bars</b>: <span style="color:#007aff;">water</span>, <span style="color:#c0392b;">erg</span>, <span style="color:#fc4c02;">other</span>. Faded or dashed = planned. Hover a bar for details.\n<b>Lines</b>: <span style="color:#E53935;">acute</span>, <span style="color:#1E88E5;">chronic</span>, <span style="color:#27ae60;">ratio</span> (band = 0.8-1.4).\n<b>Squares</b> = check-in: <span style="color:#27ae60;">good</span>, <span style="color:#e6a100;">ok</span>, <span style="color:#e74c3c;">poor</span>.';
+  let h='<div class="sz-lhd" style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;">Training load'+ib(LOAD_INFO)+'<span style="font-size:12px;font-weight:700;color:'+fw[1]+';">'+fw[0]+'</span><span style="margin-left:auto;display:flex;gap:6px;flex-wrap:wrap;">'+'<select id="tl-watch" class="filt-chip" style="font-size:13px;padding:6px 10px;" title="Your watch: its load numbers train the model">'+Object.keys(WATCHES).map(k=>'<option value="'+k+'"'+(k===tlWatch()?' selected':'')+'>'+WATCHES[k].n+'</option>').join('')+'</select><button id="tl-hist" class="filt-chip" style="font-size:13px;padding:7px 14px;" title="Past sessions">'+(tlWSpec().eff?'Enter past efforts':'Enter '+tlWSpec().n+' loads')+'</button>'+(tlWatch()==='garmin'?'<button id="tl-gc" class="filt-chip" style="font-size:13px;padding:7px 14px;'+(gcIsOn()?'border-color:#27ae60;color:#27ae60;':'background:#1E88E5;border-color:#1E88E5;color:#fff;')+'" title="Garmin training effect and load fill in by themselves">'+(gcIsOn()?'Garmin connected \u2713':'Connect Garmin')+'</button>':'')+(gcSkipList().length?'<button id="tl-gcrest" class="filt-chip" style="font-size:13px;padding:7px 14px;" title="Garmin activities you deleted from the calendar">Restore Garmin ('+gcSkipList().length+')</button>':'')+(gapiCfg().url||tlWatch()==='garmin'?'<button id="tl-gapi" class="filt-chip" style="font-size:'+(gapiCfg().url?'13px;padding:7px 14px;border-color:#27ae60;color:#27ae60;':'11px;padding:5px 10px;opacity:.7;')+'" title="Personal Garmin API key (advanced, your own account only)">'+(gapiCfg().url?'Garmin key \u2713':'Personal key\u2026')+'</button>':'')+'</span></div>'
     +'<div style="display:flex;gap:8px;margin-bottom:8px;">'
     +box('Acute load',Math.round(fat),'#E53935','Load over the last 7 days (weighted to recent days)')
     +box('Chronic load',Math.round(fit),'#1E88E5','Your normal week: the last 4 weeks as an average week')
     +box('Load ratio',fit>=30?form.toFixed(2):'&ndash;',fw[1]==='var(--muted)'?'var(--text)':fw[1],'Acute / chronic. 0.8 to 1.4 is optimal')+'</div>'
     +(()=>{
-      const T=D.target;if(!T)return '<div style="font-size:11px;color:var(--muted);margin-bottom:8px;">No race ahead. Add a calendar event and mark it as an A, B or C race to plan towards it.</div>';
+      const T=D.target;if(!T)return '<div style="font-size:12px;color:var(--muted);margin-bottom:8px;display:flex;align-items:center;">No race set'+ib('Add a calendar event and mark it as an A, B or C race to plan towards it.')+'</div>';
       const i=D.days.indexOf(T.day);if(i<0)return '';
       const dd=i-D.ti,ch=D.fit[i],ac=D.fat[i],ra=D.form[i];
       const v=ch<30?['Not enough planned or past load to judge','var(--muted)']:ra<=0.9?['Fresh on the day','#27ae60']:ra<=1.1?['Slightly loaded: ease the last few days','#e6a100']:['Carrying fatigue: cut load in the last week','#e74c3c'];
       return '<div style="font-size:12px;margin-bottom:8px;padding:8px 10px;border-radius:8px;background:var(--s2);border:1px solid var(--border);border-left:5px solid '+v[1]+';">'
         +'<b>'+T.pri+' race: '+_secEsc(T.text)+'</b> &middot; '+new Date(T.day+'T12:00:00').toLocaleDateString('en-AU',{weekday:'short',day:'numeric',month:'short'})+' &middot; '+(dd===0?'today':dd+' day'+(dd===1?'':'s'))
         +'<br>Projected on race day: acute '+Math.round(ac)+', chronic '+Math.round(ch)+', ratio '+(ch>=30?ra.toFixed(2):'&ndash;')+' &middot; <b style="color:'+v[1]+';">'+v[0]+'</b>'
-        +(D.planned?'':'<br><span style="color:var(--muted);">No workouts are planned before the race, so this assumes rest from today.</span>')+'</div>';
+        +(D.planned?'':ib('No workouts are planned before the race, so this assumes rest from today.'))+'</div>';
     })()
     +(()=>{
       const planned=tlPlanFor(todayK).map(p=>p.w.id),col={done:'#8e8e93',easy:'#1E88E5',steady:'#27ae60',hard:'#E53935',sharp:'#e67e22',race:'#c0392b'}[SG.type];
       let s='<div style="font-size:12px;margin-bottom:8px;padding:8px 10px;border-radius:8px;background:var(--s2);border:1px solid var(--border);border-left:5px solid '+col+';">'
-        +'<div style="font-size:10px;font-weight:800;letter-spacing:.06em;opacity:.7;">SUGGESTED TODAY</div><b style="font-size:14px;">'+SG.title+'</b>'+(SG.opt?'<div style="font-weight:700;color:'+col+';margin-top:2px;">'+tlOptTxt(SG.opt)+'</div>':'')
-        +(SG.why.length?'<div style="color:var(--muted);margin-top:2px;">Why: '+_secEsc(SG.why.join('; '))+'.</div>':'');
+        +'<div style="font-size:10px;font-weight:800;letter-spacing:.06em;display:flex;align-items:center;"><span style="opacity:.7;">SUGGESTED TODAY</span>'+(SG.why.length?ib('Why: '+_secEsc(SG.why.join('; '))+'.'):'')+'</div><b style="font-size:14px;">'+SG.title+'</b>'+(SG.opt?'<div style="font-weight:700;color:'+col+';margin-top:2px;">'+tlOptTxt(SG.opt)+'</div>':'')
+        ;
       SG.picks.forEach(p=>{s+='<div style="display:flex;align-items:center;gap:8px;margin-top:6px;"><span style="flex:1;min-width:0;">'+_secEsc(_wktDispName(p.w))+' <span style="color:var(--muted);">&middot; '+p.min+' min &middot; effort '+p.e+' &middot; load '+p.load+'</span></span>'
         +(planned.indexOf(p.w.id)>=0?'<span style="color:var(--muted);font-weight:700;">planned</span>':(_wktCtx?'':'<button data-tl-plan="'+_secEsc(p.w.id)+'" class="filt-chip" style="font-size:12px;padding:5px 12px;">Plan today</button>'))+'</div>';});
       if(!SG.picks.length&&SG.hint)s+='<div style="margin-top:4px;">'+SG.hint+'</div>';
@@ -16897,10 +16927,7 @@ function renderLoadPanel(){
     })()
     +(()=>{try{const hv=tlHrv();if(!hv)return '';return '<div style="font-size:12px;margin-bottom:8px;padding:8px 10px;border-radius:8px;background:var(--s2);border:1px solid var(--border);border-left:5px solid '+(hv.wait?'var(--border)':hrvTrendCol(hv.st))+';line-height:1.5;">'+hrvTrendHtml(hv)+'</div>';}catch(e){return '';}})()   // 25 Nov: HRV trend
     +'<canvas id="tl-chart" style="display:block;width:100%;height:210px;"></canvas>'
-    +'<div style="display:flex;gap:12px;flex-wrap:wrap;font-size:10px;color:var(--muted);margin:4px 0 8px;">'
-    +'<span><span style="display:inline-block;width:9px;height:9px;background:#007aff;vertical-align:middle;"></span> water <span style="display:inline-block;width:9px;height:9px;background:#c0392b;vertical-align:middle;"></span> erg <span style="display:inline-block;width:9px;height:9px;background:#fc4c02;vertical-align:middle;"></span> other (faded = planned; hover a bar)</span>'
-    +'<span>&#9482; dashed = planned</span><span style="color:#E53935;">&#9473; acute</span><span style="color:#1E88E5;">&#9473; chronic</span><span style="color:#27ae60;">&#9473; ratio (band = 0.8-1.4)</span>'
-    +'<span>&#9632; check-in: <span style="color:#27ae60;">good</span> / <span style="color:#e6a100;">ok</span> / <span style="color:#e74c3c;">poor</span></span></div>';
+    +'<div style="display:flex;justify-content:flex-end;margin:2px 0 8px;font-size:11px;color:var(--muted);align-items:center;">Chart key'+ib(CHART_INFO)+'</div>';
   /* selected day (or today) */
   const day=(typeof _calSel!=='undefined'&&_calSel)?_calSel:todayK;
   const dl=new Date(day+'T12:00:00').toLocaleDateString('en-AU',{weekday:'short',day:'numeric',month:'short'});
@@ -16909,7 +16936,7 @@ function renderLoadPanel(){
   const w=WELLNESS[day],rd=tlReady(w);
   if(w&&rd!=null)h+='<div style="font-size:12px;margin-bottom:6px;padding:6px 8px;border-radius:6px;background:var(--s2);border-left:4px solid '+tlReadyCol(rd)+';">Check-in: '
     +[w.sleep>0?'sleep '+w.sleep+'/5':'',w.sore>0?'soreness '+w.sore+'/5':'',w.energy>0?'energy '+w.energy+'/5':'',w.rhr>0?'resting HR '+w.rhr:'',w.hrv>0?'HRV '+w.hrv:''].filter(Boolean).join(' &middot; ')+'</div>';
-  else if(day<=todayK)h+='<div style="font-size:11px;color:var(--muted);margin-bottom:6px;">No check-in for this day. Add it from the BoatRun Metrics opening screen.</div>';
+  else if(day<=todayK)h+='<div style="font-size:12px;color:var(--muted);margin-bottom:6px;display:flex;align-items:center;">No check-in'+ib('Add it from the BoatRun Metrics opening screen.')+'</div>';
   const ss=tlFiles().filter(x=>x.p.approxTs&&_dayKey(x.p.approxTs)===day).sort((a,b)=>a.p.approxTs-b.p.approxTs);
   ss.forEach(x=>{
     const k=tlSessKey(x),man=SESS_LOAD[k]||{},L=tlSessLoad(x),min=Math.round((x.p.durS||0)/60);
@@ -16932,11 +16959,9 @@ function renderLoadPanel(){
   });
   const it=tlItems()[day];
   ((it&&it.list)||[]).filter(x=>x.type==='other').forEach(x=>{const L=tlOtherLoad(x);
-    h+='<div style="display:flex;align-items:center;gap:6px;font-size:12px;padding:5px 0;border-top:1px solid var(--border);"><span style="flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">'+_secEsc(x.text||'Other workout')+'</span><span style="text-align:right;">'+(L?'<b>'+L+'</b> <span style="color:var(--muted);">'+(x.load>0?'entered':x.min+' min, effort '+x.rpe)+'</span>':'<span style="color:var(--muted);">no load - edit it to add minutes and effort</span>')+'</span></div>';});
+    h+='<div style="display:flex;align-items:center;gap:6px;font-size:12px;padding:5px 0;border-top:1px solid var(--border);"><span style="flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">'+_secEsc(x.text||'Other workout')+'</span><span style="text-align:right;">'+(L?'<b>'+L+'</b> <span style="color:var(--muted);">'+(x.load>0?'entered':x.min+' min, effort '+x.rpe)+'</span>':'<span style="color:var(--muted);">no load</span>'+ib('Edit it to add minutes and effort.'))+'</span></div>';});
   if(!ss.length&&!pl.length&&!((it&&it.list)||[]).some(x=>x.type==='other'))h+='<div style="font-size:11px;color:var(--muted);">No sessions this day.</div>';
-  h+='<div style="font-size:10px;color:var(--muted);margin-top:8px;line-height:1.4;">Loads are on a Garmin-style scale (an easy hour is about 50-70, a hard hour 200+). Sessions with heart rate use HR zones once opened here; others are estimated at effort '+TL_DEF_RPE+' until you set an effort'+(tlWSpec().eff?'':' or type the '+tlWSpec().n+' number')+'. Chronic load needs 4 weeks of history to settle.'
-    +(()=>{const L={hr:'HR sessions',est:'estimated sessions',eff:'effort sessions'},p=Object.keys(_tlCal).map(k=>L[k]+' x'+_tlCal[k].k.toFixed(2)+' (from '+_tlCal[k].n+')');const W=tlWSpec();return p.length?'<br>Calibrated to your '+(W.eff?'watch':W.n)+' numbers: '+p.join(', ')+'.':(W.eff?'<br>'+W.n+' has no load number to copy, so set the effort for each session.':'<br>Type the '+W.n+' '+W.L.toLowerCase()+' for 3 or more past sessions and the rest are scaled to match your watch.');})()
-    +(()=>{const n=_wktCtx?0:rpeMissing().length;return n?'<br>'+n+' workout'+(n===1?' has':'s have')+' no planned effort, so a guess is used. <a href="#" id="tl-rpe" style="color:#8e44ad;font-weight:700;">Set efforts</a>':'';})()+'</div>';
+  {const n=_wktCtx?0:rpeMissing().length;if(n)h+='<div style="font-size:12px;margin-top:8px;display:flex;align-items:center;"><a href="#" id="tl-rpe" style="color:#8e44ad;font-weight:700;">Set efforts ('+n+')</a>'+ib(n+' workout'+(n===1?' has':'s have')+' no planned effort, so a guess is used.')+'</div>';}
   h+=sqlShareHtml();
   el.innerHTML=h;
   {const hd=el.querySelector('.sz-lhd');if(hd&&!_wktCtx){const b=document.createElement('button');b.className='filt-chip';b.textContent='Weekly report';b.style.cssText='font-size:12px;padding:5px 12px;';b.onclick=()=>wrOpen('me');hd.appendChild(b);}}
@@ -17870,7 +17895,7 @@ function renderStartupCalendar(){
     if(!_wktCtx){const w=WELLNESS[_calSel],r=tlReady(w),P=tlCkParts(w);   // 25 Nov: the day's check-in under the plan
       if(P.length)h+='<div style="font-size:11px;color:var(--muted);margin:10px 0 4px;">Daily check-in'+(r!=null?' <b style="color:'+tlReadyCol(r)+';">'+tlReadyWord(r)+'</b>':'')+'</div>'
         +'<div style="font-size:12px;padding:7px 10px;border-radius:8px;background:var(--s2);border-left:4px solid '+(r!=null?tlReadyCol(r):'var(--border)')+';line-height:1.5;">'+P.join(' &middot; ')+'</div>';}
-    if(!_wktCtx&&!WKT_ENABLED&&_calSel>=todayK)h+='<div style="font-size:12px;color:var(--muted);margin:10px 0 4px;line-height:1.5;">To plan workouts here, open BoatRun on your phone signed in with Google Drive linked. Planning switches on by itself.</div>';
+    if(!_wktCtx&&!WKT_ENABLED&&_calSel>=todayK)h+='<div style="font-size:12px;color:var(--muted);margin:10px 0 4px;display:flex;align-items:center;">Planning is off'+ib('To plan workouts here, open BoatRun on your phone signed in with Google Drive linked. Planning switches on by itself.')+'</div>';
     if(false){   // 19 Nov: moved to the Workouts pane
       const BB='flex:1 1 0;min-width:0;min-height:48px;line-height:1.2;padding:10px 6px;border-radius:10px;border:none;box-shadow:0 2px 8px rgba(0,0,0,.22);font-family:-apple-system,Roboto,sans-serif;font-size:11px;font-weight:700;letter-spacing:.06em;cursor:pointer;color:#fff;';
       h+='<div style="display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:6px;margin-top:20px;">'
@@ -18318,33 +18343,33 @@ function sznStat(wk){
 function sznFmtD(k,o){return new Date(k+'T12:00:00').toLocaleDateString('en-AU',o||{day:'numeric',month:'short'});}
 function sznRender(){
   const el=document.getElementById('sz-season');if(!el)return;
-  if(_wktCtx){el.innerHTML='<div class="sz-lhd">Season plan</div><div style="font-size:12px;color:var(--muted);">The season plan is for your own calendar. Switch the calendar to Mine to see it.</div>';return;}
+  if(_wktCtx){el.innerHTML='<div class="sz-lhd" style="justify-content:flex-start;">Season plan'+ib('The season plan is for your own calendar.')+'</div><div style="font-size:12px;color:var(--muted);">Switch the calendar to Mine.</div>';return;}
   let M;try{M=sznModel();}catch(e){console.error(e);el.innerHTML='';return;}
   const keepX=(document.getElementById('szn-tl')||{}).scrollLeft;
   const W=M.weeks,cur=W.find(x=>x.cur)||W[0],sel=W.find(x=>x.w===_sznSel)||cur;
   const IN='padding:6px 8px;background:var(--s2);border:1px solid var(--border);border-radius:8px;color:var(--text);font-size:13px;font-family:inherit;';
-  let h='<div class="sz-lhd" style="margin-bottom:8px;">Season plan</div>'
+  const SZN_INFO='Each column is a week. <b>Top bar</b> = training block. <b>Pill</b> = week type, tap to change it.\n<b>Solid</b> = done, <b>faded</b> = planned, <b>dashed box</b> = target.\n<b>Number</b> = done + planned: <span style="color:#27ae60;">on target</span>, <span style="color:#e67e22;">under</span> or <span style="color:#e74c3c;">over</span>.\nTap a week to see its days. Drag a workout onto a week or a day.';
+  const CYC_INFO='Load climbs through the loading weeks and drops in the recovery week, so the body absorbs the work. Each cycle starts about '+sznGrowPct()+'% higher until Peak.\n<b>3 weeks</b> suits masters rowers, who take longer to recover. <b>4 weeks</b> suits younger athletes with a long training history.';
+  let h='<div class="sz-lhd" style="margin-bottom:8px;justify-content:flex-start;">Season plan'+ib(SZN_INFO)+'</div>'
     +'<div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:10px;font-size:12px;">'
     +'<label style="display:flex;align-items:center;gap:6px;max-width:100%;">Loading cycle <select id="szn-cyc" style="'+IN+'max-width:100%;min-width:0;">'
-    +[[3,'3 weeks: Medium, Hard, Recovery (best for masters)'],[4,'4 weeks: Medium, Hard, Hard+, Recovery'],[2,'2 weeks: Hard, Recovery']].map(o=>'<option value="'+o[0]+'"'+(o[0]===M.L?' selected':'')+'>'+o[1]+'</option>').join('')+'</select></label>'
-    +'<label style="display:flex;align-items:center;gap:6px;" title="Your normal week. Auto = your chronic load now">Base week load <input id="szn-base" type="number" inputmode="numeric" min="0" max="5000" placeholder="auto '+Math.max(150,Math.round(M.chW))+'" value="'+(SZN.base>0?SZN.base:'')+'" style="'+IN+'width:96px;"></label>'
+    +[[3,'3 weeks: Medium, Hard, Recovery'],[4,'4 weeks: Medium, Hard, Hard+, Recovery'],[2,'2 weeks: Hard, Recovery']].map(o=>'<option value="'+o[0]+'"'+(o[0]===M.L?' selected':'')+'>'+o[1]+'</option>').join('')+'</select>'+ib(CYC_INFO)+'</label>'
+    +'<label style="display:flex;align-items:center;gap:6px;" title="Your normal week. Auto = your chronic load now">Base week load'+ib('Your normal week&#8217;s load. Leave it blank to use your chronic load now (about '+Math.max(150,Math.round(M.chW))+').')+' <input id="szn-base" type="number" inputmode="numeric" min="0" max="5000" placeholder="auto '+Math.max(150,Math.round(M.chW))+'" value="'+(SZN.base>0?SZN.base:'')+'" style="'+IN+'width:96px;"></label>'
     +'<button id="szn-btp" class="filt-chip" style="font-size:13px;padding:7px 14px;margin-left:auto;">Block templates</button></div>'
-    +'<details id="szn-setup"'+(window._sznSetupOpen?' open':'')+' style="margin:-4px 0 10px;font-size:12px;"><summary style="cursor:pointer;font-weight:700;padding:4px 0;">Set up week loads</summary>'
-    +'<div style="padding:8px 0 4px;line-height:1.5;color:var(--muted);">Each week\u2019s target = base week load \u00d7 the % for its type. Base week now: <b style="color:var(--text);">'+M.B+'</b>.</div>'
-    +'<div style="display:flex;gap:8px;flex-wrap:wrap;">'+Object.keys(SZN_T).map(k=>'<label style="display:flex;flex-direction:column;align-items:center;gap:3px;"><span style="font-size:10px;font-weight:800;color:#fff;background:'+SZN_T[k][2]+';border-radius:8px;padding:1px 8px;">'+SZN_T[k][0]+'</span><span style="display:flex;align-items:center;gap:2px;"><input data-szf="'+k+'" type="number" inputmode="numeric" min="10" max="300" value="'+Math.round(sznFac(k)*100)+'" style="'+IN+'width:62px;text-align:right;">%</span><span style="font-size:10px;color:var(--muted);">\u2248 '+Math.round(M.B*sznFac(k))+'</span></label>').join('')
+    +'<details id="szn-setup"'+(window._sznSetupOpen?' open':'')+' style="margin:-4px 0 10px;font-size:12px;"><summary style="cursor:pointer;font-weight:700;padding:4px 0;">Set up week loads'+ib('Each week&#8217;s target = base week load (now <b>'+M.B+'</b>) \u00d7 the % for its week type. Growth is added each cycle in Base and Build.\nTo set one week&#8217;s target, tap the week and type it in.')+'</summary>'
+    +'<div style="display:flex;gap:8px;flex-wrap:wrap;padding-top:6px;">'+Object.keys(SZN_T).map(k=>'<label style="display:flex;flex-direction:column;align-items:center;gap:3px;"><span style="font-size:10px;font-weight:800;color:#fff;background:'+SZN_T[k][2]+';border-radius:8px;padding:1px 8px;">'+SZN_T[k][0]+'</span><span style="display:flex;align-items:center;gap:2px;"><input data-szf="'+k+'" type="number" inputmode="numeric" min="10" max="300" value="'+Math.round(sznFac(k)*100)+'" style="'+IN+'width:62px;text-align:right;">%</span><span style="font-size:10px;color:var(--muted);">\u2248 '+Math.round(M.B*sznFac(k))+'</span></label>').join('')
     +'<label style="display:flex;flex-direction:column;align-items:center;gap:3px;"><span style="font-size:10px;font-weight:800;">Growth / cycle</span><span style="display:flex;align-items:center;gap:2px;"><input id="szn-grow" type="number" inputmode="decimal" min="0" max="15" step="0.5" value="'+sznGrowPct()+'" style="'+IN+'width:62px;text-align:right;">%</span><span style="font-size:10px;color:var(--muted);">Base &amp; Build</span></label></div>'
-    +'<div style="margin-top:8px;"><button id="szn-fdef" class="filt-chip" style="font-size:12px;padding:5px 10px;">Back to defaults</button> <span style="color:var(--muted);">To set one week\u2019s target, tap the week and type it in.</span></div></details>';
+    +'<div style="margin-top:8px;"><button id="szn-fdef" class="filt-chip" style="font-size:12px;padding:5px 10px;">Back to defaults</button></div></details>';
   /* this week */
   {const st=sznStat(cur),nx=W[W.indexOf(cur)+1],T=cur.nx||M.T,wks=T?Math.max(0,Math.round(sznDays(cur.w,sznWkStart(T.day))/7)):null;
    const up=M.all.filter(r=>r.day>=M.todayK).slice(0,6);
    h+='<div style="font-size:13px;line-height:1.5;margin-bottom:10px;padding:8px 10px;border-radius:8px;background:var(--s2);border:1px solid var(--border);border-left:5px solid '+SZN_T[cur.t][2]+';">'
-     +'<b>This week: '+SZN_T[cur.t][0]+' week</b>'+(cur.ov?' <span style="color:var(--muted);">(you set this; recommended '+SZN_T[cur.rt][0]+')</span>':'')
-     +' &middot; <span style="color:'+SZN_BLK[cur.blk][1]+';font-weight:700;">'+SZN_BLK[cur.blk][0]+'</span>'+(T?' &middot; '+(wks===0?'race week':wks+' week'+(wks===1?'':'s')+' to the '+T.pri+' race ('+_secEsc(T.text)+')'):' &middot; no race set')
+     +'<b>This week: '+SZN_T[cur.t][0]+' week</b>'+(cur.ov?' <span title="You set this; recommended '+SZN_T[cur.rt][0]+'">\u270E</span>':'')
+     +' &middot; <span style="color:'+SZN_BLK[cur.blk][1]+';font-weight:700;">'+SZN_BLK[cur.blk][0]+'</span>'+(T?' &middot; '+(wks===0?'race week':wks+' week'+(wks===1?'':'s')+' to the '+T.pri+' race ('+_secEsc(T.text)+')'):' &middot; no race set'+ib('Add a calendar event and mark it as an A race to line the cycles and blocks up with it.'))
      +'<br>Target about <b>'+cur.tgt+'</b> &middot; done '+cur.act+' &middot; still planned '+cur.pl+' &middot; <b style="color:'+st.col+';">'+st.txt+'</b>'
-     +(st.gap>0&&cur.tgt&&(cur.act+cur.pl)/cur.tgt<0.85?' <span style="color:var(--muted);">(add a session or lift an effort)</span>':st.gap<0&&(cur.act+cur.pl)/cur.tgt>1.15?' <span style="color:var(--muted);">(drop or ease a session)</span>':'')
+     +(st.gap>0&&cur.tgt&&(cur.act+cur.pl)/cur.tgt<0.85?ib('Add a session or lift an effort.'):st.gap<0&&(cur.act+cur.pl)/cur.tgt>1.15?ib('Drop or ease a session.'):'')
      +(nx?'<br><span style="color:var(--muted);">Next week: '+SZN_T[nx.t][0]+', target about '+nx.tgt+'.</span>':'')
      +(up.length?'<br>Coming up: '+up.map(r=>'<span style="white-space:nowrap;">\u{1F3C1}<b style="color:'+(r.pri==='A'?'#c0392b':r.pri==='B'?'#d35400':'#7f8c8d')+';">'+r.pri+'</b> '+_secEsc(r.text)+' <span style="color:var(--muted);">'+sznFmtD(r.day)+'</span></span>').join(' &middot; '):'')
-     +(T?'':'<br><span style="color:var(--muted);">Add a calendar event and mark it as an A race to line the cycles and blocks up with it.</span>')
      +'</div>';}
   /* timeline */
   const mx=Math.max(1,...W.map(x=>Math.max(x.tgt||0,x.act+x.pl)))*1.08,H=120;
@@ -18371,8 +18396,7 @@ function sznRender(){
       +'</div>';
   });
   h+='</div></div>'
-    +'<div style="display:flex;gap:12px;flex-wrap:wrap;font-size:10px;color:var(--muted);margin:4px 0 2px;"><span>solid = done</span><span>faded = planned</span><span>dashed box = target</span><span>number = done + planned (<span style="color:#27ae60;">on target</span> / <span style="color:#e67e22;">under</span> / <span style="color:#e74c3c;">over</span>)</span><span>top bar = block</span><span>tap a week for its days</span><span>drag a workout onto a week or a day</span></div>'
-    +'<div style="font-size:11px;color:var(--muted);line-height:1.45;margin-bottom:8px;">Load climbs through the loading weeks and drops in the recovery week, so the body absorbs the work; each cycle starts about 4% higher until Peak. 3-week cycles suit masters rowers, who take longer to recover; 4-week cycles suit younger athletes with a long training history.</div>';
+    +'<div style="height:8px;"></div>';
   const _sf=[];   // 19 Nov: sessions shown in the selected week, for open / delete
   /* selected week */
   {const x=sel,st=sznStat(x);
@@ -18398,7 +18422,7 @@ function sznRender(){
    });
    const canFill=x.days.some(k=>k>=M.todayK);
    h+='<div style="display:flex;gap:6px;flex-wrap:wrap;margin-top:8px;">'
-     +(canFill?'<button id="szn-fill" class="filt-chip" style="font-size:12px;padding:6px 12px;" title="Puts the template week on the days of this week that have nothing planned">Fill empty days from '+(x.t==='rec'&&btpGet('recovery').some(d=>d.length)?'Recovery week':SZN_BLK[x.blk==='race'||x.blk==='post'||x.blk==='general'?(x.blk==='race'?'taper':'base'):x.blk][0])+' template</button>':'')
+     +(canFill?'<button id="szn-fill" class="filt-chip" style="font-size:12px;padding:6px 12px;" title="Puts the template week on the days of this week that have nothing planned">Fill from '+(x.t==='rec'&&btpGet('recovery').some(d=>d.length)?'Recovery week':SZN_BLK[x.blk==='race'||x.blk==='post'||x.blk==='general'?(x.blk==='race'?'taper':'base'):x.blk][0])+' template</button>':'')
      +'<button id="szn-cal" class="filt-chip" style="font-size:12px;padding:6px 12px;">Show on calendar</button>'
      +(x.ov?'<button id="szn-auto" class="filt-chip" style="font-size:12px;padding:6px 12px;">Back to recommended ('+SZN_T[x.rt][0]+')</button>':'')
      +'</div></div>';}
@@ -18521,11 +18545,11 @@ function renderPlanWorkouts(){
       +(wkOk?'<button id="pw-new-water" style="'+BB+'background:'+CAL_WATER_COL+';">+ ON-WATER WORKOUT</button><button id="pw-new-erg" style="'+BB+'background:'+CAL_ERG_COL+';">+ ERG WORKOUT</button>':'')
       +(ciOk?'<button id="pw-add-other" style="'+BB+'background:'+CI_OTHER_COL+';">+ OTHER WORKOUT</button><button id="pw-add-event" style="'+BB+'background:#27ae60;">+ EVENT</button><button id="pw-add-note" style="'+BB+'background:'+CI_NOTE_COL+';">+ NOTE</button>':'')
       +(wkOk?'<button id="pw-edit" style="'+BB+'background:'+CAL_EDIT_COL+';">EDIT WORKOUTS</button>':'')
-      +'</div>'+(ciOk?'<div style="font-size:11px;color:var(--muted);margin-bottom:10px;">Other workouts, events and notes go on <b style="color:var(--text);">'+new Date(iDay+'T12:00:00').toLocaleDateString('en-AU',{weekday:'short',day:'numeric',month:'short'})+'</b>'+(_calSel?'':' (today)')+' - tap a day on the calendar to change it.</div>':'<div style="margin-bottom:10px;"></div>'):'';
+      +'</div>'+(ciOk?'<div style="font-size:12px;color:var(--muted);margin-bottom:10px;display:flex;align-items:center;">Adds to&nbsp;<b style="color:var(--text);">'+new Date(iDay+'T12:00:00').toLocaleDateString('en-AU',{weekday:'short',day:'numeric',month:'short'})+'</b>'+(_calSel?'':'&nbsp;(today)')+ib('Other workouts, events and notes go on this day. Tap a day on the calendar to change it.')+'</div>':'<div style="margin-bottom:10px;"></div>'):'';
   h+='<input id="pw-q" type="text" placeholder="Search workouts" value="'+_secEsc(_pwF.q)+'" style="width:100%;box-sizing:border-box;padding:8px 10px;border-radius:8px;border:1px solid var(--border);background:var(--s2);color:var(--text);font-family:inherit;font-size:13px;margin-bottom:8px;">'
     +'<div style="display:flex;gap:4px;margin-bottom:6px;">'+[['all','All'],['water','On-water'],['erg','Erg']].map(([v,l])=>'<button data-pwv="'+v+'" class="filt-chip'+(_pwF.v===v?' on':'')+'" style="'+CH+'">'+l+'</button>').join('')+'</div>'
     +((!_wktCtx&&calSqOn().some(sqIsCoach))?'<label style="display:flex;align-items:center;gap:6px;font-size:12px;font-weight:700;margin-bottom:6px;">Add to <select id="pw-tgt" style="flex:1;min-width:0;padding:6px 8px;border-radius:8px;border:1px solid var(--border);background:var(--s2);color:var(--text);font-family:inherit;font-size:13px;"><option value="mine">My calendar</option>'+calSqOn().filter(sqIsCoach).map(c=>'<option value="'+c+'"'+(_calTgt===c?' selected':'')+'>Squad: '+_secEsc(pvSqName(c))+'</option>').join('')+'</select></label>':'')
-    +'<div style="font-size:11px;color:var(--muted);margin-bottom:6px;">'+(calTgtOk()?'Drag onto a day to add to the squad calendar ('+_secEsc(pvSqName(_calTgt))+')'+(selOk?', or + Add to '+dl:'')+'.':!ok?(_wktCtx?'View only: this squad\'s plan is set by the coach.':'Planning switches on once BoatRun on your phone is signed in with Google Drive.'):selOk?'Drag onto a day, or + Add to '+dl+'.':'Drag a workout onto today or a future day, or select a day to add with a tap.')+'</div>'
+    +'<div style="font-size:12px;color:var(--muted);margin-bottom:6px;display:flex;align-items:center;">'+(calTgtOk()?'Drag to the squad calendar'+ib('Drag onto a day to add to the squad calendar ('+_secEsc(pvSqName(_calTgt))+')'+(selOk?', or + Add to '+dl:'')+'.'):!ok?(_wktCtx?'View only'+ib('This squad&#8217;s plan is set by the coach.'):'Planning is off'+ib('Planning switches on once BoatRun on your phone is signed in with Google Drive.')):'Drag onto a day'+ib(selOk?'Drag onto a day, or + Add to '+dl+'.':'Drag a workout onto today or a future day, or select a day to add with a tap.'))+'</div>'
     +'<div id="pw-list" style="max-height:min(420px,55vh);overflow-y:auto;padding-right:2px;margin-bottom:10px;">';
   if(!list.length)h+='<div style="font-size:12px;color:var(--muted);padding:6px 0;">'+(all.length?'No workouts match.':'No workouts yet.')+'</div>';
   list.forEach(w=>{
