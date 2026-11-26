@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
 <meta name="color-scheme" content="light dark"/>
-<meta name="br-build" content="Analyser_261125_11">
+<meta name="br-build" content="Analyser_261125_12">
 <title>BoatRun Analyser</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -14428,7 +14428,7 @@ window.coachTool = function (k) {
   if (k === 'pace') { if (!r || r[1] - r[0] + 1 < 40) { toast('Drag across the stroke chart to select 40 or more strokes first', 3500); return; } showPaceCorr(); }
   else if (k === 'curves') { if (r) pinSelection(); const c = document.getElementById('curvesec'); if (c) c.scrollIntoView({ behavior: 'smooth', block: 'start' }); if (!r && !curveGroups.length) toast('Select strokes on the chart, then Add to comparison', 3500); }
   else if (k === 'replay') { if (!r) { toast('Drag across the stroke chart to select the section first', 3500); return; } window.rvOpenExport(); }
-  else if (k === 'strokevid') { if (!r && !curveGroups.length) { toast('Drag across the stroke chart to select a section, or pin 2 or more sections to stack them', 3500); return; } window.svOpenExport(); }
+  else if (k === 'strokevid') { if (!r && !curveGroups.length) { toast('Drag across the stroke chart to select a section, or pin 2 or more sections to stack them', 3500); return; } window.svOpenViewer(); }
   else if (k === 'tpl') openTemplateModal();
   else if (k === 'video') { const v = document.getElementById('videosec'); if (!v || v.offsetParent === null) { toast('Video overlay is not available for this session'); return; } v.scrollIntoView({ behavior: 'smooth', block: 'start' }); toast('Tap ＋ Add video', 2500); }
 };
@@ -22210,10 +22210,74 @@ function svFrame(ctx,W,H,lay,D,p,dur){
   ctx.strokeStyle='rgba(255,255,255,.9)';ctx.lineWidth=2;ctx.beginPath();ctx.moveTo(SX(t),stop-6);ctx.lineTo(SX(t),sbot+6);ctx.stroke();
   ctx.textAlign='center';ctx.font='600 '+fA+'px '+F;ctx.fillStyle='rgba(255,255,255,.5)';ctx.fillText('boatrun.au',spx+spw/2,S.y+S.h-pad*0.6);
 }
-window.svOpenExport=function(){
+/* 26 Nov: REPLAY VIEWER. Export stroke video opens this first: a large
+   on-screen replay (landscape by default) with play/pause, scrub, speed and
+   full screen, so the stroke curves can be watched without making a video.
+   "Make video" hands the same sections and shape on to the video maker. */
+window.svOpenViewer=function(){
   const canMulti=curveGroups.filter(g=>(g.strokes||[]).some(s=>s&&Array.isArray(s.curve))).length>=2;
   const hasSel=!!((typeof _selAbsRange==='function')&&_selAbsRange());
   let D=svPrep(canMulti&&!hasSel);if(!D)return;
+  document.getElementById('_svv_modal')?.remove();
+  const ov=document.createElement('div');ov.id='_svv_modal';
+  ov.style.cssText='position:fixed;inset:0;background:rgba(0,0,0,.82);display:flex;align-items:center;justify-content:center;z-index:9998;padding:10px;';
+  const pn=document.createElement('div');
+  pn.style.cssText='background:var(--s1);color:var(--text);border-radius:14px;width:min(1280px,96vw);max-height:96vh;overflow:auto;padding:12px 14px;box-sizing:border-box;display:flex;flex-direction:column;gap:10px;';
+  const sel='font-size:12px;';
+  pn.innerHTML='<div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;"><b style="font-size:15px;">Stroke curve replay</b><span id="_svv_info" style="font-size:11px;color:var(--muted);"></span>'
+    +'<span style="margin-left:auto;display:flex;gap:6px;flex-wrap:wrap;align-items:center;">'
+    +(canMulti?'<select id="_svv_src" style="'+sel+'"><option value="1"'+(D.multi?' selected':'')+'>Pinned sections stacked ('+curveGroups.length+')</option><option value="0"'+(D.multi?'':' selected')+'>'+(hasSel?'Selected section':'First pinned section')+'</option></select>':'')
+    +'<select id="_svv_fmt" style="'+sel+'"><option value="landscape" selected>Landscape 16:9</option><option value="portrait">Portrait 9:16</option><option value="square">Square 1:1</option></select>'
+    +'<button class="dzbtn dzbtn-pri" id="_svv_mk">Make video</button><button class="hbtn" id="_svv_close" style="font-size:11px;">Close</button></span></div>'
+    +'<div id="_svv_box" style="position:relative;display:flex;align-items:center;justify-content:center;background:#000;border-radius:10px;overflow:hidden;"><canvas id="_svv_cv" style="display:block;max-width:100%;max-height:72vh;cursor:pointer;"></canvas></div>'
+    +'<div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;">'
+    +'<button class="dzbtn dzbtn-pri" id="_svv_play" style="min-width:86px;">▶ Play</button>'
+    +'<button class="hbtn" id="_svv_back" title="Back one stroke" aria-label="Back one stroke">⏮</button><button class="hbtn" id="_svv_fwd" title="Forward one stroke" aria-label="Forward one stroke">⏭</button>'
+    +'<input id="_svv_pos" type="range" min="0" max="1000" value="0" aria-label="Replay position" style="flex:1;min-width:160px;">'
+    +'<span id="_svv_time" style="font-size:12px;font-variant-numeric:tabular-nums;min-width:86px;text-align:right;"></span>'
+    +'<select id="_svv_spd" style="'+sel+'" aria-label="Replay speed"><option value="0.5">×0.5</option><option value="1" selected>×1 real time</option><option value="2">×2</option><option value="4">×4</option><option value="8">×8</option></select>'
+    +'<button class="hbtn" id="_svv_fs">⛶ Full screen</button></div>';
+  ov.appendChild(pn);document.body.appendChild(ov);
+  const $=id=>document.getElementById(id);
+  const cv=$('_svv_cv'),ctx=cv.getContext('2d'),box=$('_svv_box');
+  let W=1920,H=1080,lay=null,t=0,playing=false,last=0,raf=0,alive=true;
+  const SZ=K.RV_SIZES||{portrait:[1080,1920],landscape:[1920,1080],square:[1080,1080]};
+  const spd=()=>+$('_svv_spd').value;
+  const info=()=>{$('_svv_info').textContent=(D.multi?D.secs.length+' sections · '+D.K+' strokes':D.n+' strokes')+' · '+fmtTime(Math.round(D.span/1000));};
+  const draw=()=>{
+    svFrame(ctx,W,H,lay,D,Math.min(1,t/D.span),D.span/1000/spd());
+    $('_svv_pos').value=Math.round(Math.min(1,t/D.span)*1000);
+    $('_svv_time').textContent=fmtTime(Math.floor(t/1000))+' / '+fmtTime(Math.round(D.span/1000));
+  };
+  const setSize=()=>{const sz=SZ[$('_svv_fmt').value];W=sz[0];H=sz[1];cv.width=W;cv.height=H;lay=svLayout(W,H,D);
+    const fs=document.fullscreenElement===box;cv.style.maxHeight=fs?'100vh':'72vh';cv.style.maxWidth='100%';draw();};
+  const loop=now=>{if(!alive)return;if(playing){t+=(now-last)*spd();last=now;if(t>=D.span){t=D.span;playing=false;$('_svv_play').textContent='▶ Play';}draw();}if(playing)raf=requestAnimationFrame(loop);};
+  const play=()=>{if(t>=D.span)t=0;playing=true;last=performance.now();$('_svv_play').textContent='❚❚ Pause';cancelAnimationFrame(raf);raf=requestAnimationFrame(loop);};
+  const pause=()=>{playing=false;cancelAnimationFrame(raf);$('_svv_play').textContent='▶ Play';draw();};
+  const toggle=()=>{playing?pause():play();};
+  const close=()=>{alive=false;cancelAnimationFrame(raf);try{if(document.fullscreenElement)document.exitFullscreen();}catch(e){}document.removeEventListener('keydown',key);ov.remove();};
+  const stepTo=dir=>{const k=svBis(D.stepT,Math.max(0,t-1));const nk=Math.max(0,Math.min(D.K-1,dir>0?k+1:(t-D.stepT[k]>300?k:k-1)));t=D.stepT[nk];if(dir>0&&nk===k)t=D.span;if(playing)last=performance.now();draw();};
+  const key=e=>{if(e.target&&/INPUT|SELECT|TEXTAREA/.test(e.target.tagName))return;if(e.key===' '){e.preventDefault();toggle();}else if(e.key==='ArrowRight')stepTo(1);else if(e.key==='ArrowLeft')stepTo(-1);};
+  document.addEventListener('keydown',key);
+  $('_svv_play').onclick=toggle;cv.onclick=toggle;
+  $('_svv_back').onclick=()=>stepTo(-1);$('_svv_fwd').onclick=()=>stepTo(1);
+  $('_svv_pos').oninput=()=>{t=(+$('_svv_pos').value/1000)*D.span;if(playing)last=performance.now();draw();};
+  $('_svv_spd').onchange=()=>{if(playing)last=performance.now();draw();};
+  $('_svv_fmt').onchange=setSize;
+  if($('_svv_src'))$('_svv_src').onchange=()=>{const nd=svPrep($('_svv_src').value==='1');if(!nd){$('_svv_src').value=D.multi?'1':'0';return;}D=nd;t=0;pause();info();setSize();};
+  $('_svv_fs').onclick=()=>{try{if(document.fullscreenElement)document.exitFullscreen();else if(box.requestFullscreen)box.requestFullscreen();else if(box.webkitRequestFullscreen)box.webkitRequestFullscreen();}catch(e){toast('Full screen is not available here');}};
+  box.addEventListener('fullscreenchange',()=>{const fs=document.fullscreenElement===box;box.style.borderRadius=fs?'0':'10px';cv.style.maxHeight=fs?'100vh':'72vh';$('_svv_fs').textContent=fs?'✕ Exit full screen':'⛶ Full screen';});
+  $('_svv_close').onclick=close;
+  ov.addEventListener('click',e=>{if(e.target===ov)close();});
+  $('_svv_mk').onclick=()=>{const o={multi:D.multi,fmt:$('_svv_fmt').value};close();window.svOpenExport(o);};
+  info();
+  (async()=>{try{if(document.fonts&&document.fonts.ready)await document.fonts.ready;}catch(e){}if(!alive)return;setSize();t=Math.min(D.span,(D.stepT[Math.min(D.K-1,2)]||0)+(D.stepD[Math.min(D.K-1,2)]||0)*0.6);draw();})();
+};
+window.svOpenExport=function(opts){
+  opts=opts||{};
+  const canMulti=curveGroups.filter(g=>(g.strokes||[]).some(s=>s&&Array.isArray(s.curve))).length>=2;
+  const hasSel=!!((typeof _selAbsRange==='function')&&_selAbsRange());
+  let D=svPrep(opts.multi!=null?(opts.multi&&canMulti):(canMulti&&!hasSel));if(!D)return;
   const mime=K.rvMime?K.rvMime():'';
   if(!mime||!HTMLCanvasElement.prototype.captureStream){toast('This browser cannot record video - try Chrome or Safari');return;}
   document.getElementById('_sv_modal')?.remove();
@@ -22227,7 +22291,7 @@ window.svOpenExport=function(){
   const srcSel=canMulti?'<select id="_sv_src" style="'+sel+'"><option value="1"'+(D.multi?' selected':'')+'>Pinned sections stacked ('+curveGroups.length+')</option><option value="0"'+(D.multi?'':' selected')+'>'+(hasSel?'Selected section':'First pinned section')+'</option></select>':'';
   pn.innerHTML='<div style="display:flex;align-items:center;gap:8px;margin-bottom:10px;"><b style="font-size:14px;">Stroke video</b><span id="_sv_info" style="font-size:11px;color:var(--muted);"></span><button class="hbtn" id="_sv_close" style="margin-left:auto;font-size:11px;">Close</button></div>'
     +'<div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:10px;align-items:center;">'
-    +srcSel+'<select id="_sv_fmt" style="'+sel+'"><option value="portrait">Portrait 9:16</option><option value="landscape">Landscape 16:9</option><option value="square">Square 1:1</option></select>'
+    +srcSel+'<select id="_sv_fmt" style="'+sel+'">'+[['portrait','Portrait 9:16'],['landscape','Landscape 16:9'],['square','Square 1:1']].map(o=>'<option value="'+o[0]+'"'+((opts.fmt||'portrait')===o[0]?' selected':'')+'>'+o[1]+'</option>').join('')+'</select>'
     +'<select id="_sv_len" style="'+sel+'">'+lenOpts()+'</select>'
     +'<button class="dzbtn dzbtn-pri" id="_sv_go">Make video</button></div>'
     +'<div id="_sv_msg" style="font-size:11px;color:var(--muted);margin-bottom:8px;"></div>'
