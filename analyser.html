@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
 <meta name="color-scheme" content="light dark"/>
-<meta name="br-build" content="Analyser_261125_12">
+<meta name="br-build" content="Analyser_261125_16">
 <title>BoatRun Analyser</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -6274,7 +6274,7 @@ window._secCmpVideo=function(){
     +'<select id="_scv_view" style="font-size:12px;" title="Zoomed follows the boats like Centre in the play-through"><option value="zoom">Zoomed - follows the boats</option><option value="over">Overview - whole stretch</option></select>'
     +'<select id="_scv_fmt" style="font-size:12px;"><option value="landscape">Landscape 16:9</option><option value="portrait">Portrait 9:16</option><option value="square">Square 1:1</option></select>'
     +'<select id="_scv_spd" style="font-size:12px;">'+spOpts.map(v=>'<option value="'+v+'"'+(v===spDef?' selected':'')+'>'+v+'× · '+fmtTime(Math.max(1,Math.round(durS/v)))+'</option>').join('')+'</select>'
-    +'<button class="dzbtn dzbtn-pri" id="_scv_go">Make video</button></div>'
+    +'<button class="dzbtn dzbtn-pri" id="_scv_go">Make video</button><button class="dzbtn dzbtn-sec" id="_scv_stop" style="display:none;"><span>\u25A0 Stop</span></button></div>'
     +'<div id="_scv_msg" style="font-size:11px;color:var(--muted);margin-bottom:8px;">Loading map…</div>'
     +'<div style="text-align:center;"><canvas id="_scv_cv" style="max-width:100%;max-height:60vh;border-radius:10px;background:#000;"></canvas><video id="_scv_vid" controls playsinline style="display:none;max-width:100%;max-height:60vh;border-radius:10px;background:#000;"></video></div>'
     +'<div id="_scv_save" style="display:none;gap:8px;margin-top:10px;"><button class="dzbtn dzbtn-pri" id="_scv_dl">Save video</button><button class="dzbtn dzbtn-sec" id="_scv_sh" style="display:none;"><span>Share</span></button></div>';
@@ -6423,7 +6423,7 @@ window._secCmpVideo=function(){
   };
   const resetOut=()=>{$('_scv_save').style.display='none';$('_scv_vid').style.display='none';cv.style.display='';if(url){URL.revokeObjectURL(url);url=null;}blob=null;};
   const build=async()=>{
-    const my=++gen;busy=true;$('_scv_go').disabled=true;resetOut();
+    const my=++gen;busy=true;$('_scv_go').disabled=true;$('_scv_go').textContent='Make video';resetOut();
     const sz=K.RV_SIZES[$('_scv_fmt').value];W=sz[0];H=sz[1];cv.width=W;cv.height=H;lay=layout(W,H);colMax=null;
     ctx.fillStyle='#0b1a2e';ctx.fillRect(0,0,W,H);msg.textContent='Loading map…';
     const prog=(d,n)=>{if(my===gen)msg.textContent='Loading map '+d+'/'+n+'\u2026';};
@@ -6443,14 +6443,20 @@ window._secCmpVideo=function(){
   $('_scv_go').onclick=()=>{
     if(busy||!mp)return;
     busy=true;['_scv_go','_scv_fmt','_scv_spd','_scv_view'].forEach(id=>$(id).disabled=true);resetOut();cam=null;
+    /* 26 Nov: greyed out while making, "Make video again" once done; Stop throws the recording away. */
+    const goBtn=(txt,on)=>{const b=$('_scv_go');b.textContent=txt;b.disabled=!on;b.style.opacity=on?'':'.45';b.style.filter=on?'':'grayscale(1)';b.style.cursor=on?'':'not-allowed';};
+    goBtn('Making video\u2026',false);
     const spd=+$('_scv_spd').value,len=c.dur/1000/spd,my=gen,chunks=[];
-    let stream;
+    let stream,stopped=false;
     try{stream=cv.captureStream(30);rec=new MediaRecorder(stream,{mimeType:mime,videoBitsPerSecond:10000000});}
-    catch(e){toast('Recording failed: '+(e&&e.message||e));busy=false;['_scv_go','_scv_fmt','_scv_spd','_scv_view'].forEach(id=>$(id).disabled=false);return;}
+    catch(e){toast('Recording failed: '+(e&&e.message||e));busy=false;['_scv_fmt','_scv_spd','_scv_view'].forEach(id=>$(id).disabled=false);goBtn('Make video',true);return;}
     rec.ondataavailable=e=>{if(e.data&&e.data.size)chunks.push(e.data);};
     rec.onstop=()=>{
       try{stream.getTracks().forEach(t=>t.stop());}catch(e){}
-      ['_scv_go','_scv_fmt','_scv_spd','_scv_view'].forEach(id=>$(id).disabled=false);busy=false;
+      $('_scv_stop').style.display='none';
+      ['_scv_fmt','_scv_spd','_scv_view'].forEach(id=>$(id).disabled=false);busy=false;
+      if(stopped){goBtn('Make video',true);chunks.length=0;resetOut();cam=null;frame(0);msg.textContent='Recording stopped - nothing saved.';return;}
+      goBtn('Make video again',true);
       if(my!==gen||!chunks.length)return;
       blob=new Blob(chunks,{type:mime.split(';')[0]});url=URL.createObjectURL(blob);
       const v=$('_scv_vid');v.src=url;v.style.display='';cv.style.display='none';$('_scv_save').style.display='flex';
@@ -6463,10 +6469,12 @@ window._secCmpVideo=function(){
       $('_scv_dl').onclick=()=>{const a=document.createElement('a');a.href=url;a.download=fname;document.body.appendChild(a);a.click();a.remove();};
       msg.textContent='Done · '+(blob.size/1048576).toFixed(1)+' MB '+ext.toUpperCase();
     };
+    $('_scv_stop').style.display='';
+    $('_scv_stop').onclick=()=>{if(stopped)return;stopped=true;try{if(rec&&rec.state!=='inactive')rec.stop();}catch(e){}};
     frame(0);rec.start(250);
     const HOLD0=0.8,HOLD1=2,t0=performance.now();
     const tick=()=>{
-      if(my!==gen)return;
+      if(my!==gen||stopped)return;
       const el=(performance.now()-t0)/1000,t=Math.max(0,Math.min(c.dur,(el-HOLD0)*spd*1000));
       frame(t);
       msg.textContent='Recording '+Math.round(Math.min(1,el/(len+HOLD0+HOLD1))*100)+'% — keep this tab on screen';
@@ -21976,7 +21984,7 @@ window.rvOpenExport=function(){
     +'<div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:10px;align-items:center;">'
     +'<select id="_rv_fmt" style="'+sel+'"><option value="portrait">Portrait 9:16</option><option value="landscape">Landscape 16:9</option><option value="square">Square 1:1</option></select>'
     +'<select id="_rv_len" style="'+sel+'"><option value="10" selected>10 s</option><option value="15">15 s</option><option value="20">20 s</option><option value="30">30 s</option></select>'
-    +'<button class="dzbtn dzbtn-pri" id="_rv_go">Make video</button></div>'
+    +'<button class="dzbtn dzbtn-pri" id="_rv_go">Make video</button><button class="dzbtn dzbtn-sec" id="_rv_stop" style="display:none;"><span>\u25A0 Stop</span></button></div>'
     +'<div id="_rv_msg" style="font-size:11px;color:var(--muted);margin-bottom:8px;">Loading map…</div>'
     +'<div style="text-align:center;"><canvas id="_rv_cv" style="max-width:100%;max-height:60vh;border-radius:10px;background:#000;"></canvas><video id="_rv_vid" controls playsinline style="display:none;max-width:100%;max-height:60vh;border-radius:10px;background:#000;"></video></div>'
     +'<div id="_rv_save" style="display:none;gap:8px;margin-top:10px;"><button class="dzbtn dzbtn-pri" id="_rv_dl">Save video</button><button class="dzbtn dzbtn-sec" id="_rv_sh" style="display:none;"><span>Share</span></button></div>';
@@ -21989,7 +21997,7 @@ window.rvOpenExport=function(){
   $('_rv_close').onclick=close;
   const resetOut=()=>{$('_rv_save').style.display='none';$('_rv_vid').style.display='none';cv.style.display='';if(url){URL.revokeObjectURL(url);url=null;}blob=null;};
   const build=async()=>{
-    const my=++gen;busy=true;$('_rv_go').disabled=true;resetOut();
+    const my=++gen;busy=true;$('_rv_go').disabled=true;$('_rv_go').textContent='Make video';resetOut();
     const sz=RV_SIZES[$('_rv_fmt').value];W=sz[0];H=sz[1];cv.width=W;cv.height=H;lay=rvLayout(W,H);
     ctx.fillStyle='#0b1a2e';ctx.fillRect(0,0,W,H);
     msg.textContent='Loading map…';
@@ -22002,18 +22010,24 @@ window.rvOpenExport=function(){
     busy=false;$('_rv_go').disabled=false;
   };
   $('_rv_fmt').onchange=build;
-  $('_rv_len').onchange=()=>{if(mp&&!busy){resetOut();rvFrame(ctx,W,H,lay,mp,D,0,+$('_rv_len').value);}};
+  $('_rv_len').onchange=()=>{if(mp&&!busy){resetOut();$('_rv_go').textContent='Make video';rvFrame(ctx,W,H,lay,mp,D,0,+$('_rv_len').value);}};
   $('_rv_go').onclick=()=>{
     if(busy||!mp)return;
     busy=true;$('_rv_go').disabled=true;$('_rv_fmt').disabled=true;$('_rv_len').disabled=true;resetOut();
+    /* 26 Nov: greyed out while making, "Make video again" once done; Stop throws the recording away. */
+    const goBtn=(txt,on)=>{const b=$('_rv_go');b.textContent=txt;b.disabled=!on;b.style.opacity=on?'':'.45';b.style.filter=on?'':'grayscale(1)';b.style.cursor=on?'':'not-allowed';};
+    goBtn('Making video\u2026',false);
     const dur=+$('_rv_len').value, my=gen, chunks=[];
-    let stream;
+    let stream,stopped=false;
     try{stream=cv.captureStream(30);rec=new MediaRecorder(stream,{mimeType:mime,videoBitsPerSecond:10000000});}
-    catch(e){toast('Recording failed: '+(e&&e.message||e));busy=false;$('_rv_go').disabled=false;$('_rv_fmt').disabled=false;$('_rv_len').disabled=false;return;}
+    catch(e){toast('Recording failed: '+(e&&e.message||e));busy=false;goBtn('Make video',true);$('_rv_fmt').disabled=false;$('_rv_len').disabled=false;return;}
     rec.ondataavailable=e=>{if(e.data&&e.data.size)chunks.push(e.data);};
     rec.onstop=()=>{
       try{stream.getTracks().forEach(t=>t.stop());}catch(e){}
-      $('_rv_fmt').disabled=false;$('_rv_len').disabled=false;$('_rv_go').disabled=false;busy=false;
+      $('_rv_stop').style.display='none';
+      $('_rv_fmt').disabled=false;$('_rv_len').disabled=false;busy=false;
+      if(stopped){goBtn('Make video',true);chunks.length=0;resetOut();rvFrame(ctx,W,H,lay,mp,D,0,dur);msg.textContent='Recording stopped - nothing saved.';return;}
+      goBtn('Make video again',true);
       if(my!==gen||!chunks.length)return;
       blob=new Blob(chunks,{type:mime.split(';')[0]});url=URL.createObjectURL(blob);
       const v=$('_rv_vid');v.src=url;v.style.display='';cv.style.display='none';
@@ -22027,11 +22041,13 @@ window.rvOpenExport=function(){
       $('_rv_dl').onclick=()=>{const a=document.createElement('a');a.href=url;a.download=fname;document.body.appendChild(a);a.click();a.remove();};
       msg.textContent='Done · '+(blob.size/1048576).toFixed(1)+' MB '+ext.toUpperCase();
     };
+    $('_rv_stop').style.display='';
+    $('_rv_stop').onclick=()=>{if(stopped)return;stopped=true;try{if(rec&&rec.state!=='inactive')rec.stop();}catch(e){}};
     rvFrame(ctx,W,H,lay,mp,D,0,dur);
     rec.start(250);
     const HOLD0=0.6, HOLD1=1.4, t0=performance.now();
     const tick=()=>{
-      if(my!==gen)return;
+      if(my!==gen||stopped)return;
       const el=(performance.now()-t0)/1000, p=Math.max(0,Math.min(1,(el-HOLD0)/dur));
       rvFrame(ctx,W,H,lay,mp,D,p,dur);
       msg.textContent='Recording '+Math.round(Math.min(1,el/(dur+HOLD0+HOLD1))*100)+'% — keep this tab on screen';
@@ -22228,7 +22244,7 @@ window.svOpenViewer=function(){
     +'<span style="margin-left:auto;display:flex;gap:6px;flex-wrap:wrap;align-items:center;">'
     +(canMulti?'<select id="_svv_src" style="'+sel+'"><option value="1"'+(D.multi?' selected':'')+'>Pinned sections stacked ('+curveGroups.length+')</option><option value="0"'+(D.multi?'':' selected')+'>'+(hasSel?'Selected section':'First pinned section')+'</option></select>':'')
     +'<select id="_svv_fmt" style="'+sel+'"><option value="landscape" selected>Landscape 16:9</option><option value="portrait">Portrait 9:16</option><option value="square">Square 1:1</option></select>'
-    +'<button class="dzbtn dzbtn-pri" id="_svv_mk">Make video</button><button class="hbtn" id="_svv_close" style="font-size:11px;">Close</button></span></div>'
+    +'<button class="dzbtn dzbtn-pri" id="_svv_mk">Export video</button><button class="hbtn" id="_svv_close" style="font-size:11px;">Close</button></span></div>'
     +'<div id="_svv_box" style="position:relative;display:flex;align-items:center;justify-content:center;background:#000;border-radius:10px;overflow:hidden;"><canvas id="_svv_cv" style="display:block;max-width:100%;max-height:72vh;cursor:pointer;"></canvas></div>'
     +'<div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;">'
     +'<button class="dzbtn dzbtn-pri" id="_svv_play" style="min-width:86px;">▶ Play</button>'
@@ -22271,7 +22287,7 @@ window.svOpenViewer=function(){
   ov.addEventListener('click',e=>{if(e.target===ov)close();});
   $('_svv_mk').onclick=()=>{const o={multi:D.multi,fmt:$('_svv_fmt').value};close();window.svOpenExport(o);};
   info();
-  (async()=>{try{if(document.fonts&&document.fonts.ready)await document.fonts.ready;}catch(e){}if(!alive)return;setSize();t=Math.min(D.span,(D.stepT[Math.min(D.K-1,2)]||0)+(D.stepD[Math.min(D.K-1,2)]||0)*0.6);draw();})();
+  (async()=>{try{if(document.fonts&&document.fonts.ready)await document.fonts.ready;}catch(e){}if(!alive)return;t=0;setSize();})();
 };
 window.svOpenExport=function(opts){
   opts=opts||{};
@@ -22293,7 +22309,7 @@ window.svOpenExport=function(opts){
     +'<div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:10px;align-items:center;">'
     +srcSel+'<select id="_sv_fmt" style="'+sel+'">'+[['portrait','Portrait 9:16'],['landscape','Landscape 16:9'],['square','Square 1:1']].map(o=>'<option value="'+o[0]+'"'+((opts.fmt||'portrait')===o[0]?' selected':'')+'>'+o[1]+'</option>').join('')+'</select>'
     +'<select id="_sv_len" style="'+sel+'">'+lenOpts()+'</select>'
-    +'<button class="dzbtn dzbtn-pri" id="_sv_go">Make video</button></div>'
+    +'<button class="dzbtn dzbtn-pri" id="_sv_go">Create video</button><button class="dzbtn dzbtn-sec" id="_sv_stop" style="display:none;"><span>\u25A0 Stop</span></button></div>'
     +'<div id="_sv_msg" style="font-size:11px;color:var(--muted);margin-bottom:8px;"></div>'
     +'<div style="text-align:center;"><canvas id="_sv_cv" style="max-width:100%;max-height:60vh;border-radius:10px;background:#000;"></canvas><video id="_sv_vid" controls playsinline style="display:none;max-width:100%;max-height:60vh;border-radius:10px;background:#000;"></video></div>'
     +'<div id="_sv_save" style="display:none;gap:8px;margin-top:10px;"><button class="dzbtn dzbtn-pri" id="_sv_dl">Save video</button><button class="dzbtn dzbtn-sec" id="_sv_sh" style="display:none;"><span>Share</span></button></div>';
@@ -22307,20 +22323,26 @@ window.svOpenExport=function(opts){
   const resetOut=()=>{$('_sv_save').style.display='none';$('_sv_vid').style.display='none';cv.style.display='';if(url){URL.revokeObjectURL(url);url=null;}blob=null;};
   const preview=()=>{const sz=(K.RV_SIZES||{portrait:[1080,1920],landscape:[1920,1080],square:[1080,1080]})[$('_sv_fmt').value];W=sz[0];H=sz[1];cv.width=W;cv.height=H;lay=svLayout(W,H,D);const k2=Math.min(D.K-1,2);svFrame(ctx,W,H,lay,D,Math.min(1,(D.stepT[k2]+D.stepD[k2]*0.6)/D.span),+$('_sv_len').value);msg.textContent='Ready. Keep this tab open and on screen while it records.';};
   (async()=>{try{if(document.fonts&&document.fonts.ready)await document.fonts.ready;}catch(e){}preview();})();
-  $('_sv_fmt').onchange=()=>{if(!busy){resetOut();preview();}};
-  $('_sv_len').onchange=()=>{if(!busy){resetOut();preview();}};
-  if($('_sv_src'))$('_sv_src').onchange=()=>{if(busy)return;const nd=svPrep($('_sv_src').value==='1');if(!nd){$('_sv_src').value=D.multi?'1':'0';return;}D=nd;$('_sv_len').innerHTML=lenOpts();info();resetOut();preview();};
+  $('_sv_fmt').onchange=()=>{if(!busy){resetOut();$('_sv_go').textContent='Create video';preview();}};
+  $('_sv_len').onchange=()=>{if(!busy){resetOut();$('_sv_go').textContent='Create video';preview();}};
+  if($('_sv_src'))$('_sv_src').onchange=()=>{if(busy)return;const nd=svPrep($('_sv_src').value==='1');if(!nd){$('_sv_src').value=D.multi?'1':'0';return;}D=nd;$('_sv_len').innerHTML=lenOpts();$('_sv_go').textContent='Create video';info();resetOut();preview();};
   $('_sv_go').onclick=()=>{
     if(busy)return;
     busy=true;$('_sv_go').disabled=true;$('_sv_fmt').disabled=true;$('_sv_len').disabled=true;if($('_sv_src'))$('_sv_src').disabled=true;resetOut();
+    /* 26 Nov: greyed out while making; "Create video again" once done. */
+    const goBtn=(txt,on)=>{const b=$('_sv_go');b.textContent=txt;b.disabled=!on;b.style.opacity=on?'':'.45';b.style.filter=on?'':'grayscale(1)';b.style.cursor=on?'':'not-allowed';};
+    goBtn('Creating video\u2026',false);
     const dur=+$('_sv_len').value,my=gen,chunks=[];
-    let stream;
+    let stream,stopped=false;
     try{stream=cv.captureStream(30);rec=new MediaRecorder(stream,{mimeType:mime,videoBitsPerSecond:10000000});}
-    catch(e){toast('Recording failed: '+(e&&e.message||e));busy=false;$('_sv_go').disabled=false;$('_sv_fmt').disabled=false;$('_sv_len').disabled=false;return;}
+    catch(e){toast('Recording failed: '+(e&&e.message||e));busy=false;goBtn('Create video',true);$('_sv_fmt').disabled=false;$('_sv_len').disabled=false;if($('_sv_src'))$('_sv_src').disabled=false;return;}
     rec.ondataavailable=e=>{if(e.data&&e.data.size)chunks.push(e.data);};
     rec.onstop=()=>{
       try{stream.getTracks().forEach(t=>t.stop());}catch(e){}
-      $('_sv_fmt').disabled=false;$('_sv_len').disabled=false;$('_sv_go').disabled=false;if($('_sv_src'))$('_sv_src').disabled=false;busy=false;
+      $('_sv_stop').style.display='none';
+      $('_sv_fmt').disabled=false;$('_sv_len').disabled=false;if($('_sv_src'))$('_sv_src').disabled=false;busy=false;
+      if(stopped){goBtn('Create video',true);chunks.length=0;resetOut();svFrame(ctx,W,H,lay,D,0,dur);msg.textContent='Recording stopped - nothing saved.';return;}
+      goBtn('Create video again',true);
       if(my!==gen||!chunks.length)return;
       blob=new Blob(chunks,{type:mime.split(';')[0]});url=URL.createObjectURL(blob);
       const v=$('_sv_vid');v.src=url;v.style.display='';cv.style.display='none';
@@ -22334,11 +22356,14 @@ window.svOpenExport=function(opts){
       $('_sv_dl').onclick=()=>{const a=document.createElement('a');a.href=url;a.download=fname;document.body.appendChild(a);a.click();a.remove();};
       msg.textContent='Done · '+(blob.size/1048576).toFixed(1)+' MB '+ext.toUpperCase();
     };
+    /* 26 Nov: Stop ends the recording and throws it away. */
+    $('_sv_stop').style.display='';
+    $('_sv_stop').onclick=()=>{if(stopped)return;stopped=true;try{if(rec&&rec.state!=='inactive')rec.stop();}catch(e){}};
     svFrame(ctx,W,H,lay,D,0,dur);
     rec.start(250);
     const HOLD0=0.6,HOLD1=1.4,t0=performance.now();
     const tick=()=>{
-      if(my!==gen)return;
+      if(my!==gen||stopped)return;
       const el=(performance.now()-t0)/1000,p=Math.max(0,Math.min(1,(el-HOLD0)/dur));
       svFrame(ctx,W,H,lay,D,p,dur);
       msg.textContent='Recording '+Math.round(Math.min(1,el/(dur+HOLD0+HOLD1))*100)+'% — keep this tab on screen';
