@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
 <meta name="color-scheme" content="light dark"/>
-<meta name="br-build" content="Analyser_261125_18">
+<meta name="br-build" content="Analyser_261125_19">
 <title>BoatRun Analyser</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -18292,7 +18292,13 @@ function calTgtOk(){return _calTgt!=='mine'&&!_wktCtx&&!!_pv.sq[_calTgt]&&calSqO
    Synced as prefs.season {cyc,base,f:{type:factor},grow,rev} and
    prefs.seasonWeeks {weekStart:{t,tgt,rev}}.
    ══════════════════════════════════════════════════════════════════════════ */
-const SZN_T={med:['Medium',1.0,'#1E88E5'],hard:['Hard',1.15,'#E53935'],hardp:['Hard+',1.25,'#8e1b1b'],rec:['Recovery',0.65,'#27ae60'],taper:['Taper',0.7,'#16a085'],bwk:['B race',0.85,'#d35400'],race:['Race',0.45,'#c0392b']};
+const SZN_T={med:['Medium',1.0,'#1E88E5'],hard:['Hard',1.15,'#E53935'],hardp:['Hard+',1.25,'#8e1b1b'],rec:['Recovery',0.65,'#27ae60'],taper:['Taper',0.7,'#16a085'],bwk:['B race',0.85,'#d35400'],race:['Race',0.45,'#c0392b'],nil:['Nil',0,'#7f8c8d'],ret:['Return',0.75,'#5dade2']};
+/* 26 Nov: NIL = a planned break (holiday, illness): no target, no growth. The weeks
+   after a nil break ease back in as Return weeks: 1 nil week -> 85%; 2 -> 70%, 85%;
+   3 or more -> 60%, 75%, 90% of the normal target, and each nil week after the first
+   takes 5% off the build-up growth (not below 85%). */
+const SZN_RET_RAMP=n=>n>=3?[0.6,0.75,0.9]:n===2?[0.7,0.85]:[0.85];
+const SZN_FIXED_T=['nil','ret'];   // not in "Set up week loads": their % come from the ramp
 const SZN_ORDER={2:['rec','hard'],3:['rec','med','hard'],4:['rec','med','hard','hardp']};   // ends on the hardest week (before the taper)
 const SZN_FWD={2:['hard','rec'],3:['med','hard','rec'],4:['med','hard','hardp','rec']};
 const SZN_BLK={base:['Base','#1E88E5'],build:['Build','#e6a100'],peak:['Peak','#E53935'],taper:['Taper','#27ae60'],race:['Race','#c0392b'],post:['After race','#8e8e93'],general:['General','#7f8c8d']};
@@ -18340,7 +18346,7 @@ function sznModel(){
   const startW=tlAddDays(W0,-7*8),map=sznDayMap(D);
   const iW=D.days.indexOf(tlAddDays(W0,-1)),chW=iW>=0?D.fit[iW]:(D.fit[D.ti]||0);
   const B=SZN.base>0?Math.round(+SZN.base):Math.max(150,Math.round(chW)),L=sznCyc(),grow=1+sznGrowPct()/100;
-  const weeks=[];let gF=1;
+  const weeks=[];let gF=1,nilRun=0,retQ=[];
   for(let w=startW;w<=endW;w=tlAddDays(w,7)){
     const days=[0,1,2,3,4,5,6].map(i=>tlAddDays(w,i));
     let act=0,pl=0;days.forEach(k=>{if(k<=todayK)act+=map.a[k]||0;if(k>=todayK)pl+=sznPlanned(k,map,todayK);});
@@ -18357,9 +18363,16 @@ function sznModel(){
     else if(nx){const O=SZN_ORDER[L],j=Math.round(sznDays(w,tlAddDays(nx.w,-14))/7);rt=O[(O.length-1-(j%O.length)+O.length)%O.length];}
     else{const F=SZN_FWD[L],e=Math.floor(new Date(w+'T12:00:00').getTime()/604800000);rt=F[((e%F.length)+F.length)%F.length];}
     if(rt!=='race'&&rt!=='taper'&&races.some(r=>r.pri==='B'))rt='bwk';
-    const o=SZN_WK[w]||{},ov=SZN_T[o.t]?o.t:null,t=ov||rt;
-    const auto=w>=W0?Math.round(B*gF*sznFac(t)):null,tov=w>=W0&&o.tgt>0?Math.round(+o.tgt):0;
-    weeks.push({w,days,act:Math.round(act),pl:Math.round(pl),blk,t,rt,ov:!!ov,tgt:tov||auto,auto,tov:!!tov,cur:w===W0,past:w<W0,races,nx:nx?nx.r:null});
+    const o=SZN_WK[w]||{},ov=SZN_T[o.t]?o.t:null;
+    /* a nil break has just ended: queue the Return ramp */
+    if(ov!=='nil'&&nilRun>0){retQ=SZN_RET_RAMP(nilRun).slice();gF=Math.max(0.85,gF*Math.pow(0.95,nilRun-1));nilRun=0;}
+    let rf=null;
+    if(retQ.length&&ov!=='nil'){const q=retQ.shift();if(!ov&&rt!=='race'&&rt!=='taper'){rt='ret';rf=q;}}
+    const t=ov||rt;
+    const fac=t==='ret'?(rf!=null?rf:SZN_T.ret[1]):t==='nil'?0:sznFac(t);
+    const auto=w>=W0?Math.round(B*gF*fac):null,tov=w>=W0&&o.tgt>0?Math.round(+o.tgt):0;
+    weeks.push({w,days,act:Math.round(act),pl:Math.round(pl),blk,t,rt,rf,ov:!!ov,tgt:tov||auto,auto,tov:!!tov,cur:w===W0,past:w<W0,races,nx:nx?nx.r:null});
+    if(t==='nil')nilRun++;
     if(w>=W0&&t==='rec'&&(blk==='base'||blk==='build'||blk==='general'))gF=Math.min(1.3,gF*grow);
     if(w>=W0&&nx&&w===nx.w)gF=Math.max(1,gF*0.92);   // after an A race the next build-up starts a little lower
   }
@@ -18380,7 +18393,7 @@ function sznRender(){
   const keepX=(document.getElementById('szn-tl')||{}).scrollLeft;
   const W=M.weeks,cur=W.find(x=>x.cur)||W[0],sel=W.find(x=>x.w===_sznSel)||cur;
   const IN='padding:6px 8px;background:var(--s2);border:1px solid var(--border);border-radius:8px;color:var(--text);font-size:13px;font-family:inherit;';
-  const SZN_INFO='Each column is a week. <b>Top bar</b> = training block. <b>Pill</b> = week type, tap to change it.\n<b>Solid</b> = done, <b>faded</b> = planned, <b>dashed box</b> = target.\n<b>Number</b> = done + planned: <span style="color:#27ae60;">on target</span>, <span style="color:#e67e22;">under</span> or <span style="color:#e74c3c;">over</span>.\nTap a week to see its days. Drag a workout onto a week or a day.';
+  const SZN_INFO='Each column is a week. <b>Top bar</b> = training block. <b>Pill</b> = week type, tap to change it.\n<b>Solid</b> = done, <b>faded</b> = planned, <b>dashed box</b> = target.\n<b>Number</b> = done + planned: <span style="color:#27ae60;">on target</span>, <span style="color:#e67e22;">under</span> or <span style="color:#e74c3c;">over</span>.\nTap a week to see its days. Drag a workout onto a week or a day.\n<b>Nil</b> = a planned break: set it from the week\u2019s pill. The weeks after it ease back in as <b>Return</b> weeks: 1 nil week \u2192 85%; 2 \u2192 70%, 85%; 3 or more \u2192 60%, 75%, 90%.';
   const CYC_INFO='Load climbs through the loading weeks and drops in the recovery week, so the body absorbs the work. Each cycle starts about '+sznGrowPct()+'% higher until Peak.\n<b>3 weeks</b> suits masters rowers, who take longer to recover. <b>4 weeks</b> suits younger athletes with a long training history.';
   let h='<div class="sz-lhd" style="margin-bottom:8px;justify-content:flex-start;">Season plan'+ib(SZN_INFO)+'</div>'
     +'<div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:10px;font-size:12px;">'
@@ -18389,7 +18402,7 @@ function sznRender(){
     +'<label style="display:flex;align-items:center;gap:6px;" title="Your normal week. Auto = your chronic load now">Base week load'+ib('Your normal week&#8217;s load. Leave it blank to use your chronic load now (about '+Math.max(150,Math.round(M.chW))+').')+' <input id="szn-base" type="number" inputmode="numeric" min="0" max="5000" placeholder="auto '+Math.max(150,Math.round(M.chW))+'" value="'+(SZN.base>0?SZN.base:'')+'" style="'+IN+'width:96px;"></label>'
     +'<button id="szn-btp" class="filt-chip" style="font-size:13px;padding:7px 14px;margin-left:auto;">Block templates</button></div>'
     +'<details id="szn-setup"'+(window._sznSetupOpen?' open':'')+' style="margin:-4px 0 10px;font-size:12px;"><summary style="cursor:pointer;font-weight:700;padding:4px 0;">Set up week loads'+ib('Each week&#8217;s target = base week load (now <b>'+M.B+'</b>) \u00d7 the % for its week type. Growth is added each cycle in Base and Build.\nTo set one week&#8217;s target, tap the week and type it in.')+'</summary>'
-    +'<div style="display:flex;gap:8px;flex-wrap:wrap;padding-top:6px;">'+Object.keys(SZN_T).map(k=>'<label style="display:flex;flex-direction:column;align-items:center;gap:3px;"><span style="font-size:10px;font-weight:800;color:#fff;background:'+SZN_T[k][2]+';border-radius:8px;padding:1px 8px;">'+SZN_T[k][0]+'</span><span style="display:flex;align-items:center;gap:2px;"><input data-szf="'+k+'" type="number" inputmode="numeric" min="10" max="300" value="'+Math.round(sznFac(k)*100)+'" style="'+IN+'width:62px;text-align:right;">%</span><span style="font-size:10px;color:var(--muted);">\u2248 '+Math.round(M.B*sznFac(k))+'</span></label>').join('')
+    +'<div style="display:flex;gap:8px;flex-wrap:wrap;padding-top:6px;">'+Object.keys(SZN_T).filter(k=>SZN_FIXED_T.indexOf(k)<0).map(k=>'<label style="display:flex;flex-direction:column;align-items:center;gap:3px;"><span style="font-size:10px;font-weight:800;color:#fff;background:'+SZN_T[k][2]+';border-radius:8px;padding:1px 8px;">'+SZN_T[k][0]+'</span><span style="display:flex;align-items:center;gap:2px;"><input data-szf="'+k+'" type="number" inputmode="numeric" min="10" max="300" value="'+Math.round(sznFac(k)*100)+'" style="'+IN+'width:62px;text-align:right;">%</span><span style="font-size:10px;color:var(--muted);">\u2248 '+Math.round(M.B*sznFac(k))+'</span></label>').join('')
     +'<label style="display:flex;flex-direction:column;align-items:center;gap:3px;"><span style="font-size:10px;font-weight:800;">Growth / cycle</span><span style="display:flex;align-items:center;gap:2px;"><input id="szn-grow" type="number" inputmode="decimal" min="0" max="15" step="0.5" value="'+sznGrowPct()+'" style="'+IN+'width:62px;text-align:right;">%</span><span style="font-size:10px;color:var(--muted);">Base &amp; Build</span></label></div>'
     +'<div style="margin-top:8px;"><button id="szn-fdef" class="filt-chip" style="font-size:12px;padding:5px 10px;">Back to defaults</button></div></details>';
   /* this week */
@@ -18452,7 +18465,7 @@ function sznRender(){
        +'<span style="flex:1;min-width:0;">'+ev+items.join('')+((!items.length&&!ev)?'<span style="color:var(--muted);display:inline-block;padding-top:3px;">Rest</span>':'')+'</span>'
        +'<span style="width:40px;text-align:right;padding-top:3px;font-weight:800;">'+(dayL?Math.round(dayL):'')+'</span></div>';
    });
-   const canFill=x.days.some(k=>k>=M.todayK);
+   const canFill=x.t!=='nil'&&x.days.some(k=>k>=M.todayK);
    h+='<div style="display:flex;gap:6px;flex-wrap:wrap;margin-top:8px;">'
      +(canFill?'<button id="szn-fill" class="filt-chip" style="font-size:12px;padding:6px 12px;" title="Puts the template week on the days of this week that have nothing planned">Fill from '+(x.t==='rec'&&btpGet('recovery').some(d=>d.length)?'Recovery week':SZN_BLK[x.blk==='race'||x.blk==='post'||x.blk==='general'?(x.blk==='race'?'taper':'base'):x.blk][0])+' template</button>':'')
      +'<button id="szn-cal" class="filt-chip" style="font-size:12px;padding:6px 12px;">Show on calendar</button>'
