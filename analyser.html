@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
 <meta name="color-scheme" content="light dark"/>
-<meta name="br-build" content="Analyser_261125_17">
+<meta name="br-build" content="Analyser_261125_18">
 <title>BoatRun Analyser</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -16073,6 +16073,16 @@ let _ciPushTimer=null;
 function mergeCalItems(a,b){const o={...(a||{})};Object.keys(b||{}).forEach(k=>{const x=b[k];if(!x||!Array.isArray(x.list))return;if(!o[k]||(x.rev||0)>(o[k].rev||0))o[k]=x;});return o;}
 function calItemsOf(k){const e=CAL_ITEMS[k];return (e&&Array.isArray(e.list))?e.list.slice().sort((p,q)=>(p.type===q.type?String(p.time||'').localeCompare(String(q.time||'')):((CI_ORDER[p.type]||0)-(CI_ORDER[q.type]||0)))):[];}
 function calOthersOf(k){return calItemsOf(k).filter(x=>x.type==='other');}
+/* 26 Nov: MULTI-DAY EVENTS (e.g. a 3-day regatta). An event can carry
+   end:'YYYY-MM-DD', its last day. It is stored once, on its first day;
+   calSpanOf(k) gives copies for the later days (_from = first day, _dn of _dt).
+   Races still count from the first day. Up to 31 days. */
+const CI_SPAN_MAX=31;
+function calDaysBetween(a,b){return Math.round((new Date(b+'T12:00:00')-new Date(a+'T12:00:00'))/86400000);}
+function calSpanOf(k){const out=[];for(let i=1;i<=CI_SPAN_MAX;i++){const d=tlAddDays(k,-i),e=CAL_ITEMS[d];if(!e||!Array.isArray(e.list))continue;e.list.forEach(x=>{if(x.type==='event'&&x.end&&x.end>d&&x.end>=k)out.push({...x,_from:d,_dn:i+1,_dt:calDaysBetween(d,x.end)+1});});}return out;}
+function calSpanStart(k,id){if(calItemsOf(k).some(x=>x.id===id))return k;for(let i=1;i<=CI_SPAN_MAX;i++){const d=tlAddDays(k,-i),e=CAL_ITEMS[d];if(e&&Array.isArray(e.list)&&e.list.some(x=>x.id===id&&x.type==='event'&&x.end&&x.end>=k))return d;}return k;}
+/* "Regatta 2/3": day n of a multi-day event; the time shows on the first day only. */
+function calEvLbl(x){const span=x.end?(x._from?' '+x._dn+'/'+x._dt:' 1/'+(calDaysBetween(x._day||'',x.end)+1||'')):'';return (x.time&&!x._from?x.time+' ':'')+(x.text||'')+span;}
 /* A day's workout order: planned workouts and "other" workouts in one list.
    Planned workouts keep their order in the plan; each other workout stores
    its slot (pos) in the combined list. */
@@ -16202,7 +16212,7 @@ function calNoteDot(k,sz){
   if(!n.length)return '';
   return '<span title="'+_secEsc(n.map(x=>x.text||'').join('\n'))+'" style="width:'+sz+'px;height:'+sz+'px;border-radius:50%;background:'+CI_NOTE_COL+';display:inline-block;flex-shrink:0;box-shadow:0 0 0 1px rgba(0,0,0,.35);"></span>';
 }
-function calEventsOf(k){return calItemsOf(k).filter(x=>x.type==='event');}
+function calEventsOf(k){return calItemsOf(k).filter(x=>x.type==='event').map(x=>x.end?{...x,_day:k}:x).concat(calSpanOf(k));}
 /* Day-pane strips: grey pane with a coloured left strip, the same look as
    the session rows, with the delete button on the right. */
 const CAL_STRIP_LBL='font-size:10px;font-weight:800;letter-spacing:.06em;color:var(--text);opacity:.7;min-width:44px;flex-shrink:0;';
@@ -16216,6 +16226,7 @@ function calStrip(attrs,col,body,side,clickable){
 function calStripDel(attr,val){return '<button class="sz-del" '+attr+'="'+_secEsc(String(val))+'" title="Delete"><img src="icons/Delete.svg"></button>';}
 function calItemDelete(day,id){
   if(!calItemCanEdit())return;
+  day=calSpanStart(day,id);
   const list=calItemsOf(day);const x=list.find(i=>i.id===id);if(!x)return;
   const n=x.type==='event'?'event':(x.type==='other'?'other workout':'note');
   if(x.gid&&!_wktCtx){   // 22 Nov: from Garmin - warn, remember, can be restored
@@ -16245,18 +16256,19 @@ function ciOtherRow(x,editable,grip,si){
     editable?calStripDel('data-cidel',x.id):'',editable);
 }
 function calItemRows(k,editable,types){
-  return calItemsOf(k).filter(x=>!types||types.indexOf(x.type)>=0).map(x=>{
+  return calItemsOf(k).filter(x=>!types||types.indexOf(x.type)>=0).map(x=>x.type==='event'&&x.end?{...x,_day:k}:x).concat((!types||types.indexOf('event')>=0)?calSpanOf(k):[]).map(x=>{
     const ev=x.type==='event';
     if(x.type==='other')return ciOtherRow(x,editable,'',null);
     return calStrip(editable?'data-citem="'+_secEsc(x.id)+'"':'',ev?CI_EVENT_COL:CI_NOTE_COL,
-      '<span style="'+CAL_STRIP_LBL+'">'+(ev?(x.time?_secEsc(x.time):'EVENT'):'NOTE')+'</span>'
-      +'<span style="flex:1;min-width:0;font-size:13px;'+(ev?'font-weight:700;':'')+'white-space:pre-wrap;color:var(--text);">'+_secEsc(x.text||'')+'</span>',
+      '<span style="'+CAL_STRIP_LBL+'">'+(ev?(x.time&&!x._from?_secEsc(x.time):'EVENT'):'NOTE')+'</span>'
+      +'<span style="flex:1;min-width:0;font-size:13px;'+(ev?'font-weight:700;':'')+'white-space:pre-wrap;color:var(--text);">'+_secEsc(x.text||'')+(ev&&x.end?' <span style="font-weight:600;opacity:.7;">day '+(x._from?x._dn+' of '+x._dt:'1 of '+(calDaysBetween(k,x.end)+1))+'</span>':'')+'</span>',
       editable?calStripDel('data-cidel',x.id):'',editable);
   }).join('');
 }
 function calItemEditor(day,type,id,onDone){
   if(!calItemCanEdit())return;
   document.getElementById('_ci_modal')?.remove();
+  if(id)day=calSpanStart(day,id);
   const list=calItemsOf(day);
   const cur=id?list.find(x=>x.id===id):null;
   if(cur)type=cur.type;
@@ -16273,6 +16285,8 @@ function calItemEditor(day,type,id,onDone){
     +(ev?'<input id="ci-text" type="text" maxlength="120" placeholder="Event (e.g. Regatta, Club meeting)" style="'+IN+'">'
         +'<label style="display:block;font-size:12px;opacity:.75;margin-bottom:4px;">Time (optional)</label>'
         +'<div style="display:flex;gap:8px;align-items:flex-start;"><input id="ci-time" type="time" style="'+IN+'flex:1;"><button id="ci-time-clr" type="button" style="flex-shrink:0;padding:10px 14px;background:var(--s2);border:1px solid var(--border);color:var(--text);border-radius:8px;font-weight:700;cursor:pointer;font-family:inherit;box-shadow:0 1px 3px rgba(0,0,0,.15);">No time</button></div>'
+        +'<label style="display:block;font-size:12px;opacity:.75;margin-bottom:4px;">Last day (for an event over several days, e.g. a regatta)</label>'
+        +'<div style="display:flex;gap:8px;align-items:flex-start;"><input id="ci-end" type="date" min="'+tlAddDays(day,1)+'" max="'+tlAddDays(day,CI_SPAN_MAX-1)+'" style="'+IN+'flex:1;"><button id="ci-end-clr" type="button" style="flex-shrink:0;padding:10px 14px;background:var(--s2);border:1px solid var(--border);color:var(--text);border-radius:8px;font-weight:700;cursor:pointer;font-family:inherit;">One day</button></div>'
         +'<label style="display:block;font-size:12px;opacity:.75;margin-bottom:4px;">Race (Training load plans towards the next A race)</label>'
         +'<select id="ci-race" style="'+IN+'"><option value="">Not a race</option><option value="A">A race - the one to peak for</option><option value="B">B race - important</option><option value="C">C race - training race</option></select>'
        :'<textarea id="ci-text" rows="4" maxlength="1000" placeholder="'+(oth?'Other workout (e.g. Gym, 10 km run, Bike 45 min)':'Note')+'" style="'+IN+'resize:vertical;"></textarea>')
@@ -16287,6 +16301,8 @@ function calItemEditor(day,type,id,onDone){
   const tx=document.getElementById('ci-text'),tm=document.getElementById('ci-time');
   if(cur){tx.value=cur.text||'';if(tm)tm.value=cur.time||'';}
   const _crc=document.getElementById('ci-race');if(_crc&&cur&&cur.race)_crc.value=cur.race;
+  const _cend=document.getElementById('ci-end');if(_cend&&cur&&cur.end)_cend.value=cur.end;
+  {const ec=document.getElementById('ci-end-clr');if(ec&&_cend)ec.onclick=()=>{_cend.value='';};}
   const _cmn=document.getElementById('ci-min'),_crp=document.getElementById('ci-rpe'),_cld=document.getElementById('ci-load');
   if(cur&&_cmn){if(cur.min>0)_cmn.value=cur.min;if(cur.rpe>0)_crp.value=cur.rpe;if(cur.load>0)_cld.value=cur.load;}
   const tc=document.getElementById('ci-time-clr');if(tc&&tm)tc.onclick=()=>{tm.value='';};
@@ -16299,6 +16315,8 @@ function calItemEditor(day,type,id,onDone){
     const text=tx.value.trim();if(!text){tx.focus();return;}
     const item={...(cur||{}),id:cur?cur.id:('ci'+Date.now()+Math.floor(Math.random()*1000)),type,text,time:tm?(tm.value||''):''};
     if(_crc){if(_crc.value)item.race=_crc.value;else delete item.race;}
+    if(_cend){const e=_cend.value;if(/^\d{4}-\d{2}-\d{2}$/.test(e)&&e>day&&calDaysBetween(day,e)<CI_SPAN_MAX)item.end=e;else delete item.end;}
+    delete item._from;delete item._dn;delete item._dt;delete item._day;
     if(_cmn){item.min=Math.max(0,Math.min(900,Math.round(+_cmn.value||0)));item.rpe=+_crp.value||0;item.load=Math.max(0,Math.min(3000,Math.round(+_cld.value||0)));}
     const nl=list.filter(x=>x.id!==item.id);nl.push(item);
     calItemsSet(day,nl);done();
@@ -17814,7 +17832,7 @@ function renderStartupCalendar(){
       g+='<div data-day="'+k+'" style="position:relative;min-height:52px;padding:3px;border-radius:8px;opacity:'+(past&&!sel?'.55':'1')+';box-shadow:'+(sel?'0 3px 10px rgba(0,0,0,.28)':'0 1px 3px rgba(0,0,0,.16),0 1px 1px rgba(0,0,0,.06)')+';cursor:pointer;overflow:hidden;border:1px solid '+(sel?'var(--b)':'var(--border)')+';background:'+(sel?'var(--s3)':'var(--s2)')+';'+(calMineOn()?_szc.top(k):'')+'">'
         +(_ckR!=null?'<span title="Check-in '+tlReadyWord(_ckR)+'" style="position:absolute;top:4px;right:4px;width:9px;height:9px;border-radius:2px;background:'+tlReadyCol(_ckR)+';"></span>':'')
         +'<div style="display:flex;align-items:center;gap:4px;font-size:11px;font-weight:'+(today?'800':'500')+';color:'+(today?'var(--b)':'var(--text)')+';">'+d+(calMineOn()?(()=>{const nd=calNoteDot(k);return nd&&_dCi?'<span'+_dA('n:')+'style="display:inline-flex;cursor:grab;padding:2px;">'+nd+'</span>':nd;})():'')+'</div>'
-        +(calMineOn()?calEventsOf(k).slice(0,2).map(x=>'<div data-cichip="'+_secEsc(x.id)+'"'+(_dCi?_dA('o:'+x.id):'')+' title="'+_secEsc(x.text||'')+'" style="font-size:9px;line-height:1.3;background:'+CI_EVENT_COL+';color:#fff;border-radius:3px;padding:0 3px;margin-top:1px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;font-weight:700;box-shadow:0 1px 2px rgba(0,0,0,.25);">'+(x.time?_secEsc(x.time)+' ':'')+_secEsc(x.text||'')+'</div>').join(''):'')
+        +(calMineOn()?calEventsOf(k).slice(0,2).map(x=>'<div data-cichip="'+_secEsc(x.id)+'"'+(_dCi&&!x._from?_dA('o:'+x.id):'')+' title="'+_secEsc(calEvLbl(x))+'" style="font-size:9px;line-height:1.3;background:'+CI_EVENT_COL+';color:#fff;border-radius:3px;padding:0 3px;margin-top:1px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;font-weight:700;box-shadow:0 1px 2px rgba(0,0,0,.25);'+(x.end?(x._from?'border-top-left-radius:0;border-bottom-left-radius:0;':'')+(x._dn===x._dt&&x._from?'':'border-top-right-radius:0;border-bottom-right-radius:0;'):'')+'">'+_secEsc(calEvLbl(x))+'</div>').join(''):'')
         +ss.slice(0,3).map(x=>calSessChip(x,9,false)).join('')+(ss.length>3?'<div style="font-size:9px;color:var(--muted);">+'+(ss.length-3)+'</div>':'')
         +(()=>{if(!calMineOn())return '';const sq=daySeq(k).filter(q=>q.t==='o'||pl.indexOf(q.id)>=0);
           return sq.slice(0,2).map(q=>q.t==='o'
@@ -18427,7 +18445,7 @@ function sznRender(){
          items.push(CHP(p.w.venue==='erg'?CAL_ERG_COL:CAL_WATER_COL,p.w.venue==='erg'?'ERG':'WATER',_secEsc(_wktDispName(p.w)),p.load,ix>=0?'<button data-sznprm="'+k+'|'+ix+'" title="Remove from the plan" style="border:none;background:none;color:var(--muted);cursor:pointer;font-size:13px;padding:0 0 0 4px;line-height:1;">\u{1F5D1}</button>':''));});}
        if(k>M.todayK){const e=tlItems()[k];((e&&e.list)||[]).filter(o=>o.type==='other').forEach(o=>{const L=tlOtherLoad(o);dayL+=L;items.push(CHP(CI_OTHER_COL,'OTHER',_secEsc(o.text||'Other'),L||'',o.id?'<button data-sznorm="'+k+'|'+_secEsc(o.id)+'" title="Remove from the plan" style="border:none;background:none;color:var(--muted);cursor:pointer;font-size:13px;padding:0 0 0 4px;line-height:1;">\u{1F5D1}</button>':''));});}
      }
-     const evs=(()=>{const e=tlItems()[k];return ((e&&e.list)||[]).filter(o=>o.type==='event');})();
+     const evs=(()=>{const e=tlItems()[k];return ((e&&e.list)||[]).filter(o=>o.type==='event').concat(_wktCtx?[]:calSpanOf(k).map(o=>({...o,race:null,text:o.text+' (day '+o._dn+'/'+o._dt+')'})));})();
      const ev=evs.map(o=>'<span style="display:inline-flex;align-items:center;gap:4px;padding:2px 8px;border-radius:10px;background:'+(o.race?'#c0392b':CI_EVENT_COL)+';color:#fff;font-size:11px;font-weight:800;margin:2px 4px 2px 0;">'+(o.race?'\u{1F3C1} '+o.race+' race: ':'')+(o.time?_secEsc(o.time)+' ':'')+_secEsc(o.text||'Event')+'</span>').join('');
      h+='<div '+(k>=M.todayK?'data-szday="'+k+'" ':'')+'style="display:flex;align-items:flex-start;gap:8px;padding:4px 0;border-top:1px solid var(--border);font-size:12px;'+(k===M.todayK?'font-weight:700;':'')+(k<M.todayK?'opacity:.75;':'')+'">'
        +'<span style="width:58px;flex-shrink:0;padding-top:3px;">'+sznFmtD(k,{weekday:'short',day:'numeric'})+'</span>'
@@ -18534,7 +18552,7 @@ function calMoveItem(d,to){
     if(!mv.length)return;
     calItemsSet(from,L.filter(x=>mv.indexOf(x)<0));
     const T=((CAL_ITEMS[to]&&CAL_ITEMS[to].list)||[]).slice();
-    mv.forEach(x=>{const y={...x};delete y.pos;T.push(y);});
+    mv.forEach(x=>{const y={...x};delete y.pos;if(y.end)y.end=tlAddDays(y.end,calDaysBetween(from,to));T.push(y);});
     calItemsSet(to,T);
   }
   _calSel=to;renderStartupCalendar();
@@ -19108,7 +19126,7 @@ function pvRender(){
       +'<div style="display:flex;align-items:center;gap:5px;font-size:12px;font-weight:'+(today?'800':'600')+';color:'+(today?'var(--b)':'var(--text)')+';margin-bottom:2px;">'+d+calNoteDot(k,8)+(pvSqItems(k,['note']).length?'<span style="width:8px;height:8px;border-radius:50%;background:'+CI_NOTE_COL+';display:inline-block;box-shadow:0 0 0 2px '+pvCol(pvSqItems(k,['note'])[0].c)+';"></span>':'')+'</div>';
     const ciShow=true, cis=calEventsOf(k).concat(pvSqItems(k,['event']).map(q=>Object.assign({},q.x,{_sqc:q.c})));
     const maxW=sel?999:4, maxI=sel?999:2;
-    cis.slice(0,maxI).forEach(x=>{const ev=x.type==='event';c+='<div '+(x._sqc?'':'data-cichip="'+_secEsc(x.id)+'" ')+'title="'+_secEsc(x.text||'')+'" style="font-size:10px;line-height:1.35;background:'+(ev?CI_EVENT_COL:CI_NOTE_COL)+';color:'+(ev?'#fff':'#000')+';border-radius:4px;padding:1px 4px;margin-top:2px;box-shadow:0 1px 2px rgba(0,0,0,.28);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;font-weight:'+(ev?'700':'500')+';'+(x._sqc?'border-left:4px solid '+pvCol(x._sqc)+';':'')+'">'+(ev&&x.time?_secEsc(x.time)+' ':'')+(ev?'':'&#9998; ')+_secEsc(x.text||'')+'</div>';});
+    cis.slice(0,maxI).forEach(x=>{const ev=x.type==='event';c+='<div '+(x._sqc?'':'data-cichip="'+_secEsc(x.id)+'" ')+'title="'+_secEsc(x.text||'')+'" style="font-size:10px;line-height:1.35;background:'+(ev?CI_EVENT_COL:CI_NOTE_COL)+';color:'+(ev?'#fff':'#000')+';border-radius:4px;padding:1px 4px;margin-top:2px;box-shadow:0 1px 2px rgba(0,0,0,.28);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;font-weight:'+(ev?'700':'500')+';'+(x._sqc?'border-left:4px solid '+pvCol(x._sqc)+';':'')+'">'+(ev?_secEsc(calEvLbl(x)):'&#9998; '+_secEsc(x.text||''))+'</div>';});
     if(cis.length>maxI)c+='<div style="font-size:10px;color:var(--text);opacity:.7;margin-top:2px;">+'+(cis.length-maxI)+' more</div>';
     const pss=pvByDay[k]||[];
     pss.slice(0,maxW).forEach(x=>{c+=calSessChip(x,10,true);});
