@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
 <meta name="color-scheme" content="light dark"/>
-<meta name="br-build" content="Analyser_261125_16">
+<meta name="br-build" content="Analyser_261125_17">
 <title>BoatRun Analyser</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -22067,6 +22067,8 @@ window.rvOpenExport=function(){
 (function(){
 const K=window._rvKit||{};
 const SV_ACC='#FF5A3C', SV_PACE='#2F9BFF', SV_RATE='#FFA726', SV_AVG='rgba(255,255,255,.55)';
+/* 26 Nov: section names typed in the replay, per pinned section, kept while it stays pinned. */
+const SV_NAMES=new WeakMap();
 function svBis(arr,v){let lo=0,hi=arr.length-1;if(v<=arr[0])return 0;if(v>=arr[hi])return hi;while(hi-lo>1){const m=(lo+hi)>>1;if(arr[m]<=v)lo=m;else hi=m;}return lo;}
 function svPct(v,p){if(!v.length)return 0;const s=v.slice().sort((a,b)=>a-b);return s[Math.max(0,Math.min(s.length-1,Math.round(p*(s.length-1))))];}
 function svSec(strokesIn,color,label,FORCE){
@@ -22092,7 +22094,7 @@ function svPrep(multi){
   let secs=[];
   if(multi){
     const many=new Set(curveGroups.map(g=>g.sessionIdx)).size>1;
-    curveGroups.forEach(g=>{const x=svSec(g.strokes||[],g.color,g.label+(many&&g.sessionLabel?' '+g.sessionLabel:''),FORCE);if(x)secs.push(x);});
+    curveGroups.forEach(g=>{const def=g.label+(many&&g.sessionLabel?' '+g.sessionLabel:''),x=svSec(g.strokes||[],g.color,SV_NAMES.get(g)||def,FORCE);if(x){x.g=g;x.def=def;secs.push(x);}});
     if(secs.length<2){toast('Pin 2 or more sections with stroke curves first');return null;}
   }else{
     const r=(typeof _selAbsRange==='function')?_selAbsRange():null;
@@ -22252,13 +22254,18 @@ window.svOpenViewer=function(){
     +'<input id="_svv_pos" type="range" min="0" max="1000" value="0" aria-label="Replay position" style="flex:1;min-width:160px;">'
     +'<span id="_svv_time" style="font-size:12px;font-variant-numeric:tabular-nums;min-width:86px;text-align:right;"></span>'
     +'<select id="_svv_spd" style="'+sel+'" aria-label="Replay speed"><option value="0.5">×0.5</option><option value="1" selected>×1 real time</option><option value="2">×2</option><option value="4">×4</option><option value="8">×8</option></select>'
-    +'<button class="hbtn" id="_svv_fs">⛶ Full screen</button></div>';
+    +'<button class="hbtn" id="_svv_fs">⛶ Full screen</button></div>'
+    +'<div id="_svv_names" style="display:none;align-items:center;gap:10px;flex-wrap:wrap;font-size:12px;"></div>';
   ov.appendChild(pn);document.body.appendChild(ov);
   const $=id=>document.getElementById(id);
   const cv=$('_svv_cv'),ctx=cv.getContext('2d'),box=$('_svv_box');
   let W=1920,H=1080,lay=null,t=0,playing=false,last=0,raf=0,alive=true;
   const SZ=K.RV_SIZES||{portrait:[1080,1920],landscape:[1920,1080],square:[1080,1080]};
   const spd=()=>+$('_svv_spd').value;
+  const names=()=>{const el=$('_svv_names');if(!D.multi){el.style.display='none';el.innerHTML='';return;}
+    el.style.display='flex';
+    el.innerHTML='<span style="color:var(--muted);">Section names</span>'+D.secs.map((x,r)=>'<label style="display:flex;align-items:center;gap:5px;"><span style="width:10px;height:10px;border-radius:50%;background:'+x.color+';flex-shrink:0;"></span><input data-svn="'+r+'" type="text" maxlength="24" value="'+_secEsc(x.label)+'" placeholder="'+_secEsc(x.def||'')+'" aria-label="Name for section '+(r+1)+'" style="width:130px;padding:5px 7px;border-radius:7px;border:1px solid var(--border);background:var(--s2);color:var(--text);font-family:inherit;font-size:12px;"></label>').join('');
+    el.querySelectorAll('[data-svn]').forEach(inp=>{inp.oninput=()=>{const x=D.secs[+inp.dataset.svn],v=inp.value.trim();x.label=v||x.def;if(x.g){if(v)SV_NAMES.set(x.g,v);else SV_NAMES.delete(x.g);}draw();};});};
   const info=()=>{$('_svv_info').textContent=(D.multi?D.secs.length+' sections · '+D.K+' strokes':D.n+' strokes')+' · '+fmtTime(Math.round(D.span/1000));};
   const draw=()=>{
     svFrame(ctx,W,H,lay,D,Math.min(1,t/D.span),D.span/1000/spd());
@@ -22280,13 +22287,13 @@ window.svOpenViewer=function(){
   $('_svv_pos').oninput=()=>{t=(+$('_svv_pos').value/1000)*D.span;if(playing)last=performance.now();draw();};
   $('_svv_spd').onchange=()=>{if(playing)last=performance.now();draw();};
   $('_svv_fmt').onchange=setSize;
-  if($('_svv_src'))$('_svv_src').onchange=()=>{const nd=svPrep($('_svv_src').value==='1');if(!nd){$('_svv_src').value=D.multi?'1':'0';return;}D=nd;t=0;pause();info();setSize();};
+  if($('_svv_src'))$('_svv_src').onchange=()=>{const nd=svPrep($('_svv_src').value==='1');if(!nd){$('_svv_src').value=D.multi?'1':'0';return;}D=nd;t=0;pause();info();names();setSize();};
   $('_svv_fs').onclick=()=>{try{if(document.fullscreenElement)document.exitFullscreen();else if(box.requestFullscreen)box.requestFullscreen();else if(box.webkitRequestFullscreen)box.webkitRequestFullscreen();}catch(e){toast('Full screen is not available here');}};
   box.addEventListener('fullscreenchange',()=>{const fs=document.fullscreenElement===box;box.style.borderRadius=fs?'0':'10px';cv.style.maxHeight=fs?'100vh':'72vh';$('_svv_fs').textContent=fs?'✕ Exit full screen':'⛶ Full screen';});
   $('_svv_close').onclick=close;
   ov.addEventListener('click',e=>{if(e.target===ov)close();});
   $('_svv_mk').onclick=()=>{const o={multi:D.multi,fmt:$('_svv_fmt').value};close();window.svOpenExport(o);};
-  info();
+  info();names();
   (async()=>{try{if(document.fonts&&document.fonts.ready)await document.fonts.ready;}catch(e){}if(!alive)return;t=0;setSize();})();
 };
 window.svOpenExport=function(opts){
