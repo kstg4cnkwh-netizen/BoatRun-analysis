@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
 <meta name="color-scheme" content="light dark"/>
-<meta name="br-build" content="Analyser_261125_08">
+<meta name="br-build" content="Analyser_261125_09">
 <title>BoatRun Analyser</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -825,7 +825,7 @@ body.light .hdrname{color:#fff;}
     <span class="s">Drag across the stroke chart to pick the section, then make a video to share</span>
   </button><button type="button" class="sz-h2h" id="svbigbtn" onclick="coachTool('strokevid')" title="Select a section on the stroke chart, then make a video of its stroke curves" style="margin-left:10px;">
     <span class="t"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M2 14c2 0 3-8 6-8s3 12 6 12 3-6 4-6 2 2 4 2"/></svg>Export stroke video</span>
-    <span class="s">The stroke curve drawing stroke by stroke, with pace and rate</span>
+    <span class="s">The stroke curve drawing stroke by stroke. Pin 2+ sections to stack them</span>
   </button></div>
   <!-- Summary cards -->
   <div id="cards-fixed"></div>
@@ -14428,7 +14428,7 @@ window.coachTool = function (k) {
   if (k === 'pace') { if (!r || r[1] - r[0] + 1 < 40) { toast('Drag across the stroke chart to select 40 or more strokes first', 3500); return; } showPaceCorr(); }
   else if (k === 'curves') { if (r) pinSelection(); const c = document.getElementById('curvesec'); if (c) c.scrollIntoView({ behavior: 'smooth', block: 'start' }); if (!r && !curveGroups.length) toast('Select strokes on the chart, then Add to comparison', 3500); }
   else if (k === 'replay') { if (!r) { toast('Drag across the stroke chart to select the section first', 3500); return; } window.rvOpenExport(); }
-  else if (k === 'strokevid') { if (!r) { toast('Drag across the stroke chart to select the section first', 3500); return; } window.svOpenExport(); }
+  else if (k === 'strokevid') { if (!r && !curveGroups.length) { toast('Drag across the stroke chart to select a section, or pin 2 or more sections to stack them', 3500); return; } window.svOpenExport(); }
   else if (k === 'tpl') openTemplateModal();
   else if (k === 'video') { const v = document.getElementById('videosec'); if (!v || v.offsetParent === null) { toast('Video overlay is not available for this session'); return; } v.scrollIntoView({ behavior: 'smooth', block: 'start' }); toast('Tap ＋ Add video', 2500); }
 };
@@ -22042,7 +22042,7 @@ window.rvOpenExport=function(){
   build();
 };
 })();
-/* ══ Stroke video export (26 Nov): the same idea as the replay video, but the
+/* ══ Stroke video export (26 Nov; stacked pinned sections, catches synced): the same idea as the replay video, but the
    picture is the stroke curve. Each stroke of the selected section draws
    through catch -> finish -> catch as the video plays, the last few strokes
    fade behind it and the section's average curve sits underneath as a dashed
@@ -22053,35 +22053,57 @@ const K=window._rvKit||{};
 const SV_ACC='#FF5A3C', SV_PACE='#2F9BFF', SV_RATE='#FFA726', SV_AVG='rgba(255,255,255,.55)';
 function svBis(arr,v){let lo=0,hi=arr.length-1;if(v<=arr[0])return 0;if(v>=arr[hi])return hi;while(hi-lo>1){const m=(lo+hi)>>1;if(arr[m]<=v)lo=m;else hi=m;}return lo;}
 function svPct(v,p){if(!v.length)return 0;const s=v.slice().sort((a,b)=>a-b);return s[Math.max(0,Math.min(s.length-1,Math.round(p*(s.length-1))))];}
-function svPrep(){
-  const r=(typeof _selAbsRange==='function')?_selAbsRange():null;
-  if(!r){toast('Drag across the stroke chart to select the section first',3500);return null;}
-  const all=ST.slice(r[0],r[1]+1).filter(s=>s&&s.ms!=null&&!isNaN(s.ms));
-  const strokes=all.filter(s=>Array.isArray(s.curve)&&s.curve.length===CURVE_POINTS);
-  if(strokes.length<3){toast('No stroke curves in this section - select a longer section');return null;}
-  const FORCE=curvesAreForce();
-  const n=strokes.length,sT=strokes.map(s=>s.ms-strokes[0].ms);
+function svSec(strokesIn,color,label,FORCE){
+  const strokes=strokesIn.filter(s=>s&&s.ms!=null&&!isNaN(s.ms)&&Array.isArray(s.curve)&&s.curve.length===CURVE_POINTS);
+  const n=strokes.length;if(n<2)return null;
+  const sT=strokes.map(s=>s.ms-strokes[0].ms);
   /* Stroke period: to the next stroke, else from its rate. */
   const per=strokes.map((s,i)=>{const d=i<n-1?sT[i+1]-sT[i]:0;if(d>300&&d<6000)return d;return (s.rate>5&&s.rate<60)?60000/s.rate:2000;});
   /* A PM5 force curve covers the drive only, so it draws over the drive time. */
   const drw=strokes.map((s,i)=>FORCE?((s.driveTimeMs>150&&s.driveTimeMs<per[i])?s.driveTimeMs:per[i]*0.4):per[i]);
-  const span=sT[n-1]+per[n-1];
   const avg=new Array(CURVE_POINTS).fill(0);strokes.forEach(s=>{for(let i=0;i<CURVE_POINTS;i++)avg[i]+=s.curve[i];});for(let i=0;i<CURVE_POINTS;i++)avg[i]/=n;
-  const vals=[];strokes.forEach(s=>s.curve.forEach(v=>{if(isFinite(v))vals.push(v);}));
-  let lo=svPct(vals,0.01),hi=svPct(vals,0.99);
-  if(FORCE){const need=Math.max(hi*1.08,200),st=need<=400?100:need<=1000?200:need<=1600?250:500;lo=0;hi=Math.ceil(need/st)*st;}
-  else{const p=(hi-lo)*0.12||1;lo-=p;hi+=p;}
   const okP=s=>s.pace>50&&s.pace<500, okR=s=>s.rate>5&&s.rate<60;
   const fill=a=>{let f=a.find(v=>v!=null);for(let i=0;i<a.length;i++){if(a[i]==null)a[i]=f;else f=a[i];}return a;};
   const pace=fill(strokes.map(s=>okP(s)?s.pace:null)), rate=fill(strokes.map(s=>okR(s)?s.rate:null));
   const df=strokes.map(s=>FORCE?1:((s.curveDriveFrac>0.15&&s.curveDriveFrac<0.85)?s.curveDriveFrac:null));
+  return {strokes,n,per,drw,avg,pace,rate,df,color,label};
+}
+/* multi = true: every pinned section stacked. Strokes are synced: stroke k of
+   every section starts together, each draws at its own speed, and the next
+   stroke starts when the longest one has finished (shorter ones wait, full). */
+function svPrep(multi){
+  const FORCE=curvesAreForce();
+  let secs=[];
+  if(multi){
+    const many=new Set(curveGroups.map(g=>g.sessionIdx)).size>1;
+    curveGroups.forEach(g=>{const x=svSec(g.strokes||[],g.color,g.label+(many&&g.sessionLabel?' '+g.sessionLabel:''),FORCE);if(x)secs.push(x);});
+    if(secs.length<2){toast('Pin 2 or more sections with stroke curves first');return null;}
+  }else{
+    const r=(typeof _selAbsRange==='function')?_selAbsRange():null;
+    const src=r?ST.slice(r[0],r[1]+1):(curveGroups.length===1?curveGroups[0].strokes:null);
+    if(!src){toast('Drag across the stroke chart to select the section first',3500);return null;}
+    const x=svSec(src,SV_ACC,'',FORCE);
+    if(!x||x.n<3){toast('No stroke curves in this section - select a longer section');return null;}
+    secs=[x];
+  }
+  const K=Math.max(...secs.map(x=>x.n)),stepT=[],stepD=[];let acc=0;
+  for(let k=0;k<K;k++){const d=Math.max(...secs.filter(x=>x.n>k).map(x=>x.per[k]));stepT.push(acc);stepD.push(d);acc+=d;}
+  const vals=[];secs.forEach(x=>x.strokes.forEach(s=>s.curve.forEach(v=>{if(isFinite(v))vals.push(v);})));
+  let lo=svPct(vals,0.01),hi=svPct(vals,0.99);
+  if(FORCE){const need=Math.max(hi*1.08,200),st=need<=400?100:need<=1000?200:need<=1600?250:500;lo=0;hi=Math.ceil(need/st)*st;}
+  else{const p=(hi-lo)*0.12||1;lo-=p;hi+=p;}
   const ses=SESSIONS[activeSessionIdx]||{};
   const st=_lastSum&&_lastSum.start_time?new Date(_lastSum.start_time):null;
   const date=st&&!isNaN(st)?st.toLocaleDateString('en-AU',{day:'numeric',month:'short',year:'numeric'}):'';
-  return {strokes,n,sT,per,drw,span,avg,lo,hi,FORCE,pace,rate,df,hasP:pace.some(v=>v!=null),hasR:rate.some(v=>v!=null),label:ses.label||'Session',date};
+  const one=secs[0];
+  return {secs,multi:secs.length>1,K,stepT,stepD,span:acc,lo,hi,FORCE,
+    pace:one.pace,rate:one.rate,hasP:!multi&&one.pace.some(v=>v!=null),hasR:!multi&&one.rate.some(v=>v!=null),
+    n:K,label:ses.label||'Session',date};
 }
-function svLayout(W,H){
-  const mn=Math.min(W,H),m=Math.round(mn*0.03),hdrH=Math.round(mn*0.17),stripH=Math.round(H*(H>W?0.22:0.24));
+function svLayout(W,H,D){
+  const mn=Math.min(W,H),m=Math.round(mn*0.03);
+  if(D&&D.multi){const rowH=Math.round(mn*0.058),hdrH=Math.round(m+mn*0.03+mn*0.03+rowH*D.secs.length);return {mn,m,hdrH,rowH,strip:null,curve:{x:m,y:hdrH+m*0.4,w:W-2*m,h:H-hdrH-m*1.4}};}
+  const hdrH=Math.round(mn*0.17),stripH=Math.round(H*(H>W?0.22:0.24));
   const strip={x:m,y:H-stripH-m,w:W-2*m,h:stripH};
   const curve={x:m,y:hdrH+m*0.4,w:W-2*m,h:strip.y-hdrH-m*1.4};
   return {mn,m,hdrH,strip,curve};
@@ -22089,8 +22111,9 @@ function svLayout(W,H){
 function svFrame(ctx,W,H,lay,D,p,dur){
   const RR=K.rvRR, F=K.RV_FONT||'Inter,-apple-system,sans-serif', mn=lay.mn, t=p*D.span;
   const bg=ctx.createLinearGradient(0,0,0,H);bg.addColorStop(0,'#071222');bg.addColorStop(1,'#0d1f38');ctx.fillStyle=bg;ctx.fillRect(0,0,W,H);
-  const i=svBis(D.sT,t), ph=Math.max(0,Math.min(1,(t-D.sT[i])/D.drw[i]));
-  const s=D.strokes[i];
+  const k=svBis(D.stepT,t), u=t-D.stepT[k];
+  /* per section: stroke index shown and how far it has drawn */
+  const st=D.secs.map(x=>{if(k<x.n)return {i:k,ph:Math.max(0,Math.min(1,u/x.drw[k])),done:false};return {i:x.n-1,ph:1,done:true};});
   /* header */
   ctx.textBaseline='alphabetic';ctx.textAlign='left';
   const fT=Math.round(mn*0.03);
@@ -22100,41 +22123,66 @@ function svFrame(ctx,W,H,lay,D,p,dur){
   let ttl=D.label+(D.date?'  ·  '+D.date:'');
   while(ttl.length>4&&ctx.measureText(ttl).width>W-2*lay.m-bw)ttl=ttl.slice(0,-2);
   ctx.fillText(ttl,lay.m+bw,lay.m+fT);
-  const cols=[['PACE '+paceULabel()+(_cwS()?' (WATER)':''),D.pace[i]!=null?fmtPaceU(D.pace[i]):'—',SV_PACE],['RATE',D.rate[i]!=null?Math.round(D.rate[i]).toString():'—',SV_RATE],['STROKE',(i+1)+'/'+D.n,'#fff'],['TIME',fmtTime(Math.floor(t/1000)),'#fff']];
-  const cw=(W-2*lay.m)/4,fL=Math.round(mn*0.021),fV=Math.round(mn*0.062),vy=lay.m+fT+fL+lay.m*0.6;
-  cols.forEach((c,k)=>{const x=lay.m+k*cw;ctx.font='700 '+fL+'px '+F;ctx.fillStyle='rgba(255,255,255,.7)';ctx.fillText(c[0],x,vy);ctx.font='700 '+fV+'px '+F;ctx.fillStyle=c[2];ctx.fillText(c[1],x,vy+fV*1.02);});
+  const fL=Math.round(mn*0.021);
+  if(!D.multi){
+    const x=D.secs[0],i=st[0].i;
+    const cols=[['PACE '+paceULabel()+(_cwS()?' (WATER)':''),x.pace[i]!=null?fmtPaceU(x.pace[i]):'—',SV_PACE],['RATE',x.rate[i]!=null?Math.round(x.rate[i]).toString():'—',SV_RATE],['STROKE',(i+1)+'/'+x.n,'#fff'],['TIME',fmtTime(Math.floor(t/1000)),'#fff']];
+    const cw=(W-2*lay.m)/4,fV=Math.round(mn*0.062),vy=lay.m+fT+fL+lay.m*0.6;
+    cols.forEach((c,j)=>{const xx=lay.m+j*cw;ctx.font='700 '+fL+'px '+F;ctx.fillStyle='rgba(255,255,255,.7)';ctx.fillText(c[0],xx,vy);ctx.font='700 '+fV+'px '+F;ctx.fillStyle=c[2];ctx.fillText(c[1],xx,vy+fV*1.02);});
+  }else{
+    /* one row per section: name, pace, rate, stroke */
+    const cw=(W-2*lay.m)/4,y0=lay.m+fT+fL+lay.m*0.5,fV=Math.round(lay.rowH*0.62);
+    ctx.font='700 '+fL+'px '+F;ctx.fillStyle='rgba(255,255,255,.7)';
+    ['SECTION','PACE '+paceULabel()+(_cwS()?' (WATER)':''),'RATE','STROKE'].forEach((h,j)=>ctx.fillText(h,lay.m+j*cw,y0));
+    D.secs.forEach((x,r)=>{const i=st[r].i,yy=y0+lay.rowH*(r+1)-lay.rowH*0.22;
+      ctx.globalAlpha=st[r].done?0.45:1;
+      ctx.fillStyle=x.color;ctx.beginPath();ctx.arc(lay.m+fV*0.35,yy-fV*0.33,fV*0.3,0,Math.PI*2);ctx.fill();
+      ctx.font='700 '+fV+'px '+F;
+      let nm=x.label;while(nm.length>2&&ctx.measureText(nm).width>cw-fV*1.1)nm=nm.slice(0,-1);
+      ctx.fillText(nm,lay.m+fV*0.9,yy);
+      ctx.fillStyle='#fff';ctx.fillText(x.pace[i]!=null?fmtPaceU(x.pace[i]):'—',lay.m+cw,yy);
+      ctx.fillText(x.rate[i]!=null?Math.round(x.rate[i]).toString():'—',lay.m+2*cw,yy);
+      ctx.fillText((i+1)+'/'+x.n,lay.m+3*cw,yy);
+      ctx.globalAlpha=1;});
+  }
   /* curve panel */
   const C=lay.curve;
   ctx.fillStyle='rgba(4,10,22,.80)';if(RR){RR(ctx,C.x,C.y,C.w,C.h,mn*0.03);ctx.fill();}else ctx.fillRect(C.x,C.y,C.w,C.h);
   const pad=Math.round(mn*0.03),fA=Math.round(mn*0.02),axW=fA*3.2;
   const px=C.x+pad+axW,pw=C.w-2*pad-axW,top=C.y+pad+fA*2,bot=C.y+C.h-pad-fA*2.2,phH=bot-top;
   const X=f=>px+f*pw, Y=v=>top+phH-((Math.max(D.lo,Math.min(D.hi,v))-D.lo)/((D.hi-D.lo)||1))*phH;
-  ctx.font='700 '+fA+'px '+F;ctx.textAlign='left';ctx.fillStyle=SV_ACC;
-  ctx.fillText(D.FORCE?'● Handle force (N)':'● Boat acceleration (m/s²)',C.x+pad,C.y+pad+fA);
-  ctx.fillStyle=SV_AVG;ctx.textAlign='right';ctx.fillText('- - section average   ×'+(D.span/1000/dur>1.05?Math.round(D.span/1000/dur):1)+' speed',C.x+C.w-pad,C.y+pad+fA);
-  /* grid */
+  ctx.font='700 '+fA+'px '+F;ctx.textAlign='left';ctx.fillStyle=D.multi?'#fff':SV_ACC;
+  ctx.fillText((D.multi?'':'● ')+(D.FORCE?'Handle force (N)':'Boat acceleration (m/s²)'),C.x+pad,C.y+pad+fA);
+  ctx.fillStyle=SV_AVG;ctx.textAlign='right';ctx.fillText((D.multi?'- - section averages · catches synced   ':'- - section average   ')+'×'+(D.span/1000/dur>1.05?Math.round(D.span/1000/dur):1)+' speed',C.x+C.w-pad,C.y+pad+fA);
   const step=D.FORCE?(D.hi<=400?100:D.hi<=1000?200:D.hi<=1600?250:500):(()=>{const r=D.hi-D.lo;return r>12?4:r>6?2:1;})();
   ctx.lineWidth=1;ctx.textAlign='right';ctx.font='600 '+fA+'px '+F;
   for(let v=Math.ceil(D.lo/step)*step;v<=D.hi;v+=step){const y=Y(v);ctx.strokeStyle=v===0?'rgba(255,255,255,.45)':'rgba(255,255,255,.10)';ctx.beginPath();ctx.moveTo(px,y);ctx.lineTo(px+pw,y);ctx.stroke();ctx.fillStyle='rgba(255,255,255,.7)';ctx.fillText(String(v),px-8,y+fA*0.35);}
   ctx.textAlign='center';ctx.fillStyle='rgba(255,255,255,.7)';
   ctx.fillText('Catch',X(0)+fA*1.6,bot+fA*1.6);ctx.fillText(D.FORCE?'Finish':'Catch',X(1)-fA*1.6,bot+fA*1.6);
-  const fr=D.df[i];
-  if(!D.FORCE&&fr!=null){ctx.setLineDash([6,6]);ctx.strokeStyle='rgba(255,255,255,.35)';ctx.beginPath();ctx.moveTo(X(fr),top);ctx.lineTo(X(fr),bot);ctx.stroke();ctx.setLineDash([]);ctx.fillText('Finish',X(fr),bot+fA*1.6);}
-  const path=(arr,upto)=>{const last=Math.max(1,Math.round(upto*(CURVE_POINTS-1)));ctx.beginPath();for(let k=0;k<=last;k++){const x=X(k/(CURVE_POINTS-1)),y=Y(arr[k]);k?ctx.lineTo(x,y):ctx.moveTo(x,y);}return last;};
+  if(!D.multi){const fr=D.secs[0].df[st[0].i];if(!D.FORCE&&fr!=null){ctx.setLineDash([6,6]);ctx.strokeStyle='rgba(255,255,255,.35)';ctx.beginPath();ctx.moveTo(X(fr),top);ctx.lineTo(X(fr),bot);ctx.stroke();ctx.setLineDash([]);ctx.fillText('Finish',X(fr),bot+fA*1.6);}}
+  const path=(arr,upto)=>{const last=Math.max(1,Math.round(upto*(CURVE_POINTS-1)));ctx.beginPath();for(let q=0;q<=last;q++){const x=X(q/(CURVE_POINTS-1)),y=Y(arr[q]);q?ctx.lineTo(x,y):ctx.moveTo(x,y);}return last;};
   ctx.lineJoin='round';ctx.lineCap='round';
-  /* section average */
-  ctx.setLineDash([10,8]);ctx.strokeStyle=SV_AVG;ctx.lineWidth=Math.max(2,mn/420);path(D.avg,1);ctx.stroke();ctx.setLineDash([]);
-  /* the last strokes, fading */
-  for(let k=3;k>=1;k--){const j=i-k;if(j<0)continue;ctx.globalAlpha=0.10+0.10*(3-k);ctx.strokeStyle=SV_ACC;ctx.lineWidth=Math.max(2,mn/360);path(D.strokes[j].curve,1);ctx.stroke();}
+  const thin=Math.max(2,mn/(D.multi?380:420)), thick=Math.max(D.multi?4:5,mn/(D.multi?210:170));
+  /* averages */
+  ctx.setLineDash([10,8]);ctx.lineWidth=thin;
+  D.secs.forEach(x=>{ctx.globalAlpha=D.multi?0.45:1;ctx.strokeStyle=D.multi?x.color:SV_AVG;path(x.avg,1);ctx.stroke();});
+  ctx.setLineDash([]);ctx.globalAlpha=1;
+  /* fading trail: 3 strokes alone, 1 when stacked */
+  D.secs.forEach((x,r)=>{const tr=D.multi?1:3;for(let j=tr;j>=1;j--){const q=st[r].i-j;if(q<0||st[r].done)continue;ctx.globalAlpha=D.multi?0.18:0.10+0.10*(3-j);ctx.strokeStyle=x.color;ctx.lineWidth=thin;path(x.strokes[q].curve,1);ctx.stroke();}});
   ctx.globalAlpha=1;
-  /* this stroke, drawing through */
-  const last=path(s.curve,ph);
-  ctx.save();ctx.shadowColor=SV_ACC;ctx.shadowBlur=mn*0.02;ctx.strokeStyle=SV_ACC;ctx.lineWidth=Math.max(5,mn/170);ctx.stroke();ctx.restore();
-  const y0=Y(D.FORCE?0:Math.max(D.lo,Math.min(D.hi,0)));
-  path(s.curve,ph);ctx.lineTo(X(last/(CURVE_POINTS-1)),y0);ctx.lineTo(X(0),y0);ctx.closePath();ctx.globalAlpha=0.16;ctx.fillStyle=SV_ACC;ctx.fill();ctx.globalAlpha=1;
-  ctx.fillStyle='#fff';ctx.beginPath();ctx.arc(X(last/(CURVE_POINTS-1)),Y(s.curve[last]),mn*0.011,0,Math.PI*2);ctx.fill();
-  /* pace / rate strips over the section */
-  const S=lay.strip;
+  /* the strokes drawing through */
+  D.secs.forEach((x,r)=>{
+    const s=x.strokes[st[r].i],ph=st[r].ph;
+    ctx.globalAlpha=st[r].done?0.4:1;
+    const last=path(s.curve,ph);
+    ctx.save();ctx.shadowColor=x.color;ctx.shadowBlur=st[r].done?0:mn*0.02;ctx.strokeStyle=x.color;ctx.lineWidth=thick;ctx.stroke();ctx.restore();
+    if(!D.multi){const y0=Y(D.FORCE?0:Math.max(D.lo,Math.min(D.hi,0)));path(s.curve,ph);ctx.lineTo(X(last/(CURVE_POINTS-1)),y0);ctx.lineTo(X(0),y0);ctx.closePath();ctx.globalAlpha=0.16;ctx.fillStyle=x.color;ctx.fill();}
+    if(!st[r].done){ctx.globalAlpha=1;ctx.fillStyle=D.multi?x.color:'#fff';ctx.beginPath();ctx.arc(X(last/(CURVE_POINTS-1)),Y(s.curve[last]),mn*(D.multi?0.009:0.011),0,Math.PI*2);ctx.fill();if(D.multi){ctx.strokeStyle='#fff';ctx.lineWidth=2;ctx.stroke();}}
+    ctx.globalAlpha=1;
+  });
+  if(D.multi){ctx.textAlign='center';ctx.font='600 '+fA+'px '+F;ctx.fillStyle='rgba(255,255,255,.5)';ctx.fillText('boatrun.au',C.x+C.w/2,C.y+C.h-pad*0.5);return;}
+  /* pace / rate strips over the section (single section only) */
+  const S=lay.strip,x0=D.secs[0],i0=st[0].i;
   ctx.fillStyle='rgba(4,10,22,.80)';if(RR){RR(ctx,S.x,S.y,S.w,S.h,mn*0.03);ctx.fill();}else ctx.fillRect(S.x,S.y,S.w,S.h);
   const spx=S.x+pad+axW,spw=S.w-2*pad-axW,stop=S.y+pad+fA*1.8,gap=fA*2.4,sbot=S.y+S.h-pad-fA*1.6,sh=(sbot-stop-gap)/2;
   ctx.font='700 '+fA+'px '+F;ctx.textAlign='left';
@@ -22145,18 +22193,20 @@ function svFrame(ctx,W,H,lay,D,p,dur){
     const SY=v=>py+sh-((Math.max(Math.min(lo,hi),Math.min(Math.max(lo,hi),v))-lo)/((hi-lo)||1))*sh;
     ctx.strokeStyle='rgba(255,255,255,.10)';ctx.lineWidth=1;ctx.textAlign='right';ctx.font='600 '+fA+'px '+F;ctx.fillStyle=col;
     ticks.forEach(v=>{const y=SY(v);ctx.beginPath();ctx.moveTo(spx,y);ctx.lineTo(spx+spw,y);ctx.stroke();ctx.fillText(fmt(v),spx-6,y+fA*0.35);});
-    const pth=()=>{ctx.beginPath();arr.forEach((v,k)=>{const x=SX(D.sT[k]),y=SY(v);k?ctx.lineTo(x,y):ctx.moveTo(x,y);});};
+    const pth=()=>{ctx.beginPath();arr.forEach((v,q)=>{const x=SX(D.stepT[q]),y=SY(v);q?ctx.lineTo(x,y):ctx.moveTo(x,y);});};
     ctx.lineWidth=Math.max(3,mn/300);ctx.strokeStyle=col;ctx.globalAlpha=0.28;pth();ctx.stroke();
     ctx.save();ctx.beginPath();ctx.rect(spx-4,py-10,SX(t)-spx+4,sh+20);ctx.clip();ctx.globalAlpha=1;pth();ctx.stroke();ctx.restore();ctx.globalAlpha=1;
-    if(arr[i]!=null){ctx.fillStyle=col;ctx.beginPath();ctx.arc(SX(t),SY(arr[i]),mn*0.008,0,Math.PI*2);ctx.fill();}
+    if(arr[i0]!=null){ctx.fillStyle=col;ctx.beginPath();ctx.arc(SX(t),SY(arr[i0]),mn*0.008,0,Math.PI*2);ctx.fill();}
   };
-  if(D.hasP)strip(D.pace,stop,300,60,[300,180,60],v=>fmtPaceU(v,true),SV_PACE);
-  if(D.hasR)strip(D.rate,stop+sh+gap,0,50,[0,25,50],v=>String(v),SV_RATE);
+  if(D.hasP)strip(x0.pace,stop,300,60,[300,180,60],v=>fmtPaceU(v,true),SV_PACE);
+  if(D.hasR)strip(x0.rate,stop+sh+gap,0,50,[0,25,50],v=>String(v),SV_RATE);
   ctx.strokeStyle='rgba(255,255,255,.9)';ctx.lineWidth=2;ctx.beginPath();ctx.moveTo(SX(t),stop-6);ctx.lineTo(SX(t),sbot+6);ctx.stroke();
   ctx.textAlign='center';ctx.font='600 '+fA+'px '+F;ctx.fillStyle='rgba(255,255,255,.5)';ctx.fillText('boatrun.au',spx+spw/2,S.y+S.h-pad*0.6);
 }
 window.svOpenExport=function(){
-  const D=svPrep();if(!D)return;
+  const canMulti=curveGroups.filter(g=>(g.strokes||[]).some(s=>s&&Array.isArray(s.curve))).length>=2;
+  const hasSel=!!((typeof _selAbsRange==='function')&&_selAbsRange());
+  let D=svPrep(canMulti&&!hasSel);if(!D)return;
   const mime=K.rvMime?K.rvMime():'';
   if(!mime||!HTMLCanvasElement.prototype.captureStream){toast('This browser cannot record video - try Chrome or Safari');return;}
   document.getElementById('_sv_modal')?.remove();
@@ -22165,12 +22215,13 @@ window.svOpenExport=function(){
   const pn=document.createElement('div');
   pn.style.cssText='background:var(--s1);color:var(--text);border-radius:14px;max-width:560px;width:100%;max-height:94vh;overflow:auto;padding:14px 16px;box-sizing:border-box;';
   const sel='font-size:12px;';
-  const real=Math.max(3,Math.round(D.span/1000));
-  const lens=[10,15,20,30,60].filter(v=>v<real);
+  const lenOpts=()=>{const real=Math.max(3,Math.round(D.span/1000)),lens=[10,15,20,30,60].filter(v=>v<real);
+    return lens.map((v,k)=>'<option value="'+v+'"'+((v===15||(k===lens.length-1&&lens.indexOf(15)<0))?' selected':'')+'>'+v+' s</option>').join('')+'<option value="'+real+'"'+(lens.length?'':' selected')+'>Real time ('+fmtTime(real)+')</option>';};
+  const srcSel=canMulti?'<select id="_sv_src" style="'+sel+'"><option value="1"'+(D.multi?' selected':'')+'>Pinned sections stacked ('+curveGroups.length+')</option><option value="0"'+(D.multi?'':' selected')+'>'+(hasSel?'Selected section':'First pinned section')+'</option></select>':'';
   pn.innerHTML='<div style="display:flex;align-items:center;gap:8px;margin-bottom:10px;"><b style="font-size:14px;">Stroke video</b><span id="_sv_info" style="font-size:11px;color:var(--muted);"></span><button class="hbtn" id="_sv_close" style="margin-left:auto;font-size:11px;">Close</button></div>'
     +'<div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:10px;align-items:center;">'
-    +'<select id="_sv_fmt" style="'+sel+'"><option value="portrait">Portrait 9:16</option><option value="landscape">Landscape 16:9</option><option value="square">Square 1:1</option></select>'
-    +'<select id="_sv_len" style="'+sel+'">'+lens.map((v,k)=>'<option value="'+v+'"'+((v===15||(k===lens.length-1&&lens.indexOf(15)<0))?' selected':'')+'>'+v+' s</option>').join('')+'<option value="'+real+'"'+(lens.length?'':' selected')+'>Real time ('+fmtTime(real)+')</option></select>'
+    +srcSel+'<select id="_sv_fmt" style="'+sel+'"><option value="portrait">Portrait 9:16</option><option value="landscape">Landscape 16:9</option><option value="square">Square 1:1</option></select>'
+    +'<select id="_sv_len" style="'+sel+'">'+lenOpts()+'</select>'
     +'<button class="dzbtn dzbtn-pri" id="_sv_go">Make video</button></div>'
     +'<div id="_sv_msg" style="font-size:11px;color:var(--muted);margin-bottom:8px;"></div>'
     +'<div style="text-align:center;"><canvas id="_sv_cv" style="max-width:100%;max-height:60vh;border-radius:10px;background:#000;"></canvas><video id="_sv_vid" controls playsinline style="display:none;max-width:100%;max-height:60vh;border-radius:10px;background:#000;"></video></div>'
@@ -22178,18 +22229,19 @@ window.svOpenExport=function(){
   ov.appendChild(pn);document.body.appendChild(ov);
   const $=id=>document.getElementById(id);
   const cv=$('_sv_cv'),ctx=cv.getContext('2d'),msg=$('_sv_msg');
-  $('_sv_info').textContent=D.n+' strokes · '+fmtTime(real);
+  const info=()=>{$('_sv_info').textContent=D.multi?D.secs.length+' sections · '+D.K+' strokes · '+fmtTime(Math.round(D.span/1000)):D.n+' strokes · '+fmtTime(Math.round(D.span/1000));};info();
   let W=0,H=0,lay=null,busy=false,rec=null,blob=null,url=null,gen=0;
   const close=()=>{gen++;try{if(rec&&rec.state!=='inactive')rec.stop();}catch(e){}if(url)URL.revokeObjectURL(url);ov.remove();};
   $('_sv_close').onclick=close;
   const resetOut=()=>{$('_sv_save').style.display='none';$('_sv_vid').style.display='none';cv.style.display='';if(url){URL.revokeObjectURL(url);url=null;}blob=null;};
-  const preview=()=>{const sz=(K.RV_SIZES||{portrait:[1080,1920],landscape:[1920,1080],square:[1080,1080]})[$('_sv_fmt').value];W=sz[0];H=sz[1];cv.width=W;cv.height=H;lay=svLayout(W,H);svFrame(ctx,W,H,lay,D,Math.min(1,(D.sT[Math.min(D.n-1,2)]+D.drw[Math.min(D.n-1,2)]*0.6)/D.span),+$('_sv_len').value);msg.textContent='Ready. Keep this tab open and on screen while it records.';};
+  const preview=()=>{const sz=(K.RV_SIZES||{portrait:[1080,1920],landscape:[1920,1080],square:[1080,1080]})[$('_sv_fmt').value];W=sz[0];H=sz[1];cv.width=W;cv.height=H;lay=svLayout(W,H,D);const k2=Math.min(D.K-1,2);svFrame(ctx,W,H,lay,D,Math.min(1,(D.stepT[k2]+D.stepD[k2]*0.6)/D.span),+$('_sv_len').value);msg.textContent='Ready. Keep this tab open and on screen while it records.';};
   (async()=>{try{if(document.fonts&&document.fonts.ready)await document.fonts.ready;}catch(e){}preview();})();
   $('_sv_fmt').onchange=()=>{if(!busy){resetOut();preview();}};
   $('_sv_len').onchange=()=>{if(!busy){resetOut();preview();}};
+  if($('_sv_src'))$('_sv_src').onchange=()=>{if(busy)return;const nd=svPrep($('_sv_src').value==='1');if(!nd){$('_sv_src').value=D.multi?'1':'0';return;}D=nd;$('_sv_len').innerHTML=lenOpts();info();resetOut();preview();};
   $('_sv_go').onclick=()=>{
     if(busy)return;
-    busy=true;$('_sv_go').disabled=true;$('_sv_fmt').disabled=true;$('_sv_len').disabled=true;resetOut();
+    busy=true;$('_sv_go').disabled=true;$('_sv_fmt').disabled=true;$('_sv_len').disabled=true;if($('_sv_src'))$('_sv_src').disabled=true;resetOut();
     const dur=+$('_sv_len').value,my=gen,chunks=[];
     let stream;
     try{stream=cv.captureStream(30);rec=new MediaRecorder(stream,{mimeType:mime,videoBitsPerSecond:10000000});}
@@ -22197,13 +22249,13 @@ window.svOpenExport=function(){
     rec.ondataavailable=e=>{if(e.data&&e.data.size)chunks.push(e.data);};
     rec.onstop=()=>{
       try{stream.getTracks().forEach(t=>t.stop());}catch(e){}
-      $('_sv_fmt').disabled=false;$('_sv_len').disabled=false;$('_sv_go').disabled=false;busy=false;
+      $('_sv_fmt').disabled=false;$('_sv_len').disabled=false;$('_sv_go').disabled=false;if($('_sv_src'))$('_sv_src').disabled=false;busy=false;
       if(my!==gen||!chunks.length)return;
       blob=new Blob(chunks,{type:mime.split(';')[0]});url=URL.createObjectURL(blob);
       const v=$('_sv_vid');v.src=url;v.style.display='';cv.style.display='none';
       $('_sv_save').style.display='flex';
       const ext=mime.indexOf('mp4')>=0?'mp4':'webm';
-      const fname='BoatRun_'+String(D.label).replace(/[^A-Za-z0-9_-]+/g,'_').slice(0,40)+'_strokes.'+ext;
+      const fname='BoatRun_'+String(D.label).replace(/[^A-Za-z0-9_-]+/g,'_').slice(0,40)+(D.multi?'_sections':'_strokes')+'.'+ext;
       const file=new File([blob],fname,{type:blob.type});
       let canSh=false;try{canSh=!!(navigator.canShare&&navigator.canShare({files:[file]}));}catch(e){}
       $('_sv_sh').style.display=canSh?'':'none';
