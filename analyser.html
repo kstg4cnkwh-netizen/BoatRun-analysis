@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
 <meta name="color-scheme" content="light dark"/>
-<meta name="br-build" content="Analyser_261125_09">
+<meta name="br-build" content="Analyser_261125_10">
 <title>BoatRun Analyser</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -22101,11 +22101,18 @@ function svPrep(multi){
     n:K,label:ses.label||'Session',date};
 }
 function svLayout(W,H,D){
-  const mn=Math.min(W,H),m=Math.round(mn*0.03);
-  if(D&&D.multi){const rowH=Math.round(mn*0.058),hdrH=Math.round(m+mn*0.03+mn*0.03+rowH*D.secs.length);return {mn,m,hdrH,rowH,strip:null,curve:{x:m,y:hdrH+m*0.4,w:W-2*m,h:H-hdrH-m*1.4}};}
-  const hdrH=Math.round(mn*0.17),stripH=Math.round(H*(H>W?0.22:0.24));
-  const strip={x:m,y:H-stripH-m,w:W-2*m,h:stripH};
-  const curve={x:m,y:hdrH+m*0.4,w:W-2*m,h:strip.y-hdrH-m*1.4};
+  /* 26 Nov: the curve panel is never taller than 0.8 x its width (portrait
+     stretched the curve), and the panels sit centred in the space left. */
+  const mn=Math.min(W,H),m=Math.round(mn*0.03),cw=W-2*m,maxC=Math.round(cw*0.8);
+  if(D&&D.multi){
+    const rowH=Math.round(mn*0.058),hdrH=Math.round(m+mn*0.03+mn*0.03+rowH*D.secs.length);
+    const avail=H-hdrH-m*1.4,ch=Math.min(avail,maxC),y=hdrH+m*0.4+(avail-ch)/2;
+    return {mn,m,hdrH,rowH,strip:null,curve:{x:m,y,w:cw,h:ch}};
+  }
+  const hdrH=Math.round(mn*0.17),stripH=Math.round(Math.min(H*(H>W?0.22:0.24),cw*0.45));
+  const avail=H-hdrH-m*0.4-m*2-stripH,ch=Math.min(avail,maxC),y=hdrH+m*0.4+(avail-ch)/2;
+  const curve={x:m,y,w:cw,h:ch};
+  const strip={x:m,y:y+ch+m,w:cw,h:stripH};
   return {mn,m,hdrH,strip,curve};
 }
 function svFrame(ctx,W,H,lay,D,p,dur){
